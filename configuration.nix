@@ -1,138 +1,171 @@
-# Edit this configuration file to define what should be installed on
-# your system.  Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running ‘nixos-help’).
-
 { config, pkgs, ... }:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+  imports = [ # Include the results of the hardware scan.
+    ./hardware-configuration.nix
+  ];
 
   # Use the systemd-boot EFI boot loader.
-  boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.systemd-boot.enable = true;
 
-  networking.hostName = "nyx"; # Define your hostname.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-  networking.networkmanager.enable = true;
+  system.autoUpgrade.enable = true;
+  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-22.05";
 
-  # Set your time zone.
+  networking = {
+    networkmanager.enable = true;
+    hostName = "nyx";
+
+    # Enables wireless support via wpa_supplicant.
+    # wireless.enable = true;
+  };
+
   time.timeZone = "America/Lima";
 
-  # The global useDHCP flag is deprecated, therefore explicitly set to false here.
-  # Per-interface useDHCP will be mandatory in the future, so this generated config
-  # replicates the default behaviour.
-  networking.useDHCP = false;
-  networking.interfaces.enp4s0.useDHCP = false;
-  networking.interfaces.wlp3s0.useDHCP = false;
-  networking.interfaces.wlan0.useDHCP = false;
+  networking = {
+    firewall.enable = false;
+    useDHCP = false;
 
-  networking.firewall.enable = false;
+    interfaces = {
+      enp4s0.useDHCP = false;
+      wlp3s0.useDHCP = false;
+      wlan0.useDHCP = false;
+    };
+  };
 
-  # Configure network proxy if necessary
-  # networking.proxy.default = "http://user:password@proxy:port/";
-  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
-  # Select internationalisation properties.
-  i18n.defaultLocale = "es-PE.UTF-8";
+  i18n.defaultLocale = "es_PE.UTF-8";
   console = {
     font = "Lat2-Terminus16";
     keyMap = "es";
   };
 
-  # Enable the X11 windowing system.
-  services.xserver.enable = true;
+  services.xserver = {
+    # Enable the X11 windowing system.
+    enable = true;
 
-  # Enable the Plasma 5 Desktop Environment.
-  services.xserver.displayManager.sddm.enable = true;
-  services.xserver.desktopManager.plasma5.enable = true;
-  
-  # Configure keymap in X11
-  services.xserver.layout = "latam";
-  # services.xserver.xkbOptions = "eurosign:e";
+    # Configure keymap in X11
+    layout = "latam";
 
-  # Enable CUPS to print documents.
-  # services.printing.enable = true;
+    # Enable the Plasma 5 Desktop Environment.
+    displayManager.sddm.enable = true;
+    desktopManager.plasma5.enable = true;
+  };
 
-  # Enable sound.
   sound.enable = true;
-  hardware.pulseaudio.enable = true;
 
-  # Enable touchpad support (enabled default in most desktopManager).
-  services.xserver.libinput.enable = true;
+  hardware = {
+    pulseaudio.enable = true;
+    nvidia.package = config.boot.kernelPackages.nvidiaPackages.stable;
+    opengl.enable = true;
+  };
 
-  # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.luisnquin = {
     isNormalUser = true;
     shell = pkgs.zsh;
     # password = "";
+
     extraGroups = [ "wheel" "docker" ];
   };
 
   nixpkgs.config.allowUnfree = true;
-  
-  services.xserver.videoDrivers = [ "intel" "modesetting" ];
 
-  services.xserver.autorun = true;
   services.xserver.displayManager.startx.enable = true;
   services.xserver.desktopManager.xterm.enable = true;
 
-  hardware.opengl.enable = true;
-  hardware.nvidia.package = config.boot.kernelPackages.nvidiaPackages.stable;
+  services.xserver = {
+    autorun = true;
 
-  virtualisation.docker.enable = true;
+    videoDrivers = [ "intel" "modesetting" ];
 
-  # List packages installed in system profile. To search, run:
-  # $ nix search wget
+    # Enable touchpad support (enabled default in most desktopManager).
+    libinput.enable = true;
+  };
+
   environment.systemPackages = with pkgs; [
-    wget
+    # Work tools
+    golangci-lint
+    gcc
+
+    docker-compose
+    docker
+
+    python310
+
+    nixfmt
+    slack
+    git
+
+    nodejs-18_x
+    # npm
+
+    # Usual tools
     spotify
     discord
-    docker
-    docker-compose
-    dpkg
     vscode
-    slack
-    flatpak
-    golangci-lint
-    git
+
+    # Java
+    openjdk
+
+    # Private keys
+    openssh
+
+    # Elemental pkgs
+    binutils
+    gnumake
+    unzip
+    wget
+    dpkg
+    # cron
+    zip
     zsh
   ];
 
-  fonts.fonts = with pkgs; [
-    cascadia-code
-    jetbrains-mono
-  ];
+  fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
 
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
   programs.mtr.enable = true;
+
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;
   };
 
-  # List services that you want to enable:
+  /* programs.git = {
+       enable = true;
+       userName = "Luis Quiñones Requelme";
+       userEmail = "lpaandres2020@gmail.com";
+     ;
+  */
 
-  # Enable the OpenSSH daemon.
+  virtualisation.docker.enable = true;
+
   services.openssh.enable = true;
-  
-  # programs.go.enable = true;
-  programs.zsh.enable = true;
-  # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
 
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It‘s perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  # Before changing this value read the documentation for this option
-  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "22.05"; # Did you read the comment?
+  programs.zsh.enable = true;
+  # programs.go.enable = true;
+
+  environment.sessionVariables = rec {
+    # Go definitions
+    GOPRIVATE = "gitlab.com/wiserskills/";
+    PATH = "$GORROT:$GOPATH/bin:$PATH";
+    GO111MODULE = "on";
+  };
+
+  environment.interactiveShellInit = ''
+    alias dataserver='cd ~/go/src/gitlab.com/wiserskills/v3/dataserver'
+
+    alias playground='cd ~/workspace/playground'
+    alias projects='cd ~/workspace/projects'
+    alias tests='cd ~/workspace/tests'
+    alias workspace='cd ~/workspace'
+
+    alias edu='cd ~/.education'
+    alias work='cd ~/.work'
+    alias etc='cd ~/.etc'
+
+    alias open='xdg-open'
+    alias py='python3'
+  '';
+
+  system.stateVersion = "21.11";
 }
 
