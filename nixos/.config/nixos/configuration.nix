@@ -118,6 +118,7 @@
     unzip
     wget
     dpkg
+    tree
     # cron
     zip
     zsh
