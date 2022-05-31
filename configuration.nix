@@ -103,6 +103,9 @@
     discord
     vscode
 
+    # Dotfiles manager
+    stow
+
     # Java
     openjdk
 
