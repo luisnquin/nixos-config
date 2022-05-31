@@ -170,6 +170,15 @@
     alias py='python3'
   '';
 
+  systemd.services.batteryChargeThreshold = {
+    enable = true;
+    description = "Set the battery charge threshold";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = ''/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
+    };
+    wantedBy = [ "multi-user.target" ];
+  };
+
   system.stateVersion = "21.11";
 }
-
