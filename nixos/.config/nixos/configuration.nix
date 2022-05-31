@@ -176,6 +176,7 @@
     serviceConfig = {
       Type = "oneshot";
       ExecStart = ''/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
+      Restart = "on-failure";
     };
     wantedBy = [ "multi-user.target" ];
   };
