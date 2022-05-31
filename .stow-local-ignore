@@ -1,0 +1,4 @@
+\.git
+misc
+#LICENSE
+^/.*\.org
