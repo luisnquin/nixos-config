@@ -23,7 +23,12 @@
   time.timeZone = "America/Lima";
 
   networking = {
-    firewall.enable = false;
+    firewall = {
+      enable = true;
+      allowedTCPPorts = [ 80 443 8000 8080 ];
+    };
+
+    enableIPv6 = true;
     useDHCP = false;
 
     interfaces = {
@@ -86,10 +91,13 @@
     golangci-lint
     gcc
 
+    redoc-cli
+
     docker-compose
     docker
 
     python310
+    virtualenv
 
     nixfmt
     slack
@@ -133,12 +141,11 @@
     enableSSHSupport = true;
   };
 
-  /* programs.git = {
-       enable = true;
-       userName = "Luis Quiñones Requelme";
-       userEmail = "lpaandres2020@gmail.com";
-     ;
-  */
+  # programs.git = {
+  #   enable = true;
+  #   userName = "Luis Quiñones Requelme";
+  #   userEmail = "lpaandres2020@gmail.com";
+  # };
 
   virtualisation.docker.enable = true;
 
@@ -175,8 +182,8 @@
     description = "Set the battery charge threshold";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = ''/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
-      Restart = "on-failure";
+      ExecStart = ''${pkgs.bash}/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
+      ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
     };
     wantedBy = [ "multi-user.target" ];
   };
