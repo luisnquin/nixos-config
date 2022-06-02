@@ -87,42 +87,32 @@
   };
 
   environment.systemPackages = with pkgs; [
-    # Work tools
     golangci-lint
     gcc
-
-    redoc-cli
-
-    docker-compose
-    docker
 
     python310
     virtualenv
 
+    nodejs-18_x
+    #npm
+
+    docker-compose
+    docker
+
     nixfmt
-    slack
     git
 
-    nodejs-18_x
-    # npm
-
-    # Usual tools
     spotify
     discord
     vscode
+    slack
 
-    # Dotfiles manager
-    stow
-
-    # Java
-    openjdk
-
-    # Private keys
-    openssh
-
-    # Elemental pkgs
+    # etc
+    redoc-cli
     binutils
     gnumake
+    openjdk
+    openssh
     unzip
     wget
     dpkg
@@ -130,6 +120,7 @@
     # cron
     zip
     zsh
+    stow
   ];
 
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
@@ -141,18 +132,11 @@
     enableSSHSupport = true;
   };
 
-  # programs.git = {
-  #   enable = true;
-  #   userName = "Luis Quiñones Requelme";
-  #   userEmail = "lpaandres2020@gmail.com";
-  # };
-
   virtualisation.docker.enable = true;
 
   services.openssh.enable = true;
 
   programs.zsh.enable = true;
-  # programs.go.enable = true;
 
   environment.sessionVariables = rec {
     # Go definitions
@@ -182,7 +166,8 @@
     description = "Set the battery charge threshold";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = ''${pkgs.bash}/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
+      ExecStart = ''
+        ${pkgs.bash}/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
       ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
     };
     wantedBy = [ "multi-user.target" ];
