@@ -87,8 +87,9 @@
   };
 
   environment.systemPackages = with pkgs; [
-    golangci-lint
+    # golangci-lint
     gcc
+    tinygo
 
     python310
     virtualenv
@@ -98,6 +99,8 @@
 
     docker-compose
     docker
+
+    postgresql
 
     nixfmt
     git
