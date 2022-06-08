@@ -135,6 +135,12 @@
     enableSSHSupport = true;
   };
 
+  programs.tmux = {
+    enable = true;
+    clock24 = true;
+    newSession = true;
+  };
+
   virtualisation.docker.enable = true;
 
   services.openssh.enable = true;
