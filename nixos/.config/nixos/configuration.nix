@@ -120,10 +120,11 @@
     wget
     dpkg
     tree
+    stow
+    tmux
     # cron
     zip
     zsh
-    stow
   ];
 
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
