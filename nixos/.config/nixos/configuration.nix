@@ -10,7 +10,8 @@
   boot.loader.systemd-boot.enable = true;
 
   system.autoUpgrade.enable = true;
-  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-22.05";
+  system.autoUpgrade.allowReboot = true;
+  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-22.05";  
 
   networking = {
     networkmanager.enable = true;
