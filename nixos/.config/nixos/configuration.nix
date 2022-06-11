@@ -13,6 +13,14 @@
   boot.loader = {
     efi.canTouchEfiVariables = true;
     systemd-boot.enable = true;
+
+    grub = {
+      enable = true;
+      version = 2;
+      device = "nodev";
+      useOSProber = true;
+      efiSupport = true;
+    };
   };
 
   system.autoUpgrade = {
