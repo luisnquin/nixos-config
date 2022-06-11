@@ -5,28 +5,32 @@
     ./hardware-configuration.nix
   ];
 
-  # Use the systemd-boot EFI boot loader.
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.loader.systemd-boot.enable = true;
+  nixpkgs.config.allowUnfree = true;
 
-  system.autoUpgrade.enable = true;
-  system.autoUpgrade.allowReboot = true;
-  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-22.05";  
+  time.timeZone = "America/Lima";
+
+  # Use the systemd-boot EFI boot loader.
+  boot.loader = {
+    efi.canTouchEfiVariables = true;
+    systemd-boot.enable = true;
+  };
+
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = true;
+    channel = "https://nixos.org/channels/nixos-22.05";
+  };
 
   networking = {
     networkmanager.enable = true;
     hostName = "nyx";
 
-    # Enables wireless support via wpa_supplicant.
     # wireless.enable = true;
-  };
 
-  time.timeZone = "America/Lima";
-
-  networking = {
     firewall = {
       enable = true;
-      allowedTCPPorts = [ 80 443 8000 8080 ];
+      allowedTCPPorts = [ 80 443 ];
+      allowPing = false;
     };
 
     enableIPv6 = true;
@@ -61,34 +65,33 @@
 
   hardware = {
     pulseaudio.enable = true;
-    nvidia.package = config.boot.kernelPackages.nvidiaPackages.stable;
     opengl.enable = true;
+    # nvidia = {
+    #   package = config.boot.kernelPackages.nvidiaPackages.stable;
+    #   powerManagement.enable = true;
+    #   modesetting.enable = true;
+    # };
   };
 
   users.users.luisnquin = {
     isNormalUser = true;
+    home = "/home/luisnquin";
+    description = "Luis Quiñones";
     shell = pkgs.zsh;
-    # password = "";
 
     extraGroups = [ "wheel" "docker" ];
   };
-
-  nixpkgs.config.allowUnfree = true;
 
   services.xserver.displayManager.startx.enable = true;
   services.xserver.desktopManager.xterm.enable = true;
 
   services.xserver = {
     autorun = true;
-
     videoDrivers = [ "intel" "modesetting" ];
-
-    # Enable touchpad support (enabled default in most desktopManager).
     libinput.enable = true;
   };
 
   environment.systemPackages = with pkgs; [
-    # golangci-lint
     gcc
 
     python310
@@ -112,7 +115,6 @@
     vscode
     slack
 
-    # etc
     redoc-cli
     binutils
     gnumake
@@ -152,8 +154,10 @@
 
   programs.zsh.enable = true;
 
+  programs.sway.enable = true;
+  # xdg.portal.wlr.enable = true;
+
   environment.sessionVariables = rec {
-    # Go definitions
     GOPRIVATE = "gitlab.com/wiserskills/";
     PATH = "$GORROT:$GOPATH/bin:$PATH";
     GO111MODULE = "on";
