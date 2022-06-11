@@ -89,7 +89,6 @@
   environment.systemPackages = with pkgs; [
     # golangci-lint
     gcc
-    "g++"
 
     python310
     virtualenv
