@@ -20,6 +20,7 @@
       device = "nodev";
       useOSProber = true;
       efiSupport = true;
+      # extraConfig = "settheme=${pkgs.plasma5.breeze-grub}/grub/themes/breeze/theme.txt";
     };
   };
 
@@ -28,12 +29,20 @@
     allowReboot = true;
     channel = "https://nixos.org/channels/nixos-22.05";
   };
+  
+  security.sudo = {
+    enable = true;
+    wheelNeedsPassword = false;
+  };
 
   networking = {
+    # useNetworkd = true;
+    # dhcpcd.enable = false;
     networkmanager.enable = true;
     hostName = "nyx";
 
-    # wireless.enable = true;
+    wireless.enable = false;
+    # wireless.iwd.enable = true;
 
     firewall = {
       enable = true;
@@ -44,10 +53,13 @@
     enableIPv6 = true;
     useDHCP = false;
 
+    # interfaces.eth0.useDHCP = true;
+    # interfaces.wlan0.useDHCP = true; 
+
     interfaces = {
       enp4s0.useDHCP = false;
-      wlp3s0.useDHCP = false;
-      wlan0.useDHCP = false;
+     wlp3s0.useDHCP = false;
+     wlan0.useDHCP = false;
     };
   };
 
@@ -100,6 +112,8 @@
   };
 
   environment.systemPackages = with pkgs; [
+    go
+    # gopls 
     gcc
 
     python310
@@ -124,7 +138,8 @@
     slack
 
     redoc-cli
-    binutils
+    pre-commit
+    binutils    
     gnumake
     openjdk
     openssh
@@ -139,6 +154,7 @@
     # cron
     zip
     zsh
+    jq
   ];
 
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
@@ -154,15 +170,28 @@
     enable = true;
     clock24 = true;
     newSession = true;
+    historyLimit = 50000;
   };
 
   virtualisation.docker.enable = true;
 
   services.openssh.enable = true;
 
-  programs.zsh.enable = true;
+  programs.zsh = {
+    enable = true;
+    autosuggestions.enable = true;
+    enableCompletion = true;
+    syntaxHighlighting.enable = true;
+    # dotDir = ".config/zsh";
+    # plugins = [
+    #   {
+    #     name = "zsh-you-should-use";
+    #     src = pkgs.zsh-you-should-use;
+    #    }
+    # ];
+  };
 
-  programs.sway.enable = true;
+  # programs.sway.enable = true;
   # xdg.portal.wlr.enable = true;
 
   environment.sessionVariables = rec {
