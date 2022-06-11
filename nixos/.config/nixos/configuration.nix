@@ -97,6 +97,8 @@
     nodejs-18_x
     #npm
 
+    dart
+
     docker-compose
     docker
 
