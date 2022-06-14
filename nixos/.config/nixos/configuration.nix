@@ -9,6 +9,8 @@
 
   time.timeZone = "America/Lima";
 
+  fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
+
   # Use the systemd-boot EFI boot loader.
   boot.loader = {
     efi.canTouchEfiVariables = true;
@@ -23,6 +25,10 @@
       # extraConfig = "settheme=${pkgs.plasma5.breeze-grub}/grub/themes/breeze/theme.txt";
     };
   };
+
+  services.openssh.enable = true;
+  # xdg.portal.wlr.enable = true;
+  virtualisation.docker.enable = true;
 
   system.autoUpgrade = {
     enable = true;
@@ -70,13 +76,10 @@
   };
 
   services.xserver = {
-    # Enable the X11 windowing system.
     enable = true;
 
-    # Configure keymap in X11
     layout = "latam";
 
-    # Enable the Plasma 5 Desktop Environment.
     displayManager.sddm.enable = true;
     desktopManager.plasma5.enable = true;
   };
@@ -160,8 +163,6 @@
     jq
   ];
 
-  fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
-
   programs = {
     adb.enable = true;
     mtr.enable = true;
@@ -183,6 +184,7 @@
       autosuggestions.enable = true;
       enableCompletion = true;
       syntaxHighlighting.enable = true;
+      # sway.enable = true;
       # dotDir = ".config/zsh";
       # plugins = [
       #   {
@@ -191,36 +193,32 @@
       #    }
       # ];
     };
+
   };
 
-  virtualisation.docker.enable = true;
+  environment = {
+    sessionVariables = rec {
+      GOPRIVATE = "gitlab.com/wiserskills/";
+      PATH = "$GORROT:$GOPATH/bin:$PATH";
+      GO111MODULE = "on";
+    };
 
-  services.openssh.enable = true;
+    interactiveShellInit = ''
+      alias dataserver='cd ~/go/src/gitlab.com/wiserskills/v3/dataserver'
 
-  # programs.sway.enable = true;
-  # xdg.portal.wlr.enable = true;
+      alias playground='cd ~/workspace/playground'
+      alias projects='cd ~/workspace/projects'
+      alias tests='cd ~/workspace/tests'
+      alias workspace='cd ~/workspace'
 
-  environment.sessionVariables = rec {
-    GOPRIVATE = "gitlab.com/wiserskills/";
-    PATH = "$GORROT:$GOPATH/bin:$PATH";
-    GO111MODULE = "on";
+      alias edu='cd ~/.education'
+      alias work='cd ~/.work'
+      alias etc='cd ~/.etc'
+
+      alias open='xdg-open'
+      alias py='python3'
+    '';
   };
-
-  environment.interactiveShellInit = ''
-    alias dataserver='cd ~/go/src/gitlab.com/wiserskills/v3/dataserver'
-
-    alias playground='cd ~/workspace/playground'
-    alias projects='cd ~/workspace/projects'
-    alias tests='cd ~/workspace/tests'
-    alias workspace='cd ~/workspace'
-
-    alias edu='cd ~/.education'
-    alias work='cd ~/.work'
-    alias etc='cd ~/.etc'
-
-    alias open='xdg-open'
-    alias py='python3'
-  '';
 
   systemd.services.batteryChargeThreshold = {
     enable = true;
