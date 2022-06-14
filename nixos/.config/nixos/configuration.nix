@@ -29,7 +29,7 @@
     allowReboot = true;
     channel = "https://nixos.org/channels/nixos-22.05";
   };
-  
+
   security.sudo = {
     enable = true;
     wheelNeedsPassword = false;
@@ -58,8 +58,8 @@
 
     interfaces = {
       enp4s0.useDHCP = false;
-     wlp3s0.useDHCP = false;
-     wlan0.useDHCP = false;
+      wlp3s0.useDHCP = false;
+      wlan0.useDHCP = false;
     };
   };
 
@@ -142,7 +142,7 @@
 
     redoc-cli
     pre-commit
-    binutils    
+    binutils
     gnumake
     openjdk
     openssh
@@ -162,39 +162,40 @@
 
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
 
-  programs.mtr.enable = true;
-  
-  programs.adb.enable = true;
+  programs = {
+    adb.enable = true;
+    mtr.enable = true;
 
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
-  };
+    tmux = {
+      enable = true;
+      clock24 = true;
+      newSession = true;
+      historyLimit = 50000;
+    };
 
-  programs.tmux = {
-    enable = true;
-    clock24 = true;
-    newSession = true;
-    historyLimit = 50000;
+    gnupg.agent = {
+      enable = true;
+      enableSSHSupport = true;
+    };
+
+    zsh = {
+      enable = true;
+      autosuggestions.enable = true;
+      enableCompletion = true;
+      syntaxHighlighting.enable = true;
+      # dotDir = ".config/zsh";
+      # plugins = [
+      #   {
+      #     name = "zsh-you-should-use";
+      #     src = pkgs.zsh-you-should-use;
+      #    }
+      # ];
+    };
   };
 
   virtualisation.docker.enable = true;
 
   services.openssh.enable = true;
-
-  programs.zsh = {
-    enable = true;
-    autosuggestions.enable = true;
-    enableCompletion = true;
-    syntaxHighlighting.enable = true;
-    # dotDir = ".config/zsh";
-    # plugins = [
-    #   {
-    #     name = "zsh-you-should-use";
-    #     src = pkgs.zsh-you-should-use;
-    #    }
-    # ];
-  };
 
   # programs.sway.enable = true;
   # xdg.portal.wlr.enable = true;
