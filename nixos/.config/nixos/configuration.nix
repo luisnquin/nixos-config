@@ -99,7 +99,7 @@
     description = "Luis Quiñones";
     shell = pkgs.zsh;
 
-    extraGroups = [ "wheel" "docker" ];
+    extraGroups = [ "wheel" "docker" "adbusers" ];
   };
 
   services.xserver.displayManager.startx.enable = true;
@@ -122,6 +122,8 @@
     nodejs-18_x
     #npm
 
+    # Android development
+    android-tools
     flutter
     dart
 
@@ -161,6 +163,8 @@
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
 
   programs.mtr.enable = true;
+  
+  programs.adb.enable = true;
 
   programs.gnupg.agent = {
     enable = true;
