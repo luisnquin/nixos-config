@@ -122,6 +122,7 @@
     nodejs-18_x
     #npm
 
+    flutter
     dart
 
     docker-compose
