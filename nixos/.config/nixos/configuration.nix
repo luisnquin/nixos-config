@@ -9,7 +9,7 @@
 
   time.timeZone = "America/Lima";
 
-  fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono ];
+  fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono nerdfonts ];
 
   # Use the systemd-boot EFI boot loader.
   boot.loader = {
