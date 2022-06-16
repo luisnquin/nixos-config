@@ -52,8 +52,9 @@
 
     firewall = {
       enable = true;
-      allowedTCPPorts = [ 80 443 ];
+      allowedTCPPorts = [ 20 80 443 8088 ];
       allowPing = false;
+      trustedInterfaces = [ "docker0" ];
     };
 
     enableIPv6 = true;
