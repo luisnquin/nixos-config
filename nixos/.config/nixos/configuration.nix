@@ -125,6 +125,8 @@
 
     apps = with pkgs; [ spotify discord vscode slack ];
 
+    otherApps = with pkgs; [ fragments ];
+
     etc = with pkgs; [
       redoc-cli
       pre-commit
@@ -141,7 +143,7 @@
   environment.systemPackages = with pkgs;
     [ binutils gnumake openssh unzip wget dpkg tree bat zip jq ]
     ++ driver.python ++ driver.go ++ driver.node ++ driver.androidDev
-    ++ driver.docker ++ driver.apps ++ driver.etc;
+    ++ driver.docker ++ driver.apps ++ driver.otherApps ++ driver.etc;
 
   programs = {
     adb.enable = true;
