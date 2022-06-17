@@ -113,38 +113,39 @@
     libinput.enable = true;
   };
 
-  driver = {
-    python = with pkgs; [ python310 virtualenv ];
-
-    go = with pkgs; [ go gopls gcc ];
-
-    node = with pkgs; [ nodejs-18_x ];
-
-    androidDev = with pkgs; [ android-tools flutter dart ];
-
-    docker = with pkgs; [ docker docker-compose ];
-
-    apps = with pkgs; [ spotify discord vscode slack ];
-
-    otherApps = with pkgs; [ fragments ];
-
-    etc = with pkgs; [
-      redoc-cli
-      pre-commit
-      openjdk
-      nixfmt
-      sass
-      stow
-      tmux
-      git
-      zsh
-    ];
-  };
-
   environment.systemPackages = with pkgs;
-    [ binutils gnumake openssh unzip wget dpkg tree bat zip jq ]
-    ++ driver.python ++ driver.go ++ driver.node ++ driver.androidDev
-    ++ driver.docker ++ driver.apps ++ driver.otherApps ++ driver.etc;
+    let
+      set = {
+        python = with pkgs; [ python310 virtualenv ];
+
+        go = with pkgs; [ go gopls gcc ];
+
+        node = with pkgs; [ nodejs-18_x ];
+
+        android = with pkgs; [ android-tools flutter dart ];
+
+        docker = with pkgs; [ docker docker-compose ];
+
+        apps = with pkgs; [ spotify discord vscode slack ];
+
+        otherApps = with pkgs; [ fragments ];
+
+        etc = with pkgs; [
+          redoc-cli
+          pre-commit
+          openjdk
+          nixfmt
+          sass
+          stow
+          tmux
+          git
+          zsh
+        ];
+      };
+
+    in [ binutils gnumake openssh unzip wget dpkg tree bat zip jq ]
+    ++ set.python ++ set.go ++ set.node ++ set.android ++ set.docker ++ set.apps
+    ++ set.otherApps ++ set.etc;
 
   programs = {
     adb.enable = true;
