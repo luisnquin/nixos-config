@@ -1,9 +1,7 @@
 { config, pkgs, ... }:
 
 {
-  imports = [ # Include the results of the hardware scan.
-    ./hardware-configuration.nix
-  ];
+  imports = [ ./hardware-configuration.nix ];
 
   nixpkgs.config.allowUnfree = true;
 
@@ -11,7 +9,6 @@
 
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono nerdfonts ];
 
-  # Use the systemd-boot EFI boot loader.
   boot.loader = {
     efi.canTouchEfiVariables = true;
     systemd-boot.enable = true;
@@ -50,13 +47,6 @@
     wireless.enable = false;
     # wireless.iwd.enable = true;
 
-    firewall = {
-      enable = true;
-      allowedTCPPorts = [ 20 80 443 8088 ];
-      allowPing = false;
-      trustedInterfaces = [ "docker0" ];
-    };
-
     enableIPv6 = true;
     useDHCP = false;
 
@@ -67,6 +57,13 @@
       enp4s0.useDHCP = false;
       wlp3s0.useDHCP = false;
       wlan0.useDHCP = false;
+    };
+
+    firewall = {
+      enable = true;
+      allowedTCPPorts = [ 20 80 443 8088 ];
+      allowPing = false;
+      trustedInterfaces = [ "docker0" ];
     };
   };
 
@@ -115,54 +112,36 @@
     libinput.enable = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    go
-    # gopls 
-    gcc
+  driver = {
+    python = with pkgs; [ python310 virtualenv ];
 
-    python310
-    virtualenv
+    go = with pkgs; [ go gopls gcc ];
 
-    nodejs-18_x
-    #npm
+    node = with pkgs; [ nodejs-18_x ];
 
-    # Android development
-    android-tools
-    flutter
-    dart
+    androidDev = with pkgs; [ android-tools flutter dart ];
 
-    docker-compose
-    docker
+    docker = with pkgs; [ docker docker-compose ];
 
-    postgresql
+    apps = with pkgs; [ spotify discord vscode slack ];
 
-    nixfmt
-    git
+    etc = with pkgs; [
+      redoc-cli
+      pre-commit
+      openjdk
+      nixfmt
+      sass
+      stow
+      tmux
+      git
+      zsh
+    ];
+  };
 
-    spotify
-    discord
-    vscode
-    slack
-
-    redoc-cli
-    pre-commit
-    binutils
-    gnumake
-    openjdk
-    openssh
-    unzip
-    sass
-    wget
-    dpkg
-    tree
-    stow
-    tmux
-    bat
-    # cron
-    zip
-    zsh
-    jq
-  ];
+  environment.systemPackages = with pkgs;
+    [ binutils gnumake openssh unzip wget dpkg tree bat zip jq ]
+    ++ driver.python ++ driver.go ++ driver.node ++ driver.androidDev
+    ++ driver.docker ++ driver.apps ++ driver.etc;
 
   programs = {
     adb.enable = true;
