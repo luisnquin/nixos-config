@@ -9,18 +9,22 @@
 
   fonts.fonts = with pkgs; [ cascadia-code jetbrains-mono nerdfonts ];
 
-  boot.loader = {
-    efi.canTouchEfiVariables = true;
-    systemd-boot.enable = true;
+  boot = {
+    loader = {
+      efi.canTouchEfiVariables = true;
+      systemd-boot.enable = true;
 
-    grub = {
-      enable = true;
-      version = 2;
-      device = "nodev";
-      useOSProber = true;
-      efiSupport = true;
-      # extraConfig = "settheme=${pkgs.plasma5.breeze-grub}/grub/themes/breeze/theme.txt";
+      grub = {
+        enable = true;
+        version = 2;
+        device = "nodev";
+        useOSProber = true;
+        efiSupport = true;
+        # extraConfig = "settheme=${pkgs.plasma5.breeze-grub}/grub/themes/breeze/theme.txt";
+      };
     };
+
+    supportedFilesystems = [ "ntfs" ];
   };
 
   services.openssh.enable = true;
@@ -45,18 +49,15 @@
     hostName = "nyx";
 
     wireless.enable = false;
-    # wireless.iwd.enable = true;
+    wireless.iwd.enable = true;
 
     enableIPv6 = true;
     useDHCP = false;
 
-    # interfaces.eth0.useDHCP = true;
-    # interfaces.wlan0.useDHCP = true; 
-
     interfaces = {
-      enp4s0.useDHCP = false;
-      wlp3s0.useDHCP = false;
-      wlan0.useDHCP = false;
+      enp4s0.useDHCP = true;
+      wlp3s0.useDHCP = true;
+      wlan0.useDHCP = true;
     };
 
     firewall = {
@@ -116,7 +117,11 @@
   environment.systemPackages = with pkgs;
     let
       set = {
-        python = with pkgs; [ python310 virtualenv ];
+        python = with pkgs; [
+          python310
+          virtualenv
+          jetbrains.pycharm-community
+        ];
 
         go = with pkgs; [ go gopls gcc ];
 
@@ -124,15 +129,17 @@
 
         android = with pkgs; [ android-tools flutter dart ];
 
+        db = with pkgs; [ postgresql ];
+
         docker = with pkgs; [ docker docker-compose ];
 
         apps = with pkgs; [ spotify discord vscode slack ];
 
         otherApps = with pkgs; [ fragments ];
 
-        etc = with pkgs; [
-          redoc-cli
+        utils = with pkgs; [
           pre-commit
+          redoc-cli
           openjdk
           nixfmt
           sass
@@ -143,9 +150,21 @@
         ];
       };
 
-    in [ binutils gnumake openssh unzip wget dpkg tree bat zip jq ]
-    ++ set.python ++ set.go ++ set.node ++ set.android ++ set.docker ++ set.apps
-    ++ set.otherApps ++ set.etc;
+    in [
+      binutils
+      gnumake
+      openssh
+      unzip
+      wget
+      dpkg
+      tree
+      bat
+      zip
+      jq
+      ntfs3g
+      exfat-utils
+    ] ++ set.python ++ set.go ++ set.node ++ set.android ++ set.db ++ set.docker
+    ++ set.apps ++ set.otherApps ++ set.utils;
 
   programs = {
     adb.enable = true;
@@ -177,7 +196,6 @@
       #    }
       # ];
     };
-
   };
 
   environment = {
@@ -204,16 +222,31 @@
     '';
   };
 
-  systemd.services.batteryChargeThreshold = {
-    enable = true;
-    description = "Set the battery charge threshold";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = ''${pkgs.bash}/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
-      ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
+  systemd.services = {
+    batteryChargeThreshold = {
+      enable = true;
+      description = "Set the battery charge threshold";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = ''
+          ${pkgs.bash}/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
+        ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
+      };
+      wantedBy = [ "multi-user.target" ];
     };
-    wantedBy = [ "multi-user.target" ];
+
+    numLockDisabled = {
+      enable = true;
+      description = "Disable numlock by default";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart =
+          ''${pkgs.bash}/bin/bash -c "${pkgs.numlockx}/bin/numlockx on"'';
+        ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
+      };
+      wantedBy = [ "multi-user.target" ];
+    };
   };
 
-  system.stateVersion = "21.11";
+  system.stateVersion = "22.05";
 }
