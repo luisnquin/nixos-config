@@ -26,7 +26,8 @@
 
     supportedFilesystems = [ "ntfs" ];
   };
-
+  
+  services.gnome.gnome-keyring.enable = true;
   services.openssh.enable = true;
   # xdg.portal.wlr.enable = true;
   virtualisation.docker.enable = true;
