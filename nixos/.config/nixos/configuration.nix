@@ -26,7 +26,6 @@
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
-        # extraConfig = "settheme=${pkgs.plasma5.breeze-grub}/grub/themes/breeze/theme.txt";
       };
     };
 
@@ -105,7 +104,10 @@
       enable = true;
 
       displayManager = {
-        sddm.enable = true;
+        sddm = {
+          enable = true;
+          autoNumlock = true;
+        };
         startx.enable = true;
       };
 
@@ -240,17 +242,6 @@
       serviceConfig = {
         Type = "oneshot";
         ExecStart = ''${pkgs.bash}/bin/bash -c "echo 61 > /sys/class/power_supply/BAT1/charge_control_end_threshold"'';
-        ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
-      };
-      wantedBy = ["multi-user.target"];
-    };
-
-    numLockDisabled = {
-      enable = true;
-      description = "Disable numlock by default";
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = ''${pkgs.bash}/bin/bash -c "${pkgs.numlockx}/bin/numlockx on"'';
         ExecStop = ''${pkgs.bash}/bin/bash -c "exit 0"'';
       };
       wantedBy = ["multi-user.target"];
