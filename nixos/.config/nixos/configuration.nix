@@ -166,10 +166,12 @@
       gnumake
       openssh
       ntfs3g
+      neovim
       unzip
       wget
       dpkg
       tree
+      vim
       bat
       zip
       jq
@@ -193,12 +195,16 @@
       enable = true;
       clock24 = true;
       newSession = true;
-      historyLimit = 50000;
+      historyLimit = 1000000;
     };
 
     gnupg.agent = {
       enable = true;
       enableSSHSupport = true;
+    };
+
+    bash = {
+      enableCompletion = true;
     };
 
     zsh = {
