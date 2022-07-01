@@ -104,10 +104,8 @@
       enable = true;
 
       displayManager = {
-        sddm = {
-          enable = true;
-          autoNumlock = true;
-        };
+        # sddm.enable = true;
+        lightdm.enable = true;
         startx.enable = true;
       };
 
@@ -187,7 +185,7 @@
     ++ set.utils;
 
   programs = {
-    # sway.enable = true;
+    sway.enable = true;
     adb.enable = true;
     mtr.enable = true;
 
