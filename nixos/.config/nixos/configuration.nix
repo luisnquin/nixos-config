@@ -33,7 +33,7 @@
     supportedFilesystems = ["ntfs"];
   };
 
-  # xdg.portal.wlr.enable = true;
+  xdg.portal.wlr.enable = true;
   virtualisation = {
     docker.enable = true;
   };
@@ -50,22 +50,8 @@
   };
 
   networking = {
-    # useNetworkd = true;
-    # dhcpcd.enable = false;
     networkmanager.enable = true;
     hostName = "nyx";
-
-    wireless.enable = false;
-    wireless.iwd.enable = true;
-
-    enableIPv6 = true;
-    useDHCP = false;
-
-    interfaces = {
-      enp4s0.useDHCP = true;
-      wlp3s0.useDHCP = true;
-      wlan0.useDHCP = true;
-    };
 
     firewall = {
       enable = true;
@@ -185,6 +171,7 @@
     ++ set.utils;
 
   programs = {
+    sway.enable = true;
     adb.enable = true;
     mtr.enable = true;
 
@@ -206,7 +193,6 @@
       enableCompletion = true;
       syntaxHighlighting.enable = true;
     };
-    # sway.enable = true;
   };
 
   environment = {
