@@ -73,11 +73,16 @@
     pulseaudio.enable = true;
     opengl.enable = true;
 
-    # nvidia = {
-    #   package = config.boot.kernelPackages.nvidiaPackages.stable;
-    #   powerManagement.enable = true;
-    #   modesetting.enable = true;
-    # };
+    nvidia = {
+      package = config.boot.kernelPackages.nvidiaPackages.beta;
+      powerManagement.enable = true;
+      modesetting.enable = true;
+      prime = {
+        offload.enable = true;
+        intelBusId = "PCI:0:2:0";
+        nvidiaBusId = "PCI:1:0:0";
+      };
+    };
   };
 
   users.users.luisnquin = {
@@ -93,7 +98,7 @@
     gnome.gnome-keyring.enable = true;
     openssh.enable = true;
     xserver = {
-      videoDrivers = ["intel" "modesetting"];
+      videoDrivers = ["nvidia"];
       libinput.enable = true;
       layout = "latam";
       autorun = true;
@@ -145,8 +150,17 @@
         zsh
       ];
     };
+
+    nvidia-offload = pkgs.writeShellScriptBin "nvidia-offload" ''
+      export __NV_PRIME_RENDER_OFFLOAD=1
+      export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
+      export __GLX_VENDOR_LIBRARY_NAME=nvidia
+      export __VK_LAYER_NV_optimus=NVIDIA_only
+      exec "$@"
+    '';
   in
     [
+      nvidia-offload
       exfat-utils
       binutils
       gnumake
@@ -171,7 +185,7 @@
     ++ set.utils;
 
   programs = {
-    sway.enable = true;
+    # sway.enable = true;
     adb.enable = true;
     mtr.enable = true;
 
