@@ -223,7 +223,9 @@
     };
 
     interactiveShellInit = ''
-      alias dataserver='cd ~/go/src/gitlab.com/wiserskills/v3/dataserver'
+      alias dataserver='cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/dataserver'
+      alias datamigrator='cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/data-migrator'
+      alias models='cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/models'
 
       alias playground='cd ~/workspace/playground'
       alias projects='cd ~/workspace/projects'
