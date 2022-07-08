@@ -146,6 +146,7 @@
         sass
         stow
         tmux
+        unar
         git
         zsh
       ];
@@ -217,7 +218,7 @@
 
   environment = {
     sessionVariables = rec {
-      GOPRIVATE = "gitlab.com/wiserskills/";
+      GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$GORROT:$GOPATH/bin:$PATH";
       GO111MODULE = "on";
     };
