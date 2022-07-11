@@ -124,7 +124,7 @@
         jetbrains.pycharm-community
       ];
 
-      go = with pkgs; [go gopls gcc vgo2nix];
+      go = with pkgs; [go gopls gofumpt gcc vgo2nix];
 
       node = with pkgs; [nodejs-18_x];
 
