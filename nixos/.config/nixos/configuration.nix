@@ -18,7 +18,6 @@
   boot = {
     loader = {
       efi.canTouchEfiVariables = true;
-      systemd-boot.enable = true;
 
       grub = {
         enable = true;
@@ -139,10 +138,12 @@
       nixtools = with pkgs; [nixpkgs-fmt vscode-extensions.jnoortheen.nix-ide];
 
       utils = with pkgs; [
+        gnome.seahorse
         pre-commit
         redoc-cli
         openjdk
         nixfmt
+        shfmt
         sass
         stow
         tmux
@@ -162,13 +163,13 @@
   in
     [
       nvidia-offload
-      exfat-utils
       binutils
       gnumake
       openssh
       ntfs3g
       neovim
       unzip
+      exfat
       wget
       dpkg
       tree
