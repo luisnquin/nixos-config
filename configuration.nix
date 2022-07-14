@@ -135,18 +135,15 @@
 
       apps = with pkgs; [spotify discord vscode slack fragments];
 
-      nixtools = with pkgs; [nixpkgs-fmt vscode-extensions.jnoortheen.nix-ide];
+      nixTools = with pkgs; [nixpkgs-fmt nixfmt vscode-extensions.jnoortheen.nix-ide];
+
+      moreTools = with pkgs; [sqlc shfmt tmux redoc-cli pre-commit];
 
       utils = with pkgs; [
         gnome.seahorse
-        pre-commit
-        redoc-cli
         openjdk
-        nixfmt
-        shfmt
         sass
         stow
-        tmux
         unar
         git
         zsh
@@ -184,9 +181,10 @@
     ++ set.android
     ++ set.db
     ++ set.docker
-    ++ set.nixtools
+    ++ set.nixTools
     ++ set.apps
-    ++ set.utils;
+    ++ set.utils
+    ++ set.moreTools;
 
   programs = {
     sway.enable = true;
@@ -231,10 +229,7 @@
       alias projects='cd ~/workspace/projects'
       alias tests='cd ~/workspace/tests'
       alias workspace='cd ~/workspace'
-
-      alias edu='cd ~/.education'
-      alias work='cd ~/.work'
-      alias etc='cd ~/.etc'
+      alias etc='cd ~/.etc/'
 
       alias open='xdg-open'
       alias py='python3'
