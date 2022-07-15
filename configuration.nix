@@ -224,6 +224,7 @@
 
     interactiveShellInit = ''
       alias v3='cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3'
+      alias dot='cd ~/.dotfiles'
 
       alias playground='cd ~/workspace/playground'
       alias projects='cd ~/workspace/projects'
