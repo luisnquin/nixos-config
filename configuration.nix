@@ -104,7 +104,8 @@
 
       displayManager = {
         # sddm.enable = true;
-        lightdm.enable = true;
+        gdm.enable = true;
+	# lightdm.enable = true;
         startx.enable = true;
       };
 
