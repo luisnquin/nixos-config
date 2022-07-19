@@ -231,6 +231,7 @@
       alias workspace='cd ~/workspace'
       alias etc='cd ~/.etc/'
 
+      alias ale='alejandra'
       alias open='xdg-open'
       alias py='python3'
     '';

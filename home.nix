@@ -1,8 +1,8 @@
-{ pkgs, ...}: {
+{pkgs, ...}: {
   programs.git = {
     enable = true;
     userName = "luisnquin";
-    userEmail = "lpaandres2020@gmail.com"
+    userEmail = "lpaandres2020@gmail.com";
   };
 
   programs.bash = {
