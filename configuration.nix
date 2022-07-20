@@ -126,6 +126,8 @@
 
       node = with pkgs; [nodejs-18_x];
 
+      rust = with pkgs; [cargo rustc rustfmt];
+
       android = with pkgs; [android-tools flutter dart];
 
       db = with pkgs; [postgresql];
@@ -177,6 +179,7 @@
     ++ set.python
     ++ set.go
     ++ set.node
+    ++ set.rust
     ++ set.android
     ++ set.db
     ++ set.docker
