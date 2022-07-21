@@ -126,7 +126,7 @@
 
       node = with pkgs; [nodejs-18_x];
 
-      rust = with pkgs; [cargo rustc rustfmt];
+      rust = with pkgs; [cargo rustc rustfmt rustup];
 
       android = with pkgs; [android-tools flutter dart];
 
