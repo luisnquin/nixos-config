@@ -141,6 +141,7 @@
       moreTools = with pkgs; [sqlc shfmt tmux redoc-cli pre-commit];
 
       utils = with pkgs; [
+        nodePackages.firebase-tools
         gnome.seahorse
         openjdk
         sass
