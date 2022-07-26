@@ -132,7 +132,7 @@
 
       db = with pkgs; [postgresql];
 
-      docker = with pkgs; [docker docker-compose];
+      docker = with pkgs; [docker docker-compose minikube];
 
       kubernetes = with pkgs; [kubectl kubernetes];
 
