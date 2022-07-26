@@ -134,6 +134,8 @@
 
       docker = with pkgs; [docker docker-compose];
 
+      kubernetes = with pkgs; [kubectl kubernetes];
+
       apps = with pkgs; [spotify discord vscode slack fragments];
 
       nixTools = with pkgs; [nixpkgs-fmt nixfmt vscode-extensions.jnoortheen.nix-ide];
