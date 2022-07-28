@@ -120,11 +120,11 @@
     set = {
       nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra];
       apps = with pkgs; [spotify discord vscode slack fragments];
-      docker = with pkgs; [docker docker-compose minikube];
+      kubernetes = with pkgs; [kubectl kubernetes minikube];
       go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
       android = with pkgs; [android-tools flutter dart];
       rust = with pkgs; [cargo rustc rustup rustfmt];
-      kubernetes = with pkgs; [kubectl kubernetes];
+      docker = with pkgs; [docker docker-compose];
       python = with pkgs; [python310 virtualenv];
       node = with pkgs; [nodejs-18_x];
       db = with pkgs; [postgresql];
