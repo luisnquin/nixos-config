@@ -6,9 +6,9 @@
   imports = [./hardware-configuration.nix];
 
   nixpkgs.config = {
-    allowUnfree = true;
-    allowBroken = false;
     android_sdk.accept_license = true;
+    allowBroken = false;
+    allowUnfree = true;
   };
 
   time.timeZone = "America/Lima";
@@ -31,41 +31,11 @@
     supportedFilesystems = ["ntfs"];
   };
 
-  xdg.portal.wlr.enable = true;
-  virtualisation = {
-    docker.enable = true;
-  };
-
   system.autoUpgrade = {
     enable = true;
     allowReboot = true;
     channel = "https://nixos.org/channels/nixos-22.05";
   };
-
-  security.sudo = {
-    enable = true;
-    wheelNeedsPassword = false;
-  };
-
-  networking = {
-    networkmanager.enable = true;
-    hostName = "nyx";
-
-    firewall = {
-      enable = true;
-      allowedTCPPorts = [20 80 443 8088];
-      allowPing = false;
-      trustedInterfaces = ["docker0"];
-    };
-  };
-
-  i18n.defaultLocale = "es_PE.UTF-8";
-  console = {
-    font = "Lat2-Terminus16";
-    keyMap = "es";
-  };
-
-  sound.enable = true;
 
   hardware = {
     pulseaudio.enable = true;
@@ -83,13 +53,45 @@
     };
   };
 
-  users.users.luisnquin = {
-    isNormalUser = true;
-    home = "/home/luisnquin";
-    description = "Luis Quiñones";
-    shell = pkgs.zsh;
+  security.sudo = {
+    enable = true;
+    wheelNeedsPassword = false;
+  };
 
-    extraGroups = ["wheel" "docker" "adbusers"];
+  users = {
+    users.luisnquin = {
+      isNormalUser = true;
+      home = "/home/luisnquin";
+      description = "Luis Quiñones";
+      shell = pkgs.zsh;
+
+      extraGroups = ["wheel" "docker" "adbusers"];
+    };
+  };
+
+  networking = {
+    networkmanager.enable = true;
+    hostName = "nyx";
+
+    firewall = {
+      enable = true;
+      allowedTCPPorts = [20 80 443 8088];
+      allowPing = false;
+      trustedInterfaces = ["docker0"];
+    };
+  };
+
+  virtualisation = {
+    docker.enable = true;
+  };
+
+  i18n.defaultLocale = "es_PE.UTF-8";
+  xdg.portal.wlr.enable = true;
+  sound.enable = true;
+
+  console = {
+    font = "Lat2-Terminus16";
+    keyMap = "es";
   };
 
   services = {
@@ -116,41 +118,25 @@
 
   environment.systemPackages = with pkgs; let
     set = {
-      python = with pkgs; [
-        python310
-        virtualenv
-        jetbrains.pycharm-community
-      ];
-
-      go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
-
-      node = with pkgs; [nodejs-18_x];
-
-      rust = with pkgs; [cargo rustc rustfmt rustup];
-
-      android = with pkgs; [android-tools flutter dart];
-
-      db = with pkgs; [postgresql];
-
-      docker = with pkgs; [docker docker-compose minikube];
-
-      kubernetes = with pkgs; [kubectl kubernetes];
-
+      nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra];
       apps = with pkgs; [spotify discord vscode slack fragments];
-
-      nixTools = with pkgs; [nixpkgs-fmt nixfmt vscode-extensions.jnoortheen.nix-ide];
-
-      moreTools = with pkgs; [sqlc shfmt tmux redoc-cli pre-commit alejandra];
-
-      utils = with pkgs; [
+      docker = with pkgs; [docker docker-compose minikube];
+      go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
+      android = with pkgs; [android-tools flutter dart];
+      rust = with pkgs; [cargo rustc rustup rustfmt];
+      kubernetes = with pkgs; [kubectl kubernetes];
+      python = with pkgs; [python310 virtualenv];
+      node = with pkgs; [nodejs-18_x];
+      db = with pkgs; [postgresql];
+      dev = with pkgs; [
         nodePackages.firebase-tools
-        gnome.seahorse
-        openjdk
+        pre-commit
+        redoc-cli
+        shfmt
+        sqlc
+        tmux
         sass
-        stow
-        unar
         git
-        zsh
       ];
     };
 
@@ -163,8 +149,10 @@
     '';
   in
     [
+      gnome.seahorse
       nvidia-offload
       binutils
+      openjdk
       gnumake
       openssh
       ntfs3g
@@ -172,24 +160,26 @@
       unzip
       exfat
       wget
+      stow
       dpkg
       tree
+      unar
       vim
       bat
       zip
+      zsh
       jq
     ]
-    ++ set.python
-    ++ set.go
-    ++ set.node
-    ++ set.rust
     ++ set.android
-    ++ set.db
+    ++ set.python
     ++ set.docker
-    ++ set.nixTools
+    ++ set.node
     ++ set.apps
-    ++ set.utils
-    ++ set.moreTools;
+    ++ set.rust
+    ++ set.dev
+    ++ set.nix
+    ++ set.go
+    ++ set.db;
 
   programs = {
     sway.enable = true;
