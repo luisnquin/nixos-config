@@ -140,7 +140,7 @@
 
       nixTools = with pkgs; [nixpkgs-fmt nixfmt vscode-extensions.jnoortheen.nix-ide];
 
-      moreTools = with pkgs; [sqlc shfmt tmux redoc-cli pre-commit];
+      moreTools = with pkgs; [sqlc shfmt tmux redoc-cli pre-commit alejandra];
 
       utils = with pkgs; [
         nodePackages.firebase-tools
