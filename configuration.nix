@@ -18,6 +18,7 @@
   boot = {
     loader = {
       efi.canTouchEfiVariables = true;
+      cleanTmpDir = true;
 
       grub = {
         enable = true;
