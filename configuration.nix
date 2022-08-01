@@ -232,6 +232,7 @@
       alias ale='alejandra'
       alias open='xdg-open'
       alias py='python3'
+      alias cat='bat'
     '';
   };
 
