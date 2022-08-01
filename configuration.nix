@@ -132,7 +132,6 @@
       dev = with pkgs; [
         nodePackages.firebase-tools
         pre-commit
-        postcss-cli
         redoc-cli
         shfmt
         sqlc
