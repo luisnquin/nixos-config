@@ -119,7 +119,7 @@
 
   environment.systemPackages = with pkgs; let
     set = {
-      nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra];
+      nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
       apps = with pkgs; [spotify discord vscode slack fragments];
       kubernetes = with pkgs; [kubectl kubernetes minikube];
       go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
