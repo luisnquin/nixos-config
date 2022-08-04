@@ -18,7 +18,6 @@
   boot = {
     loader = {
       efi.canTouchEfiVariables = true;
-      cleanTmpDir = true;
 
       grub = {
         enable = true;
@@ -29,6 +28,7 @@
       };
     };
 
+    cleanTmpDir = true;
     supportedFilesystems = ["ntfs"];
   };
 
@@ -219,6 +219,7 @@
     };
 
     interactiveShellInit = ''
+      alias runds='rm -rf compose/nginx/env.json && make compose-up && make build && make run'
       alias v3='cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3'
       alias dot='cd ~/.dotfiles'
 
