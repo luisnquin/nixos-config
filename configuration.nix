@@ -13,7 +13,15 @@
 
   time.timeZone = "America/Lima";
 
-  fonts.fonts = with pkgs; [cascadia-code jetbrains-mono nerdfonts];
+  fonts = {
+    fonts = with pkgs; [
+      cascadia-code
+      jetbrains-mono
+      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
+    ];
+
+    fontDir.enable = true;
+  };
 
   boot = {
     loader = {
@@ -160,6 +168,7 @@
       neovim
       unzip
       exfat
+      xclip
       wget
       stow
       dpkg
@@ -229,10 +238,13 @@
       alias workspace='cd ~/workspace'
       alias etc='cd ~/.etc/'
 
+      alias xclip='xclip -selection c'
       alias ale='alejandra'
       alias open='xdg-open'
       alias py='python3'
       alias cat='bat'
+
+      tmux
     '';
   };
 
