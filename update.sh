@@ -1,6 +1,6 @@
 #!/usr/bin/sh
 
-# Improve introduction
+printf "Welcome, \033[1;34m%s\033[0m! ❄️❄️❄️\n\n" "$USER"
 
 
 configuration_devdirectory="$HOME/.dotfiles/"
@@ -9,22 +9,16 @@ configuration_proddirectory="/etc/nixos/"
 
 
 stat "$configuration_devfile" > /dev/null
-
 sudo cp "$configuration_devfile" "$configuration_proddirectory"
-
 sudo nixos-rebuild boot --upgrade --show-trace
 
 
-printf "\n\033[1;34mSuccessfully updated!\033[0m\n\nPress enter to continue"
-read -r
-
+printf "\n\033[1;34mSuccessfully updated!\033[0m\n\nPress enter to continue"; read -r
 clear
-
-echo "Do you want to reboot?(y/N)" # Mix this two lines
-read -r answer
+printf "Do you want to reboot?\033[1;33m(y/N)\033[0m "; read -r answer
 
 if [ "$answer" = "y" ] || [ "$answer" = "Y" ];
-then reboot
+then echo "Rebooting, you probably won't see this ❄️❄️❄️"; reboot
 else
     echo "Bye! ❄️❄️❄️"
 fi

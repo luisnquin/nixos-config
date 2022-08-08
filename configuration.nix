@@ -3,7 +3,10 @@
   pkgs,
   ...
 }: {
-  imports = [./hardware-configuration.nix];
+  imports = [
+    ./hardware-configuration.nix
+    # <home-manager/nixos>
+  ];
 
   nixpkgs.config = {
     android_sdk.accept_license = true;
@@ -24,23 +27,11 @@
       dates = ["13:00"];
     };
 
-    # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
     settings = {
+      # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
       auto-optimise-store = true;
-      max-jobs = "auto";
+      max-jobs = 4;
     };
-  };
-
-  time.timeZone = "America/Lima";
-
-  fonts = {
-    fonts = with pkgs; [
-      cascadia-code
-      jetbrains-mono
-      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
-    ];
-
-    fontDir.enable = true;
   };
 
   boot = {
@@ -56,11 +47,21 @@
       };
     };
 
+    /*
+     initrd.preLVMCommands = ''
+       echo '--- OWNERSHIP NOTICE ---'
+       echo 'This device is property of Luis Quiñones Requelme'
+       echo 'If lost please contact to lpaandres2020@gmail.com'
+       echo '--- OWNERSHIP NOTICE ---'
+     '';
+     */
+
     cleanTmpDir = true;
     supportedFilesystems = ["ntfs"];
   };
 
   hardware = {
+    enableRedistributableFirmware = true;
     opengl.enable = true;
 
     bluetooth = {
@@ -114,6 +115,23 @@
     };
   };
 
+  console = {
+    font = "Lat2-Terminus16";
+    keyMap = "es";
+  };
+
+  time.timeZone = "America/Lima";
+
+  fonts = {
+    fonts = with pkgs; [
+      cascadia-code
+      jetbrains-mono
+      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
+    ];
+
+    fontDir.enable = true;
+  };
+
   virtualisation = {
     docker = {
       enable = true;
@@ -129,14 +147,11 @@
   xdg.portal.wlr.enable = true;
   sound.enable = true;
 
-  console = {
-    font = "Lat2-Terminus16";
-    keyMap = "es";
-  };
-
   services = {
     gnome.gnome-keyring.enable = true;
+    thermald.enable = true;
     openssh.enable = true;
+
     xserver = {
       videoDrivers = ["nvidia"];
       libinput.enable = true;
@@ -156,72 +171,6 @@
     };
   };
 
-  environment.systemPackages = with pkgs; let
-    set = {
-      nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
-      apps = with pkgs; [spotify discord vscode slack fragments];
-      kubernetes = with pkgs; [kubectl kubernetes minikube];
-      go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
-      android = with pkgs; [android-tools flutter dart];
-      rust = with pkgs; [cargo rustc rustup rustfmt];
-      docker = with pkgs; [docker docker-compose];
-      python = with pkgs; [python310 virtualenv];
-      node = with pkgs; [nodejs-18_x];
-      db = with pkgs; [postgresql];
-      dev = with pkgs; [
-        nodePackages.firebase-tools
-        pre-commit
-        redoc-cli
-        shfmt
-        sqlc
-        tmux
-        sass
-        git
-      ];
-    };
-
-    nvidia-offload = pkgs.writeShellScriptBin "nvidia-offload" ''
-      export __NV_PRIME_RENDER_OFFLOAD=1
-      export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
-      export __GLX_VENDOR_LIBRARY_NAME=nvidia
-      export __VK_LAYER_NV_optimus=NVIDIA_only
-      exec "$@"
-    '';
-  in
-    [
-      gnome.seahorse
-      nvidia-offload
-      binutils
-      openjdk
-      gnumake
-      openssh
-      ntfs3g
-      neovim
-      unzip
-      exfat
-      xclip
-      wget
-      stow
-      dpkg
-      tree
-      unar
-      vim
-      bat
-      zip
-      zsh
-      jq
-    ]
-    ++ set.android
-    ++ set.python
-    ++ set.docker
-    ++ set.node
-    ++ set.apps
-    ++ set.rust
-    ++ set.dev
-    ++ set.nix
-    ++ set.go
-    ++ set.db;
-
   programs = {
     sway.enable = true;
     adb.enable = true;
@@ -233,7 +182,6 @@
       terminal = "xterm-256color";
       extraConfig = ''
         setw -g mouse on
-        set -g history-limit 1000000
         set -g window-status-separator ""
 
         set-option -ga terminal-overrides ",*256col*:Tc:RGB"
@@ -245,8 +193,8 @@
         set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
       '';
 
-      newSession = false;
       historyLimit = 1000000;
+      newSession = false;
     };
 
     /*
@@ -266,9 +214,8 @@
       enableSSHSupport = true;
     };
 
-    bash = {
-      enableCompletion = true;
-    };
+    # Consider starting to use 'fish' on a NixOS instance from scratch
+    # fish.enable = true;
 
     zsh = {
       enable = true;
@@ -298,6 +245,72 @@
   };
 
   environment = {
+    systemPackages = with pkgs; let
+      set = {
+        nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
+        apps = with pkgs; [spotify discord vscode slack fragments];
+        kubernetes = with pkgs; [kubectl kubernetes minikube];
+        go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
+        android = with pkgs; [android-tools flutter dart];
+        rust = with pkgs; [cargo rustc rustup rustfmt];
+        docker = with pkgs; [docker docker-compose];
+        python = with pkgs; [python310 virtualenv];
+        node = with pkgs; [nodejs-18_x];
+        db = with pkgs; [postgresql];
+        dev = with pkgs; [
+          nodePackages.firebase-tools
+          pre-commit
+          redoc-cli
+          shfmt
+          sqlc
+          tmux
+          sass
+          git
+        ];
+      };
+
+      nvidia-offload = pkgs.writeShellScriptBin "nvidia-offload" ''
+        export __NV_PRIME_RENDER_OFFLOAD=1
+        export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
+        export __GLX_VENDOR_LIBRARY_NAME=nvidia
+        export __VK_LAYER_NV_optimus=NVIDIA_only
+        exec "$@"
+      '';
+    in
+      [
+        gnome.seahorse
+        nvidia-offload
+        binutils
+        openjdk
+        gnumake
+        openssh
+        ntfs3g
+        neovim
+        unzip
+        exfat
+        xclip
+        wget
+        stow
+        dpkg
+        tree
+        unar
+        vim
+        bat
+        zip
+        zsh
+        jq
+      ]
+      ++ set.android
+      ++ set.python
+      ++ set.docker
+      ++ set.node
+      ++ set.apps
+      ++ set.rust
+      ++ set.dev
+      ++ set.nix
+      ++ set.go
+      ++ set.db;
+
     sessionVariables = rec {
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$GORROT:$GOPATH/bin:$PATH";
