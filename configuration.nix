@@ -234,6 +234,7 @@
       extraConfig = ''
         setw -g mouse on
         set -g history-limit 1000000
+        set -g window-status-separator ""
 
         set-option -ga terminal-overrides ",*256col*:Tc:RGB"
 
