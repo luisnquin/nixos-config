@@ -224,7 +224,6 @@
       syntaxHighlighting.enable = true;
 
       shellAliases = {
-        sysclean = "sudo nix-collect-garbage -d; and sudo nix-store --optimise";
         runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
         v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3";
         dot = "cd ~/.dotfiles";
@@ -290,7 +289,6 @@
         exfat
         xclip
         wget
-        stow
         dpkg
         tree
         unar
