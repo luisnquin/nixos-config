@@ -22,3 +22,5 @@ then echo "Rebooting, you probably won't see this ❄️❄️❄️"; reboot
 else
     echo "Bye! ❄️❄️❄️"
 fi
+
+# TODO: 1 to reboot, 2 to turn off and else to just end the script

@@ -198,7 +198,7 @@
     };
 
     /*
-     gnupg.nano = {
+     gnu.nano = {
        extraConfig = ''
          set titlecolor white,magenta
          set autoindent
