@@ -2,14 +2,10 @@
 
 printf "Welcome, \033[1;34m%s\033[0m! ❄️❄️❄️\n\n" "$USER"
 
-
 configuration_devdirectory="$HOME/.dotfiles/"
 configuration_devfile="${configuration_devdirectory}configuration.nix"
-configuration_proddirectory="/etc/nixos/"
-
 
 stat "$configuration_devfile" > /dev/null
-sudo cp "$configuration_devfile" "$configuration_proddirectory"
 sudo nixos-rebuild boot --upgrade --show-trace
 
 
