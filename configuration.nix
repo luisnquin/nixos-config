@@ -199,7 +199,13 @@
     tmux = {
       enable = true;
       clock24 = true;
-      newSession = true;
+      terminal = "xterm-256color";
+      extraConfig = ''
+        set-option -ga terminal-overrides ",*256col*:Tc:RGB"
+        setw -g mouse on
+      '';
+
+      newSession = false;
       historyLimit = 1000000;
     };
 
@@ -244,7 +250,7 @@
       alias py='python3'
       alias cat='bat'
 
-      tmux
+      if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] ; then exec tmux; fi
     '';
   };
 
