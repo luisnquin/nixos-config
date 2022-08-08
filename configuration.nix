@@ -249,7 +249,7 @@
     systemPackages = with pkgs; let
       set = {
         nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
-        apps = with pkgs; [spotify discord vscode slack fragments];
+        apps = with pkgs; [spotify discord vscode slack fragments brave];
         kubernetes = with pkgs; [kubectl kubernetes minikube];
         go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
         android = with pkgs; [android-tools flutter dart];
