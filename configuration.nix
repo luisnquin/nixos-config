@@ -64,10 +64,12 @@
     enableRedistributableFirmware = true;
     opengl.enable = true;
 
-    bluetooth = {
-      enable = false;
-      powerOnBoot = false;
-    };
+    /*
+     bluetooth = {
+       enable = false;
+       powerOnBoot = false;
+     };
+     */
 
     pulseaudio = {
       enable = true;
