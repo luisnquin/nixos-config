@@ -11,6 +11,26 @@
     allowUnfree = true;
   };
 
+  nix = {
+    # Garbage collector
+    gc = {
+      automatic = true;
+      dates = "13:00";
+    };
+
+    # Nix store
+    optimise = {
+      automatic = true;
+      dates = ["13:00"];
+    };
+
+    # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
+    settings = {
+      auto-optimise-store = true;
+      max-jobs = "auto";
+    };
+  };
+
   time.timeZone = "America/Lima";
 
   fonts = {
@@ -40,15 +60,18 @@
     supportedFilesystems = ["ntfs"];
   };
 
-  system.autoUpgrade = {
-    enable = true;
-    allowReboot = true;
-    channel = "https://nixos.org/channels/nixos-22.05";
-  };
-
   hardware = {
-    pulseaudio.enable = true;
     opengl.enable = true;
+
+    bluetooth = {
+      enable = false;
+      powerOnBoot = false;
+    };
+
+    pulseaudio = {
+      enable = true;
+      # package = pkgs.pulseaudioFull; Uncomment it in case of start using bluetooth
+    };
 
     nvidia = {
       package = config.boot.kernelPackages.nvidiaPackages.beta;
@@ -73,6 +96,7 @@
       home = "/home/luisnquin";
       description = "Luis Quiñones";
       shell = pkgs.zsh;
+      # ❄️
 
       extraGroups = ["wheel" "docker" "adbusers"];
     };
@@ -91,7 +115,14 @@
   };
 
   virtualisation = {
-    docker.enable = true;
+    docker = {
+      enable = true;
+
+      autoPrune = {
+        enable = true;
+        dates = "weekly";
+      };
+    };
   };
 
   i18n.defaultLocale = "es_PE.UTF-8";
@@ -201,13 +232,33 @@
       clock24 = true;
       terminal = "xterm-256color";
       extraConfig = ''
-        set-option -ga terminal-overrides ",*256col*:Tc:RGB"
         setw -g mouse on
+        set -g history-limit 1000000
+
+        set-option -ga terminal-overrides ",*256col*:Tc:RGB"
+
+        set -g status-bg black
+        set -g status-fg magenta
+
+        set -g status-left-length 40
+        set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
       '';
 
       newSession = false;
       historyLimit = 1000000;
     };
+
+    /*
+     gnupg.nano = {
+       extraConfig = ''
+         set titlecolor white,magenta
+         set autoindent
+         set tabsize 4
+         set atblanks
+         set zero
+       '';
+     };
+     */
 
     gnupg.agent = {
       enable = true;
@@ -220,9 +271,28 @@
 
     zsh = {
       enable = true;
-      autosuggestions.enable = true;
       enableCompletion = true;
+      autosuggestions.enable = true;
       syntaxHighlighting.enable = true;
+
+      shellAliases = {
+        sysclean = "sudo nix-collect-garbage -d; and sudo nix-store --optimise";
+        runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
+        v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3";
+        dot = "cd ~/.dotfiles";
+
+        playground = "cd ~/workspace/playground";
+        projects = "cd ~/workspace/projects";
+        tests = "cd ~/workspace/tests";
+        workspace = "cd ~/workspace";
+        etc = "cd ~/.etc/";
+
+        xclip = "xclip -selection c";
+        ale = "alejandra";
+        open = "xdg-open";
+        py = "python3";
+        cat = "bat -p";
+      };
     };
   };
 
@@ -233,23 +303,11 @@
       GO111MODULE = "on";
     };
 
+    variables = {
+      EDITOR = "nano";
+    };
+
     interactiveShellInit = ''
-      alias runds='rm -rf compose/nginx/env.json && make compose-up && make build && make run'
-      alias v3='cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3'
-      alias dot='cd ~/.dotfiles'
-
-      alias playground='cd ~/workspace/playground'
-      alias projects='cd ~/workspace/projects'
-      alias tests='cd ~/workspace/tests'
-      alias workspace='cd ~/workspace'
-      alias etc='cd ~/.etc/'
-
-      alias xclip='xclip -selection c'
-      alias ale='alejandra'
-      alias open='xdg-open'
-      alias py='python3'
-      alias cat='bat'
-
       if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] ; then exec tmux; fi
     '';
   };
@@ -267,5 +325,12 @@
     };
   };
 
-  system.stateVersion = "22.05";
+  system = {
+    stateVersion = "22.05";
+    autoUpgrade = {
+      enable = true;
+      allowReboot = true;
+      channel = "https://nixos.org/channels/nixos-22.05";
+    };
+  };
 }
