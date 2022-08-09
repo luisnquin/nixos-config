@@ -1,0 +1,18 @@
+{
+    "[shellscript]": {
+        "editor.defaultFormatter": "mkhl.shfmt",
+        "editor.formatOnPaste": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file",
+        "editor.formatOnType": false
+    },
+    "[nix]": {
+        "editor.defaultFormatter": "kamadorueda.alejandra",
+        "editor.formatOnSaveMode": "file",
+        "editor.formatOnPaste": false,
+        "editor.formatOnType": false,
+        "editor.formatOnSave": true,
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+    }
+}
