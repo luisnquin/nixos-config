@@ -1,12 +1,11 @@
 #!/usr/bin/sh
 
 main() {
+    set -e
+
     printf "Welcome, \033[1;34m%s\033[0m! ❄️❄️❄️\n\n" "$USER"
+    check_fs
 
-    configuration_devdirectory="$HOME/.dotfiles/"
-    configuration_devfile="${configuration_devdirectory}configuration.nix"
-
-    stat "$configuration_devfile" >/dev/null
     sudo nixos-rebuild boot --upgrade --show-trace
 
     printf "\n\033[1;34mSuccessfully updated!\033[0m\n\nPress enter to continue"
@@ -21,6 +20,16 @@ main() {
     else
         echo "Bye! ❄️❄️❄️"
     fi
+}
+
+check_fs() {
+    devdirectory="$HOME/.dotfiles/"
+
+    config_file="${devdirectory}configuration.nix"
+    hardware_file="${devdirectory}hardware-configuration.nix"
+
+    stat "$config_file" >/dev/null
+    stat "$hardware_file" >/dev/null
 }
 
 main
