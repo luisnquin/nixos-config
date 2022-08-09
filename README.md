@@ -2,9 +2,7 @@
 
 Installation:
 ```
-$ git clone https://github.com/luisnquin/nixos-config.git ~/.dotfiles/
-$ sudo ln -s ~/.dotfiles/* /etc/nixos/
-$ sudo nixos-rebuild switch
+$ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/master/init.sh)
 ```
 
 Manage updates with:
