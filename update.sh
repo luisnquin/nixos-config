@@ -1,5 +1,7 @@
 #!/usr/bin/sh
 
+# TODO: receive flags to restart or shutdown at the end
+
 main() {
     set -e
 
@@ -11,15 +13,8 @@ main() {
     printf "\n\033[1;34mSuccessfully updated!\033[0m\n\nPress enter to continue"
     read -r
     clear
-    printf "Do you want to reboot?\033[1;33m(y/N)\033[0m "
-    read -r answer
 
-    if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
-        echo "Rebooting, you probably won't see this ❄️❄️❄️"
-        reboot
-    else
-        echo "Bye! ❄️❄️❄️"
-    fi
+    end_menu
 }
 
 check_fs() {
@@ -32,6 +27,36 @@ check_fs() {
     stat "$hardware_file" >/dev/null
 }
 
-main
+wait_for() {
+    i=$1
+    while [ "$i" -gt 0 ]; do
+        printf "%s seconds left\n" "$i"
+        i=$((i - 1))
+        sleep 1
+    done
+}
 
-# TODO: 1 to reboot, 2 to turn off and else to just end the script
+end_menu() {
+    printf "Select an option:\n\t\033[0;34m1)\033[0m Turn Off\n\t\033[0;34m2)\033[0m Reboot\n\t\033[0;34m?)\033[0m Do nothing\nOption: "
+    read -r answer
+
+    case "$answer" in
+    "1")
+        printf "\n\033[0;35mTurning off\033[0m ❄️❄️❄️\n"
+        wait_for 5
+        poweroff
+        ;;
+    "2")
+        printf "\n\033[0;35mRebooting\033[0m ❄️❄️❄️\n"
+        wait_for 5
+        reboot
+        ;;
+    *)
+        printf "\nBye! ❄️❄️❄️"
+        exit 0
+        ;;
+    esac
+
+}
+
+main
