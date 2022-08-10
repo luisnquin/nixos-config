@@ -315,7 +315,7 @@
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$GORROT:$GOPATH/bin:$PATH";
       GO111MODULE = "on";
-      CGO_ENABLED = 0;
+      CGO_ENABLED = "0";
     };
 
     variables = {

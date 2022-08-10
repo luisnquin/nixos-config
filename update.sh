@@ -1,6 +1,26 @@
 #!/usr/bin/sh
 
+reboot=0
+turnoff=0
+
 # TODO: receive flags to restart or shutdown at the end
+# Flags parsing
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+    -r | --r | -reboot | --reboot) reboot=1 shift 1 ;;
+    -t | --t | -turnoff | --turnoff) turnoff=1 shift 1 ;;
+    -h | --h | -help | --help)
+        printf "sh %s [flags]\n\nFlags:\n-r, --reboot\tReboots the machine after the update\n-t, --turnoff\tPower off the machine after the update\n-h, --help\tHelp for the script\n" "$0"
+        shift 1
+        exit 0
+        ;;
+
+    -*)
+        printf "unknown option: %s\nRun 'sh %s --help' for usage\n" "$1" "$0" >&2
+        exit 1
+        ;;
+    esac
+done
 
 main() {
     set -e
@@ -9,6 +29,14 @@ main() {
     check_fs
 
     sudo nixos-rebuild boot --upgrade --show-trace
+
+    if [ "$reboot" = 1 ]; then
+        reboot
+        exit 0
+    elif [ "$turnoff" = 1 ]; then
+        poweroff
+        exit 0
+    fi
 
     printf "\n\033[1;34mSuccessfully updated!\033[0m\n\nPress enter to continue"
     read -r
@@ -52,7 +80,7 @@ end_menu() {
         reboot
         ;;
     *)
-        printf "\nBye! ❄️❄️❄️"
+        printf "\nBye! ❄️❄️❄️\n"
         exit 0
         ;;
     esac
