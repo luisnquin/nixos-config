@@ -2,13 +2,14 @@
 
 Installation:
 ```
-$ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/master/init.sh)
+$ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/master/scripts/init.sh)
 ```
 
-Manage updates with:
+Manage your machine with:
 ```
-$ sh update.sh
+$ nyx
 ```
+or another alias that you want to use.
 
 
 Based in:<br /><br />

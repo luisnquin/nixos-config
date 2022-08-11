@@ -236,6 +236,7 @@
         workspace = "cd ~/workspace";
         etc = "cd ~/.etc/";
 
+        nyx = "sh ~/.dotfiles/scripts/main.sh";
         xclip = "xclip -selection c";
         ale = "alejandra";
         open = "xdg-open";
@@ -315,6 +316,7 @@
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$GORROT:$GOPATH/bin:$PATH";
       GO111MODULE = "on";
+
       CGO_ENABLED = "0";
     };
 
