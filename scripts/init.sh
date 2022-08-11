@@ -11,7 +11,7 @@ main() {
 setup() {
     git clone https://github.com/luisnquin/nixos-config.git ~/.dotfiles/
     nixos-generate-config --show-hardware-config >~/.dotfiles/hardware-configuration.nix
-    sudo ln -s ~/.dotfiles/* /etc/nixos/
+    sudo ln -s ~/.dotfiles/* /etc/nixos/ # TODO: Improve giving just nix files/dirs
     sudo nixos-rebuild switch
 }
 

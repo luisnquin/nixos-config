@@ -5,11 +5,17 @@ Installation:
 $ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/master/scripts/init.sh)
 ```
 
-Manage your machine with:
+Manage updates with:
 ```
-$ nyx
+$ nyx update
 ```
-or another alias that you want to use.
+
+See usage with:
+```
+$ nyx --help
+```
+
+*Change the alias for the name of your machine in* `configuration.nix`.
 
 
 Based in:<br /><br />
