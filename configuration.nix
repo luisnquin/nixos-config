@@ -5,11 +5,9 @@
 }: {
   imports = [
     ./hardware-configuration.nix
-    # <home-manager/nixos>
   ];
 
   nixpkgs.config = {
-    android_sdk.accept_license = true;
     allowBroken = false;
     allowUnfree = true;
   };
@@ -64,12 +62,10 @@
     enableRedistributableFirmware = true;
     opengl.enable = true;
 
-    /*
-     bluetooth = {
-       enable = false;
-       powerOnBoot = false;
-     };
-     */
+    bluetooth = {
+      enable = false;
+      powerOnBoot = false;
+    };
 
     pulseaudio = {
       enable = true;
@@ -90,7 +86,7 @@
 
   security.sudo = {
     enable = true;
-    wheelNeedsPassword = false;
+    wheelNeedsPassword = true;
   };
 
   users = {
@@ -101,7 +97,10 @@
       shell = pkgs.zsh;
       # ❄️
 
-      extraGroups = ["wheel" "docker" "adbusers"];
+      extraGroups = [
+        "wheel"
+        "docker"
+      ];
     };
   };
 
@@ -137,7 +136,6 @@
   virtualisation = {
     docker = {
       enable = true;
-
       autoPrune = {
         enable = true;
         dates = "weekly";
@@ -175,7 +173,6 @@
 
   programs = {
     sway.enable = true;
-    adb.enable = true;
     mtr.enable = true;
 
     tmux = {
@@ -251,14 +248,13 @@
       set = {
         nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
         apps = with pkgs; [spotify discord vscode slack fragments brave];
-        kubernetes = with pkgs; [kubectl kubernetes minikube];
+        # kubernetes = with pkgs; [kubectl kubernetes minikube];
         go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
-        android = with pkgs; [android-tools flutter dart];
-        rust = with pkgs; [cargo rustc rustup rustfmt];
+        # rust = with pkgs; [cargo rustc rustup rustfmt];
         docker = with pkgs; [docker docker-compose];
         python = with pkgs; [python310 virtualenv];
         node = with pkgs; [nodejs-18_x];
-        db = with pkgs; [postgresql];
+        yard = with pkgs; [krita];
         dev = with pkgs; [
           nodePackages.firebase-tools
           pre-commit
@@ -266,7 +262,6 @@
           shfmt
           sqlc
           tmux
-          sass
           git
         ];
       };
@@ -301,22 +296,20 @@
         zsh
         jq
       ]
-      ++ set.android
+      # ++ set.kubernetes
       ++ set.python
       ++ set.docker
+      ++ set.yard
       ++ set.node
       ++ set.apps
-      ++ set.rust
+      # ++ set.rust
       ++ set.dev
       ++ set.nix
-      ++ set.go
-      ++ set.db;
+      ++ set.go;
 
     sessionVariables = rec {
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$GORROT:$GOPATH/bin:$PATH";
-      GO111MODULE = "on";
-
       CGO_ENABLED = "0";
     };
 
