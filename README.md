@@ -2,7 +2,7 @@
 
 Installation:
 ```
-$ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/master/scripts/init.sh)
+$ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/master/.scripts/init.sh)
 ```
 
 Manage updates with:
