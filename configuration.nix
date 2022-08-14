@@ -233,7 +233,7 @@
         workspace = "cd ~/workspace";
         etc = "cd ~/.etc/";
 
-        nyx = "sh ~/.dotfiles/scripts/main.sh";
+        nyx = "sh ~/.dotfiles/.scripts/main.sh";
         xclip = "xclip -selection c";
         ale = "alejandra";
         open = "xdg-open";
