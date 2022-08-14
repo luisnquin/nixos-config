@@ -4,14 +4,13 @@ main() {
     set -e
 
     check_fs
-
     setup
 }
 
 setup() {
     git clone https://github.com/luisnquin/nixos-config.git ~/.dotfiles/
     nixos-generate-config --show-hardware-config >~/.dotfiles/hardware-configuration.nix
-    sudo ln -s ~/.dotfiles/* /etc/nixos/ # TODO: Improve giving just nix files/dirs
+    sudo ln -sf ~/.dotfiles/* /etc/nixos/ # TODO: Improve giving just nix files/dirs
     sudo nixos-rebuild switch
 }
 
