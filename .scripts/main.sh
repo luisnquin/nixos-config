@@ -62,14 +62,18 @@ main() {
 
         # First we need to collect all and then show results
 
-        for file in $nix_files; do
-            changes=$(git diff --compact-summary "$file")
-            if [ "$changes" != "" ]; then
-                printf "\n%s\n\n" "$changes"
-            else
-                printf "no changes | %s\n" "${file##*/}"
-            fi
-        done
+        (
+            cd "$dotfiles_dir"
+
+            for file in $nix_files; do
+                changes=$(git diff --compact-summary "$file")
+                if [ "$changes" != "" ]; then
+                    printf "\n%s\n\n" "$changes"
+                else
+                    printf "no changes | %s\n" "${file##*/}"
+                fi
+            done
+        )
         ;;
     5) # Style
         (
