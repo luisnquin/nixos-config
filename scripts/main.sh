@@ -21,6 +21,8 @@ main() {
     1)
         # Update
         greet
+        check_syntax_errors
+
         ensure_symlinks
         sudo nixos-rebuild boot --upgrade --show-trace
         printf "\n\033[1;34mSuccessfully updated! ❄️❄️❄️\033[0m\n"
@@ -58,6 +60,8 @@ main() {
 
         nix_files=$(find "$dotfiles_dir" -type f -name "*.nix")
 
+        # First we need to collect all and then show results
+
         for file in $nix_files; do
             changes=$(git diff --compact-summary "$file")
             if [ "$changes" != "" ]; then
@@ -70,8 +74,7 @@ main() {
     5) # Style
         (
             cd "$dotfiles_dir"
-            result=$(alejandra ./*)
-            echo "$result"
+            alejandra ./* | head
         )
         ;;
     esac
@@ -83,6 +86,13 @@ main() {
         poweroff
         exit 0
     fi
+}
+
+check_syntax_errors() {
+    (
+        cd "$dotfiles_dir"
+        alejandra -cq ./*
+    )
 }
 
 greet() {
