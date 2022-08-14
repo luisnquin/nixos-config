@@ -308,7 +308,6 @@
       ++ set.go;
 
     sessionVariables = rec {
-      GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$GORROT:$GOPATH/bin:$PATH";
       CGO_ENABLED = "0";
     };
