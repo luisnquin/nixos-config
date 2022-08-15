@@ -224,13 +224,14 @@
 
       shellAliases = {
         runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
-        v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3";
-        dot = "cd ~/.dotfiles";
+        v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
+        kritapl = "cd ~/workspace/projects/illustrations/";
+        dot = "cd ~/.dotfiles/";
 
-        playground = "cd ~/workspace/playground";
-        projects = "cd ~/workspace/projects";
-        tests = "cd ~/workspace/tests";
-        workspace = "cd ~/workspace";
+        playground = "cd ~/workspace/playground/";
+        projects = "cd ~/workspace/projects/";
+        tests = "cd ~/workspace/tests/";
+        workspace = "cd ~/workspace/";
         etc = "cd ~/.etc/";
 
         nyx = "sh ~/.dotfiles/.scripts/main.sh";
