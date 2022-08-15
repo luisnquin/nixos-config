@@ -17,6 +17,7 @@
     gc = {
       automatic = true;
       dates = "13:00";
+      options = "--delete-old";
     };
 
     # Nix store
@@ -45,21 +46,13 @@
       };
     };
 
-    /*
-     initrd.preLVMCommands = ''
-       echo '--- OWNERSHIP NOTICE ---'
-       echo 'This device is property of Luis Quiñones Requelme'
-       echo 'If lost please contact to lpaandres2020@gmail.com'
-       echo '--- OWNERSHIP NOTICE ---'
-     '';
-     */
-
-    cleanTmpDir = true;
     supportedFilesystems = ["ntfs"];
+    cleanTmpDir = true;
   };
 
   hardware = {
     enableRedistributableFirmware = true;
+    cpu.intel.updateMicrocode = true;
     opengl.enable = true;
 
     bluetooth = {
@@ -69,7 +62,7 @@
 
     pulseaudio = {
       enable = true;
-      # package = pkgs.pulseaudioFull; Uncomment it in case of start using bluetooth
+      package = pkgs.pulseaudioFull;
     };
 
     nvidia = {
@@ -95,6 +88,7 @@
       home = "/home/luisnquin";
       description = "Luis Quiñones";
       shell = pkgs.zsh;
+      hashedPassword = null;
       # ❄️
 
       extraGroups = [
@@ -168,6 +162,10 @@
         plasma5.enable = true;
         xterm.enable = true;
       };
+
+      # windowManager = {
+      #   awesome.enable = true;
+      # };
     };
   };
 
@@ -196,51 +194,24 @@
       newSession = false;
     };
 
-    /*
-     gnu.nano = {
-       extraConfig = ''
-         set titlecolor white,magenta
-         set autoindent
-         set tabsize 4
-         set atblanks
-         set zero
-       '';
-     };
-     */
+    nano.nanorc = ''
+      set titlecolor white,magenta
+      set autoindent
+      set tabsize 4
+      set atblanks
+      set zero
+    '';
 
     gnupg.agent = {
       enable = true;
       enableSSHSupport = true;
     };
 
-    # Consider starting to use 'fish' on a NixOS instance from scratch
-    # fish.enable = true;
-
     zsh = {
       enable = true;
       enableCompletion = true;
       autosuggestions.enable = true;
       syntaxHighlighting.enable = true;
-
-      shellAliases = {
-        runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
-        v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
-        kritapl = "cd ~/workspace/projects/illustrations/";
-        dot = "cd ~/.dotfiles/";
-
-        playground = "cd ~/workspace/playground/";
-        projects = "cd ~/workspace/projects/";
-        tests = "cd ~/workspace/tests/";
-        workspace = "cd ~/workspace/";
-        etc = "cd ~/.etc/";
-
-        nyx = "sh ~/.dotfiles/.scripts/main.sh";
-        xclip = "xclip -selection c";
-        ale = "alejandra";
-        open = "xdg-open";
-        py = "python3";
-        cat = "bat -p";
-      };
     };
   };
 
@@ -307,6 +278,32 @@
       ++ set.dev
       ++ set.nix
       ++ set.go;
+
+    shellAliases = {
+      # Complex script aliases
+      runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
+      nyx = "sh ~/.dotfiles/.scripts/main.sh";
+
+      # 'pl' is a shortcut-suffix to 'playground'
+      kritapl = "cd ~/workspace/illustrations/";
+      pypl = "cd ~/workspace/playground/python/";
+      gopl = "cd ~/workspace/playground/go/";
+
+      v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
+      playground = "cd ~/workspace/playground/";
+      projects = "cd ~/workspace/projects/";
+      tests = "cd ~/workspace/tests/";
+      workspace = "cd ~/workspace/";
+      dot = "cd ~/.dotfiles/";
+      etc = "cd ~/.etc/";
+
+      # Shortcuts
+      xclip = "xclip -selection c";
+      ale = "alejandra";
+      open = "xdg-open";
+      py = "python3";
+      cat = "bat -p";
+    };
 
     sessionVariables = rec {
       PATH = "$GORROT:$GOPATH/bin:$PATH";
