@@ -13,7 +13,6 @@
   };
 
   nix = {
-    # Garbage collector
     gc = {
       automatic = true;
       dates = "13:00";
@@ -27,7 +26,6 @@
     };
 
     settings = {
-      # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
       auto-optimise-store = true;
       max-jobs = 4;
     };
@@ -255,6 +253,7 @@
         openssh
         ntfs3g
         neovim
+        gotop
         unzip
         exfat
         xclip
@@ -269,12 +268,12 @@
         jq
       ]
       # ++ set.kubernetes
+      # ++ set.rust
       ++ set.python
       ++ set.docker
       ++ set.yard
       ++ set.node
       ++ set.apps
-      # ++ set.rust
       ++ set.dev
       ++ set.nix
       ++ set.go;
@@ -299,6 +298,7 @@
 
       # Shortcuts
       xclip = "xclip -selection c";
+      gotop = "gotop --nvidia";
       ale = "alejandra";
       open = "xdg-open";
       py = "python3";
