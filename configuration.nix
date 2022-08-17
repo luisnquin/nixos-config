@@ -148,6 +148,7 @@
       displayManager = {
         gdm.enable = true;
         startx.enable = true;
+        defaultSession = "plasmawayland";
       };
 
       desktopManager = {
@@ -155,15 +156,13 @@
         xterm.enable = true;
       };
 
-      # windowManager = {
-      #   awesome.enable = true;
-      # };
+      # windowManager = {};
     };
   };
 
   programs = {
-    sway.enable = true;
-    mtr.enable = true;
+    # sway.enable = true;
+    # mtr.enable = true;
 
     nano.nanorc = ''
       set titlecolor white,magenta
