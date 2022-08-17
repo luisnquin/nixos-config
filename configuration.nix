@@ -305,6 +305,7 @@
     sessionVariables = rec {
       PATH = "$GORROT:$GOPATH/bin:$PATH";
       CGO_ENABLED = "0";
+      GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
     };
 
     variables = {
