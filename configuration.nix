@@ -1,11 +1,15 @@
 {
   config,
-  lib,
   pkgs,
   ...
 }: {
   imports = [
     ./hardware-configuration.nix
+  ];
+
+  require = [
+    "/etc/nixos/modules/nvidia.nix"
+    "/etc/nixos/modules/tmux.nix"
   ];
 
   nixpkgs.config = {
@@ -63,17 +67,6 @@
       enable = true;
       package = pkgs.pulseaudioFull;
     };
-
-    nvidia = {
-      package = config.boot.kernelPackages.nvidiaPackages.beta;
-      powerManagement.enable = true;
-      modesetting.enable = true;
-      prime = {
-        offload.enable = true;
-        intelBusId = "PCI:0:2:0";
-        nvidiaBusId = "PCI:1:0:0";
-      };
-    };
   };
 
   security.sudo = {
@@ -82,18 +75,20 @@
   };
 
   users = {
-    users.luisnquin = {
-      isNormalUser = true;
-      home = "/home/luisnquin";
-      description = "Luis Quiñones";
-      shell = pkgs.zsh;
-      hashedPassword = null;
-      # ❄️
+    users = {
+      luisnquin = {
+        isNormalUser = true;
+        home = "/home/luisnquin/";
+        description = "Luis Quiñones";
+        shell = pkgs.zsh;
+        hashedPassword = null;
+        # ❄️
 
-      extraGroups = [
-        "wheel"
-        "docker"
-      ];
+        extraGroups = [
+          "wheel"
+          "docker"
+        ];
+      };
     };
   };
 
@@ -126,13 +121,11 @@
     fontDir.enable = true;
   };
 
-  virtualisation = {
-    docker = {
+  virtualisation.docker = {
+    enable = true;
+    autoPrune = {
       enable = true;
-      autoPrune = {
-        enable = true;
-        dates = "weekly";
-      };
+      dates = "weekly";
     };
   };
 
@@ -146,7 +139,7 @@
     openssh.enable = true;
 
     xserver = {
-      videoDrivers = ["nvidia"];
+      videoDrivers = ["nvidia"]; # Ternary?
       libinput.enable = true;
       layout = "latam";
       autorun = true;
@@ -172,41 +165,6 @@
     sway.enable = true;
     mtr.enable = true;
 
-    tmux = let
-      tmux-plugins = [
-        pkgs.tmuxPlugins.fzf-tmux-url
-        pkgs.tmuxPlugins.continuum
-        pkgs.tmuxPlugins.sidebar
-        pkgs.tmuxPlugins.sysstat
-        pkgs.tmuxPlugins.nord
-      ];
-    in {
-      enable = true;
-      clock24 = true;
-      terminal = "xterm-256color";
-      extraConfig = ''
-        setw -g mouse on
-        set -g window-status-separator ""
-
-        set-option -ga terminal-overrides ",*256col*:Tc:RGB"
-
-        # set -g automatic-rename off
-
-        set -g status-bg black
-        set -g status-fg magenta
-
-        # set -g status-left-length 40
-        # set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
-
-        set -g status-right "#{sysstat_cpu} | #{sysstat_mem} | #{sysstat_swap} | #{sysstat_loadavg} | #[fg=cyan]#(echo $USER)#[default]@#H"
-
-        ${lib.concatStrings (map (x: "run-shell ${x.rtp}\n") tmux-plugins)}
-      '';
-
-      historyLimit = 1000000;
-      newSession = false;
-    };
-
     nano.nanorc = ''
       set titlecolor white,magenta
       set autoindent
@@ -230,28 +188,50 @@
 
   environment = {
     systemPackages = with pkgs; let
-      tmux-plugins = [
-        pkgs.tmuxPlugins.fzf-tmux-url
-        pkgs.tmuxPlugins.continuum
-        pkgs.tmuxPlugins.sidebar
-        pkgs.tmuxPlugins.sysstat
-        pkgs.tmuxPlugins.nord
-      ];
-
-      tmux-plugins-dependencies = [
-        pkgs.fzf
-      ];
-
       set = {
-        nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
-        apps = with pkgs; [spotify discord vscode slack fragments brave];
         # kubernetes = with pkgs; [kubectl kubernetes minikube];
-        go = with pkgs; [go_1_18 gopls gofumpt delve gcc];
         # rust = with pkgs; [cargo rustc rustup rustfmt];
-        docker = with pkgs; [docker docker-compose];
-        python = with pkgs; [python310 virtualenv];
-        node = with pkgs; [nodejs-18_x];
-        yard = with pkgs; [krita];
+        nix = with pkgs; [
+          vscode-extensions.jnoortheen.nix-ide
+          alejandra
+          rnix-lsp
+        ];
+
+        apps = with pkgs; [
+          fragments
+          spotify
+          discord
+          vscode
+          slack
+          brave
+        ];
+
+        go = with pkgs; [
+          go_1_18
+          gofumpt
+          gopls
+          delve
+          gcc
+        ];
+
+        docker = with pkgs; [
+          docker-compose
+          docker
+        ];
+
+        python = with pkgs; [
+          virtualenv
+          python310
+        ];
+
+        node = with pkgs; [
+          nodejs-18_x
+        ];
+
+        yard = with pkgs; [
+          krita
+        ];
+
         dev = with pkgs; [
           nodePackages.firebase-tools
           pre-commit
@@ -262,18 +242,9 @@
           git
         ];
       };
-
-      nvidia-offload = pkgs.writeShellScriptBin "nvidia-offload" ''
-        export __NV_PRIME_RENDER_OFFLOAD=1
-        export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
-        export __GLX_VENDOR_LIBRARY_NAME=nvidia
-        export __VK_LAYER_NV_optimus=NVIDIA_only
-        exec "$@"
-      '';
     in
       [
         gnome.seahorse
-        nvidia-offload
         binutils
         openjdk
         gnumake
@@ -296,8 +267,6 @@
       ]
       # ++ set.kubernetes
       # ++ set.rust
-      ++ tmux-plugins-dependencies
-      ++ tmux-plugins
       ++ set.python
       ++ set.docker
       ++ set.yard
