@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }: {
@@ -171,7 +172,11 @@
     sway.enable = true;
     mtr.enable = true;
 
-    tmux = {
+    tmux = let
+      tmux-plugins = [
+        pkgs.tmuxPlugins.nord
+      ];
+    in {
       enable = true;
       clock24 = true;
       terminal = "xterm-256color";
@@ -181,11 +186,16 @@
 
         set-option -ga terminal-overrides ",*256col*:Tc:RGB"
 
+        # set -g automatic-rename off
+
         set -g status-bg black
         set -g status-fg magenta
 
         set -g status-left-length 40
         set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
+
+        # Plugins loading
+        ${lib.concatStrings (map (x: "run-shell ${x.rtp}\n") tmux-plugins)}
       '';
 
       historyLimit = 1000000;
@@ -215,6 +225,10 @@
 
   environment = {
     systemPackages = with pkgs; let
+      tmux-plugins = [
+        pkgs.tmuxPlugins.nord
+      ];
+
       set = {
         nix = with pkgs; [vscode-extensions.jnoortheen.nix-ide alejandra rnix-lsp];
         apps = with pkgs; [spotify discord vscode slack fragments brave];
@@ -269,6 +283,7 @@
       ]
       # ++ set.kubernetes
       # ++ set.rust
+      ++ tmux-plugins
       ++ set.python
       ++ set.docker
       ++ set.yard
