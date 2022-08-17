@@ -174,6 +174,10 @@
 
     tmux = let
       tmux-plugins = [
+        pkgs.tmuxPlugins.fzf-tmux-url
+        pkgs.tmuxPlugins.continuum
+        pkgs.tmuxPlugins.sidebar
+        pkgs.tmuxPlugins.sysstat
         pkgs.tmuxPlugins.nord
       ];
     in {
@@ -191,10 +195,11 @@
         set -g status-bg black
         set -g status-fg magenta
 
-        set -g status-left-length 40
-        set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
+        # set -g status-left-length 40
+        # set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
 
-        # Plugins loading
+        set -g status-right "#{sysstat_cpu} | #{sysstat_mem} | #{sysstat_swap} | #{sysstat_loadavg} | #[fg=cyan]#(echo $USER)#[default]@#H"
+
         ${lib.concatStrings (map (x: "run-shell ${x.rtp}\n") tmux-plugins)}
       '';
 
@@ -226,7 +231,15 @@
   environment = {
     systemPackages = with pkgs; let
       tmux-plugins = [
+        pkgs.tmuxPlugins.fzf-tmux-url
+        pkgs.tmuxPlugins.continuum
+        pkgs.tmuxPlugins.sidebar
+        pkgs.tmuxPlugins.sysstat
         pkgs.tmuxPlugins.nord
+      ];
+
+      tmux-plugins-dependencies = [
+        pkgs.fzf
       ];
 
       set = {
@@ -283,6 +296,7 @@
       ]
       # ++ set.kubernetes
       # ++ set.rust
+      ++ tmux-plugins-dependencies
       ++ tmux-plugins
       ++ set.python
       ++ set.docker
