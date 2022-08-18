@@ -18,6 +18,7 @@
     "shellcheck.enable": true,
     "shellcheck.exclude": ["1090", "3046"],
     "material-icon-theme.folders.associations": {
-        ".scripts": "Scripts"
+        ".scripts": "Scripts",
+        "units": "Resource"
     }
 }

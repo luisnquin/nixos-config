@@ -64,7 +64,7 @@
     };
 
     pulseaudio = {
-      enable = true;
+      enable = false;
       package = pkgs.pulseaudioFull;
     };
   };
@@ -148,7 +148,7 @@
       displayManager = {
         gdm.enable = true;
         startx.enable = true;
-        defaultSession = "plasmawayland";
+        defaultSession = "plasma";
       };
 
       desktopManager = {
@@ -157,6 +157,13 @@
       };
 
       # windowManager = {};
+    };
+
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      pulse.enable = true;
+      jack.enable = true;
     };
   };
 
