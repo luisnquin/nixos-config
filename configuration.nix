@@ -21,7 +21,7 @@
   nix = {
     gc = {
       automatic = true;
-      dates = "13:00";
+      dates = "weekly";
       options = "--delete-old";
     };
 
@@ -311,9 +311,10 @@
     };
 
     sessionVariables = rec {
-      PATH = "$GORROT:$GOPATH/bin:$PATH";
-      CGO_ENABLED = "0";
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
+      PATH = "$PATH:$GORROT:$GOPATH/bin";
+      GOPATH = "/home/$USER/go";
+      CGO_ENABLED = "0";
     };
 
     variables = {
