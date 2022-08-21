@@ -231,8 +231,9 @@
           python310
         ];
 
-        node = with pkgs; [
+        js = with pkgs; [
           nodejs-18_x
+          nodePackages.vue-cli
         ];
 
         yard = with pkgs; [
@@ -277,10 +278,10 @@
       ++ set.python
       ++ set.docker
       ++ set.yard
-      ++ set.node
       ++ set.apps
       ++ set.dev
       ++ set.nix
+      ++ set.js
       ++ set.go;
 
     shellAliases = {
