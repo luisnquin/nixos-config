@@ -296,6 +296,7 @@
 
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
       playground = "cd ~/workspace/playground/";
+      pl = "playground";
       projects = "cd ~/workspace/projects/";
       tests = "cd ~/workspace/tests/";
       workspace = "cd ~/workspace/";
