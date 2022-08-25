@@ -198,6 +198,7 @@
       set = {
         # kubernetes = with pkgs; [kubectl kubernetes minikube];
         # rust = with pkgs; [cargo rustc rustup rustfmt];
+
         nix = with pkgs; [
           vscode-extensions.jnoortheen.nix-ide
           alejandra
@@ -243,6 +244,7 @@
         dev = with pkgs; [
           nodePackages.firebase-tools
           pre-commit
+          dbeaver
           redoc-cli
           shfmt
           sqlc
