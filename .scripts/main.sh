@@ -95,7 +95,7 @@ main() {
 check_syntax_errors() {
     (
         cd "$dotfiles_dir"
-        alejandra -cq ./*
+        alejandra --check --quiet ./*
     )
 }
 

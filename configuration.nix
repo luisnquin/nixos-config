@@ -24,8 +24,7 @@
       dates = "weekly";
       options = "--delete-old";
     };
-	
-	#
+
     # Nix store
     optimise = {
       automatic = true;
