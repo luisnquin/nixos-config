@@ -137,7 +137,11 @@
   services = {
     gnome.gnome-keyring.enable = true;
     thermald.enable = true;
-    openssh.enable = true;
+
+    openssh = {
+    	enable = true;
+    	passwordAuthentication = true;
+    };
 
     xserver = {
       videoDrivers = ["nvidia"]; # Ternary?
@@ -217,6 +221,7 @@
         go = with pkgs; [
           go_1_18
           gofumpt
+          gotools
           gopls
           delve
           gcc
