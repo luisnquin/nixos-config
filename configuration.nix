@@ -249,8 +249,9 @@
         dev = with pkgs; [
           nodePackages.firebase-tools
           pre-commit
-          dbeaver
           redoc-cli
+          websocat
+          dbeaver
           shfmt
           sqlc
           tmux
@@ -325,6 +326,7 @@
       # etc
       xclip = "xclip -selection c";
       gotop = "gotop --nvidia";
+      wscat = "websocat";
       ale = "alejandra";
       open = "xdg-open";
       py = "python3";
