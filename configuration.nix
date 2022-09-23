@@ -320,6 +320,7 @@
 
       tests = "cd ~/workspace/tests/";
       workspace = "cd ~/workspace/";
+      down = "cd ~/Downloads/";
       dot = "cd ~/.dotfiles/";
       etc = "cd ~/.etc/";
 
