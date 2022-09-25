@@ -201,7 +201,13 @@
     systemPackages = with pkgs; let
       set = {
         # kubernetes = with pkgs; [kubectl kubernetes minikube];
-        # rust = with pkgs; [cargo rustc rustup rustfmt];
+
+        rust = with pkgs; [
+          rustfmt
+          rustup
+          cargo
+          rustc
+        ];
 
         nix = with pkgs; [
           vscode-extensions.jnoortheen.nix-ide
