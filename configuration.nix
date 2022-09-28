@@ -282,6 +282,7 @@
         tree
         unar
         vim
+        vlc
         bat
         zip
         zsh
