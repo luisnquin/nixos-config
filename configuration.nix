@@ -225,7 +225,7 @@
         ];
 
         go = with pkgs; [
-          go_1_18
+          go_1_19
           gofumpt
           gotools
           gopls
@@ -289,7 +289,6 @@
         jq
       ]
       # ++ set.kubernetes
-      # ++ set.rust
       ++ set.python
       ++ set.docker
       ++ set.yard
