@@ -293,6 +293,7 @@
       ++ set.python
       ++ set.docker
       ++ set.yard
+      ++ set.rust
       ++ set.apps
       ++ set.dev
       ++ set.nix
