@@ -10,6 +10,7 @@
   require = [
     "/etc/nixos/units/battery-limit.nix"
     "/etc/nixos/modules/nvidia.nix"
+    "/etc/nixos/services/cron.nix"
     "/etc/nixos/modules/tmux.nix"
   ];
 
@@ -268,6 +269,7 @@
       [
         gnome.seahorse
         binutils
+        libnotify
         openjdk
         gnumake
         openssh
