@@ -245,12 +245,8 @@
         ];
 
         js = with pkgs; [
+          # nodePackages.vue-cli
           nodejs-18_x
-          nodePackages.vue-cli
-        ];
-
-        yard = with pkgs; [
-          krita
         ];
 
         dev = with pkgs; [
@@ -269,8 +265,8 @@
     in
       [
         gnome.seahorse
-        binutils
         libnotify
+        binutils
         openjdk
         gnumake
         openssh
@@ -278,6 +274,7 @@
         neovim
         gotop
         unzip
+        krita
         exfat
         xclip
         wget
@@ -294,7 +291,6 @@
       # ++ set.kubernetes
       ++ set.python
       ++ set.docker
-      ++ set.yard
       ++ set.rust
       ++ set.apps
       ++ set.dev
@@ -315,7 +311,6 @@
       ## Computer manager
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
 
-      ## ???
       runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
       ds = "v3 && cd dataserver/";
@@ -336,12 +331,16 @@
 
       # etc
       xclip = "xclip -selection c";
+      clip = "xclip";
+
+      open = "xdg-open";
+      cat = "bat -p";
+
       gotop = "gotop --nvidia";
       wscat = "websocat";
       ale = "alejandra";
-      open = "xdg-open";
       py = "python3";
-      cat = "bat -p";
+      lg = "lazygit";
     };
 
     sessionVariables = rec {
