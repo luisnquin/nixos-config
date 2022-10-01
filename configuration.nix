@@ -304,10 +304,14 @@
       ## Git shortcuts
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
+      gl = "git log --oneline";
       gsp = "git stash pop";
       gck = "git checkout";
       gs = "git stash";
-      gl = "gl1";
+
+      # Docker shortcuts
+      dka = "docker kill $(docker ps -qa) 2> /dev/null";
+      dra = "docker rm $(docker ps -qa) 2> /dev/null";
 
       ## Computer manager
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
