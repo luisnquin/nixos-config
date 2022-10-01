@@ -304,12 +304,34 @@
       ## Git shortcuts
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
+
+      grbc = "git rebase --continue";
+      grba = "git rebase --abort";
+      grb = "git rebase";
+
       gpush = "git push origin";
       gpull = "git pull origin";
-      gl = "git log --oneline";
+      gpushf = "gpush -f";
+      gpullf = "gpull -f";
+
+      gca = "git commit --amend";
+      gc = "git commit -v";
+
       gsp = "git stash pop";
-      gck = "git checkout";
       gs = "git stash";
+
+      gds = "git diff --staged";
+      gd = "git diff";
+
+      gaa = "git add --all";
+      ga = "git add";
+
+      gl = "git log --oneline";
+      gss = "git status -s";
+      gck = "git checkout";
+      gb = "git branch";
+      gr = "git reset";
+      g = "git";
 
       # Docker shortcuts
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
