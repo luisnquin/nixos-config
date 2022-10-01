@@ -259,6 +259,7 @@
           redoc-cli
           websocat
           dbeaver
+          lazygit
           shfmt
           sqlc
           tmux
