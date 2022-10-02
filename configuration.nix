@@ -251,8 +251,10 @@
 
         dev = with pkgs; [
           nodePackages.firebase-tools
+          nodePackages.prettier
           pre-commit
           redoc-cli
+          gomplate
           websocat
           dbeaver
           lazygit
