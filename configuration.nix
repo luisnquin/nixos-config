@@ -266,10 +266,11 @@
       };
     in
       [
+		gnome.gnome-sound-recorder
         gnome.seahorse
         libnotify
         binutils
-        audacity
+        tenacity
         openjdk
         gnumake
         openssh
