@@ -269,6 +269,7 @@
         gnome.seahorse
         libnotify
         binutils
+        audacity
         openjdk
         gnumake
         openssh
@@ -369,7 +370,7 @@
       open = "xdg-open";
       cat = "bat -p";
 
-      gotop = "gotop --nvidia";
+      top = "gotop --nvidia";
       wscat = "websocat";
       ale = "alejandra";
       py = "python3";
