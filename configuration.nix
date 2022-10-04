@@ -266,7 +266,7 @@
       };
     in
       [
-		gnome.gnome-sound-recorder
+        gnome.gnome-sound-recorder
         gnome.seahorse
         libnotify
         binutils
@@ -341,6 +341,7 @@
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
       dra = "docker rm $(docker ps -qa) 2> /dev/null";
       di = "docker image ls";
+      dss = "docker stats";
       dp = "docker ps";
 
       ## Computer manager
