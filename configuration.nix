@@ -378,6 +378,7 @@
       wscat = "websocat";
       ale = "alejandra";
       py = "python3";
+      gf = "gofumpt";
       lg = "lazygit";
     };
 
