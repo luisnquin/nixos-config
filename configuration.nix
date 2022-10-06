@@ -259,6 +259,7 @@
           dbeaver
           lazygit
           shfmt
+          ngrok
           sqlc
           tmux
           git
@@ -373,6 +374,7 @@
       cat = "bat -p";
 
       top = "gotop --nvidia";
+      listen = "ngrok http";
       wscat = "websocat";
       ale = "alejandra";
       py = "python3";
