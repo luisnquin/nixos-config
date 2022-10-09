@@ -269,12 +269,14 @@
       [
         gnome.gnome-sound-recorder
         gnome.seahorse
+        imagemagick
         libnotify
         binutils
         tenacity
         openjdk
         gnumake
         openssh
+        ffmpeg
         ntfs3g
         neovim
         gotop
