@@ -375,11 +375,11 @@
       open = "xdg-open";
       cat = "bat -p";
 
-      unrar = "unar";
+      ale = "alejandra --quiet";
       top = "gotop --nvidia";
       listen = "ngrok http";
       wscat = "websocat";
-      ale = "alejandra";
+      unrar = "unar";
       py = "python3";
       gf = "gofumpt";
       lg = "lazygit";
