@@ -373,6 +373,7 @@
       open = "xdg-open";
       cat = "bat -p";
 
+      unrar = "unar";
       top = "gotop --nvidia";
       listen = "ngrok http";
       wscat = "websocat";
