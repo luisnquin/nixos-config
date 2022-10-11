@@ -259,6 +259,7 @@
         dev = with pkgs; [
           nodePackages.firebase-tools
           nodePackages.prettier
+          obs-studio
           redoc-cli
           gomplate
           websocat
