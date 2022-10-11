@@ -5,6 +5,7 @@
   ...
 }: let
   tmux-plugins = with pkgs; [
+    tmuxPlugins.online-status
     tmuxPlugins.fzf-tmux-url
     tmuxPlugins.continuum
     tmuxPlugins.sidebar
