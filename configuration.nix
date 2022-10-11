@@ -234,8 +234,15 @@
           gcc
         ];
 
+        git = with pkgs; [
+          pre-commit
+          lazygit
+          git
+        ];
+
         docker = with pkgs; [
           docker-compose_2
+          lazydocker
           docker
         ];
 
@@ -252,17 +259,14 @@
         dev = with pkgs; [
           nodePackages.firebase-tools
           nodePackages.prettier
-          pre-commit
           redoc-cli
           gomplate
           websocat
           dbeaver
-          lazygit
           shfmt
           ngrok
           sqlc
           tmux
-          git
         ];
       };
     in
@@ -301,6 +305,7 @@
       ++ set.rust
       ++ set.apps
       ++ set.dev
+      ++ set.git
       ++ set.nix
       ++ set.js
       ++ set.go;
@@ -381,6 +386,7 @@
       listen = "ngrok http";
       share = "ngrok http";
       wscat = "websocat";
+      ld = "lazydocker";
       unrar = "unar";
       py = "python3";
       gf = "gofumpt";
