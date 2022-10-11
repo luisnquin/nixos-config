@@ -235,7 +235,7 @@
         ];
 
         docker = with pkgs; [
-          docker-compose
+          docker-compose_2
           docker
         ];
 
