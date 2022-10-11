@@ -379,6 +379,7 @@
       ale = "alejandra --quiet";
       top = "gotop --nvidia";
       listen = "ngrok http";
+      share = "ngrok http";
       wscat = "websocat";
       unrar = "unar";
       py = "python3";
