@@ -241,7 +241,7 @@
         ];
 
         docker = with pkgs; [
-          docker-compose_2
+          docker-compose
           lazydocker
           docker
         ];
