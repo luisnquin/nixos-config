@@ -375,6 +375,7 @@
       open = "xdg-open";
       cat = "bat -p";
 
+      tools = "nix-env --query";
       ale = "alejandra --quiet";
       top = "gotop --nvidia";
       listen = "ngrok http";
