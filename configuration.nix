@@ -129,6 +129,8 @@
       enable = true;
       dates = "daily";
     };
+
+    # enableNvidia = true;
   };
 
   i18n.defaultLocale = "es_PE.UTF-8";
@@ -145,7 +147,7 @@
     };
 
     xserver = {
-      videoDrivers = ["nvidia"]; # Ternary?
+      videoDrivers = ["nvidia"];
       libinput.enable = true;
       layout = "latam";
       autorun = true;
@@ -203,57 +205,57 @@
       set = {
         # kubernetes = with pkgs; [kubectl kubernetes minikube];
 
-        rust = with pkgs; [
-          rustfmt
-          rustup
-          cargo
-          rustc
-        ];
-
-        nix = with pkgs; [
-          vscode-extensions.jnoortheen.nix-ide
-          alejandra
-          rnix-lsp
-        ];
-
         apps = with pkgs; [
-          fragments
-          spotify
-          discord
-          vscode
-          slack
           brave
+          discord
+          fragments
+          slack
+          spotify
+          vscode
         ];
 
         go = with pkgs; [
-          go_1_19
-          gofumpt
-          gotools
-          gopls
           delve
           gcc
+          go_1_19
+          gofumpt
+          gopls
+          gotools
         ];
 
-        git = with pkgs; [
-          pre-commit
-          lazygit
-          git
-        ];
-
-        docker = with pkgs; [
-          docker-compose
-          lazydocker
-          docker
-        ];
-
-        python = with pkgs; [
-          virtualenv
-          python310
+        rust = with pkgs; [
+          cargo
+          rustc
+          rustfmt
+          rustup
         ];
 
         js = with pkgs; [
           # nodePackages.vue-cli
           nodejs-18_x
+        ];
+
+        nix = with pkgs; [
+          alejandra
+          rnix-lsp
+          vscode-extensions.jnoortheen.nix-ide
+        ];
+
+        git = with pkgs; [
+          git
+          lazygit
+          pre-commit
+        ];
+
+        docker = with pkgs; [
+          docker
+          docker-compose
+          lazydocker
+        ];
+
+        python = with pkgs; [
+          python310
+          virtualenv
         ];
 
         dev = with pkgs; [
@@ -280,6 +282,7 @@
         tenacity
         openjdk
         gnumake
+        thefuck
         openssh
         ffmpeg
         ntfs3g
@@ -315,64 +318,57 @@
       # Complex script aliases
 
       ## Git shortcuts
+      g = "git";
+      ga = "git add";
+      gaa = "git add --all";
+      gb = "git branch";
+      gc = "git commit -v";
+      gca = "git commit --amend";
+      gck = "git checkout";
+      gd = "git diff";
+      gds = "git diff --staged";
+      gl = "git log --oneline";
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
-
-      grbc = "git rebase --continue";
-      grba = "git rebase --abort";
-      grb = "git rebase";
-
-      gpush = "git push origin";
       gpull = "git pull origin";
-      gpushf = "gpush -f";
       gpullf = "gpull -f";
-
-      gca = "git commit --amend";
-      gc = "git commit -v";
-
-      gsp = "git stash pop";
-      gs = "git stash";
-
-      gds = "git diff --staged";
-      gd = "git diff";
-
-      gaa = "git add --all";
-      ga = "git add";
-
-      gl = "git log --oneline";
-      gss = "git status -s";
-      gck = "git checkout";
-      gb = "git branch";
+      gpush = "git push origin";
+      gpushf = "gpush -f";
       gr = "git reset";
-      g = "git";
+      grb = "git rebase";
+      grba = "git rebase --abort";
+      grbc = "git rebase --continue";
+      gs = "git stash";
+      gsp = "git stash pop";
+      gss = "git status -s";
 
       # Docker shortcuts
-      dka = "docker kill $(docker ps -qa) 2> /dev/null";
-      dra = "docker rm $(docker ps -qa) 2> /dev/null";
       di = "docker image ls";
-      dss = "docker stats";
+      dka = "docker kill $(docker ps -qa) 2> /dev/null";
       dp = "docker ps";
+      dra = "docker rm $(docker ps -qa) 2> /dev/null";
+      dss = "docker stats";
 
       ## Computer manager
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
 
+      ds = "v3 && cd dataserver/";
       runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
-      ds = "v3 && cd dataserver/";
 
-      playground = "cd ~/workspace/playground/";
-      pypl = "cd ~/workspace/playground/python/";
       gopl = "cd ~/workspace/playground/go/";
       pl = "playground";
+      playground = "cd ~/workspace/playground/";
+      pypl = "cd ~/workspace/playground/python/";
 
       projects = "cd ~/workspace/projects/";
       pr = "projects";
 
+      dot = "cd ~/.dotfiles/";
+      down = "cd ~/Downloads/";
+      etc = "cd ~/.etc/";
       tests = "cd ~/workspace/tests/";
       workspace = "cd ~/workspace/";
-      down = "cd ~/Downloads/";
-      dot = "cd ~/.dotfiles/";
-      etc = "cd ~/.etc/";
 
       # etc
       xclip = "xclip -selection c";
@@ -381,24 +377,26 @@
       open = "xdg-open";
       cat = "bat -p";
 
-      tools = "nix-env --query";
       ale = "alejandra --quiet";
-      top = "gotop --nvidia";
-      listen = "ngrok http";
-      share = "ngrok http";
-      wscat = "websocat";
-      ld = "lazydocker";
-      unrar = "unar";
-      py = "python3";
+      f = "thefuck";
+      fuck = "thefuck";
       gf = "gofumpt";
+      ld = "lazydocker";
       lg = "lazygit";
+      listen = "ngrok http";
+      py = "python3";
+      share = "ngrok http";
+      tools = "nix-env --query";
+      top = "gotop --nvidia";
+      unrar = "unar";
+      wscat = "websocat";
     };
 
     sessionVariables = rec {
+      CGO_ENABLED = "0";
+      GOPATH = "/home/$USER/go";
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$PATH:$GORROT:$GOPATH/bin";
-      GOPATH = "/home/$USER/go";
-      CGO_ENABLED = "0";
     };
 
     variables = {
