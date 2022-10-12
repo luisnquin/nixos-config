@@ -269,6 +269,7 @@
           shfmt
           ngrok
           sqlc
+          lens
           tmux
         ];
       };
