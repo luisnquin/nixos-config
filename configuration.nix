@@ -344,11 +344,12 @@
       gss = "git status -s";
 
       # Docker shortcuts
-      di = "docker image ls";
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
-      dp = "docker ps";
       dra = "docker rm $(docker ps -qa) 2> /dev/null";
+      dria = "docker rmi -f $(docker image -qa)";
+      di = "docker image ls";
       dss = "docker stats";
+      dp = "docker ps";
 
       ## Computer manager
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
@@ -357,19 +358,20 @@
       runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
 
-      gopl = "cd ~/workspace/playground/go/";
+      gopl = "cd ~/Workspace/playground/go/";
       pl = "playground";
-      playground = "cd ~/workspace/playground/";
-      pypl = "cd ~/workspace/playground/python/";
+      playground = "cd ~/Workspace/playground/";
+      pypl = "cd ~/Workspace/playground/python/";
 
-      projects = "cd ~/workspace/projects/";
+      projects = "cd ~/Workspace/projects/";
       pr = "projects";
 
       dot = "cd ~/.dotfiles/";
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
-      tests = "cd ~/workspace/tests/";
-      workspace = "cd ~/workspace/";
+      saves = "cd ~/Saves/";
+      tests = "cd ~/Workspace/tests/";
+      workspace = "cd ~/Workspace/";
 
       # etc
       xclip = "xclip -selection c";
