@@ -349,6 +349,7 @@
       dria = "docker rmi -f $(docker image -qa)";
       di = "docker image ls";
       dss = "docker stats";
+      dpa = "docker ps -a";
       dp = "docker ps";
 
       ## Computer manager
