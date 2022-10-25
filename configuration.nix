@@ -289,6 +289,7 @@
         ntfs3g
         neovim
         gotop
+        p7zip
         unzip
         krita
         exfat
@@ -351,6 +352,7 @@
       dss = "docker stats";
       dpa = "docker ps -a";
       dp = "docker ps";
+      dc = "docker cp";
 
       ## Computer manager
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
