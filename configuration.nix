@@ -359,7 +359,7 @@
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
 
       ds = "v3 && cd dataserver/";
-      runds = "rm -rf compose/nginx/env.json && make compose-up && make build && make run";
+      runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
 
       gopl = "cd ~/Workspace/playground/go/";
