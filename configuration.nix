@@ -261,6 +261,7 @@
         dev = with pkgs; [
           nodePackages.firebase-tools
           nodePackages.prettier
+          onlyoffice-bin
           obs-studio
           redoc-cli
           gomplate
