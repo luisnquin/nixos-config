@@ -385,6 +385,7 @@
       cat = "bat -p";
 
       ale = "alejandra --quiet";
+	  dud = "du -sh";
       f = "thefuck";
       fuck = "thefuck";
       gf = "gofumpt";
