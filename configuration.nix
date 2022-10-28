@@ -390,6 +390,8 @@
       cat = "bat -p";
 
       ale = "alejandra --quiet";
+      dud = "du --human-readable --summarize";
+      du = "du --human-readable";
       f = "thefuck";
       fuck = "thefuck";
       gf = "gofumpt";
