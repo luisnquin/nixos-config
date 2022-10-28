@@ -202,8 +202,13 @@
 
   environment = {
     systemPackages = with pkgs; let
-      set = {
-        # kubernetes = with pkgs; [kubectl kubernetes minikube];
+      nyxPkgs = {
+        kubernetes = with pkgs; [
+          kubernetes
+          minikube
+          kubectl
+          k9s
+        ];
 
         apps = with pkgs; [
           brave
@@ -306,16 +311,16 @@
         zsh
         jq
       ]
-      # ++ set.kubernetes
-      ++ set.python
-      ++ set.docker
-      ++ set.rust
-      ++ set.apps
-      ++ set.dev
-      ++ set.git
-      ++ set.nix
-      ++ set.js
-      ++ set.go;
+      ++ nyxPkgs.kubernetes
+      ++ nyxPkgs.python
+      ++ nyxPkgs.docker
+      ++ nyxPkgs.rust
+      ++ nyxPkgs.apps
+      ++ nyxPkgs.dev
+      ++ nyxPkgs.git
+      ++ nyxPkgs.nix
+      ++ nyxPkgs.js
+      ++ nyxPkgs.go;
 
     shellAliases = {
       # Complex script aliases
@@ -385,7 +390,6 @@
       cat = "bat -p";
 
       ale = "alejandra --quiet";
-	  dud = "du -sh";
       f = "thefuck";
       fuck = "thefuck";
       gf = "gofumpt";
