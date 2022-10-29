@@ -395,6 +395,7 @@
       f = "thefuck";
       fuck = "thefuck";
       gf = "gofumpt";
+      k = "k9s";
       ld = "lazydocker";
       lg = "lazygit";
       listen = "ngrok http";
