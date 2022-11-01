@@ -237,7 +237,6 @@
         ];
 
         js = with pkgs; [
-          # nodePackages.vue-cli
           nodejs-18_x
         ];
 
@@ -324,8 +323,6 @@
       ++ nyxPkgs.go;
 
     shellAliases = {
-      # Complex script aliases
-
       ## Git shortcuts
       g = "git";
       ga = "git add";
