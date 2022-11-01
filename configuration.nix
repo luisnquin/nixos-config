@@ -363,7 +363,6 @@
 
       ## Computer manager
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
-
       ds = "v3 && cd dataserver/";
       runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
@@ -384,11 +383,12 @@
       workspace = "cd ~/Workspace/";
 
       # etc
-      xclip = "xclip -selection c";
-      clip = "xclip";
-
-      open = "xdg-open";
       cat = "bat -p";
+      clip = "xclip";
+      open = "xdg-open";
+      po = "poweroff";
+      poff = "poweroff";
+      xclip = "xclip -selection c";
 
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
