@@ -220,6 +220,7 @@
         ];
 
         go = with pkgs; [
+          air
           delve
           gcc
           go_1_19
