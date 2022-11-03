@@ -237,6 +237,7 @@
         ];
 
         js = with pkgs; [
+          nodePackages.pnpm
           nodejs-18_x
         ];
 
