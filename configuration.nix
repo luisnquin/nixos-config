@@ -359,8 +359,10 @@
       dp = "docker ps";
       dc = "docker cp";
 
-      ## Computer manager
+      # ???
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
+      gest = "go clean -testcache && go test -v";
+
       ds = "v3 && cd dataserver/";
       runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
