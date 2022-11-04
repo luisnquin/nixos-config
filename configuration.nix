@@ -364,9 +364,12 @@
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
       gest = "go clean -testcache && go test -v";
 
-      ds = "v3 && cd dataserver/";
+      temp = ''() { if [ "$1" = "" ]; then echo "one argument required"; return 1; fi; mkdir -p ~/Temp/ && cp -r "$1" ~/Temp/ ; }'';
+      templs = "ls ~/Temp/";
+
       runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
+      ds = "v3 && cd dataserver/";
 
       gopl = "cd ~/Workspace/playground/go/";
       pl = "playground";
