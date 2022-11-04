@@ -348,6 +348,7 @@
       gs = "git stash";
       gsp = "git stash pop";
       gss = "git status -s";
+      gt = "git tag";
 
       # Docker shortcuts
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
