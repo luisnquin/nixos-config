@@ -364,7 +364,7 @@
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
       gest = "go clean -testcache && go test -v";
 
-      temp = ''() { if [ "$1" = "" ]; then echo "one argument required"; return 1; fi; mkdir -p ~/Temp/ && cp -r "$1" ~/Temp/ ; }'';
+      temp = ''temp_main() { if [ "$1" = "" ]; then echo "one argument required"; return 1; fi; mkdir -p ~/Temp/ && cp -r "$1" ~/Temp/ ; }; temp_main'';
       templs = "ls ~/Temp/";
 
       runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
