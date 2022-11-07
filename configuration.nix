@@ -231,7 +231,9 @@
 
         rust = with pkgs; [
           cargo
+          clippy
           rustc
+          rust-analyzer
           rustfmt
           rustup
         ];
