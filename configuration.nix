@@ -36,6 +36,10 @@
       auto-optimise-store = true;
       max-jobs = 4;
     };
+
+    extraOptions = ''
+      experimental-features = nix-command
+    '';
   };
 
   boot = {
