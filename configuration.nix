@@ -289,14 +289,18 @@
         imagemagick
         libnotify
         binutils
+        neofetch
         tenacity
         openjdk
         gnumake
+        fortune
         thefuck
         openssh
+        cowsay
         ffmpeg
         ntfs3g
         neovim
+        lolcat
         gotop
         p7zip
         unzip
@@ -396,6 +400,8 @@
       poff = "poweroff";
       xclip = "xclip -selection c";
 
+      neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
+      nfetch = "neofetch";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
       du = "du --human-readable";
