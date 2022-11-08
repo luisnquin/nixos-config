@@ -38,7 +38,7 @@
     };
 
     extraOptions = ''
-      experimental-features = nix-command
+      experimental-features = nix-command flakes
     '';
   };
 
@@ -405,6 +405,8 @@
       xclip = "xclip -selection c";
 
       neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
+      nsearch = "nix search nixpkgs";
+      search = "nsearch";
       nfetch = "neofetch";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
