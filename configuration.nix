@@ -404,7 +404,7 @@
       poff = "poweroff";
       xclip = "xclip -selection c";
 
-	  ftext = "grep -rnw . -e ";
+      ftext = "grep -rnw . -e ";
       neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
       nsearch = "nix search nixpkgs";
       search = "nsearch";
