@@ -413,6 +413,7 @@
       search = "nsearch";
       nfetch = "neofetch";
       ale = "alejandra --quiet";
+      kube = "kubectl";
       dud = "du --human-readable --summarize";
       du = "du --human-readable";
       f = "thefuck";
