@@ -447,6 +447,8 @@
           xdg-open "http://www.google.com/search?q=$search"
       }
 
+      if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
+
       if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] ; then exec tmux; fi
     '';
   };
