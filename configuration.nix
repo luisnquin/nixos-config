@@ -366,7 +366,9 @@
       dria = "docker rmi -f $(docker image -qa)";
       di = "docker image ls";
       dss = "docker stats";
+      dpaq = "docker ps -aq | lolcat";
       dpa = "docker ps -a";
+      dpq = "docker ps -q | lolcat";
       dp = "docker ps";
       dc = "docker cp";
 
