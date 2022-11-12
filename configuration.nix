@@ -441,6 +441,12 @@
     };
 
     interactiveShellInit = ''
+      google() {
+          search=""
+          for term in "$@"; do search="$search%20$term"; done
+          xdg-open "http://www.google.com/search?q=$search"
+      }
+
       if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] ; then exec tmux; fi
     '';
   };
