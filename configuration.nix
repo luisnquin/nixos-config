@@ -292,6 +292,7 @@
         gnome.seahorse
         imagemagick
         libnotify
+        octofetch
         binutils
         neofetch
         tenacity
