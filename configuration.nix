@@ -257,6 +257,7 @@
           git
           lazygit
           pre-commit
+          onefetch
         ];
 
         docker = with pkgs; [
