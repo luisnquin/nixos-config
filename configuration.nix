@@ -231,6 +231,8 @@
           gofumpt
           gopls
           gotools
+          go-protobuf
+          grpc-tools
         ];
 
         rust = with pkgs; [
