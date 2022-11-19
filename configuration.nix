@@ -349,8 +349,10 @@
       gl = "git log --oneline";
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
+      ggpull = "git pull origin $(git branch --show-current)";
       gpull = "git pull origin";
       gpullf = "gpull -f";
+      ggpush = "git push origin $(git branch --show-current)";
       gpush = "git push origin";
       gpushf = "gpush -f";
       gr = "git reset";
