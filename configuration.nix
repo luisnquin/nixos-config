@@ -8,9 +8,13 @@
   ];
 
   require = [
+    # With this unit the battery will not go higher than 60 percent
     "/etc/nixos/units/battery-limit.nix"
+    # Enables nvidia drivers, at least in my computer
     "/etc/nixos/modules/nvidia.nix"
+    # Cron tasker without tasks
     "/etc/nixos/services/cron.nix"
+    # Some tmux configurations
     "/etc/nixos/modules/tmux.nix"
   ];
 
@@ -172,6 +176,7 @@
     };
 
     pipewire = {
+      # In replacement of pulseaudio that doesn't give a good support for some of my programs
       enable = true;
       alsa.enable = true;
       pulse.enable = true;
@@ -290,6 +295,7 @@
         ];
       };
     in
+      # a large etcetera
       [
         gnome.gnome-sound-recorder
         gnome.seahorse
@@ -325,7 +331,7 @@
         zip
         zsh
         jq
-      ]
+      ] # with their rommates
       ++ nyxPkgs.kubernetes
       ++ nyxPkgs.python
       ++ nyxPkgs.docker
@@ -338,7 +344,7 @@
       ++ nyxPkgs.go;
 
     shellAliases = {
-      ## Git shortcuts
+      # Git
       g = "git";
       ga = "git add";
       gaa = "git add --all";
@@ -366,7 +372,7 @@
       gss = "git status -s";
       gt = "git tag";
 
-      # Docker shortcuts
+      # Docker
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
       dra = "docker rm $(docker ps -qa) 2> /dev/null";
       dria = "docker rmi -f $(docker image -qa)";
@@ -378,36 +384,36 @@
       dp = "docker ps";
       dc = "docker cp";
 
+      # My own
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
       gest = "go clean -testcache && go test -v";
 
+      # It's not like you're not needed
       runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
       ds = "v3 && cd dataserver/";
 
-      gopl = "cd ~/Workspace/playground/go/";
-      pl = "playground";
-      playground = "cd ~/Workspace/playground/";
-      pypl = "cd ~/Workspace/playground/python/";
-
-      projects = "cd ~/Workspace/projects/";
-      pr = "projects";
-
+      # Instant tp to some directories
       dot = "cd ~/.dotfiles/";
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
+      gopl = "cd ~/Workspace/playground/go/";
+      pl = "playground";
+      playground = "cd ~/Workspace/playground/";
+      pr = "projects";
+      projects = "cd ~/Workspace/projects/";
+      pypl = "cd ~/Workspace/playground/python/";
       saves = "cd ~/Saves/";
       tests = "cd ~/Workspace/tests/";
       workspace = "cd ~/Workspace/";
 
-      # etc
+      # Those who are lazy to write definitely go here
       cat = "bat -p";
       clip = "xclip";
       open = "xdg-open";
       po = "poweroff";
       poff = "poweroff";
       xclip = "xclip -selection c";
-
       ftext = "grep -rnw . -e ";
       neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
       nsearch = "nix search nixpkgs";
@@ -443,6 +449,7 @@
       EDITOR = "nano";
     };
 
+    # Google search, zsh history search and tmux
     interactiveShellInit = ''
       google() {
           search=""
