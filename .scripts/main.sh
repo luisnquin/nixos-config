@@ -10,7 +10,7 @@ turnoff=0
 subcommand=0
 
 template=$(
-    printf "\033[0;35mnyx\033[0m [command] [flags]\n\nAvailable commands:\n  update\tUpdates the machine\n  inspect\tVerifies if the configuration.nix file has been changed and not saved to a git repository\n  style\t\tApplies alejandra style to all .nix files\n  ls\t\tList elements in dotfiles directory\n  clean\t\tCleans with the old generations\n  voir\t\tChecks if a new NixOS update is available\n\nGlobal flags:\n-r, --reboot\tReboots the machine after the update\n-t, --turnoff\tPower off the machine after the update\n-h, --help\tHelp for the script\n"
+    printf "\033[0;35mnyx\033[0m [command] [flags]\n\nAvailable commands:\n  update\tUpdates the machine\n  inspect\tVerifies if the configuration.nix file has been changed and not saved to a git repository\n  style\t\tApplies alejandra style to all .nix files\n  ls\t\tList elements in dotfiles directory\n  clean\t\tCleans with the old generations\n  voir\t\tChecks if a new NixOS update is available\n\nGlobal flags:\n-r, --reboot\tReboots the machine before the end of the program\n-t, --turnoff\tPower off the machine before the end of the program\n-h, --help\tHelp for the \033[0;35mnyx\033[0m\n"
 )
 
 main() {
