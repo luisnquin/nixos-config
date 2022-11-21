@@ -325,6 +325,7 @@
         dpkg
         tree
         unar
+        gimp
         vim
         vlc
         bat
@@ -394,6 +395,7 @@
       ds = "v3 && cd dataserver/";
 
       # Instant tp to some directories
+	  whoseport = "netstat -tulpln 2> /dev/null | grep :";
       dot = "cd ~/.dotfiles/";
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
