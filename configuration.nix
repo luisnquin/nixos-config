@@ -376,7 +376,7 @@
       # Docker
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
       dra = "docker rm $(docker ps -qa) 2> /dev/null";
-      dria = "docker rmi -f $(docker image -qa)";
+      dria = "docker rmi -f $(docker image ls -qa)";
       di = "docker image ls";
       dss = "docker stats";
       dpaq = "docker ps -aq | lolcat";
