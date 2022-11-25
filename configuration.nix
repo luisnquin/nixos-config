@@ -233,10 +233,10 @@
           delve
           gcc
           go_1_19
+          go-protobuf
           gofumpt
           gopls
           gotools
-          go-protobuf
           grpc-tools
         ];
 
@@ -395,7 +395,7 @@
       ds = "v3 && cd dataserver/";
 
       # Instant tp to some directories
-	  whoseport = "netstat -tulpln 2> /dev/null | grep :";
+      whoseport = "netstat -tulpln 2> /dev/null | grep :";
       dot = "cd ~/.dotfiles/";
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
