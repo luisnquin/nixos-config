@@ -252,6 +252,8 @@
         js = with pkgs; [
           nodePackages.pnpm
           nodejs-18_x
+          deno
+          bun
         ];
 
         nix = with pkgs; [
@@ -287,6 +289,7 @@
           gomplate
           websocat
           dbeaver
+          postman
           shfmt
           ngrok
           sqlc
@@ -299,9 +302,11 @@
       [
         gnome.gnome-sound-recorder
         gnome.seahorse
+        stdenv_32bit
         imagemagick
         libnotify
         octofetch
+        coreutils
         binutils
         neofetch
         tenacity
@@ -321,6 +326,7 @@
         krita
         exfat
         xclip
+        clang
         wget
         dpkg
         tree
