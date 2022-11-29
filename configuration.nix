@@ -356,6 +356,7 @@
       ga = "git add";
       gaa = "git add --all";
       gb = "git branch";
+      gbh = "git branch | head -n 15";
       gc = "git commit -v";
       gca = "git commit --amend";
       gck = "git checkout";
