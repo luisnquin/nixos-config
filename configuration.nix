@@ -368,6 +368,7 @@
       ggpull = "git pull origin $(git branch --show-current)";
       gpull = "git pull origin";
       gpullf = "gpull -f";
+      gmpull = "ls | xargs -P10 -I{} git -C {} pull ";
       ggpush = "git push origin $(git branch --show-current)";
       gpush = "git push origin";
       gpushf = "gpush -f";
