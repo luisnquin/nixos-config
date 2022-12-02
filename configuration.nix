@@ -372,7 +372,7 @@
       ggpush = "git push origin $(git branch --show-current)";
       gpush = "git push origin";
       gpushf = "gpush -f";
-      gr = "git reset";
+      gr = "git reset -q";
       grb = "git rebase";
       grba = "git rebase --abort";
       grbc = "git rebase --continue";
