@@ -422,6 +422,8 @@
       cat = "bat -p";
       clip = "xclip";
       open = "xdg-open";
+      cl = "clear";
+      cls = "clear";
       po = "poweroff";
       poff = "poweroff";
       xclip = "xclip -selection c";
