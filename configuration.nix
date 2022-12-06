@@ -357,7 +357,6 @@
       ga = "git add";
       gaa = "git add --all";
       gb = "git branch";
-      gbh = "git branch | head -n 15";
       gc = "git commit -v";
       gca = "git commit --amend";
       gck = "git checkout";
@@ -468,6 +467,38 @@
       }
 
       if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
+
+      # I'm not wrong leaving this here
+      gbh() {
+          purple="\033[0;95m"
+          yellow="\033[0;93m"
+          black="\033[0;90m"
+          green="\033[0;92m"
+          blue="\033[0;94m"
+          color_end="\033[0m"
+
+          for branch in $(git branch | head -n 15); do
+              if [[ "$branch" == "*" ]]; then
+                  continue
+              fi
+
+              frags=($(echo "$branch" | tr "/" "\n"))
+
+              if [[ "$branch" == feat/* ]]; then
+                  echo "$green$frags[1]/$color_end$frags[2]"
+              elif [[ "$branch" == fix/* ]]; then
+                  echo "$yellow$frags[1]/$color_end$frags[2]"
+              elif [[ "$branch" == dev/* ]]; then
+                  echo "$black$frags[1]/$color_end$frags[2]"
+              elif [[ "$branch" == chore/* ]]; then
+                  echo "$purple$frags[1]/$color_end$frags[2]"
+              elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
+                  echo "$blue$branch"
+              else
+                  echo "$branch"
+              fi
+          done
+      }
 
       if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] ; then exec tmux; fi
     '';
