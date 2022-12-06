@@ -368,11 +368,9 @@
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
       ggpull = "git pull origin $(git branch --show-current)";
       gpull = "git pull origin";
-      gpullf = "gpull -f";
       gmpull = "ls | xargs -P10 -I{} git -C {} pull ";
       ggpush = "git push origin $(git branch --show-current)";
       gpush = "git push origin";
-      gpushf = "gpush -f";
       gr = "git reset -q";
       grb = "git rebase";
       grba = "git rebase --abort";
@@ -404,7 +402,6 @@
       ds = "v3 && cd dataserver/";
 
       # Instant tp to some directories
-      whoseport = "netstat -tulpln 2> /dev/null | grep :";
       dot = "cd ~/.dotfiles/";
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
@@ -428,12 +425,12 @@
       poff = "poweroff";
       xclip = "xclip -selection c";
       ftext = "grep -rnw . -e ";
+      whoseport = "netstat -tulpln 2> /dev/null | grep :";
       neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
       nsearch = "nix search nixpkgs";
       search = "nsearch";
       nfetch = "neofetch";
       ale = "alejandra --quiet";
-      kube = "kubectl";
       dud = "du --human-readable --summarize";
       du = "du --human-readable";
       f = "thefuck";
