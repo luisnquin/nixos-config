@@ -470,34 +470,54 @@
 
       # I'm not wrong leaving this here
       gbh() {
-          purple="\033[0;95m"
-          yellow="\033[0;93m"
-          black="\033[0;90m"
-          green="\033[0;92m"
-          blue="\033[0;94m"
-          color_end="\033[0m"
+        color_end="\033[0m"
+        purple="\033[0;95m"
+        yellow="\033[0;93m"
+        black="\033[0;90m"
+        green="\033[0;92m"
+        blue="\033[0;94m"
 
-          for branch in $(git branch | head -n 15); do
-              if [[ "$branch" == "*" ]]; then
-                  continue
-              fi
+        is_current_branch=0
 
-              frags=($(echo "$branch" | tr "/" "\n"))
+        for branch in $(git branch | head -n 15); do
+            if [[ "$branch" == "*" ]]; then
+                is_current_branch=1
 
-              if [[ "$branch" == feat/* ]]; then
-                  echo "$green$frags[1]/$color_end$frags[2]"
-              elif [[ "$branch" == fix/* ]]; then
-                  echo "$yellow$frags[1]/$color_end$frags[2]"
-              elif [[ "$branch" == dev/* ]]; then
-                  echo "$black$frags[1]/$color_end$frags[2]"
-              elif [[ "$branch" == chore/* ]]; then
-                  echo "$purple$frags[1]/$color_end$frags[2]"
-              elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
-                  echo "$blue$branch"
-              else
-                  echo "$branch"
-              fi
-          done
+                continue
+            fi
+
+            frags=($(echo "$branch" | tr "/" "\n"))
+
+            result=""
+
+            if [[ "$branch" == feat/* ]]; then
+                result="$blue$frags[1]/$color_end$frags[2]"
+            elif [[ "$branch" == fix/* ]]; then
+                result="$yellow$frags[1]/$color_end$frags[2]"
+            elif [[ "$branch" == refactor/* ]]; then
+                result="$green$frags[1]/$color_end$frags[2]"
+            elif [[ "$branch" == dev/* ]]; then
+                result="$purple$frags[1]/$color_end$frags[2]"
+            elif [[ "$branch" == chore/* ]]; then
+                result="$black$frags[1]/$color_end$frags[2]"
+            elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
+                result="$green$branch"
+            else
+                result="$branch"
+            fi
+
+            if [[ $is_current_branch -eq 1 ]]; then
+                result="$result *"
+                is_current_branch=0
+            fi
+
+            # Regex for Jira ticketsssss
+            if [[ $(echo "$result" | grep -E --colour=auto "[A-Z0-9]{2,}-\d+*") == "" ]]; then
+                echo "$result"
+            else
+                echo "$result" | grep -E --colour=auto "[A-Z0-9]{2,}-\d+*"
+            fi
+        done
       }
 
       if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] ; then exec tmux; fi
