@@ -528,7 +528,7 @@
     stateVersion = "22.11";
     autoUpgrade = {
       enable = true;
-      allowReboot = true;
+      allowReboot = false;
       channel = "https://nixos.org/channels/nixos-22.11";
     };
   };
