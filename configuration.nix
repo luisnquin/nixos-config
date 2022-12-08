@@ -38,12 +38,12 @@
 
     settings = {
       auto-optimise-store = true;
+      experimental-features = ["nix-command" "flakes"];
       max-jobs = 4;
     };
-
-    extraOptions = ''
-      experimental-features = nix-command flakes
-    '';
+    # extraOptions = ''
+    #   experimental-features = nix-command flakes
+    # '';
   };
 
   boot = {
@@ -85,6 +85,8 @@
   };
 
   users = {
+    motd = "It's a good moment to tell you that this will be a great day for you 🌇";
+
     users = {
       luisnquin = {
         isNormalUser = true;
