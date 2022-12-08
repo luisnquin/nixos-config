@@ -284,25 +284,24 @@
 
         dev = with pkgs; [
           nodePackages.firebase-tools
-          nodePackages.prettier
+          # nodePackages.prettier
           onlyoffice-bin
           obs-studio
           redoc-cli
-          gomplate
           websocat
           dbeaver
           postman
           shfmt
           ngrok
           sqlc
-          lens
+          # lens
           tmux
         ];
       };
     in
       # a large etcetera
       [
-        gnome.gnome-sound-recorder
+        # gnome.gnome-sound-recorder
         gnome.seahorse
         stdenv_32bit
         imagemagick
@@ -315,7 +314,6 @@
         openjdk
         gnumake
         fortune
-        thefuck
         openssh
         cowsay
         ffmpeg
@@ -389,8 +387,8 @@
       dpaq = "docker ps -aq | lolcat";
       dpa = "docker ps -a";
       dpq = "docker ps -q | lolcat";
+      dcp = "docker cp";
       dp = "docker ps";
-      dc = "docker cp";
 
       # My own
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
@@ -406,12 +404,9 @@
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
       gopl = "cd ~/Workspace/playground/go/";
-      pl = "playground";
-      playground = "cd ~/Workspace/playground/";
-      pr = "projects";
-      projects = "cd ~/Workspace/projects/";
+      pl = "cd ~/Workspace/playground/";
+      pr = "cd ~/Workspace/projects/";
       pypl = "cd ~/Workspace/playground/python/";
-      saves = "cd ~/Saves/";
       tests = "cd ~/Workspace/tests/";
       workspace = "cd ~/Workspace/";
 
@@ -424,25 +419,18 @@
       po = "poweroff";
       poff = "poweroff";
       xclip = "xclip -selection c";
-      ftext = "grep -rnw . -e ";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
       neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
-      nsearch = "nix search nixpkgs";
-      search = "nsearch";
+      search = "nix search nixpkgs";
       nfetch = "neofetch";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
       du = "du --human-readable";
-      f = "thefuck";
-      fuck = "thefuck";
-      gf = "gofumpt";
-      k = "k9s";
       ld = "lazydocker";
       lg = "lazygit";
       listen = "ngrok http";
       py = "python3";
       share = "ngrok http";
-      tools = "nix-env --query";
       top = "gotop --nvidia";
       unrar = "unar";
       wscat = "websocat";
@@ -459,7 +447,8 @@
       EDITOR = "nano";
     };
 
-    # Google search, zsh history search and tmux
+    # Google search, zsh history search, highlighter for conventional
+    # branches(include jira tickets) and tmux startup in non-vscode editors
     interactiveShellInit = ''
       google() {
           search=""
