@@ -472,18 +472,39 @@
 
         is_current_branch=0
 
-        emojis=(
-          🍍
-          🍝
-          🥞
-          🥗
-          🧋
-          🍁
-          🍂
-          🍃
-          🌱
-          🎄
-        )
+        emojis=(🍍 🍝 🥞 🥗 🧋 🍁 🍂 🍃 🌱)
+
+        month_nb=$(date +%m)
+
+        case $month_nb in
+        1|2) # Summer
+          emojis+=(🐚 🌴 🍹 🌻 🏊 ☀️ 👙)
+  
+          # Valentine's month
+          if [[ $month_nb -eq 2 ]]; then
+            emojis+=(💞 🍫 🧸 💐 🌹 💌)
+          fi
+
+          ;;
+        3|4|5) # Spring
+          emojis+=(🐣 🌳 🍀 🍃 🌈 🌷 🐝 🐇)
+
+          ;;
+        9|11) # Autumn
+          emojis+=(🍂 🥮 ☕ 🌰 🍊)
+
+          if [[ $month_nb -eq 11 ]]; then
+            emojis+=(🎂 🍰  🎁 🎉 🎈)
+          fi
+
+          ;;
+        10) # Halloween
+          emojis+=(🐈‍⬛ 🦇 🕷️ 🥀 🍬 🍫 🎃 🍭 ⚰️ 🪦 🫀)
+        
+          ;;
+        12) $ Christmas
+          emojis+=(🍷 🎁 🎄 ☃️ ❄️ 🥛 🦌)
+        esac
 
         emoji=$emojis[$((RANDOM%$#emojis[@]))]
 
