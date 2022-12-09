@@ -471,6 +471,21 @@
 
         is_current_branch=0
 
+        emojis=(
+          🍍
+          🍝
+          🥞
+          🥗
+          🧋
+          🍁
+          🍂
+          🍃
+          🌱
+          🎄
+        )
+
+        emoji=$emojis[$((RANDOM%$#emojis[@]))]
+
         for branch in $(git branch | head -n 15); do
             if [[ "$branch" == "*" ]]; then
                 is_current_branch=1
@@ -493,13 +508,18 @@
             elif [[ "$branch" == chore/* ]]; then
                 result="$black$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
-                result="$green$branch"
+                result="$green$branch$color_end"
             else
                 result="$branch"
             fi
 
             if [[ $is_current_branch -eq 1 ]]; then
-                result="$result *"
+                if [[ $emoji == "" ]]; then
+                  emoji="*"
+                fi
+
+                result="$result $emoji"
+
                 is_current_branch=0
             fi
 
