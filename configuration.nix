@@ -7,7 +7,7 @@
     ./hardware-configuration.nix
   ];
 
-  require = [
+  require = [ # TODO: modules, units and services must be called once here
     # With this unit the battery will not go higher than 60 percent
     "/etc/nixos/units/battery-limit.nix"
     # Enables nvidia drivers, at least in my computer
@@ -16,6 +16,8 @@
     "/etc/nixos/services/cron.nix"
     # Some tmux configurations
     "/etc/nixos/modules/tmux.nix"
+    # Packages updated/needed
+    "/etc/nixos/pkgs/default.nix"
   ];
 
   nixpkgs.config = {
@@ -228,6 +230,7 @@
           fragments
           slack
           spotify
+          spotify-tui
           vscode
         ];
 
@@ -479,7 +482,7 @@
         case $month_nb in
         1|2) # Summer
           emojis+=(🐚 🌴 🍹 🌻 🏊 ☀️ 👙)
-  
+
           # Valentine's month
           if [[ $month_nb -eq 2 ]]; then
             emojis+=(💞 🍫 🧸 💐 🌹 💌)
@@ -500,7 +503,7 @@
           ;;
         10) # Halloween
           emojis+=(🐈‍⬛ 🦇 🕷️ 🥀 🍬 🍫 🎃 🍭 ⚰️ 🪦 🫀)
-        
+
           ;;
         12) $ Christmas
           emojis+=(🍷 🎁 🎄 ☃️ ❄️ 🥛 🦌)
