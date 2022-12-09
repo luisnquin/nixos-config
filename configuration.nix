@@ -498,7 +498,7 @@
             result=""
 
             if [[ "$branch" == feat/* ]]; then
-                result="$blue$frags[1]/$color_end$frags[2]"
+                result="$green$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == fix/* ]]; then
                 result="$yellow$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == refactor/* ]]; then
@@ -508,7 +508,7 @@
             elif [[ "$branch" == chore/* ]]; then
                 result="$black$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
-                result="$green$branch$color_end"
+                result="$blue$branch$color_end"
             else
                 result="$branch"
             fi
