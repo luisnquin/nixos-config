@@ -313,6 +313,7 @@
         binutils
         neofetch
         tenacity
+        nyancat
         openjdk
         gnumake
         fortune
