@@ -434,7 +434,7 @@
       listen = "ngrok http";
       py = "python3";
       share = "ngrok http";
-      top = "gotop --nvidia";
+      top = "gotop --nvidia --color=vice";
       unrar = "unar";
       wscat = "websocat";
     };
