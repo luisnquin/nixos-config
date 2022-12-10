@@ -377,8 +377,6 @@
       gpush = "git push origin";
       gr = "git reset -q";
       grb = "git rebase";
-      grba = "git rebase --abort";
-      grbc = "git rebase --continue";
       gs = "git stash";
       gsp = "git stash pop";
       gss = "git status -s";
@@ -388,13 +386,10 @@
       dka = "docker kill $(docker ps -qa) 2> /dev/null";
       dra = "docker rm $(docker ps -qa) 2> /dev/null";
       dria = "docker rmi -f $(docker image ls -qa)";
-      di = "docker image ls";
+      dils = "docker image ls";
       dss = "docker stats";
-      dpaq = "docker ps -aq | lolcat";
-      dpa = "docker ps -a";
-      dpq = "docker ps -q | lolcat";
       dcp = "docker cp";
-      dp = "docker ps";
+      dps = "docker ps -a";
 
       # My own
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
