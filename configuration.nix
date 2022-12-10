@@ -423,6 +423,7 @@
       xclip = "xclip -selection c";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
       neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
+      nyancat = "nyancat --no-counter";
       search = "nix search nixpkgs";
       nfetch = "neofetch";
       ale = "alejandra --quiet";
