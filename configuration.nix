@@ -7,7 +7,8 @@
     ./hardware-configuration.nix
   ];
 
-  require = [ # TODO: modules, units and services must be called once here
+  require = [
+    # TODO: modules, units and services must be called once here
     # With this unit the battery will not go higher than 60 percent
     "/etc/nixos/units/battery-limit.nix"
     # Enables nvidia drivers, at least in my computer
@@ -158,6 +159,25 @@
       passwordAuthentication = true;
     };
 
+    spotifyd = {
+      enable = true;
+      settings.global = {
+        autoplay = true;
+        backend = "pulseaudio";
+        bitrate = 320;
+        dbus_type = "system";
+        device_name = "spotifyd";
+        device_type = "computer";
+        initial_volume = "80";
+        # TODO: implemetation for secrets and other personal settings
+        password = "";
+        use_keyring = true;
+        use_mpris = true;
+        username = "yeselony"; # Thanks to the guy who stole and changed my username 5 years ago
+        volume_normalisation = false;
+      };
+    };
+
     xserver = {
       videoDrivers = ["nvidia"];
       libinput.enable = true;
@@ -229,9 +249,13 @@
           discord
           fragments
           slack
-          spotify
-          spotify-tui
           vscode
+        ];
+
+        spotify = with pkgs; [
+          spotify
+          spotifyd
+          spotify-tui
         ];
 
         go = with pkgs; [
@@ -310,6 +334,7 @@
         gnome.seahorse
         stdenv_32bit
         imagemagick
+        libsecret
         libnotify
         octofetch
         coreutils
@@ -346,6 +371,7 @@
         jq
       ] # with their rommates
       ++ nyxPkgs.kubernetes
+      ++ nyxPkgs.spotify
       ++ nyxPkgs.python
       ++ nyxPkgs.docker
       ++ nyxPkgs.rust
