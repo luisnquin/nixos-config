@@ -215,24 +215,21 @@
       cp = "cp --interactive";
       rm = "rm --interactive";
       mv = "mv --interactive";
+      du = "du --human-readable";
+      xclip = "xclip -selection c";
 
       # Those who are lazy to write definitely go here
       cat = "bat -p";
-      clip = "xclip";
       open = "xdg-open";
       cl = "clear";
       cls = "clear";
       po = "poweroff";
       poff = "poweroff";
-      xclip = "xclip -selection c";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
-      # neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
-      # nfetch = "neofetch";
       nyancat = "nyancat --no-counter";
       search = "nix search nixpkgs";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
-      du = "du --human-readable";
       ld = "lazydocker";
       lg = "lazygit";
       listen = "ngrok http";
