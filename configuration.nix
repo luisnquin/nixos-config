@@ -4,7 +4,6 @@
   ...
 }: let
   username = "luisnquin";
-  spotify_username = "yeselony";
 in {
   imports = [
     ./hardware-configuration.nix
@@ -156,16 +155,6 @@ in {
   xdg.portal.wlr.enable = true;
   sound.enable = true;
 
-  systemd.services.spotifyd = {
-    after = ["network-online.target" "sound.target"];
-    serviceConfig = {
-      SupplementaryGroups = ["audio"];
-      DynamicUser = true;
-      User = ''${username}'';
-      Restart = "always";
-    };
-  };
-
   services = {
     gnome.gnome-keyring.enable = true;
     thermald.enable = true;
@@ -173,28 +162,6 @@ in {
     openssh = {
       enable = true;
       passwordAuthentication = true;
-    };
-
-    spotifyd = {
-      enable = true;
-      settings.global = {
-        # use_keyring = true;
-        autoplay = true;
-        # backend = "pulseaudio";
-        bitrate = 320;
-        cache_path = ''/home/${username}/.cache/spotifyd'';
-        # dbus_type = "session";
-        device_name = config.networking.hostName;
-        device_type = "computer";
-        initial_volume = "80";
-        max_cache_size = 1000000000;
-        no_audio_cache = false;
-        # TODO: implementation for secrets and other personal settings
-        password = "";
-        # use_mpris = true;
-        username = ''${spotify_username}''; # Thanks to the guy who stole and changed my username 5 years ago
-        volume_normalisation = false;
-      };
     };
 
     xserver = {
