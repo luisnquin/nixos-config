@@ -61,7 +61,11 @@ in {
   hardware = {
     enableRedistributableFirmware = true;
     cpu.intel.updateMicrocode = true;
-    opengl.enable = true;
+
+    opengl = {
+      enable = true;
+      driSupport32Bit = true;
+    };
 
     bluetooth = {
       enable = false;
@@ -122,7 +126,11 @@ in {
     keyMap = "es";
   };
 
-  time.timeZone = "America/Lima";
+  time = {
+    timeZone = "America/Lima";
+    # Without this option, the machine will have a UTC time
+    hardwareClockInLocalTime = true;
+  };
 
   fonts = {
     fonts = with pkgs; [
@@ -135,7 +143,7 @@ in {
   };
 
   virtualisation.docker = {
-    # enableNvidia = true;
+    enableNvidia = true;
     enable = true;
 
     autoPrune = {
@@ -206,12 +214,10 @@ in {
         plasma5.enable = true;
         xterm.enable = true;
       };
-
-      # windowManager = {};
     };
 
+    # pulseaudio doesn't give a good support for some programs
     pipewire = {
-      # In replacement of pulseaudio that doesn't give a good support for some of my programs
       enable = true;
       alsa.enable = true;
       pulse.enable = true;
