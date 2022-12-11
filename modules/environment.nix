@@ -203,9 +203,14 @@
       gopl = "cd ~/Workspace/playground/go/";
       pl = "cd ~/Workspace/playground/";
       pr = "cd ~/Workspace/projects/";
-      pypl = "cd ~/Workspace/playground/python/";
       tests = "cd ~/Workspace/tests/";
+      tmp = "cd /tmp/";
       workspace = "cd ~/Workspace/";
+
+      # Overwriten program calls
+      cp = "cp --interactive";
+      rm = "rm --interactive";
+      mv = "mv --interactive";
 
       # Those who are lazy to write definitely go here
       cat = "bat -p";
