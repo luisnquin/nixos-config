@@ -36,3 +36,4 @@ Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more o
 ## Inspired by
 
 - [angristan](https://github.com/angristan/nixos-config)
+- [kmein](https://github.com/kmein/niveum)
