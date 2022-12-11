@@ -10,15 +10,19 @@
           kubernetes
           minikube
           kubectl
+          # lens
           k9s
         ];
 
         apps = with pkgs; [
-          brave
-          discord
           fragments
+          discord
           slack
-          vscode
+        ];
+
+        browsers = with pkgs; [
+          vivaldi
+          brave
         ];
 
         spotify = with pkgs; [
@@ -82,17 +86,16 @@
 
         dev = with pkgs; [
           nodePackages.firebase-tools
-          # nodePackages.prettier
           onlyoffice-bin
           obs-studio
           redoc-cli
           websocat
           dbeaver
           postman
+          vscode
           shfmt
           ngrok
           sqlc
-          # lens
           tmux
         ];
       };
@@ -140,6 +143,7 @@
         jq
       ] # with their rommates
       ++ nyxPkgs.kubernetes
+      ++ nyxPkgs.browsers
       ++ nyxPkgs.spotify
       ++ nyxPkgs.python
       ++ nyxPkgs.docker
@@ -222,10 +226,10 @@
       poff = "poweroff";
       xclip = "xclip -selection c";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
-      neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
+      # neofetch = ''neofetch --ascii "$(fortune | cowsay -W 40)" | lolcat'';
+      # nfetch = "neofetch";
       nyancat = "nyancat --no-counter";
       search = "nix search nixpkgs";
-      nfetch = "neofetch";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
       du = "du --human-readable";
@@ -248,6 +252,8 @@
 
     variables = {
       EDITOR = "nano";
+      # The other related config only apply to the build
+      NIXPKGS_ALLOW_UNFREE = "1";
     };
 
     # Google search, zsh history search, highlighter for conventional

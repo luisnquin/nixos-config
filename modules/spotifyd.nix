@@ -28,7 +28,7 @@
       max_cache_size = 1000000000;
       no_audio_cache = false;
       # TODO: implementation for secrets and other personal settings
-      password = "knows_exactly_what_she_is_doing";
+      password = "";
       # use_mpris = true;
       username = "yeselony"; # Thanks to the guy who stole and changed my username 5 years ago
       volume_normalisation = false;
