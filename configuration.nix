@@ -161,6 +161,17 @@ in {
 
   xdg = {
     portal.wlr.enable = true;
+
+    mime.defaultApplications = {
+      "text/csv" = "code.desktop"; # Suspect
+      "text/x-go" = "code.desktop"; # of
+      "video/x-matroska" = "vlc.desktop;vlc-2.desktop"; # these
+      "x-scheme-handler/postman" = "Postman.desktop";
+      "x-scheme-handler/slack" = "slack.desktop";
+      "x-scheme-handler/http" = "microsoft-edge.desktop";
+      "application/pdf" = "brave.desktop";
+      "image/png" = ["gwenview.desktop" "gimp.desktop"];
+    };
   };
 
   i18n.defaultLocale = "es_PE.UTF-8";
@@ -232,7 +243,7 @@ in {
   system = {
     stateVersion = "22.11";
     autoUpgrade = {
-      enable = true;
+      enable = false;
       allowReboot = false;
       channel = "https://nixos.org/channels/nixos-22.11";
     };
