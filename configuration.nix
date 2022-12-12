@@ -17,6 +17,7 @@ in {
 
   nixpkgs.config = {
     allowBroken = false;
+    # The day I meet the man who has this option in false
     allowUnfree = true;
   };
 
@@ -50,6 +51,12 @@ in {
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
+        theme = pkgs.fetchFromGitHub {
+          owner = "shvchk";
+          repo = "fallout-grub-theme";
+          rev = "80734103d0b48d724f0928e8082b6755bd3b2078";
+          sha256 = "sha256-7kvLfD6Nz4cEMrmCA9yq4enyqVyqiTkVZV5y4RyUatU=";
+        };
       };
     };
 
@@ -151,8 +158,11 @@ in {
     };
   };
 
+  xdg = {
+    portal.wlr.enable = true;
+  };
+
   i18n.defaultLocale = "es_PE.UTF-8";
-  xdg.portal.wlr.enable = true;
   sound.enable = true;
 
   services = {
