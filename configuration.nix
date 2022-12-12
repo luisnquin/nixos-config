@@ -102,7 +102,8 @@ in {
       ${username} = {
         isNormalUser = true;
         home = ''/home/${username}/'';
-        description = ''${username} computer'';
+        # Used by desktop manager
+        description = ''${username} 🌂'';
         shell = pkgs.zsh;
         hashedPassword = null;
         # ❄️
