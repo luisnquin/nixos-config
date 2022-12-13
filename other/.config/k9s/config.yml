@@ -1,0 +1,26 @@
+# Without symlink
+k9s:
+    # Represents ui poll intervals. Default 2secs
+    refreshRate: 2
+    # Number of retries once the connection to the api-server is lost. Default 15.
+    maxConnRetry: 15
+    # Enable mouse support. Default false
+    enableMouse: false
+    # Set to true to hide K9s header. Default false
+    headless: false
+    # Set to true to hide K9s logo. Default false
+    logoless: true
+    # Set to true to hide K9s crumbs. Default false
+    crumbsless: true
+    # Indicates whether modification commands like delete/kill/edit are disabled. Default is false
+    readOnly: false
+    # Toggles icons display as not all terminal support these chars.
+    noIcons: false
+    # Logs configuration
+    logger:
+        tail: 200
+        buffer: 5000
+        sinceSeconds: 60
+        fullScreenLogs: false
+        textWrap: false
+        showTime: false
