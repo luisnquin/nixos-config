@@ -5,6 +5,7 @@
 }: {
   environment = {
     systemPackages = with pkgs; let
+      # TODO: organize by section with subsections
       nyxPkgs = {
         kubernetes = with pkgs; [
           kubernetes
@@ -93,6 +94,7 @@
           awscli2
           dbeaver
           postman
+          minify
           vscode
           shfmt
           ngrok
