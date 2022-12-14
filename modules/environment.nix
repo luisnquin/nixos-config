@@ -90,6 +90,7 @@
           obs-studio
           redoc-cli
           websocat
+          awscli2
           dbeaver
           postman
           vscode
