@@ -95,6 +95,7 @@
           dbeaver
           postman
           minify
+          csvkit
           vscode
           shfmt
           ngrok
