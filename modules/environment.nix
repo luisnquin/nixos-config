@@ -38,6 +38,7 @@
           gcc
           go_1_19
           go-protobuf
+          golangci-lint
           gofumpt
           gopls
           gotools
