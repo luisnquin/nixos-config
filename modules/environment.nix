@@ -138,6 +138,7 @@
         unar
         gimp
         vim
+        exa # ls command replacement
         vlc
         bat
         zip
@@ -222,9 +223,12 @@
       mv = "mv --interactive";
       du = "du --human-readable";
       xclip = "xclip -selection c";
+      ls = "exa --icons";
+      ll = "exa -l";
+      la = "exa -a";
+      cat = "bat -p";
 
       # Those who are lazy to write definitely go here
-      cat = "bat -p";
       open = "xdg-open";
       cl = "clear";
       cls = "clear";
