@@ -180,9 +180,9 @@
       ggpull = "git pull origin $(git branch --show-current)";
       gpull = "git pull origin";
       # TODO: check .git
-      gmb = ''ls | xargs -i sh -c 'printf " ~ \033[0;94m{}\033[0m:" && git -C {} branch --show-current' '';
-      gmpull = "ls | xargs -P10 -I{} git -C {} pull";
-      gmpush = "ls | xargs -P10 -I{} git -C {} push";
+      gmb = ''command ls | xargs -i sh -c 'printf " ~ \033[0;94m{}\033[0m:" && git -C {} branch --show-current' '';
+      gmpull = "command ls | xargs -i git -C {} pull";
+      gmpush = "command ls | xargs -i git -C {} push";
       ggpush = "git push origin $(git branch --show-current)";
       gpush = "git push origin";
       gr = "git reset -q";
