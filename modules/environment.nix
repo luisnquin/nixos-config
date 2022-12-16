@@ -218,7 +218,7 @@
       gopl = "cd ~/Workspace/playground/go/";
       pl = "cd ~/Workspace/playground/";
       pr = "cd ~/Workspace/projects/";
-      tests = "cd ~/Workspace/tests/";
+      tests = "cd ~/Tests/";
       tmp = "cd /tmp/";
       workspace = "cd ~/Workspace/";
 
