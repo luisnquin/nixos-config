@@ -2,7 +2,9 @@
   config,
   username,
   ...
-}: {
+}: let
+  owner = import "/etc/nixos/owner.nix";
+in {
   systemd.services.spotifyd = {
     after = ["network-online.target" "sound.target"];
     serviceConfig = {
@@ -30,7 +32,7 @@
       # TODO: implementation for secrets and other personal settings
       password = "";
       # use_mpris = true;
-      username = "yeselony"; # Thanks to the guy who stole and changed my username 5 years ago
+      username = owner.username; # Thanks to the guy who stole and changed my username 5 years ago
       volume_normalisation = false;
     };
   };

@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  username = "luisnquin";
+  owner = import "/etc/nixos/owner.nix";
 in {
   imports = [
     ./hardware-configuration.nix
@@ -99,11 +99,11 @@ in {
     motd = "It's a good moment to tell you that this will be a great day for you 🌇";
 
     users = {
-      ${username} = {
+      ${owner.username} = {
         isNormalUser = true;
-        home = ''/home/${username}/'';
+        home = ''/home/${owner.username}/'';
         # Used by desktop manager
-        description = ''${username} 🌂'';
+        description = ''${owner.username} 🌂'';
         shell = pkgs.zsh;
         hashedPassword = null;
         # ❄️
