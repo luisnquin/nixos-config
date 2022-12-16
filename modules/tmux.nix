@@ -6,11 +6,11 @@
 }: let
   tmux-plugins = with pkgs; [
     tmuxPlugins.online-status
+    tmuxPlugins.onedark-theme
     tmuxPlugins.fzf-tmux-url
     tmuxPlugins.continuum
     tmuxPlugins.sidebar
     tmuxPlugins.sysstat
-    tmuxPlugins.nord
   ];
 
   tmux-plugins-dependencies = with pkgs; [
