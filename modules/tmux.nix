@@ -8,7 +8,7 @@
     tmuxPlugins.online-status
     tmuxPlugins.onedark-theme
     tmuxPlugins.fzf-tmux-url
-    tmuxPlugins.continuum
+    # tmuxPlugins.continuum
     tmuxPlugins.sidebar
     tmuxPlugins.sysstat
   ];
