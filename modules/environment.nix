@@ -64,6 +64,7 @@
 
         nix = with pkgs; [
           alejandra
+          nil
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
         ];
@@ -82,12 +83,14 @@
         ];
 
         python = with pkgs; [
-          python310
           virtualenv
+          python310
+          pyright
         ];
 
         dev = with pkgs; [
           nodePackages.firebase-tools
+          license-generator
           onlyoffice-bin
           obs-studio
           redoc-cli
