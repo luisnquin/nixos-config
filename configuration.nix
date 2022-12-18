@@ -16,6 +16,9 @@ in {
   ];
 
   nixpkgs.config = {
+    permittedInsecurePackages = [
+      "electron-12.2.3"
+    ];
     allowBroken = false;
     # The day I meet the man who has this option in false
     allowUnfree = true;
