@@ -1,0 +1,27 @@
+name: Style check
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    check:
+        name: It comes out with exit code 1 in case Alejandra sent suggestions in the nix code
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Install cargo-hakari
+              uses: baptiste0928/cargo-install@v1
+              with:
+                  crate: cargo-hakari
+                  version: '0.9' # Most recent version compatible with 0.9
+
+            - name: Run cargo-hakari
+              run: cargo hakari generate --diff # Installed crate has been added to PATH
+
+            - name: Install alejandra code formatter
+              run: cargo install alejandra
+
+            - name: Code checking
+              run: "! alejandra -c . 2>&1 | grep 'Would be changed'"
