@@ -54,6 +54,7 @@ in {
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
+        fontSize = 16;
         theme = pkgs.fetchFromGitHub {
           owner = "shvchk";
           repo = "fallout-grub-theme";
@@ -165,6 +166,7 @@ in {
   xdg = {
     portal.wlr.enable = true;
 
+    # TODO: fix and add more kv's here
     mime.defaultApplications = {
       "text/csv" = "code.desktop"; # Suspect
       "text/x-go" = "code.desktop"; # of
