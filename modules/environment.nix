@@ -70,6 +70,7 @@
         ];
 
         git = with pkgs; [
+		  act # To run GitHub Actions locally
           git
           lazygit
           pre-commit
