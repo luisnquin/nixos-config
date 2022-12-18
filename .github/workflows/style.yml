@@ -13,6 +13,9 @@ jobs:
         steps:
             - uses: actions/checkout@v2
 
+            - name: Cargo.toml file creation
+              run: echo '[package]\nname = "any"\nversion = "0.1.0"\nedition = "2022"\n\n[dependencies]' > Cargo.toml
+
             - uses: actions-rs/toolchain@v1
               with:
                   toolchain: stable
