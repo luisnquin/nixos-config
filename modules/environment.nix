@@ -73,6 +73,8 @@
           git
           lazygit
           pre-commit
+          git-ignore
+          git-chglog # I'm using conventional commits so
           onefetch
         ];
 
@@ -96,6 +98,7 @@
           redoc-cli
           websocat
           awscli2
+          # gobang
           dbeaver
           postman
           minify
@@ -130,6 +133,7 @@
         ntfs3g
         neovim
         lolcat
+        etcher
         gotop
         p7zip
         unzip
