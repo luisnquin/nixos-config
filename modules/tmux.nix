@@ -18,7 +18,7 @@
       # tmuxPlugins.continuum
       tmuxPlugins.sidebar
       tmuxPlugins.sysstat
-      gitmux
+      # gitmux
       fzf
     ];
 
