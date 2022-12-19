@@ -44,7 +44,7 @@
     # Until we find a way to correctly handle YAML files
     text = ''
       tmux:
-      symbols:
+        symbols:
           branch: '⎇ '
           hashprefix: ':'
           ahead: ↑·
@@ -55,7 +55,7 @@
           untracked: '… '
           stashed: '⚑ '
           clean: ✔
-      styles:
+        styles:
           clear: '#[fg=default]'
           state: '#[fg=red,bold]'
           branch: '#[fg=white,bold]'
@@ -67,8 +67,8 @@
           stashed: '#[fg=cyan,bold]'
           clean: '#[fg=green,bold]'
           divergence: '#[fg=default]'
-      layout: [branch, .., remote-branch, divergence, ' - ', flags]
-      options:
+        layout: [branch, .., remote-branch, divergence, ' - ', flags]
+        options:
           branch_max_len: 0
           branch_trim: right
     '';
