@@ -54,7 +54,8 @@ in {
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
-        fontSize = 16;
+        font = ''${pkgs.grub2}/share/grub/unicode.pf2'';
+        fontSize = 12;
         theme = pkgs.fetchFromGitHub {
           owner = "shvchk";
           repo = "fallout-grub-theme";
