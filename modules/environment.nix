@@ -6,7 +6,7 @@
   environment = {
     systemPackages = with pkgs; let
       # TODO: organize by section with subsections
-      nyxPkgs = {
+      gg = {
         kubernetes = with pkgs; [
           kubernetes
           minikube
@@ -70,8 +70,8 @@
         ];
 
         git = with pkgs; [
-          act # GitHub Actions
-          gitlab-runner # and GitLab CI
+          act
+          gitlab-runner
           git
           lazygit
           pre-commit
@@ -90,6 +90,10 @@
           virtualenv
           python310
           pyright
+        ];
+
+        osint = with pkgs; [
+          exiftool
         ];
 
         dev = with pkgs; [
@@ -156,18 +160,19 @@
         zsh
         jq
       ] # with their rommates
-      ++ nyxPkgs.kubernetes
-      ++ nyxPkgs.browsers
-      ++ nyxPkgs.spotify
-      ++ nyxPkgs.python
-      ++ nyxPkgs.docker
-      ++ nyxPkgs.rust
-      ++ nyxPkgs.apps
-      ++ nyxPkgs.dev
-      ++ nyxPkgs.git
-      ++ nyxPkgs.nix
-      ++ nyxPkgs.js
-      ++ nyxPkgs.go;
+      ++ gg.kubernetes
+      ++ gg.browsers
+      ++ gg.spotify
+      ++ gg.python
+      ++ gg.docker
+      ++ gg.osint
+      ++ gg.rust
+      ++ gg.apps
+      ++ gg.dev
+      ++ gg.git
+      ++ gg.nix
+      ++ gg.js
+      ++ gg.go;
 
     shellAliases = {
       # Git
