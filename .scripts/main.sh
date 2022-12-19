@@ -24,7 +24,7 @@ main() {
         check_syntax_errors
 
         ensure_symlinks
-        sudo nixos-rebuild boot --upgrade --show-trace
+        sudo nixos-rebuild boot --upgrade
         printf "\n\033[1;34mSuccessfully updated! ❄️❄️❄️\033[0m\n"
         ;;
     2)
