@@ -155,8 +155,9 @@ in {
   };
 
   virtualisation.docker = {
-    enableNvidia = true;
     enable = true;
+    enableNvidia = true;
+    extraOptions = "--default-runtime=nvidia";
 
     autoPrune = {
       enable = true;
