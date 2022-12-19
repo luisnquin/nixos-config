@@ -38,3 +38,4 @@ Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more o
 - [angristan](https://github.com/angristan/nixos-config)
 - [kmein](https://github.com/kmein/niveum)
 - [mogria](https://github.com/mogria/nixpkgs-config)
+- [qbit](https://github.com/qbit/nix-conf)
