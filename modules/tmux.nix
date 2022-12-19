@@ -39,4 +39,78 @@
       set -g status-right '#(${pkgs.gitmux}/bin/gitmux "#{pane_current_path}")'
     '';
   };
+
+  environment.etc."gitmux.conf" = with lib; {
+    # Until we find a way to correctly handle YAML files
+    text = ''
+      tmux:
+      symbols:
+          branch: '⎇ '
+          hashprefix: ':'
+          ahead: ↑·
+          behind: ↓·
+          staged: '● '
+          conflict: '✖ '
+          modified: '✚ '
+          untracked: '… '
+          stashed: '⚑ '
+          clean: ✔
+      styles:
+          clear: '#[fg=default]'
+          state: '#[fg=red,bold]'
+          branch: '#[fg=white,bold]'
+          remote: '#[fg=cyan]'
+          staged: '#[fg=green,bold]'
+          conflict: '#[fg=red,bold]'
+          modified: '#[fg=red,bold]'
+          untracked: '#[fg=magenta,bold]'
+          stashed: '#[fg=cyan,bold]'
+          clean: '#[fg=green,bold]'
+          divergence: '#[fg=default]'
+      layout: [branch, .., remote-branch, divergence, ' - ', flags]
+      options:
+          branch_max_len: 0
+          branch_trim: right
+    '';
+
+    /*
+     text = generators.toYAML {} {
+       tmux = {
+         symbols = {
+           branch = "⎇ ";
+           hashprefix = ":";
+           ahead = "↑·";
+           behind = "↓·";
+           staged = "● ";
+           conflict = "✖ ";
+           modified = "✚ ";
+           untracked = "… ";
+           stashed = "⚑ ";
+           clean = "✔";
+         };
+     
+         styles = {
+           clear = "#[fg=default]";
+           state = "#[fg=red,bold]";
+           branch = "#[fg=white,bold]";
+           remote = "#[fg=cyan]";
+           staged = "#[fg=green,bold]";
+           conflict = "#[fg=red,bold]";
+           modified = "#[fg=red,bold]";
+           untracked = "#[fg=magenta,bold]";
+           stashed = "#[fg=cyan,bold]";
+           clean = "#[fg=green,bold]";
+           divergence = "#[fg=default]";
+         };
+     
+         layout = ["branch" "..." "remote-branch" "divergence" " - " "flags"];
+     
+         options = {
+           branch_max_len = 0;
+           branch_trim = "right";
+         };
+       };
+     };
+     */
+  };
 }
