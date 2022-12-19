@@ -1,9 +1,6 @@
 name: Style check
 
-on:
-    push:
-        branches:
-            - main
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
     check:
@@ -11,19 +8,18 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v3
 
-            - name: Cargo.toml file creation
-              run: echo -e '[package]\nname = "any"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]' | tee Cargo.toml
-
-            - uses: actions-rs/toolchain@v1
+            - uses: cachix/install-nix-action@v18
               with:
-                  toolchain: stable
+                  install_url: https://nixos.org/nix/install
+                  extra_nix_config: |
+                      auto-optimise-store = true
+                      experimental-features = nix-command flakes
+                  # nix_path: nixpkgs=channel:nixos-unstable
 
-            - uses: actions-rs/cargo@v1
-              with:
-                  command: install
-                  args: alejandra
+            - name: Alejandra installation
+              run: nix-env -f '<nixpkgs>' -iA alejandra
 
             - name: Code checking
               run: "! alejandra -c . 2>&1 | grep 'Would be changed'"

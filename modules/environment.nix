@@ -70,7 +70,8 @@
         ];
 
         git = with pkgs; [
-          act # To run GitHub Actions locally
+          act # GitHub Actions
+          gitlab-runner # and GitLab CI
           git
           lazygit
           pre-commit
@@ -239,6 +240,8 @@
       cat = "bat -p";
 
       # Those who are lazy to write definitely go here
+      githubci = "act";
+      gitlabci = "gitlab-runner";
       open = "xdg-open";
       cl = "clear";
       cls = "clear";
