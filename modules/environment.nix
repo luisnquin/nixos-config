@@ -186,6 +186,7 @@
       gd = "git diff";
       gds = "git diff --staged";
       gl = "git log --oneline";
+      gls = "git log --oneline | head -n 10";
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
       ggpull = "git pull origin $(git branch --show-current)";
@@ -391,3 +392,18 @@
     '';
   };
 }
+/*
+ gc() {
+       if [ "$(git branch --show-current)" == "main" ] || [ "$(git branch --show-current)" == "master" ]; then
+         read -p "Are you sure? " -n 1 -r
+         echo
+         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+           exit 0
+         fi
+       fi
+       echo
+       git commit -v
+     }
+ 
+ */
+
