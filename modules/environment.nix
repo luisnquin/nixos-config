@@ -118,7 +118,6 @@
       };
     in
       [
-        # gnome.gnome-sound-recorder
         gnome.seahorse
         stdenv_32bit
         imagemagick
@@ -139,6 +138,7 @@
         ntfs3g
         neovim
         lolcat
+        genact
         etcher
         gotop
         p7zip
@@ -362,6 +362,8 @@
                 result="$green$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == dev/* ]]; then
                 result="$purple$frags[1]/$color_end$frags[2]"
+      elif [[ "$branch" == security/* ]]; then
+             result="$blue$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == chore/* ]]; then
                 result="$black$frags[1]/$color_end$frags[2]"
             elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
