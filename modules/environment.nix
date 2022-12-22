@@ -114,6 +114,8 @@
           ngrok
           sqlc
           tmux
+          # CLI to run SQL queries agains JSON, CSV, XLSX, etc
+          dsq
         ];
       };
     in
