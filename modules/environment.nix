@@ -133,6 +133,7 @@
         gnumake
         fortune
         openssh
+        genact
         cowsay
         ffmpeg
         ntfs3g
@@ -186,6 +187,8 @@
       gd = "git diff";
       gds = "git diff --staged";
       gl = "git log --oneline";
+      ggc = "git gc --aggressive";
+      gmgc = "command ls | xargs -i git -C {} gc --aggressive";
       gls = "git log --oneline | head -n 10";
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
@@ -253,6 +256,7 @@
       cls = "clear";
       po = "poweroff";
       poff = "poweroff";
+      actl = "act --list";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
       nyancat = "nyancat --no-counter";
       search = "nix search nixpkgs";
