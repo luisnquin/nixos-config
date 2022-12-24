@@ -38,10 +38,11 @@
           gcc
           go_1_19
           go-protobuf
-          golangci-lint
           gofumpt
+          golangci-lint
           gopls
           gotools
+          govulncheck
           grpc-tools
         ];
 
