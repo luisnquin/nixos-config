@@ -1,25 +1,18 @@
-name: Style check
+name: Check Nix formatting
 
-on: [push, pull_request, workflow_dispatch]
+on: [push, pull_request]
 
 jobs:
-    check:
-        name: It comes out with exit code 1 in case Alejandra sent suggestions in the nix code
+    check-formatting:
         runs-on: ubuntu-latest
-
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v2
+            - name: Install Alejandra
+              run: |
+                  wget https://github.com/kamadorueda/alejandra/releases/download/3.0.0/alejandra-x86_64-unknown-linux-musl
+                  mv alejandra-x86_64-unknown-linux-musl alejandra
+                  chmod +x alejandra
+                  mv alejandra /usr/local/bin
 
-            - uses: cachix/install-nix-action@v18
-              with:
-                  install_url: https://nixos.org/nix/install
-                  extra_nix_config: |
-                      auto-optimise-store = true
-                      experimental-features = nix-command flakes
-                  # nix_path: nixpkgs=channel:nixos-unstable
-
-            - name: Alejandra installation
-              run: nix-env -f '<nixpkgs>' -iA alejandra
-
-            - name: Code checking
-              run: "! alejandra -c . 2>&1 | grep 'Would be changed'"
+            - name: Check formatting
+              run: alejandra --check **/*.nix
