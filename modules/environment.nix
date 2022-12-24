@@ -413,6 +413,5 @@ gc() {
       echo
       git commit -v
     }
-
 */
 
