@@ -7,7 +7,6 @@
 in {
   environment = {
     systemPackages = with pkgs; let
-      # TODO: organize by section with subsections
       gg = {
         kubernetes = with pkgs; [
           kubernetes
@@ -295,17 +294,3 @@ in {
     interactiveShellInit = startupShellUtils;
   };
 }
-/*
-gc() {
-      if [ "$(git branch --show-current)" == "main" ] || [ "$(git branch --show-current)" == "master" ]; then
-        read -p "Are you sure? " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-          exit 0
-        fi
-      fi
-      echo
-      git commit -v
-    }
-*/
-
