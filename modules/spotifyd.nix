@@ -1,8 +1,10 @@
 {
   config,
   username,
+  lib,
   ...
-}: let
+}
+: let
   owner = import "/etc/nixos/owner.nix";
 in {
   systemd.services.spotifyd = {
@@ -16,24 +18,25 @@ in {
 
   services.spotifyd = {
     enable = true;
+
     settings.global = {
-      # use_keyring = true;
-      autoplay = true;
-      # backend = "pulseaudio";
-      bitrate = 320;
-      # TODO: pass username through the parent module
-      # cache_path = ''/home/${username}/.cache/spotifyd'';
-      # dbus_type = "session";
       device_name = config.networking.hostName;
-      device_type = "computer";
-      initial_volume = "80";
       max_cache_size = 1000000000;
-      no_audio_cache = false;
-      # TODO: implementation for secrets and other personal settings
-      password = "";
-      # use_mpris = true;
-      username = owner.username; # Thanks to the guy who stole and changed my username 5 years ago
       volume_normalisation = false;
+      device_type = "computer";
+      no_audio_cache = false;
+      initial_volume = "80";
+      autoplay = true;
+      bitrate = 320;
+
+      username = owner.spotifyUsername;
+      password = owner.spotifyPassword;
     };
   };
 }
+# cache_path = ''/home/${username}/.cache/spotifyd'';
+# backend = "pulseaudio";
+# dbus_type = "session";
+# use_keyring = true;
+# use_mpris = true;
+

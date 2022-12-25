@@ -6,7 +6,7 @@ let
     email = "root@luisquinones.me";
     secondaryEmail = "lpaandres2020@gmail.com";
 
-    git = rec {
+    git = {
       inherit username;
       name = fullName;
 
@@ -14,9 +14,9 @@ let
       deprecatedEmail = secondaryEmail;
     };
 
-    spotify = rec {
-      username = "yeselony";
-    };
+    spotifyUsername = "yeselony";
   };
+
+  secrets = import "/etc/nixos/secrets.nix";
 in
-  owner
+  owner // secrets
