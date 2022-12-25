@@ -2,9 +2,7 @@
   config,
   pkgs,
   ...
-}: let
-  startupShellUtils = builtins.readFile ./utils.zsh;
-in {
+}: {
   environment = {
     systemPackages = with pkgs; let
       gg = {
@@ -27,12 +25,6 @@ in {
           brave
         ];
 
-        spotify = with pkgs; [
-          spotify
-          spotifyd
-          spotify-tui
-        ];
-
         go = with pkgs; [
           air
           delve
@@ -45,6 +37,16 @@ in {
           gotools
           govulncheck
           grpc-tools
+        ];
+
+        rust = with pkgs; [
+          cargo
+          clippy
+          rust-analyzer
+          rustc
+          rustfmt
+          rustup
+          vscode-extensions.matklad.rust-analyzer
         ];
 
         js = with pkgs; [
@@ -158,10 +160,10 @@ in {
       ] # with their rommates
       ++ gg.kubernetes
       ++ gg.browsers
-      ++ gg.spotify
       ++ gg.python
       ++ gg.docker
       ++ gg.osint
+      ++ gg.rust
       ++ gg.apps
       ++ gg.dev
       ++ gg.git
@@ -294,6 +296,6 @@ in {
 
     # Google search, zsh history search, highlighter for conventional
     # branches(include jira tickets) and tmux startup in non-vscode editors
-    interactiveShellInit = startupShellUtils;
+    interactiveShellInit = builtins.readFile ./utils.zsh;
   };
 }

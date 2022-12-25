@@ -1,21 +1,12 @@
 {
   config,
-  username,
-  lib,
+  pkgs,
   ...
 }
+# TODO: instead of let declaration, pass owner through default.nix
 : let
   owner = import "/etc/nixos/owner.nix";
 in {
-  systemd.services.spotifyd = {
-    after = ["network-online.target" "sound.target"];
-    serviceConfig = {
-      SupplementaryGroups = ["audio"];
-      DynamicUser = true;
-      Restart = "always";
-    };
-  };
-
   services.spotifyd = {
     enable = true;
 
@@ -40,4 +31,21 @@ in {
       password = owner.spotifyPassword;
     };
   };
+
+  systemd.services.spotifyd = {
+    after = ["network-online.target" "sound.target"];
+    serviceConfig = {
+      SupplementaryGroups = ["audio"];
+      DynamicUser = true;
+      Restart = "always";
+    };
+  };
+
+  environment.systemPackages = with pkgs; [
+    spotify-tui
+    spotifyd
+    spotify
+  ];
+
+  # TODO: configuration files
 }
