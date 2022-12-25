@@ -21,14 +21,18 @@ in {
 
     # Ref: http://spotifyd.github.io/spotifyd/config/File.html
     settings.global = {
-      device = "hw:0,0";
+      device = "hw:0,0"; # 'aplay -l' or 'aplay -L'
+      control = "hw:0,0"; # Like the sugar
       device_name = config.networking.hostName;
+      cache_path = ''/home/${owner.username}/.cache/spotifyd'';
       max_cache_size = 1000000000;
       volume_normalisation = false;
-      device_type = "computer";
+      device_type = "speaker";
       no_audio_cache = false;
       initial_volume = "80";
-      backend = "alsa";
+      dbus_type = "session"; # this scope should be enough
+      use_mpris = true;
+      backend = "alsa"; # I'm using pipewire, so
       autoplay = true;
       bitrate = 320;
 
@@ -37,8 +41,3 @@ in {
     };
   };
 }
-# cache_path = ''/home/${username}/.cache/spotifyd'';
-# dbus_type = "session";
-# use_keyring = true;
-# use_mpris = true;
-
