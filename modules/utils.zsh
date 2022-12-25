@@ -58,7 +58,7 @@ upload_img() {
 
     # Check if the request was successful
     if ! jq -e '.success' <<<"$response" >/dev/null; then
-        printf "Error: failed to upload image\n" >&2
+        printf "Error: failed to upload image\n\nResponse: %s\n" "$response" >&2
 
         return 1
     fi
@@ -131,4 +131,20 @@ gbh() {
 
 if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
 
-if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then exec tmux; fi
+if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
+    exec tmux
+fi
+
+#    # Greeting of the date
+#    current_date=$(date +%Y-%m-%d)
+#    last_startup_date=$(cat /home/$USER/.cache/last_startup_date.txt 2>/dev/null || true)
+#
+#    if [ "$current_date" != "$last_startup_date" ]; then
+#        # This is the first terminal emulator startup of the day
+#        tmux send-keys <<EOF
+#echo "$current_date" >/home/$USER/.cache/last_startup_date.txt
+#echo "HIiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
+#EOF
+#    fi
+#
+#    unset current_date last_startup_date
