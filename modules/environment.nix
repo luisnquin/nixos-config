@@ -47,15 +47,6 @@ in {
           grpc-tools
         ];
 
-        rust = with pkgs; [
-          cargo
-          clippy
-          rustc
-          rust-analyzer
-          rustfmt
-          rustup
-        ];
-
         js = with pkgs; [
           nodePackages.typescript
           nodePackages.pnpm
@@ -171,7 +162,6 @@ in {
       ++ gg.python
       ++ gg.docker
       ++ gg.osint
-      ++ gg.rust
       ++ gg.apps
       ++ gg.dev
       ++ gg.git
