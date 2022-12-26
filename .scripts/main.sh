@@ -27,7 +27,11 @@ main() {
         fi
 
         printf "\n\033[0;95mChecking syntax errors [1/4]\033[0m\n"
-        check_syntax_errors
+        check_syntax_and_format || {
+            printf "\033[0;91msyntax errors detected or files are not correctly formatted!\033[0m\n"
+
+            exit 1
+        }
 
         printf "\n\033[0;95mEnsuring symlinks [2/4]\033[0m\n"
         ensure_symlinks
@@ -113,7 +117,7 @@ main() {
     fi
 }
 
-check_syntax_errors() {
+check_syntax_and_format() {
     (
         cd "$dotfiles_dir"
         alejandra --check --quiet ./*
