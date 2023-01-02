@@ -138,7 +138,6 @@
         lolcat
         genact
         etcher
-        gotop
         p7zip
         unzip
         krita
@@ -157,6 +156,10 @@
         zip
         zsh
         jq
+
+        # System monitoring tools
+        gotop
+        htop
       ] # with their rommates
       ++ gg.kubernetes
       ++ gg.browsers
