@@ -299,6 +299,6 @@
 
     # Google search, zsh history search, highlighter for conventional
     # branches(include jira tickets) and tmux startup in non-vscode editors
-    interactiveShellInit = builtins.readFile ./utils.zsh;
+    interactiveShellInit = builtins.readFile ./shell_startup.zsh;
   };
 }
