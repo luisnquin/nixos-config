@@ -59,7 +59,6 @@
 
         nix = [
           alejandra
-          nil
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
         ];
@@ -97,10 +96,10 @@
           onlyoffice-bin
           obs-studio
           redoc-cli
-          websocat
+          # websocat
           awscli2
           # gobang
-          dbeaver
+          # dbeaver
           postman
           minify
           csvkit
@@ -132,11 +131,9 @@
         openssh
         genact
         cowsay
-        ffmpeg
         ntfs3g
         neovim
         lolcat
-        genact
         etcher
         p7zip
         unzip
