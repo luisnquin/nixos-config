@@ -6,7 +6,7 @@
   environment = {
     systemPackages = with pkgs; let
       gg = {
-        kubernetes = with pkgs; [
+        kubernetes = [
           kubernetes
           minikube
           kubectl
@@ -14,18 +14,18 @@
           k9s
         ];
 
-        apps = with pkgs; [
+        apps = [
           fragments
           discord
           slack
         ];
 
-        browsers = with pkgs; [
+        browsers = [
           vivaldi
           brave
         ];
 
-        go = with pkgs; [
+        go = [
           air
           delve
           gcc
@@ -39,7 +39,7 @@
           grpc-tools
         ];
 
-        rust = with pkgs; [
+        rust = [
           cargo
           clippy
           rust-analyzer
@@ -49,7 +49,7 @@
           vscode-extensions.matklad.rust-analyzer
         ];
 
-        js = with pkgs; [
+        js = [
           nodePackages.typescript
           nodePackages.pnpm
           nodejs-18_x
@@ -57,14 +57,14 @@
           bun
         ];
 
-        nix = with pkgs; [
+        nix = [
           alejandra
           nil
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
         ];
 
-        git = with pkgs; [
+        git = [
           act
           gitlab-runner
           git
@@ -75,23 +75,23 @@
           onefetch
         ];
 
-        docker = with pkgs; [
+        docker = [
           docker
           docker-compose
           lazydocker
         ];
 
-        python = with pkgs; [
+        python = [
           virtualenv
           python310
           pyright
         ];
 
-        osint = with pkgs; [
+        osint = [
           exiftool
         ];
 
-        dev = with pkgs; [
+        dev = [
           nodePackages.firebase-tools
           license-generator
           onlyoffice-bin
@@ -161,18 +161,7 @@
         gotop
         htop
       ] # with their rommates
-      ++ gg.kubernetes
-      ++ gg.browsers
-      ++ gg.python
-      ++ gg.docker
-      ++ gg.osint
-      ++ gg.rust
-      ++ gg.apps
-      ++ gg.dev
-      ++ gg.git
-      ++ gg.nix
-      ++ gg.js
-      ++ gg.go;
+      ++ (with pkgs; builtins.concatLists (builtins.attrValues gg));
 
     shellAliases = {
       # Git
