@@ -81,9 +81,10 @@
         ];
 
         python = [
-          virtualenv
-          python310
           pyright
+          python310
+          python310Packages.pipx
+          virtualenv
         ];
 
         osint = [
