@@ -116,6 +116,7 @@
       };
     in
       [
+        #TODO: core set
         gnome.seahorse
         stdenv_32bit
         imagemagick
@@ -138,6 +139,7 @@
         lolcat
         etcher
         p7zip
+        htmlq
         unzip
         # krita
         exfat
