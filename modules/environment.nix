@@ -89,6 +89,7 @@
 
         osint = [
           exiftool
+          maigret
         ];
 
         dev = [
