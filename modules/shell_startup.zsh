@@ -129,6 +129,32 @@ gbh() {
     done
 }
 
+billboard() {
+    local city=$1
+
+    if [[ "$city" == "" ]]; then
+        local output=$(curl --silent http://www.cinerama.com.pe/cines |
+            htmlq --pretty .row .container .card .row .col-md-8 .card-body .btn --attribute href |
+            awk '{sub("cartelera_cine/",""); print}')
+        set -A cities $(echo "$output" | tr '\n' ' ')
+
+        local reset=$(tput sgr0)
+
+        echo "Options:"
+
+        for city in "${cities[@]}"; do
+            color=$((RANDOM % 256))
+            color_code=$(tput setaf $color)
+            echo " - ${color_code}${city}${reset}"
+        done
+
+        return
+    fi
+
+    # TODO: improve input verification in case of empty response
+    curl --silent http://www.cinerama.com.pe/cartelera_cine/$city | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-z]*/\u&/g'
+}
+
 if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
 
 if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
