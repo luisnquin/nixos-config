@@ -137,7 +137,7 @@
         etcher
         p7zip
         unzip
-        krita
+        # krita
         exfat
         xclip
         clang
