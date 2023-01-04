@@ -36,8 +36,8 @@ main() {
         printf "\n\033[0;95mEnsuring symlinks [2/4]\033[0m\n"
         ensure_symlinks
 
-        printf "\n\033[0;92mUpdating channels [3/4]\033[0m\n"
-        sudo nix-channel --update
+        # printf "\n\033[0;92mUpdating channels [3/4]\033[0m\n"
+        # sudo nix-channel --update
 
         printf "\n\033[0;92mBuilding and updating [4/4]\033[0m\n"
         sudo nixos-rebuild boot --upgrade
