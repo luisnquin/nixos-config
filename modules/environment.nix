@@ -134,6 +134,7 @@
         openssh
         genact
         cowsay
+        rclone
         ntfs3g
         neovim
         lolcat
@@ -255,6 +256,7 @@
       gitlabci = "gitlab-runner";
       open = "xdg-open";
       cl = "clear";
+      rc = "rclone";
       cls = "clear";
       po = "poweroff";
       poff = "poweroff";
