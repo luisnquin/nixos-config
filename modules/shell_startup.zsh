@@ -130,7 +130,7 @@ gbh() {
 }
 
 billboard() {
-    local city=$1
+    local city=$(echo "$1" | xargs | tr '[:upper:]' '[:lower:]')
 
     if [[ "$city" == "" ]]; then
         local output=$(curl --silent http://www.cinerama.com.pe/cines |
@@ -145,6 +145,8 @@ billboard() {
         for city in "${cities[@]}"; do
             color=$((RANDOM % 256))
             color_code=$(tput setaf $color)
+
+            city=$(echo $city | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
             echo " - ${color_code}${city}${reset}"
         done
 
