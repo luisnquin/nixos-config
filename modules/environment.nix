@@ -116,33 +116,41 @@
       };
     in
       [
-        #TODO: core set
         gnome.seahorse
         stdenv_32bit
-        imagemagick
-        libsecret
-        libnotify
-        octofetch
         coreutils
+        libsecret
         binutils
+
+        # imagemagick
+        # libnotify
+
+        # fs
+        rclone
+        ntfs3g
+
+        # Processors
+        htmlq
+        jq
+
+        # Etc
+        octofetch
         neofetch
-        tenacity
         nyancat
         openjdk
         gnumake
-        fortune
         openssh
-        genact
-        cowsay
-        rclone
-        ntfs3g
-        neovim
+        fortune
         lolcat
-        etcher
+        cowsay
+        genact
+
         p7zip
-        htmlq
         unzip
-        # krita
+        zip
+
+        neovim
+        etcher
         exfat
         xclip
         clang
@@ -152,12 +160,12 @@
         unar
         gimp
         vim
+
         exa # ls command replacement
         vlc
         bat
-        zip
+
         zsh
-        jq
 
         # System monitoring tools
         gotop
