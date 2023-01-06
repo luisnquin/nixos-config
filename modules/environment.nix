@@ -95,6 +95,11 @@
           tmux
           # CLI to run SQL queries agains JSON, CSV, XLSX, etc
           dsq
+
+          # Processors
+          htmlq
+          jq
+          yq
         ];
       };
     in
@@ -104,6 +109,7 @@
         coreutils
         libsecret
         binutils
+        clang
 
         # imagemagick
         # libnotify
@@ -111,10 +117,6 @@
         # fs
         rclone
         ntfs3g
-
-        # Processors
-        htmlq
-        jq
 
         # Etc
         octofetch
@@ -136,7 +138,6 @@
         etcher
         exfat
         xclip
-        clang
         wget
         dpkg
         tree
@@ -144,8 +145,9 @@
         gimp
         vim
 
-        exa # ls command replacement
         vlc
+
+        exa # ls command replacement
         bat
 
         zsh
