@@ -1,4 +1,8 @@
-{config, ...}: let
+{
+  config,
+  pkgs,
+  ...
+}: let
   owner = import "/etc/nixos/owner.nix";
 in {
   programs.git = {
