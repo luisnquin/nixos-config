@@ -211,7 +211,7 @@
       wscat = "websocat";
     };
 
-    sessionVariables = rec {
+    sessionVariables = {
       CGO_ENABLED = "0";
       GOPATH = "/home/$USER/go";
       GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
