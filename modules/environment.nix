@@ -74,12 +74,6 @@
           onefetch
         ];
 
-        docker = [
-          docker
-          docker-compose
-          lazydocker
-        ];
-
         python = [
           pyright
           python310
@@ -169,6 +163,7 @@
 
         # System monitoring tools
         gotop
+        btop
         htop
       ] # with their rommates
       ++ (with pkgs; builtins.concatLists (builtins.attrValues gg));
@@ -218,15 +213,6 @@
       gss = "git status -s";
       gt = "git tag";
 
-      # Docker
-      dka = "docker kill $(docker ps -qa) 2> /dev/null";
-      dra = "docker rm $(docker ps -qa) 2> /dev/null";
-      dria = "docker rmi -f $(docker image ls -qa)";
-      dils = "docker image ls";
-      dss = "docker stats";
-      dcp = "docker cp";
-      dps = "docker ps -a";
-
       # My own
       nyx = "sh ~/.dotfiles/.scripts/main.sh";
       gest = "go clean -testcache && go test -v";
@@ -274,7 +260,6 @@
       search = "nix search nixpkgs";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
-      ld = "lazydocker";
       lg = "lazygit";
       listen = "ngrok http";
       py = "python3";

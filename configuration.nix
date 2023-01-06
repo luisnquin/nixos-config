@@ -133,7 +133,6 @@ in {
       enable = true;
       allowedTCPPorts = [20 80 443 8088];
       allowPing = false;
-      trustedInterfaces = ["docker0"];
     };
   };
 
@@ -156,17 +155,6 @@ in {
     ];
 
     fontDir.enable = true;
-  };
-
-  virtualisation.docker = {
-    enable = true;
-    enableNvidia = true;
-    extraOptions = "--default-runtime=nvidia";
-
-    autoPrune = {
-      enable = true;
-      dates = "daily";
-    };
   };
 
   xdg = {
