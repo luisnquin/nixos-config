@@ -151,6 +151,7 @@ in {
     fonts = with pkgs; [
       cascadia-code
       jetbrains-mono
+      inconsolata # Used by zathura
       (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
     ];
 
@@ -167,8 +168,8 @@ in {
       "video/x-matroska" = "vlc.desktop;vlc-2.desktop"; # these
       "x-scheme-handler/postman" = "Postman.desktop";
       "x-scheme-handler/slack" = "slack.desktop";
-      "x-scheme-handler/http" = "microsoft-edge.desktop";
-      "application/pdf" = "brave.desktop";
+      "x-scheme-handler/http" = "brave.desktop";
+      "application/pdf" = ["zathura.desktop" "brave.desktop"];
       "image/png" = ["gwenview.desktop" "gimp.desktop"];
     };
   };

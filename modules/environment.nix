@@ -85,6 +85,7 @@
           awscli2
           # gobang
           # dbeaver
+          zathura
           postman
           minify
           csvkit
@@ -224,6 +225,11 @@
       EDITOR = "nano";
       # The other related config only apply to the build
       NIXPKGS_ALLOW_UNFREE = "1";
+    };
+
+    # Configuration files
+    etc = {
+      "zathurarc".text = builtins.readFile ../etc/zathurarc;
     };
 
     # Google search, zsh history search, highlighter for conventional
