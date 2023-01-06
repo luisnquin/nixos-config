@@ -219,14 +219,18 @@ in {
     # sway.enable = true;
     # mtr.enable = true;
 
-    nano.nanorc = ''
-      set titlecolor white,magenta
-      set positionlog
-      set autoindent
-      set tabsize 4
-      set atblanks
-      set zero
-    '';
+    nano = {
+      nanorc = ''
+        set titlecolor white,magenta
+        set positionlog
+        set autoindent
+        set tabsize 4
+        set atblanks
+        set zero
+      '';
+
+      syntaxHighlight = true;
+    };
 
     gnupg.agent = {
       enable = true;
