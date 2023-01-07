@@ -7,7 +7,8 @@
 in {
   imports = [
     ./hardware-configuration.nix
-    # https://nix-community.github.io/home-manager/index.html#ch-installation
+    ./cachix.nix
+    # Ref: https://nix-community.github.io/home-manager/index.html#ch-installation
     <home-manager/nixos>
   ];
 
@@ -33,6 +34,9 @@ in {
       dates = "weekly";
       options = "--delete-old";
     };
+
+    # Required by cachix
+    trustedUsers = ["root" "luisnquin"];
 
     # Nix store
     optimise = {
