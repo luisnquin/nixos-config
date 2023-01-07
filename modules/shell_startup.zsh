@@ -153,8 +153,20 @@ billboard() {
         return
     fi
 
-    # TODO: improve input verification in case of empty response
-    curl --silent http://www.cinerama.com.pe/cartelera_cine/$city | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-z]*/\u&/g'
+    cinerama_raw_list=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/$city | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
+    cinestar_raw_list=$(curl -s -X GET 'https://api.cinestar.pe/api/v1/movies?is_next_releases=false' | jq -r '.data | map(.name) | .[]' | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
+
+    declare -a cinerama_list cinestar_list
+
+    while read -r line; do cinerama_list+=("$line"); done <<<"$cinerama_raw_list"
+    while read -r line; do cinestar_list+=("$line"); done <<<"$cinestar_raw_list"
+
+    printf "Cinerama:\n"
+    for movie in $cinerama_list; do echo " - $movie"; done
+
+    printf "\nCinestar:\n"
+    for movie in $cinestar_list; do echo " - $movie"; done
+    # TODO: schedules
 }
 
 if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
