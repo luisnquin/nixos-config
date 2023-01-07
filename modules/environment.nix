@@ -110,6 +110,7 @@
         coreutils
         libsecret
         binutils
+        busybox
         clang
 
         # imagemagick
