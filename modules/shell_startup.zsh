@@ -146,7 +146,7 @@ billboard() {
             color=$((RANDOM % 256))
             color_code=$(tput setaf $color)
 
-            city=$(echo $city | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
+            city=$(echo $city | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
             echo " - ${color_code}${city}${reset}"
         done
 
@@ -158,8 +158,8 @@ billboard() {
     # Location
     headquarter_id=$(curl -s 'https://api.cinestar.pe/api/v1/headquarters' | jq -r ".data | .[] | select(.city.name == \"$title_city\") | .id")
 
-    cinerama_raw_list=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/$city | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
-    cinestar_raw_list=$(curl -s -X GET "https://api.cinestar.pe/api/v1/movies?headquarter_id=$headquarter_id&is_next_releases=false" | jq -r '.data | map(.name) | .[]' | sed 's/.*/\L&/; s/[a-z]*/\u&/g')
+    cinerama_raw_list=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/$city | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
+    cinestar_raw_list=$(curl -s -X GET "https://api.cinestar.pe/api/v1/movies?headquarter_id=$headquarter_id&is_next_releases=false" | jq -r '.data | map(.name) | .[]' | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
 
     declare -a cinerama_list cinestar_list
 
