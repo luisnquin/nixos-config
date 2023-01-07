@@ -2,18 +2,12 @@
   config,
   pkgs,
   ...
-}: {
+}: let
+  owner = import "/etc/nixos/owner.nix";
+in {
   environment = {
     systemPackages = with pkgs; let
       gg = {
-        kubernetes = [
-          kubernetes
-          minikube
-          kubectl
-          # lens
-          k9s
-        ];
-
         apps = [
           fragments
           discord
@@ -226,6 +220,8 @@
       # The other related config only apply to the build
       NIXPKGS_ALLOW_UNFREE = "1";
     };
+
+    # home-manager.users."${owner.username}" = {};
 
     # Configuration files
     etc = {
