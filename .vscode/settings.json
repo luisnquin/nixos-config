@@ -19,6 +19,7 @@
     "shellcheck.exclude": ["1090", "3046"],
     "material-icon-theme.folders.associations": {
         ".scripts": "Scripts",
-        "units": "Resource"
+        "units": "Resource",
+        "cachix": "Queue"
     }
 }
