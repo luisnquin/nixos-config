@@ -35,9 +35,6 @@ in {
       options = "--delete-old";
     };
 
-    # Required by cachix
-    trustedUsers = ["root" "luisnquin"];
-
     # Nix store
     optimise = {
       automatic = true;
@@ -47,6 +44,8 @@ in {
     settings = {
       auto-optimise-store = true;
       experimental-features = ["nix-command" "flakes"];
+      # Required by cachix
+      trusted-users = ["root" "luisnquin"];
       max-jobs = 4;
     };
   };
