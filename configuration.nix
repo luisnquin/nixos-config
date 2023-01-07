@@ -7,12 +7,15 @@
 in {
   imports = [
     ./hardware-configuration.nix
+    # https://nix-community.github.io/home-manager/index.html#ch-installation
+    <home-manager/nixos>
   ];
 
   require = [
     "/etc/nixos/modules/default.nix"
     "/etc/nixos/units/default.nix"
     "/etc/nixos/pkgs/default.nix"
+    "/etc/nixos/home.nix"
   ];
 
   nixpkgs.config = {
@@ -194,7 +197,11 @@ in {
       enable = true;
 
       displayManager = {
-        gdm.enable = true;
+        gdm = {
+          enable = true;
+          autoSuspend = false;
+        };
+
         startx.enable = true;
         defaultSession = "plasma";
       };
