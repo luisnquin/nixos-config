@@ -53,6 +53,7 @@ in {
 
         nix = [
           alejandra
+          nixos-option
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
         ];
