@@ -171,9 +171,6 @@ in {
 
     # TODO: fix and add more kv's here
     mime.defaultApplications = {
-      "text/csv" = "code.desktop"; # Suspect
-      "text/x-go" = "code.desktop"; # of
-      "video/x-matroska" = "vlc.desktop;vlc-2.desktop"; # these
       "x-scheme-handler/postman" = "Postman.desktop";
       "x-scheme-handler/slack" = "slack.desktop";
       "x-scheme-handler/http" = "brave.desktop";
