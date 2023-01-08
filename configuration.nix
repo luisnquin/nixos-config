@@ -71,6 +71,7 @@ in {
       };
     };
 
+    kernelPackages = pkgs.linuxPackages_latest;
     supportedFilesystems = ["ntfs"];
     cleanTmpDir = true;
   };
@@ -102,6 +103,7 @@ in {
   };
 
   security = {
+    # hands out realtime scheduling priority to user processes on demand
     rtkit.enable = true;
 
     sudo = {
@@ -210,7 +212,11 @@ in {
       };
 
       desktopManager = {
-        plasma5.enable = true;
+        plasma5 = {
+          enable = true;
+          runUsingSystemd = true;
+        };
+
         xterm.enable = true;
       };
     };
