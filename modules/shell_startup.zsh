@@ -132,6 +132,7 @@ gbh() {
 billboard() {
     local city=$(echo "$1" | xargs | tr '[:upper:]' '[:lower:]')
 
+    # Returns options in case of no passed argument
     if [[ "$city" == "" ]]; then
         local output=$(curl --silent http://www.cinerama.com.pe/cines |
             htmlq --pretty .row .container .card .row .col-md-8 .card-body .btn --attribute href |
@@ -156,22 +157,48 @@ billboard() {
     title_city=$(echo "$city" | sed 's/[^ ]\+/\L\u&/g')
 
     # Location
-    headquarter_id=$(curl -s 'https://api.cinestar.pe/api/v1/headquarters' | jq -r ".data | .[] | select(.city.name == \"$title_city\") | .id")
+    headquarter_id=$(curl -s -X GET 'https://api.cinestar.pe/api/v1/headquarters' | jq -r ".data | .[] | select(.city.name == \"$title_city\") | .id")
 
-    cinerama_raw_list=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/$city | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
-    cinestar_raw_list=$(curl -s -X GET "https://api.cinestar.pe/api/v1/movies?headquarter_id=$headquarter_id&is_next_releases=false" | jq -r '.data | map(.name) | .[]' | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
+    cinerama_response=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/chimbote)
+    cinestar_response=$(curl -s -X GET "https://api.cinestar.pe/api/v1/movies?headquarter_id=$headquarter_id&is_next_releases=false")
 
-    declare -a cinerama_list cinestar_list
+    cinerama_raw_movies=$(echo "$cinerama_response" | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
+    cinestar_raw_movies=$(echo "$cinestar_response" | jq -r '.data | map(.name) | .[]' | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
 
-    while read -r line; do cinerama_list+=("$line"); done <<<"$cinerama_raw_list"
-    while read -r line; do cinestar_list+=("$line"); done <<<"$cinestar_raw_list"
+    declare -a cinerama_movies_schedules
+    index=1
+
+    while read -r schedule; do
+        schedule_timestamp=$(date --date "$schedule" +%s)
+        latest_schedules=($(echo "${cinerama_movies_schedules[-1]}" | tr ',' ' '))
+        last_unix_schedule=$(date --date "${latest_schedules[-1]}" +%s)
+
+        if [ -z ${latest_schedules[-1]} ]; then # if last_unix_schedule is null
+            cinerama_movies_schedules+=("$(date -d @$schedule_timestamp +'%H:%M')")
+
+            continue
+        fi
+
+        if [[ $schedule_timestamp > $last_unix_schedule ]]; then
+            latest_schedules+=($(date -d @$schedule_timestamp +'%H:%M'))
+            cinerama_movies_schedules[$index]=$(printf '%s\n' "$(IFS=, printf '%s' "${latest_schedules[*]}")")
+        else
+            cinerama_movies_schedules+=($(date -d @$schedule_timestamp +'%H:%M'))
+            let index=index+1
+        fi
+
+    done <<<"$(echo "$cinerama_response" | htmlq --text .row .container .card .row .col-md-9 .card-body .row .ml-1)"
 
     printf "Cinerama:\n"
-    for movie in $cinerama_list; do echo " - $movie"; done
+    index=1
+
+    while read -r movie; do
+        printf " - %-50s %s\n" "$movie" "${cinerama_movies_schedules[$index]}"
+        let index=index+1
+    done <<<"$cinerama_raw_movies"
 
     printf "\nCinestar:\n"
-    for movie in $cinestar_list; do echo " - $movie"; done
-    # TODO: schedules
+    while read -r movie; do echo " - $movie"; done <<<"$cinestar_raw_movies"
 }
 
 if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
