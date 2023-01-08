@@ -3,6 +3,7 @@
     "/etc/nixos/modules/virtual_host.nix"
     "/etc/nixos/modules/environment.nix"
     "/etc/nixos/modules/spotify.nix"
+    "/etc/nixos/modules/desktop.nix"
     "/etc/nixos/modules/docker.nix"
     "/etc/nixos/modules/nvidia.nix"
     "/etc/nixos/modules/tmux.nix"
