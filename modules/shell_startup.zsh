@@ -132,12 +132,15 @@ gbh() {
 billboard() {
     local city=$(echo "$1" | xargs | tr '[:upper:]' '[:lower:]')
 
+    get_available_cities() {
+        curl --silent http://www.cinerama.com.pe/cines |
+            htmlq --pretty .row .container .card .row .col-md-8 .card-body .btn --attribute href |
+            awk '{sub("cartelera_cine/",""); print}' | tr '\n' ' '
+    }
+
     # Returns options in case of no passed argument
     if [[ "$city" == "" ]]; then
-        local output=$(curl --silent http://www.cinerama.com.pe/cines |
-            htmlq --pretty .row .container .card .row .col-md-8 .card-body .btn --attribute href |
-            awk '{sub("cartelera_cine/",""); print}')
-        set -A cities $(echo "$output" | tr '\n' ' ')
+        set -A cities $(get_available_cities)
 
         local reset=$(tput sgr0)
 
@@ -159,7 +162,15 @@ billboard() {
     # Location
     headquarter_id=$(curl -s -X GET 'https://api.cinestar.pe/api/v1/headquarters' | jq -r ".data | .[] | select(.city.name == \"$title_city\") | .id")
 
-    cinerama_response=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/chimbote)
+    if [[ $headquarter_id == "" ]]; then
+        available_cities=$(get_available_cities)
+
+        echo "\033[0;31minvalid argument, options: $available_cities\033[0m"
+
+        return 1
+    fi
+
+    cinerama_response=$(curl -s -X GET http://www.cinerama.com.pe/cartelera_cine/$city)
     cinestar_response=$(curl -s -X GET "https://api.cinestar.pe/api/v1/movies?headquarter_id=$headquarter_id&is_next_releases=false")
 
     cinerama_raw_movies=$(echo "$cinerama_response" | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
@@ -169,6 +180,11 @@ billboard() {
     index=1
 
     while read -r schedule; do
+        # Sometimes at dawn there's nothing added for the current day
+        if [[ "$schedule" == "" ]]; then
+            break
+        fi
+
         schedule_timestamp=$(date --date "$schedule" +%s)
         latest_schedules=($(echo "${cinerama_movies_schedules[-1]}" | tr ',' ' '))
         last_unix_schedule=$(date --date "${latest_schedules[-1]}" +%s)
@@ -189,15 +205,23 @@ billboard() {
 
     done <<<"$(echo "$cinerama_response" | htmlq --text .row .container .card .row .col-md-9 .card-body .row .ml-1)"
 
-    printf "Cinerama:\n"
+    echo "Cinerama:"
     index=1
 
     while read -r movie; do
-        printf " - %-50s %s\n" "$movie" "${cinerama_movies_schedules[$index]}"
+        schedules="${cinerama_movies_schedules[$index]}"
+
+        if [[ "$schedules" == "" ]]; then
+            schedules="(not available)"
+        fi
+
+        printf " - %-50s %s\n" "$movie" "$schedules"
         let index=index+1
     done <<<"$cinerama_raw_movies"
 
     printf "\nCinestar:\n"
+
+    # No schedules by now, but https://api.cinestar.pe/api/v1/movies-times?date=2023-01-08&movie_id=2254
     while read -r movie; do echo " - $movie"; done <<<"$cinestar_raw_movies"
 }
 
