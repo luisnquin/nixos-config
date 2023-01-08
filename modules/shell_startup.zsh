@@ -132,7 +132,7 @@ gbh() {
 billboard() {
     local city=$(echo "$1" | xargs | tr '[:upper:]' '[:lower:]')
 
-    get_available_cities() {
+    get_available_cities() { # TODO: mix with cinestar places and discard any in case of not found
         curl --silent http://www.cinerama.com.pe/cines |
             htmlq --pretty .row .container .card .row .col-md-8 .card-body .btn --attribute href |
             awk '{sub("cartelera_cine/",""); print}' | tr '\n' ' '

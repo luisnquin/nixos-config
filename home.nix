@@ -2,7 +2,13 @@
   owner = import "/etc/nixos/owner.nix";
 in {
   home-manager.users."${owner.username}" = {
-    home.stateVersion = "23.05";
+    home = {
+      stateVersion = "23.05";
+      enableNixpkgsReleaseCheck = true;
+    };
+
+    # Let Home Manager install and manage itself.
+    programs.home-manager.enable = true;
   };
 
   #programs.git = {

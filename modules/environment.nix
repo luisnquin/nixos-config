@@ -53,7 +53,6 @@ in {
 
         nix = [
           alejandra
-          home-manager
           nixos-option
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
@@ -108,6 +107,7 @@ in {
         binutils
         clang
 
+        konsole
         # imagemagick
         # libnotify
 
@@ -222,8 +222,6 @@ in {
       # The other related config only apply to the build
       NIXPKGS_ALLOW_UNFREE = "1";
     };
-
-    # home-manager.users."${owner.username}" = {};
 
     # Configuration files
     etc = {
