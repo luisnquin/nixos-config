@@ -63,6 +63,7 @@ in {
       gitlab-runner
       git
       lazygit
+      gitui # Better than lazygit?
       pre-commit
       git-ignore
       git-chglog # I'm using conventional commits so
