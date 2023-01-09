@@ -1,4 +1,14 @@
-{config, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
+  environment.systemPackages = with pkgs; [
+    lightly-qt # KDE style
+    flat-remix-gtk # I'm not sure to use this
+    tela-icon-theme
+  ];
+
   services.xserver = {
     videoDrivers = ["nvidia"];
     libinput.enable = true;

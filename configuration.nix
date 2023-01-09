@@ -159,6 +159,8 @@ in {
     fonts = with pkgs; [
       cascadia-code
       jetbrains-mono
+      roboto
+      roboto-mono
       inconsolata # Used by zathura
       (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
     ];
