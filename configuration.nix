@@ -167,6 +167,7 @@ in {
   };
 
   xdg = {
+    # Wayland
     portal.wlr.enable = true;
 
     # TODO: fix and add more kv's here

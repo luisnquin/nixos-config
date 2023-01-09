@@ -7,8 +7,10 @@ in {
       enableNixpkgsReleaseCheck = true;
     };
 
-    # Let Home Manager install and manage itself.
-    programs.home-manager.enable = true;
+    programs = {
+      # Let Home Manager install and manage itself.
+      home-manager.enable = true;
+    };
   };
 
   #programs.git = {

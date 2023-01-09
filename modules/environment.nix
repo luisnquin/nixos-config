@@ -9,21 +9,22 @@ in {
     systemPackages = with pkgs; let
       gg = {
         apps = [
+          obs-studio
           fragments
           discord
-          slack
-        ];
-
-        browsers = [
           vivaldi
+          etcher
           brave
+          slack
+          gimp
         ];
 
-        go = [
+        dev = [
+          # Go-related
           air
           delve
           gcc
-          go_1_19
+          go_1_20
           go-protobuf
           gofumpt
           golangci-lint
@@ -31,9 +32,8 @@ in {
           gotools
           govulncheck
           grpc-tools
-        ];
 
-        rust = [
+          # Rust-related
           cargo
           clippy
           rust-analyzer
@@ -41,28 +41,52 @@ in {
           rustfmt
           rustup
           vscode-extensions.matklad.rust-analyzer
-        ];
 
-        js = [
+          # JavaScript-related
           nodePackages.typescript
           nodePackages.pnpm
           nodejs-18_x
           deno
           bun
-        ];
 
-        nix = [
+          # Nix-related
           alejandra
           nixos-option
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
-        ];
 
-        python = [
+          # Python-related
           pyright
           python310
           python310Packages.pipx
           virtualenv
+
+          # Other
+          nodePackages.firebase-tools
+          license-generator
+          onlyoffice-bin
+          redoc-cli
+          awscli2
+          vscode
+          clang
+
+          # websocat
+          # dbeaver
+          # gobang
+
+          minify # HTML, CSS, and JavaScript minifier
+          shfmt # Shell code formatter
+          zathura # PDF viewer
+          sqlc # SQL generator
+          # Processors
+          csvkit
+          htmlq
+          dsq
+          jq
+          yq
+          # HTTP
+          postman
+          ngrok
         ];
 
         osint = [
@@ -70,91 +94,54 @@ in {
           maigret
         ];
 
-        dev = [
-          nodePackages.firebase-tools
-          license-generator
-          onlyoffice-bin
-          obs-studio
-          redoc-cli
-          # websocat
-          awscli2
-          # gobang
-          # dbeaver
-          zathura
-          postman
-          minify
-          csvkit
-          vscode
-          shfmt
-          ngrok
-          sqlc
-          tmux
-          # CLI to run SQL queries agains JSON, CSV, XLSX, etc
-          dsq
+        preferences = [
+          zsh
 
-          # Processors
-          htmlq
-          jq
-          yq
+          rclone # For management in cloud storages
+          xclip # Clipboard
+
+          # Fufu stuff
+          octofetch
+          neofetch
+          nyancat
+          genact
+          tree
+        ];
+
+        core = [
+          stdenv_32bit
+          coreutils
+          libsecret
+          binutils
+          openssh
+          gnumake
+          openjdk
+          neovim
+          wget
+          vim
+          bat
+          exa # ls command replacement
+          vlc
+
+          # NTFS
+          ntfs3g
+          exfat
+
+          gnome.seahorse # Keyring
+
+          # System monitoring tools
+          gotop
+          btop
+          htop
+
+          # Compressed files
+          p7zip
+          unzip
+          unar
+          zip
         ];
       };
-    in
-      [
-        gnome.seahorse
-        stdenv_32bit
-        coreutils
-        libsecret
-        binutils
-        clang
-
-        konsole
-        # imagemagick
-        # libnotify
-
-        # fs
-        rclone
-        ntfs3g
-
-        # Etc
-        octofetch
-        neofetch
-        nyancat
-        openjdk
-        gnumake
-        openssh
-        fortune
-        lolcat
-        cowsay
-        genact
-
-        p7zip
-        unzip
-        zip
-
-        neovim
-        etcher
-        exfat
-        xclip
-        wget
-        dpkg
-        tree
-        unar
-        gimp
-        vim
-
-        vlc
-
-        exa # ls command replacement
-        bat
-
-        zsh
-
-        # System monitoring tools
-        gotop
-        btop
-        htop
-      ] # with their rommates
-      ++ (with pkgs; builtins.concatLists (builtins.attrValues gg));
+    in (builtins.concatLists (builtins.attrValues gg));
 
     shellAliases = {
       # My own
