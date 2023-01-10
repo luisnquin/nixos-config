@@ -13,13 +13,14 @@
         "editor.formatOnType": false,
         "editor.formatOnSave": true,
         "editor.insertSpaces": true,
-        "editor.tabSize": 2,
+        "editor.tabSize": 2
     },
     "shellcheck.enable": true,
     "shellcheck.exclude": ["1090", "3046"],
     "material-icon-theme.folders.associations": {
         ".scripts": "Scripts",
         "units": "Resource",
-        "cachix": "Queue"
+        "cachix": "Queue",
+        "dots": "Config"
     }
 }
