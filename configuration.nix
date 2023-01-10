@@ -173,13 +173,13 @@ in {
     portal.wlr.enable = true;
 
     # TODO: fix and add more kv's here
-    mime.defaultApplications = {
-      "x-scheme-handler/postman" = "Postman.desktop";
-      "x-scheme-handler/slack" = "slack.desktop";
-      "x-scheme-handler/http" = "brave.desktop";
-      "application/pdf" = ["zathura.desktop" "brave.desktop"];
-      "image/png" = ["gwenview.desktop" "gimp.desktop"];
-    };
+    #mime.defaultApplications = {
+    #  "x-scheme-handler/postman" = "Postman.desktop";
+    #  "x-scheme-handler/slack" = "slack.desktop";
+    #  "x-scheme-handler/http" = "brave.desktop";
+    #  "application/pdf" = ["zathura.desktop" "brave.desktop"];
+    #  "image/png" = ["gwenview.desktop" "gimp.desktop"];
+    #};
   };
 
   i18n.defaultLocale = "es_PE.UTF-8";

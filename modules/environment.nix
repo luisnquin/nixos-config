@@ -189,6 +189,7 @@ in {
       search = "nix search nixpkgs";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
+      # Abstraction
       listen = "ngrok http";
       py = "python3";
       share = "ngrok http";
@@ -212,7 +213,7 @@ in {
 
     # Configuration files
     etc = {
-      "zathurarc".text = builtins.readFile ../etc/zathurarc;
+      "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
     };
 
     # Google search, zsh history search, highlighter for conventional

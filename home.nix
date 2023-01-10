@@ -11,6 +11,8 @@ in {
       # Let Home Manager install and manage itself.
       home-manager.enable = true;
     };
+
+    xdg.enable = true;
   };
 
   #programs.git = {
