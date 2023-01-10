@@ -15,7 +15,6 @@
       online-status
       onedark-theme
       fzf-tmux-url
-      # continuum
       tmux-fzf
       sidebar
       sysstat
@@ -43,78 +42,6 @@
   environment = {
     systemPackages = [pkgs.tmux];
 
-    etc."gitmux.conf" = with lib; {
-      # Until we find a way to correctly handle YAML files
-      text = ''
-        tmux:
-          symbols:
-            branch: '⎇ '
-            hashprefix: ':'
-            ahead: ↑·
-            behind: ↓·
-            staged: '● '
-            conflict: '✖ '
-            modified: '✚ '
-            untracked: '… '
-            stashed: '⚑ '
-            clean: ✔
-          styles:
-            clear: '#[fg=default]'
-            state: '#[fg=red,bold]'
-            branch: '#[fg=white,bold]'
-            remote: '#[fg=cyan]'
-            staged: '#[fg=green,bold]'
-            conflict: '#[fg=red,bold]'
-            modified: '#[fg=red,bold]'
-            untracked: '#[fg=magenta,bold]'
-            stashed: '#[fg=cyan,bold]'
-            clean: '#[fg=green,bold]'
-            divergence: '#[fg=default]'
-          layout: [branch, .., remote-branch, divergence, ' - ', flags]
-          options:
-            branch_max_len: 0
-            branch_trim: right
-      '';
-    };
-
-    /*
-    text = generators.toYAML {} {
-      tmux = {
-        symbols = {
-          branch = "⎇ ";
-          hashprefix = ":";
-          ahead = "↑·";
-          behind = "↓·";
-          staged = "● ";
-          conflict = "✖ ";
-          modified = "✚ ";
-          untracked = "… ";
-          stashed = "⚑ ";
-          clean = "✔";
-        };
-
-        styles = {
-          clear = "#[fg=default]";
-          state = "#[fg=red,bold]";
-          branch = "#[fg=white,bold]";
-          remote = "#[fg=cyan]";
-          staged = "#[fg=green,bold]";
-          conflict = "#[fg=red,bold]";
-          modified = "#[fg=red,bold]";
-          untracked = "#[fg=magenta,bold]";
-          stashed = "#[fg=cyan,bold]";
-          clean = "#[fg=green,bold]";
-          divergence = "#[fg=default]";
-        };
-
-        layout = ["branch" "..." "remote-branch" "divergence" " - " "flags"];
-
-        options = {
-          branch_max_len = 0;
-          branch_trim = "right";
-        };
-      };
-    };
-    */
+    etc."gitmux.conf".text = builtins.readFile ../dots/etc/gitmux.conf;
   };
 }
