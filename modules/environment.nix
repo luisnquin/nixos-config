@@ -92,6 +92,7 @@ in {
         osint = [
           exiftool
           maigret
+          whois
         ];
 
         preferences = [
