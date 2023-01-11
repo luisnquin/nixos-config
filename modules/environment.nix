@@ -99,11 +99,11 @@ in {
           zsh
 
           rclone # For management in cloud storages
+          freshfetch # neofetch replacement
           xclip # Clipboard
 
           # Fufu stuff
           octofetch
-          neofetch
           nyancat
           genact
           tree
@@ -185,6 +185,7 @@ in {
       po = "poweroff";
       poff = "poweroff";
       actl = "act --list";
+      neofetch = "freshfetch";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
       nyancat = "nyancat --no-counter";
       search = "nix search nixpkgs";
