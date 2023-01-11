@@ -4,8 +4,8 @@
   ...
 }: {
   environment.systemPackages = with pkgs; [
-    lightly-qt # KDE style
-    flat-remix-gtk # I'm not sure to use this
+    lightly-qt # KDE windows style
+    flat-remix-gtk # KDE theme
     tela-icon-theme
   ];
 
