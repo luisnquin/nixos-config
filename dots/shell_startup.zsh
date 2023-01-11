@@ -70,6 +70,7 @@ upload_img() {
 }
 
 # I'm not wrong leaving this here
+# TODO: improve performance of this ****
 gbh() {
     color_end="\033[0m"
     purple="\033[0;95m"
@@ -103,6 +104,8 @@ gbh() {
             result="$purple$frags[1]/$color_end$frags[2]"
         elif [[ "$branch" == security/* ]]; then
             result="$blue$frags[1]/$color_end$frags[2]"
+        elif [[ "$branch" == perf/* ]]; then
+            result="$green$frags[1]/$color_end$frags[2]"
         elif [[ "$branch" == chore/* ]]; then
             result="$black$frags[1]/$color_end$frags[2]"
         elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
