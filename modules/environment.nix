@@ -10,7 +10,6 @@ in {
       gg = {
         apps = [
           obs-studio
-          fragments
           discord
           vivaldi
           etcher
