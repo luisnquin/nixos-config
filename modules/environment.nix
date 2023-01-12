@@ -53,6 +53,7 @@ in {
           nixos-option
           rnix-lsp
           vscode-extensions.jnoortheen.nix-ide
+          nix-prefetch-git # Tool to get information from remote repository like sha256
 
           # Python-related
           pyright
