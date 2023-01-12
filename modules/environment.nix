@@ -95,8 +95,6 @@ in {
         ];
 
         preferences = [
-          zsh
-
           rclone # For management in cloud storages
           freshfetch # neofetch replacement
           xclip # Clipboard
