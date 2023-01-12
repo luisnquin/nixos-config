@@ -124,6 +124,8 @@ in {
     hardwareClockInLocalTime = true;
   };
 
+  location.provider = "geoclue2";
+
   fonts = {
     fonts = with pkgs; [
       (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
