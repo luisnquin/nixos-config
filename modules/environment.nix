@@ -99,6 +99,7 @@ in {
           rclone # For management in cloud storages
           freshfetch # neofetch replacement
           xclip # Clipboard
+          tldr # Alternative to man
 
           # Fufu stuff
           octofetch
@@ -189,6 +190,7 @@ in {
       search = "nix search nixpkgs";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
+      man = "tldr";
       # Abstraction
       listen = "ngrok http";
       py = "python3";
