@@ -19,37 +19,6 @@ in {
     "/etc/nixos/home.nix"
   ];
 
-  nixpkgs.config = {
-    permittedInsecurePackages = [
-      "electron-12.2.3"
-    ];
-    allowBroken = false;
-    # The day I meet the man who has this option in false
-    allowUnfree = true;
-  };
-
-  nix = {
-    gc = {
-      automatic = true;
-      dates = "weekly";
-      options = "--delete-old";
-    };
-
-    # Nix store
-    optimise = {
-      automatic = true;
-      dates = ["13:00"];
-    };
-
-    settings = {
-      auto-optimise-store = true;
-      experimental-features = ["nix-command" "flakes"];
-      # Required by cachix
-      trusted-users = ["root" "luisnquin"];
-      max-jobs = 4;
-    };
-  };
-
   boot = {
     loader = {
       efi.canTouchEfiVariables = true;
@@ -157,12 +126,12 @@ in {
 
   fonts = {
     fonts = with pkgs; [
+      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
       cascadia-code
       jetbrains-mono
-      roboto
       roboto-mono
-      inconsolata # Used by zathura
-      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
+      inconsolata
+      roboto
     ];
 
     fontDir.enable = true;
@@ -171,15 +140,6 @@ in {
   xdg = {
     # Wayland
     portal.wlr.enable = true;
-
-    # TODO: fix and add more kv's here
-    #mime.defaultApplications = {
-    #  "x-scheme-handler/postman" = "Postman.desktop";
-    #  "x-scheme-handler/slack" = "slack.desktop";
-    #  "x-scheme-handler/http" = "brave.desktop";
-    #  "application/pdf" = ["zathura.desktop" "brave.desktop"];
-    #  "image/png" = ["gwenview.desktop" "gimp.desktop"];
-    #};
   };
 
   i18n.defaultLocale = "es_PE.UTF-8";
@@ -206,7 +166,6 @@ in {
 
   programs = {
     # sway.enable = true;
-    # mtr.enable = true;
 
     nano = {
       nanorc = ''
