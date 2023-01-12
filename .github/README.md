@@ -1,6 +1,7 @@
 # NixOS environment configuration
 
-[![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
+ [![nixos-unstable](https://img.shields.io/badge/NixOS-unstable-informational.svg?style=flat&logo=nixos&logoColor=dee1e6&colorA=101419&colorB=70a5eb)](https://github.com/nixos/nixpkgs)
+[![nix-fmt](https://github.com/luisnquin/nixos-config/actions/workflows/style.yml/badge.svg)](https://github.com/luisnquin/nixos-config/actions/workflows/style.yml)
 
 ## Usage
 
@@ -25,7 +26,7 @@ $ nyx update
 $ nyx --help
 ```
 
-*Change the alias for the name of your machine in* `configuration.nix`.
+_Change the alias for the name of your machine in_ `configuration.nix`.
 
 ## My computer
 
@@ -39,3 +40,4 @@ Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more o
 - [kmein](https://github.com/kmein/niveum)
 - [mogria](https://github.com/mogria/nixpkgs-config)
 - [qbit](https://github.com/qbit/nix-conf)
+- [rxyhn](https://github.com/rxyhn/dotfiles)
