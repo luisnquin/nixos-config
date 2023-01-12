@@ -2,8 +2,10 @@
   config,
   pkgs,
   ...
-}: {
+}: let
+  tomato = import "/etc/nixos/pkgs/tomato.nix";
+in {
   environment.systemPackages = [
-    # (pkgs.callPackage ./spotifyd.nix {isUnstable = true;})
+    (pkgs.callPackage ./tomato.nix {})
   ];
 }
