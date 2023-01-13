@@ -228,6 +228,10 @@ billboard() {
     while read -r movie; do echo " - $movie"; done <<<"$cinestar_raw_movies"
 }
 
+remove_node_modules() {
+    find . -name "node_modules" -type d -prune -exec rm -rf {} \;
+}
+
 if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
 
 if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
