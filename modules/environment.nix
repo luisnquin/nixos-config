@@ -57,7 +57,7 @@ in {
 
           # Python-related
           pyright
-          python310
+          python311
           python310Packages.pipx
           virtualenv
 
@@ -178,16 +178,13 @@ in {
 
       # Those who are lazy to write definitely go here
       open = "xdg-open";
-      cl = "clear";
       rc = "rclone";
       cls = "clear";
-      po = "poweroff";
       poff = "poweroff";
       actl = "act --list";
       neofetch = "freshfetch";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
       nyancat = "nyancat --no-counter";
-      search = "nix search nixpkgs";
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
       man = "tldr";
@@ -197,7 +194,6 @@ in {
       share = "ngrok http";
       top = "gotop --nvidia --color=vice";
       unrar = "unar";
-      wscat = "websocat";
     };
 
     sessionVariables = {
