@@ -60,14 +60,15 @@ in {
   environment = {
     systemPackages = with pkgs; [
       act
-      gitlab-runner
+      gh
       git
-      lazygit
-      gitui # Better than lazygit?
-      pre-commit
-      git-ignore
       git-chglog # I'm using conventional commits so
+      git-ignore
+      gitlab-runner
+      gitui # Better than lazygit?
+      lazygit
       onefetch
+      pre-commit
     ];
 
     shellAliases = {
