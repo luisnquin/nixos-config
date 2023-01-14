@@ -11,8 +11,8 @@ in
 
     src = fetchgit {
       url = repository-url;
-      rev = "11a152fc6c4bdd49b0c212ddf8c1721441270152";
-      sha256 = "sha256-6N1GRgG4w62xfNlicqaRig9ETVFzGW0HyznRURlzfCE=";
+      rev = "3bf8d16598e566a12e7b8e3e3a63217c5698a3ea";
+      sha256 = "1jdkh2xiin96sxslngvma6gybibq4wwww61rv4ijh5l6bd82sy0a";
     };
 
     installPhase = ''
@@ -27,6 +27,7 @@ in
       which
       gnumake
       ncurses
+      pkgconfig
     ];
 
     propagatedBuildInputs = with pkgs; [
