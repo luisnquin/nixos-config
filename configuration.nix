@@ -14,7 +14,6 @@ in {
 
   require = [
     "/etc/nixos/modules/default.nix"
-    "/etc/nixos/units/default.nix"
     "/etc/nixos/pkgs/default.nix"
     "/etc/nixos/home.nix"
   ];
