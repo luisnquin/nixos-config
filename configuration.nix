@@ -6,10 +6,9 @@
   owner = import "/etc/nixos/owner.nix";
 in {
   imports = [
-    ./hardware-configuration.nix
-    ./cachix.nix
-    # Ref: https://nix-community.github.io/home-manager/index.html#ch-installation
     <home-manager/nixos>
+
+    ./hardware-configuration.nix
   ];
 
   require = [
