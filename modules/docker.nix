@@ -31,6 +31,7 @@
       dss = "docker stats";
       dcp = "docker cp";
       dps = "docker ps -a";
+      dl = "docker logs";
       ld = "lazydocker";
     };
   };
