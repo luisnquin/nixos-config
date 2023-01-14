@@ -69,66 +69,53 @@ upload_img() {
     printf "%s\n" "$image_url"
 }
 
-# I'm not wrong leaving this here
-# TODO: improve performance of this ****
 gbh() {
-    color_end="\033[0m"
-    purple="\033[0;95m"
-    yellow="\033[0;93m"
-    black="\033[0;90m"
-    green="\033[0;92m"
-    blue="\033[0;94m"
+    typeset -gA branch_color
+    branch_color=(
+        ["refactor/*"]="\033[38;2;70;117;90m"
+        ["security/*"]="\033[38;2;196;35;57m"
+        ["chore/*"]="\033[38;2;237;40;158m"
+        ["perf/*"]="\033[38;2;40;237;122m"
+        ["dev/*"]="\033[38;2;121;48;230m"
+        ["feat/*"]="\033[0;92m"
+        ["fix/*"]="\033[0;93m"
+        ["master"]="\033[0;94m"
+        ["main"]="\033[0;94m"
+    )
 
-    is_current_branch=0
+    branch_keys=("feat/*" "fix/*" "refactor/*" "dev/*" "security/*" "perf/*" "chore/*" "master" "main")
 
-    em=$(emoji)
+    current_branch=$(git branch --show-current)
 
-    for branch in $(git branch | head -n 15); do
-        if [[ "$branch" == "*" ]]; then
-            is_current_branch=1
-
-            continue
+    git for-each-ref --color=always --sort=-committerdate \
+        --format='%(HEAD) %(refname:short) %(color:reset)' refs/heads/ | while read -r branch; do
+        if echo $branch | grep -q '*'; then
+            branch="${branch#* }"
         fi
 
-        frags=($(echo "$branch" | tr "/" "\n"))
+        for pattern in $branch_keys; do
+            if [[ $branch =~ $pattern ]]; then
+                frags=($(echo "$branch" | tr '/' ' '))
 
-        result=""
+                if [ ${#frags[@]} = 3 ]; then
+                    if [[ "$branch" =~ "$current_branch" ]]; then
+                        branch="${branch_color[$pattern]}${frags[1]}/\033[0m${frags[2]} \033[38;2;93;201;196m← current\033[0m"
+                    else
+                        branch="${branch_color[$pattern]}${frags[1]}/\033[0m${frags[2]}"
+                    fi
+                else
+                    if [[ "$branch" =~ "$current_branch" ]]; then
+                        branch="${branch_color[$pattern]}${frags[1]}\033[0m \033[38;2;93;201;196m← current\033[0m"
+                    else
+                        branch="${branch_color[$pattern]}${frags[1]}\033[0m"
+                    fi
+                fi
 
-        if [[ "$branch" == feat/* ]]; then
-            result="$green$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == fix/* ]]; then
-            result="$yellow$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == refactor/* ]]; then
-            result="$green$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == dev/* ]]; then
-            result="$purple$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == security/* ]]; then
-            result="$blue$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == perf/* ]]; then
-            result="$green$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == chore/* ]]; then
-            result="$black$frags[1]/$color_end$frags[2]"
-        elif [[ "$branch" == "master" || "$branch" == "main" ]]; then
-            result="$blue$branch$color_end"
-        else
-            result="$branch"
-        fi
-
-        if [[ $is_current_branch -eq 1 ]]; then
-            if [[ $em == "" ]]; then
-                em="*"
+                break
             fi
+        done
 
-            result="$result $em"
-            is_current_branch=0
-        fi
-
-        # Regex for Jira ticketsssss
-        if [[ $(echo "$result" | grep -E --colour=auto "[A-Z0-9]{2,}-\d+*") == "" ]]; then
-            echo "$result"
-        else
-            echo "$result" | grep -E --colour=auto "[A-Z0-9]{2,}-\d+*"
-        fi
+        echo "$branch"
     done
 }
 
