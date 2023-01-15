@@ -8,6 +8,7 @@
     "/etc/nixos/modules/torrent.nix"
     "/etc/nixos/modules/docker.nix"
     "/etc/nixos/modules/nvidia.nix"
+    "/etc/nixos/modules/shell.nix"
     "/etc/nixos/modules/tmux.nix"
     "/etc/nixos/modules/git.nix"
     "/etc/nixos/modules/nix.nix"
