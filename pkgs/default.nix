@@ -3,8 +3,9 @@
   pkgs,
   ...
 }: {
-  environment.systemPackages = [
-    (pkgs.callPackage ./tomato.nix {})
-    # (pkgs.callPackage ./nao.nix {})
+  environment.systemPackages = with pkgs; [
+    (callPackage ./tomato.nix {})
+    (callPackage ./no.nix {})
+    # (callPackage ./nao.nix {})
   ];
 }

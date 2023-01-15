@@ -3,30 +3,29 @@
   buildGoModule,
   fetchFromGitHub,
   ...
-}
-: let
+}: let
   owner = "luisnquin";
 in
   buildGoModule rec {
-    pname = "nao";
-    version = "3.0.0";
+    pname = "no";
+    version = "0.0.1";
     src = fetchFromGitHub {
       owner = owner;
       repo = pname;
-      rev = "v${version}";
-      # sha256 = "0m2fzpqxk7hrbxsgqplkg7h2p7gv6s1miymv3gvw0cz039skag0s";
+      rev = "e466d78346426db9f30eb947d015040c7b2ded88";
+      sha256 = "sha256-npgmw1eucEtd8O4PYeOgd4PhuX+JX6FGue5tKQOep7A=";
     };
 
     ldflags = ["-X main.version=${version}"];
-    buildTarget = "./cmd/nao";
+    buildTarget = ".";
 
-    vendorSha256 = "";
+    vendorSha256 = "sha256-bGDhws+Ye/VDqIAcfBTIkjfp3IWkEx9a/fwri0wl258=";
     doCheck = false;
 
     meta = with lib; {
-      description = "A CLI tool to take notes without worrying about the path where the file is";
+      description = "Unlike gnu yes";
       homepage = "https://github.com/${owner}/${pname}";
-      license = licenses.mit;
+      license = licenses.gpl3Only;
       maintainers = with maintainers; ["${owner}"];
     };
   }
