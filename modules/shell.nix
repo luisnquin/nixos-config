@@ -24,6 +24,8 @@
 
     starship = {
       enable = true;
+
+      # Ref: https://starship.rs/config
       settings = {
         scan_timeout = 30;
         command_timeout = 400;
