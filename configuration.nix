@@ -29,6 +29,10 @@ in {
         efiSupport = true;
         font = ''${grub2}/share/grub/unicode.pf2'';
         fontSize = 12;
+
+        # Kernel panic ↓
+        # theme = fetchFromGitHub { owner = "Lxtharia"; repo = "minegrub-theme"; rev = "88b1807cb3449997d7d4e361bfc42a70fbb388f1"; sha256 = "1xknblicjrm2cs6p5cch3djsr3yn50kvvdxqckqyvm2qxg46nxdi"; };
+
         theme = fetchFromGitHub {
           owner = "shvchk";
           repo = "fallout-grub-theme";
