@@ -219,6 +219,18 @@ remove_node_modules() {
     find . -name "node_modules" -type d -prune -exec rm -rf {} \;
 }
 
+# When the current working directory changes, run a method that checks for a .env file, then sources it, thanks johnhamelink
+autoload -U add-zsh-hook
+load_local_env() {
+    # check file exists, is regular file and is readable:
+    if [[ -f .env && -r .env ]]; then
+        source .env
+    fi
+}
+
+load_local_env
+add-zsh-hook chpwd load_local_env
+
 if [[ $(ps -p$$ -ocmd=) == *"zsh"* ]]; then hsi() grep "$*" ~/.zsh_history; fi
 
 if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
