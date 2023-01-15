@@ -197,9 +197,6 @@ in {
     };
 
     sessionVariables = {
-      CGO_ENABLED = "0";
-      GOPATH = "/home/$USER/go";
-      GOPRIVATE = "gitlab.wiserskills.net/wiserskills/";
       PATH = "$PATH:$GORROT:$GOPATH/bin";
     };
 
@@ -209,13 +206,17 @@ in {
       NIXPKGS_ALLOW_UNFREE = "1";
     };
 
-    # Configuration files
-    etc = {
-      "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
-    };
-
     # Google search, zsh history search, highlighter for conventional
     # branches(include jira tickets) and tmux startup in non-vscode editors
     interactiveShellInit = builtins.readFile ../dots/.zshrc;
+  };
+
+  # Configuration files
+  environment.etc = {
+    "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
+  };
+
+  home-manager.users."${owner.username}" = {
+    xdg.configFile."go/env".text = builtins.readFile ../dots/home/go/env;
   };
 }
