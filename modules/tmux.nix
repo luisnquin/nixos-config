@@ -22,7 +22,7 @@
 
     extraConfig = ''
       setw -g mouse on
-      bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "xclip"
+      bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel "xclip" # It's not really working, lol
 
       set -g window-status-separator ""
       set-option -ga terminal-overrides ",*256col*:Tc:RGB"
