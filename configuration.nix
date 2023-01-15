@@ -17,7 +17,7 @@ in {
     "/etc/nixos/home.nix"
   ];
 
-  boot = {
+  boot = with pkgs; {
     loader = {
       efi.canTouchEfiVariables = true;
 
@@ -27,9 +27,9 @@ in {
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
-        font = ''${pkgs.grub2}/share/grub/unicode.pf2'';
+        font = ''${grub2}/share/grub/unicode.pf2'';
         fontSize = 12;
-        theme = pkgs.fetchFromGitHub {
+        theme = fetchFromGitHub {
           owner = "shvchk";
           repo = "fallout-grub-theme";
           rev = "80734103d0b48d724f0928e8082b6755bd3b2078";
@@ -38,7 +38,7 @@ in {
       };
     };
 
-    kernelPackages = pkgs.linuxPackages_latest;
+    kernelPackages = linuxPackages_latest;
     supportedFilesystems = ["ntfs"];
     cleanTmpDir = true;
   };
@@ -82,12 +82,12 @@ in {
   users = {
     motd = "It's a good moment to tell you that this will be a great day for you 🌇";
 
-    users = {
-      ${owner.username} = {
+    users = with owner; {
+      ${username} = {
         isNormalUser = true;
-        home = ''/home/${owner.username}/'';
+        home = ''/home/${username}/'';
         # Used by desktop manager
-        description = ''${owner.username} 🌂'';
+        description = ''${username} 🌂'';
         shell = pkgs.zsh;
         hashedPassword = null;
         # ❄️
