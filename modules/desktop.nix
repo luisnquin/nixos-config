@@ -9,6 +9,7 @@
     tela-icon-theme
   ];
 
+  # TODO: wayland + sway
   services = {
     xserver = {
       videoDrivers = ["nvidia"];
@@ -36,18 +37,5 @@
         xterm.enable = true;
       };
     };
-    #redshift = {
-    #  enable = true;
-    #  temperature = {
-    #    day = 5700;
-    #    night = 5300;
-    #  };
-    #  brightness = {
-    #    day = "1";
-    #    night = "1";
-    #  };
-
-    #  # extraOptions = [# Fake location "-l 55.7:12.6"];
-    #};
   };
 }
