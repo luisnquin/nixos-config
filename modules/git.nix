@@ -74,6 +74,8 @@ in {
     shellAliases = {
       g = "git";
       ga = "git add";
+      # Add file fragments
+      gap = "git add --patch";
       gaa = "git add --all";
       # Git branch to git branch, ha
       gb = "git branch";
