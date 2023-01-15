@@ -36,20 +36,18 @@
         xterm.enable = true;
       };
     };
+    #redshift = {
+    #  enable = true;
+    #  temperature = {
+    #    day = 5700;
+    #    night = 5300;
+    #  };
+    #  brightness = {
+    #    day = "1";
+    #    night = "1";
+    #  };
 
-    redshift = {
-      enable = true;
-      temperature = {
-        day = 5700;
-        night = 5300;
-      };
-
-      brightness = {
-        day = "1";
-        night = "1";
-      };
-
-      # extraOptions = [# Fake location "-l 55.7:12.6"];
-    };
+    #  # extraOptions = [# Fake location "-l 55.7:12.6"];
+    #};
   };
 }
