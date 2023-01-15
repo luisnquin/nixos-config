@@ -196,14 +196,14 @@ in {
       unrar = "unar";
     };
 
-    sessionVariables = {
-      PATH = "$PATH:$GORROT:$GOPATH/bin";
-    };
+    # sessionVariables = {};
 
     variables = {
-      EDITOR = "nano";
       # The other related config only apply to the build
       NIXPKGS_ALLOW_UNFREE = "1";
+      PATH = "$PATH:$GORROT:$GOPATH/bin";
+      GOPATH = "/home/$USER/go";
+      EDITOR = "nano";
     };
 
     # Google search, zsh history search, highlighter for conventional

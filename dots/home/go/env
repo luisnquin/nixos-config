@@ -1,4 +1,3 @@
 GO111MODULE=on
-GOPATH=/home/$USER/go
 GOPRIVATE=gitlab.wiserskills.net/wiserskills/
 CGO_ENABLED=0
