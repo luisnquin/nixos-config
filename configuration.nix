@@ -27,18 +27,16 @@ in {
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
-        font = ''${grub2}/share/grub/unicode.pf2'';
-        fontSize = 12;
 
-        # Kernel panic ↓
-        # theme = fetchFromGitHub { owner = "Lxtharia"; repo = "minegrub-theme"; rev = "88b1807cb3449997d7d4e361bfc42a70fbb388f1"; sha256 = "1xknblicjrm2cs6p5cch3djsr3yn50kvvdxqckqyvm2qxg46nxdi"; };
+        # Theming
+        theme = "/etc/nixos/dots/boot/grub/themes/catppuccin-mocha-grub-theme";
+        # the default value of these two sucks
+        gfxmodeBios = "1920x1080";
+        gfxmodeEfi = "1920x1080";
 
-        theme = fetchFromGitHub {
-          owner = "shvchk";
-          repo = "fallout-grub-theme";
-          rev = "80734103d0b48d724f0928e8082b6755bd3b2078";
-          sha256 = "sha256-7kvLfD6Nz4cEMrmCA9yq4enyqVyqiTkVZV5y4RyUatU=";
-        };
+        # Other theme options
+        # theme = fetchFromGitHub { owner = "shvchk"; repo = "fallout-grub-theme"; rev = "80734103d0b48d724f0928e8082b6755bd3b2078"; sha256 = "sha256-7kvLfD6Nz4cEMrmCA9yq4enyqVyqiTkVZV5y4RyUatU="; };
+        # theme = fetchFromGitHub { owner = "Lxtharia"; repo = "minegrub-theme"; rev = "88b1807cb3449997d7d4e361bfc42a70fbb388f1"; sha256 = "1xknblicjrm2cs6p5cch3djsr3yn50kvvdxqckqyvm2qxg46nxdi"; }; ← kernel panic
       };
     };
 
