@@ -54,8 +54,9 @@
         directory = {
           truncation_length = 2;
           truncate_to_repo = false;
-          read_only = "🔒";
+          read_only = "";
           read_only_style = "#454343";
+          style = "#8d3beb";
         };
 
         env_var = {
@@ -69,8 +70,8 @@
         };
 
         git_branch = {
-          symbol = " ";
-          style = "#8d3beb";
+          symbol = " ";
+          style = "#ebb63b";
         };
 
         golang = {
