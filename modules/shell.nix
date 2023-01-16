@@ -27,14 +27,28 @@
 
       # Ref: https://starship.rs/config
       settings = {
+        custom = {
+          gitremote = {
+            description = "Display symbol for remote git server";
+            shell = ["bash" "--noprofile" "--norc"];
+            format = "at $output ";
+            command = ''GIT_REMOTE_SYMBOL=$(command git ls-remote --get-url 2> /dev/null | awk '{if ($0 ~ /github/) print ""; else if ($0 ~ /gitlab/) print ""; else if ($0 ~ /bitbucket/) print ""; else if ($0 ~ /git/) print ""; else print ""}'); echo "$GIT_REMOTE_SYMBOL "'';
+            when = "git rev-parse --is-inside-work-tree 2> /dev/null";
+          };
+        };
+
+        format = ''
+          $directory''${custom.gitremote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}
+          $character
+        '';
         scan_timeout = 30;
         command_timeout = 400;
+        add_newline = true;
 
         cmd_duration = {
           min_time = 200;
           show_milliseconds = false;
-          format = "took [$duration]($style) ";
-          # style = "";
+          format = "it took [$duration]($style) ";
         };
 
         directory = {
@@ -44,12 +58,27 @@
           read_only_style = "#454343";
         };
 
+        env_var = {
+          disabled = false;
+
+          CLIENT = {
+            variable = "CLIENT";
+            symbol = "💳 ";
+            format = "at [$symbol($env_value)]($style)";
+          };
+        };
+
+        git_branch = {
+          symbol = " ";
+          style = "#8d3beb";
+        };
+
         golang = {
           symbol = "ﳑ ";
           detect_extensions = ["go"];
           detect_files = ["go.mod" "go.sum" "go.work" ".go-version"];
           version_format = "v\${major}.\${minor}";
-          format = "via [$symbol($version )]($style)";
+          format = "via [$symbol($version)]($style)";
           style = "#5ddade";
         };
 

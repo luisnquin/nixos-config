@@ -128,7 +128,7 @@ in {
 
   fonts = {
     fonts = with pkgs; [
-      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode"];})
+      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode" "NerdFontsSymbolsOnly"];})
       cascadia-code
       jetbrains-mono
       roboto-mono
