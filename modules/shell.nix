@@ -45,6 +45,11 @@
         command_timeout = 400;
         add_newline = true;
 
+        character = {
+          success_symbol = "[褐](bold green)";
+          error_symbol = "[](bold red)";
+        };
+
         cmd_duration = {
           min_time = 200;
           show_milliseconds = false;
