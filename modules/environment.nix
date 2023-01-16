@@ -188,6 +188,7 @@ in {
       ale = "alejandra --quiet";
       dud = "du --human-readable --summarize";
       man = "tldr";
+      transg = "transgression-tui";
       # Abstraction
       listen = "ngrok http";
       py = "python3";
