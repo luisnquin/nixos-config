@@ -31,21 +31,22 @@
           gitremote = {
             description = "Display symbol for remote git server";
             shell = ["bash" "--noprofile" "--norc"];
-            format = "at $output ";
+            format = "at [$output]($style) ";
             command = ''GIT_REMOTE_SYMBOL=$(command git ls-remote --get-url 2> /dev/null | awk '{if ($0 ~ /github/) print ""; else if ($0 ~ /gitlab/) print ""; else if ($0 ~ /bitbucket/) print ""; else if ($0 ~ /git/) print ""; else print ""}'); echo "$GIT_REMOTE_SYMBOL "'';
             when = "git rev-parse --is-inside-work-tree 2> /dev/null";
+            style = "#ededed";
           };
 
           viadotfiles = {
             description = "Displays the current NixOS version";
             shell = ["bash" "--noprofile" "--norc"];
-            format = "via $output";
-            command = ''VERSION=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+'); echo "" v$VERSION'';
+            format = "via [$symbol($output)]($style)";
+            command = ''VERSION=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+'); echo "v$VERSION"'';
             when = "pwd | grep -q '.dotfiles'";
+            style = "#5783de";
+            symbol = " ";
           };
         };
-
-        #5bdceb
 
         format = ''
           $directory''${custom.gitremote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}''${custom.viadotfiles}
