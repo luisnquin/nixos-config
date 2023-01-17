@@ -6,6 +6,9 @@
         "editor.formatOnSaveMode": "file",
         "editor.formatOnType": false
     },
+    "files.associations": {
+        ".shrc": "shellscript"
+    },
     "[nix]": {
         "editor.defaultFormatter": "kamadorueda.alejandra",
         "editor.formatOnSaveMode": "file",
@@ -16,7 +19,7 @@
         "editor.tabSize": 2
     },
     "shellcheck.enable": true,
-    "shellcheck.exclude": ["1090", "3046"],
+    "shellcheck.exclude": ["1090", "1091", "3046"],
     "material-icon-theme.folders.associations": {
         ".scripts": "Scripts",
         "units": "Resource",
