@@ -209,7 +209,11 @@ in {
     };
 
     # Google search, zsh history search, highlighter for conventional
-    # branches(include jira tickets) and tmux startup in non-vscode editors
+    # branches and tmux startup in non-vscode editors
+    #
+    # Shell script code called during interactive shell initialisation.
+    # This code is assumed to be shell-independent, which means you
+    # should stick to pure sh without sh word split.
     interactiveShellInit = builtins.readFile ../dots/.zshrc;
   };
 

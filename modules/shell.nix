@@ -1,4 +1,19 @@
-{config, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
+  environment = {
+    systemPackages = with pkgs; [
+      # To preserve the shell in a nix-shell environment
+      any-nix-shell
+    ];
+
+    shells = with pkgs; [
+      zsh
+    ];
+  };
+
   programs = {
     zsh = {
       enable = true;
@@ -20,6 +35,12 @@
 
       enableBashCompletion = true;
       enableCompletion = true;
+
+      interactiveShellInit = ''
+        export GID UID
+
+        any-nix-shell zsh --info-right | source /dev/stdin
+      '';
     };
 
     starship = {
