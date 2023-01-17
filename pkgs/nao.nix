@@ -8,6 +8,9 @@
   owner = "luisnquin";
 in
   buildGoModule rec {
+    # Completions
+    # https://github.com/NixOS/nixpkgs/blob/nixos-22.11/pkgs/applications/networking/cluster/kubernetes/kubectl.nix#L28
+    # https://github.com/NixOS/nixpkgs/blob/nixos-22.11/pkgs/applications/virtualization/docker/default.nix#L229
     pname = "nao";
     version = "3.0.0";
     src = fetchFromGitHub {
