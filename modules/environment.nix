@@ -114,6 +114,7 @@ in {
           libsecret
           binutils
           openssh
+          openssl
           gnumake
           openjdk
           neovim
