@@ -3,16 +3,7 @@
   pkgs,
   ...
 }: {
-  environment = {
-    systemPackages = with pkgs; [
-      # To preserve the shell in a nix-shell environment
-      any-nix-shell
-    ];
-
-    shells = with pkgs; [
-      zsh
-    ];
-  };
+  environment.shells = [pkgs.zsh];
 
   programs = {
     zsh = {
@@ -36,11 +27,13 @@
       enableBashCompletion = true;
       enableCompletion = true;
 
-      interactiveShellInit = ''
-        export GID UID
+      # Maybe start tmux here?
+      # promptInit = ''
+      #   ls ${pkgs.any-nix-shell}
+      #   ${pkgs.any-nix-shell} zsh --info-right | source /dev/stdin
+      # '';
 
-        any-nix-shell zsh --info-right | source /dev/stdin
-      '';
+      interactiveShellInit = builtins.readFile ../dots/.zshrc;
     };
 
     starship = {
@@ -73,7 +66,7 @@
             description = "Diplays the current client in case there's the environment variable";
             shell = ["bash" "--noprofile" "--norc"];
             format = "in [$symbol($output)]($style) env";
-            when = ''[ -n "''${CLIENT + x}" ]'';
+            when = ''[ -n "''${CLIENT+x}" ]'';
             style = "#c319f7";
             symbol = " ";
           };
