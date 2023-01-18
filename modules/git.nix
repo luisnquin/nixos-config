@@ -111,6 +111,8 @@ in {
       gpush = "git push origin";
       # Git reset but it doesn't output anything
       gr = "git reset -q";
+      # Displays the changes in the latest commit
+      gch = "git show --pretty='format:%h %s' --name-status -r HEAD";
       grb = "git rebase";
       gs = "git stash";
       gsp = "git stash pop";
