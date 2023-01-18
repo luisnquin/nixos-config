@@ -225,10 +225,6 @@ if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
     }
 fi
 
-if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
-    exec tmux
-fi
-
 #    # Greeting of the date
 #    current_date=$(date +%Y-%m-%d)
 #    last_startup_date=$(cat /home/$USER/.cache/last_startup_date.txt 2>/dev/null || true)

@@ -47,8 +47,11 @@ in {
       enableBashCompletion = true;
       enableCompletion = true;
 
-      # Maybe start tmux here?
-      promptInit = '''';
+      promptInit = ''
+        if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
+            exec ${pkgs.tmux}/bin/tmux
+        fi
+      '';
 
       interactiveShellInit = builtins.readFile ../dots/.zshrc;
     };
