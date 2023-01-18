@@ -19,7 +19,7 @@
         "editor.tabSize": 2
     },
     "shellcheck.enable": true,
-    "shellcheck.exclude": ["1090", "1091", "3046"],
+    "shellcheck.exclude": ["1090", "1091", "2005", "2207","3046"],
     "material-icon-theme.folders.associations": {
         ".scripts": "Scripts",
         "units": "Resource",

@@ -190,6 +190,7 @@ in {
       dud = "du --human-readable --summarize";
       man = "tldr";
       transg = "transgression-tui";
+      ns = "nix-shell";
       # Abstraction
       listen = "ngrok http";
       py = "python3";
@@ -214,7 +215,7 @@ in {
     # Shell script code called during interactive shell initialisation.
     # This code is assumed to be shell-independent, which means you
     # should stick to pure sh without sh word split.
-    interactiveShellInit = builtins.readFile ../dots/.zshrc;
+    interactiveShellInit = builtins.readFile ../dots/.shrc;
   };
 
   # Configuration files
