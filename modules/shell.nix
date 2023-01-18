@@ -21,6 +21,26 @@ in {
             sha256 = "0za4aiwwrlawnia4f29msk822rj9bgcygw6a8a6iikiwzjjz0g91";
           };
         }
+        {
+          name = "zsh-autoquoter"; # https://github.com/ianthehenry/zsh-autoquoter
+          file = "zsh-autoquoter.zsh";
+          src = fetchFromGitHub {
+            owner = "ianthehenry";
+            repo = "zsh-autoquoter";
+            rev = "819a615fbfd2ad25c5d311080e3a325696b45de7";
+            sha256 = "15kli851f32cbyisgf7960pmryz5w8ssn4ykpjiyfk05wsixsj5g";
+          };
+        }
+        {
+          name = "zsh-you-should-use"; # https://github.com/MichaelAquilina/zsh-you-should-use
+          file = "you-should-use.plugin.zsh";
+          src = fetchFromGitHub {
+            owner = "MichaelAquilina";
+            repo = "zsh-you-should-use";
+            rev = "5b316f4af3ac90e044f386003aacdaa0ad606488";
+            sha256 = "192jb680f1sc5xpgzgccncsb98xa414aysprl52a0bsmd1slnyxs";
+          };
+        }
       ];
     };
   };
