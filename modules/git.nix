@@ -67,7 +67,7 @@ in {
       gitlab-runner
       gitui # Better than lazygit?
       lazygit
-      onefetch
+      # onefetch
       pre-commit
     ];
 
