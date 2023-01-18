@@ -10,7 +10,7 @@ main() {
 setup() {
     git clone https://github.com/luisnquin/nixos-config.git ~/.dotfiles/
     nixos-generate-config --show-hardware-config >~/.dotfiles/hardware-configuration.nix
-    sudo ln -sf ~/.dotfiles/* /etc/nixos/ # TODO: Improve giving just nix files/dirs
+    sudo ln -sf ~/.dotfiles/* /etc/nixos/
     sudo nixos-rebuild switch
 }
 
@@ -19,7 +19,8 @@ check_fs() {
 
     if [ "$exists" != "" ]; then
         printf "Apparently you already have a dotfiles directory %s/.dotfiles/, \033[1;31mdelete it\033[0m if you want to continue\n" "$HOME"
-        exit 1
+
+        return 1
     fi
 }
 
