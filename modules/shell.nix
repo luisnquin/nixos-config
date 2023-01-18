@@ -2,8 +2,28 @@
   config,
   pkgs,
   ...
-}: {
+}: let
+  owner = import "/etc/nixos/owner.nix";
+in {
   environment.shells = [pkgs.zsh];
+
+  home-manager.users."${owner.username}" = {
+    programs.zsh = {
+      enable = true;
+      plugins = with pkgs; [
+        {
+          name = "zsh-nix-shell";
+          file = "nix-shell.plugin.zsh";
+          src = fetchFromGitHub {
+            owner = "chisui";
+            repo = "zsh-nix-shell";
+            rev = "v0.5.0";
+            sha256 = "0za4aiwwrlawnia4f29msk822rj9bgcygw6a8a6iikiwzjjz0g91";
+          };
+        }
+      ];
+    };
+  };
 
   programs = {
     zsh = {
@@ -28,10 +48,7 @@
       enableCompletion = true;
 
       # Maybe start tmux here?
-      # promptInit = ''
-      #   ls ${pkgs.any-nix-shell}
-      #   ${pkgs.any-nix-shell} zsh --info-right | source /dev/stdin
-      # '';
+      promptInit = '''';
 
       interactiveShellInit = builtins.readFile ../dots/.zshrc;
     };
