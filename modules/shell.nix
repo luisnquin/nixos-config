@@ -22,16 +22,6 @@ in {
           };
         }
         {
-          name = "zsh-autoquoter"; # https://github.com/ianthehenry/zsh-autoquoter
-          file = "zsh-autoquoter.zsh";
-          src = fetchFromGitHub {
-            owner = "ianthehenry";
-            repo = "zsh-autoquoter";
-            rev = "819a615fbfd2ad25c5d311080e3a325696b45de7";
-            sha256 = "15kli851f32cbyisgf7960pmryz5w8ssn4ykpjiyfk05wsixsj5g";
-          };
-        }
-        {
           name = "zsh-you-should-use"; # https://github.com/MichaelAquilina/zsh-you-should-use
           file = "you-should-use.plugin.zsh";
           src = fetchFromGitHub {
