@@ -28,6 +28,7 @@ in {
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
+        forceInstall = false;
 
         # Theming
         theme = "/etc/nixos/dots/boot/grub/themes/catppuccin-mocha-grub-theme";
