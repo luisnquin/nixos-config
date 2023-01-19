@@ -6,6 +6,7 @@
     "/etc/nixos/modules/spotify.nix"
     "/etc/nixos/modules/desktop.nix"
     "/etc/nixos/modules/torrent.nix"
+    "/etc/nixos/modules/editors.nix"
     "/etc/nixos/modules/docker.nix"
     "/etc/nixos/modules/nvidia.nix"
     "/etc/nixos/modules/shell.nix"

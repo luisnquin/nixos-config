@@ -10,6 +10,7 @@
   ];
 
   # TODO: wayland + sway
+  # xdg.portal.wlr.enable
   services = {
     xserver = {
       videoDrivers = ["nvidia"];

@@ -11,6 +11,7 @@ in {
     ./hardware-configuration.nix
   ];
 
+  # Entry point 🐙
   require = [
     "/etc/nixos/modules/default.nix"
     "/etc/nixos/pkgs/default.nix"
@@ -33,10 +34,6 @@ in {
         # the default value of these two sucks
         gfxmodeBios = "1920x1080";
         gfxmodeEfi = "1920x1080";
-
-        # Other theme options
-        # theme = fetchFromGitHub { owner = "shvchk"; repo = "fallout-grub-theme"; rev = "80734103d0b48d724f0928e8082b6755bd3b2078"; sha256 = "sha256-7kvLfD6Nz4cEMrmCA9yq4enyqVyqiTkVZV5y4RyUatU="; };
-        # theme = fetchFromGitHub { owner = "Lxtharia"; repo = "minegrub-theme"; rev = "88b1807cb3449997d7d4e361bfc42a70fbb388f1"; sha256 = "1xknblicjrm2cs6p5cch3djsr3yn50kvvdxqckqyvm2qxg46nxdi"; }; ← kernel panic
       };
     };
 
@@ -113,11 +110,6 @@ in {
     };
   };
 
-  console = {
-    font = "Lat2-Terminus16";
-    keyMap = "es";
-  };
-
   time = {
     timeZone = "America/Lima";
     # Without this option, the machine will have a UTC time
@@ -139,12 +131,8 @@ in {
     fontDir.enable = true;
   };
 
-  xdg = {
-    # Wayland
-    portal.wlr.enable = true;
-  };
-
   i18n.defaultLocale = "es_PE.UTF-8";
+
   sound.enable = true;
 
   services = {
@@ -166,26 +154,10 @@ in {
     };
   };
 
-  programs = {
-    # sway.enable = true;
-
-    nano = {
-      nanorc = ''
-        set titlecolor white,magenta
-        set positionlog
-        set autoindent
-        set tabsize 4
-        set atblanks
-        set zero
-      '';
-
-      syntaxHighlight = true;
-    };
-
-    gnupg.agent = {
-      enable = true;
-      enableSSHSupport = true;
-    };
+  # sway.enable = true;
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
   };
 
   system = {

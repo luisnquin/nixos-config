@@ -5,6 +5,11 @@
 }: let
   owner = import "/etc/nixos/owner.nix";
 in {
+  console = {
+    font = "Lat2-Terminus16";
+    keyMap = "es";
+  };
+
   home-manager.users."${owner.username}" = {
     programs.zsh = {
       enable = true;
