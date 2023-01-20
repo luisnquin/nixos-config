@@ -25,13 +25,33 @@ in {
           };
         }
         {
-          name = "zsh-you-should-use"; # https://github.com/MichaelAquilina/zsh-you-should-use
+          name = "zsh-you-should-use";
           file = "you-should-use.plugin.zsh";
           src = fetchFromGitHub {
             owner = "MichaelAquilina";
             repo = "zsh-you-should-use";
             rev = "5b316f4af3ac90e044f386003aacdaa0ad606488";
             sha256 = "192jb680f1sc5xpgzgccncsb98xa414aysprl52a0bsmd1slnyxs";
+          };
+        }
+        {
+          name = "Extract";
+          file = "extract.sh";
+          src = fetchFromGitHub {
+            owner = "xvoland";
+            repo = "Extract";
+            rev = "439e92c5b355b40c36d8a445636d0e761ec08217";
+            sha256 = "1yaphcdnpxcdrlwidw47waix8kmv2lb5a9ccmf8dynlwvhyvh1wi";
+          };
+        }
+        {
+          name = "zinsults";
+          file = "zinsults.plugin.zsh";
+          src = fetchFromGitHub {
+            owner = "ahmubashshir";
+            repo = "zinsults";
+            rev = "2963cde1d19e3af4279442a4f67e4c0224341c42";
+            sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
           };
         }
       ];
