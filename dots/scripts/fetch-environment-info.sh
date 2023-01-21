@@ -32,7 +32,7 @@ fetch_environment_info() {
     location=$(echo "$connection" | jq -r '.location')
     echo "sending request to weather service..."
 
-    weather=$(curl -fsX GET "https://wttr.in/$location?format=j1" | jq -r '.current_condition | .[] | {feelsLike: .FeelsLikeC, humidity: .humidity, cloudcover: .cloudcover, text: (.weatherDesc | .[] | .value)}')
+    weather=$(curl -fsX GET "https://wttr.in/$location?format=j1" | jq -r '.current_condition | .[] | { feels_like: .FeelsLikeC, humidity: .humidity, cloudy: .cloudcover, text: (.weatherDesc | .[] | .value) }')
     echo "weather service data: $weather"
 
     echo "removing old file..."
