@@ -5,143 +5,154 @@
 }: let
   owner = import "/etc/nixos/owner.nix";
 in {
-  environment.systemPackages = with pkgs; let
-    gg = {
-      apps = [
-        obs-studio
-        discord
-        vivaldi
-        etcher
-        brave
-        slack
-        gimp
-      ];
+  environment = {
+    systemPackages = with pkgs; let
+      gg = {
+        apps = [
+          obs-studio
+          discord
+          vivaldi
+          etcher
+          brave
+          slack
+          gimp
+        ];
 
-      dev = [
-        # Go-related
-        air
-        delve
-        gcc
-        go_1_20
-        go-protobuf
-        gofumpt
-        golangci-lint
-        gopls
-        gotools
-        govulncheck
-        grpc-tools
+        dev = [
+          # Go-related
+          air
+          delve
+          gcc
+          go_1_20
+          go-protobuf
+          gofumpt
+          golangci-lint
+          gopls
+          gotools
+          govulncheck
+          grpc-tools
 
-        # Rust-related
-        cargo
-        clippy
-        rust-analyzer
-        rustc
-        rustfmt
-        rustup
-        vscode-extensions.matklad.rust-analyzer
+          # Rust-related
+          cargo
+          clippy
+          rust-analyzer
+          rustc
+          rustfmt
+          rustup
+          vscode-extensions.matklad.rust-analyzer
 
-        # JavaScript-related
-        nodePackages.typescript
-        nodePackages.pnpm
-        nodejs-18_x
-        deno
-        bun
+          # JavaScript-related
+          nodePackages.typescript
+          nodePackages.pnpm
+          nodejs-18_x
+          deno
+          bun
 
-        # Nix-related
-        alejandra
-        nixos-option
-        rnix-lsp
-        vscode-extensions.jnoortheen.nix-ide
-        nix-prefetch-git # Tool to get information from remote repository like sha256
+          # Nix-related
+          alejandra
+          nixos-option
+          rnix-lsp
+          vscode-extensions.jnoortheen.nix-ide
+          nix-prefetch-git # Tool to get information from remote repository like sha256
 
-        # Python-related
-        pyright
-        python311
-        python310Packages.pipx
-        virtualenv
+          # Python-related
+          pyright
+          python311
+          python310Packages.pipx
+          virtualenv
 
-        # Other
-        nodePackages.firebase-tools
-        license-generator
-        onlyoffice-bin
-        redoc-cli
-        awscli2
-        vscode
-        clang
+          # Other
+          nodePackages.firebase-tools
+          license-generator
+          onlyoffice-bin
+          redoc-cli
+          awscli2
+          vscode
+          clang
 
-        # websocat
-        # dbeaver
-        # gobang
+          # websocat
+          # dbeaver
+          # gobang
 
-        minify # HTML, CSS, and JavaScript minifier
-        shfmt # Shell code formatter
-        zathura # PDF viewer
-        sqlc # SQL generator
-        # Processors
-        csvkit
-        htmlq
-        dsq
-        jq
-        yq
-        # HTTP
-        postman
-        ngrok
-      ];
+          minify # HTML, CSS, and JavaScript minifier
+          shfmt # Shell code formatter
+          zathura # PDF viewer
+          sqlc # SQL generator
+          # Processors
+          csvkit
+          htmlq
+          dsq
+          jq
+          yq
+          # HTTP
+          postman
+          ngrok
+        ];
 
-      osint = [
-        exiftool
-        maigret
-        whois
-      ];
+        osint = [
+          exiftool
+          maigret
+          whois
+        ];
 
-      preferences = [
-        rclone # For management in cloud storages
-        freshfetch # neofetch replacement
-        xclip # Clipboard
-        tldr # Alternative to man
+        preferences = [
+          rclone # For management in cloud storages
+          freshfetch # neofetch replacement
+          xclip # Clipboard
+          tldr # Alternative to man
 
-        # Fufu stuff
-        octofetch
-        nyancat
-        genact
-        tree
-      ];
+          # Fufu stuff
+          octofetch
+          nyancat
+          genact
+          tree
+        ];
 
-      core = [
-        stdenv_32bit
-        coreutils
-        libsecret
-        binutils
-        openssh
-        openssl
-        gnumake
-        openjdk
-        neovim
-        wget
-        vim
-        bat
-        exa # ls command replacement
-        vlc
+        core = [
+          stdenv_32bit
+          coreutils
+          libsecret
+          binutils
+          openssh
+          openssl
+          gnumake
+          openjdk
+          neovim
+          wget
+          vim
+          bat
+          exa # ls command replacement
+          vlc
 
-        # NTFS
-        ntfs3g
-        exfat
+          # NTFS
+          ntfs3g
+          exfat
 
-        gnome.seahorse # Keyring
+          gnome.seahorse # Keyring
 
-        # System monitoring tools
-        gotop
-        btop
-        htop
+          # System monitoring tools
+          gotop
+          btop
+          htop
 
-        # Compressed files
-        p7zip
-        unzip
-        unar
-        zip
-      ];
-    };
-  in (builtins.concatLists (builtins.attrValues gg));
+          # Compressed files
+          p7zip
+          unzip
+          unar
+          zip
+        ];
+      };
+    in (builtins.concatLists (builtins.attrValues gg));
+
+    # Available in admin shell
+    extraInit = let
+      fetchEnvironmentInfoScript = builtins.readFile ../dots/scripts/fetch-environment-info.sh;
+    in ''
+      ${fetchEnvironmentInfoScript}
+    '';
+
+    localBinInPath = true;
+  };
 
   # Configuration files
   environment.etc = {
