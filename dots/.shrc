@@ -224,17 +224,3 @@ load_local_env() {
 
 load_local_env
 add-zsh-hook chpwd load_local_env
-
-#    # Greeting of the date
-#    current_date=$(date +%Y-%m-%d)
-#    last_startup_date=$(cat /home/$USER/.cache/last_startup_date.txt 2>/dev/null || true)
-#
-#    if [ "$current_date" != "$last_startup_date" ]; then
-#        # This is the first terminal emulator startup of the day
-#        tmux send-keys <<EOF
-#echo "$current_date" >/home/$USER/.cache/last_startup_date.txt
-#echo "HIiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
-#EOF
-#    fi
-#
-#    unset current_date last_startup_date
