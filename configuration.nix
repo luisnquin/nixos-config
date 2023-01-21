@@ -142,7 +142,7 @@ in {
 
     openssh = {
       enable = true;
-      passwordAuthentication = true;
+      settings.passwordAuthentication = true;
     };
 
     # pulseaudio doesn't give a good support for some programs
