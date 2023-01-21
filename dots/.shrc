@@ -194,6 +194,22 @@ billboard() {
     done <<<"$cinerama_raw_movies"
 }
 
+function hex2ansi() {
+    local hex=${1}
+
+    if [[ $hex =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+        r=$(printf '%d' 0x"${hex:1:2}")
+        g=$(printf '%d' 0x"${hex:3:2}")
+        b=$(printf '%d' 0x"${hex:5:2}")
+
+        echo -e "\033[38;2;$r;$g;${b}m$USER\033[0m"
+    else
+        printf "\033[38;2;240;91;106mInvalid hex color code\033[0m\n"
+
+        return 1
+    fi
+}
+
 remove_node_modules() {
     find . -name "node_modules" -type d -prune -exec rm -rf {} \;
 }
