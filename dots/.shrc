@@ -133,22 +133,18 @@ billboard() {
 
     # Returns options in case of no passed argument
     if [ -z "$city" ]; then
-        cities=$(get_available_cities)
-        cities_arr=("$cities")
+        cities=($(get_available_cities | tr '\n' ' '))
 
-        reset=$(tput sgr0)
+        printf "\033[0;38;2;255;110;114mNo argument provided 🔥, options:\n"
 
-        echo "Options:"
-
-        for city in "${cities_arr[@]}"; do
-            color=$((RANDOM % 256))
-            color_code=$(tput setaf $color)
-
+        for city in "${cities[@]}"; do
             city=$(echo "$city" | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
-            echo " - ${color_code}${city}${reset}"
+            echo " - ${city}"
         done
 
-        return
+        printf "\033[0m"
+
+        return 1
     fi
 
     cinerama_response=$(curl -s -X GET "http://www.cinerama.com.pe/cartelera_cine/$city")
