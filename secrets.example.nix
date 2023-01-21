@@ -2,6 +2,7 @@
 # can read/write this file
 let
   secrets = rec {
+    geoLocationServiceApiKey = "<api-key-here>";
     spotifyPassword = "<password-here>";
   };
 in
