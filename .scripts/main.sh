@@ -135,7 +135,9 @@ check_fs() {
 }
 
 ensure_symlinks() {
-    sudo ln -sf ~/.dotfiles/* /etc/nixos/ # 2>/dev/null
+    sudo rm -rf /etc/nixos/
+    sudo mkdir -p /etc/nixos/
+    sudo ln -sf ~/.dotfiles/* /etc/nixos/
 }
 
 # Flags parsing
