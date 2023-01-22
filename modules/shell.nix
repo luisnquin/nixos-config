@@ -206,7 +206,7 @@ in {
     variables = {
       # The other related config only apply to the build
       NIXPKGS_ALLOW_UNFREE = "1";
-      PATH = "$PATH:$GORROT:$GOPATH/bin:/home/$USER/.local/bin";
+      PATH = "$PATH:$GORROT:$GOPATH/bin";
       GOPATH = "/home/$USER/go";
       EDITOR = "nano";
     };
