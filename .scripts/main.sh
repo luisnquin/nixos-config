@@ -30,7 +30,7 @@ main() {
         check_syntax_and_format || {
             printf "\n\033[0;91msyntax errors detected or files are not correctly formatted!\033[0m\n"
 
-            return 1
+            exit 1
         }
 
         printf "\n\033[0;95mEnsuring symlinks [2/3]\033[0m\n"
@@ -107,10 +107,10 @@ main() {
 
     if [ "$reboot" = 1 ]; then
         reboot
-        return 0
+        exit 0
     elif [ "$turnoff" = 1 ]; then
         poweroff
-        return 0
+        exit 0
     fi
 }
 
@@ -149,11 +149,11 @@ while [ "$#" -gt 0 ]; do
     -h | --h | -help | --help)
         echo "$template"
         shift 1
-        return 0
+        exit 0
         ;;
     -* | *)
         printf "unknown option: %s\nRun 'sh %s --help' for usage\n" "$1" "$0" >&2
-        return 1
+        exit 1
         ;;
     esac
 
@@ -166,7 +166,7 @@ done
 if [ "$subcommand" = 0 ]; then
     echo "$template"
 
-    return 1
+    exit 1
 fi
 
 main
