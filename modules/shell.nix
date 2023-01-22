@@ -199,6 +199,10 @@ in {
 
     # sessionVariables = {};
 
+    systemPackages = [
+      pkgs.cached-nix-shell
+    ];
+
     variables = {
       # The other related config only apply to the build
       NIXPKGS_ALLOW_UNFREE = "1";
@@ -238,6 +242,9 @@ in {
       la = "exa -a";
       cat = "bat -p";
 
+      nix-shell = "cached-nix-shell";
+      ns = "nix-shell";
+
       # Those who are lazy to write definitely go here
       "~" = "cd /home/$USER/";
       open = "xdg-open";
@@ -252,7 +259,6 @@ in {
       dud = "du --human-readable --summarize";
       man = "tldr";
       transg = "transgression-tui";
-      ns = "nix-shell";
       # Abstraction
       listen = "ngrok http";
       py = "python3";
