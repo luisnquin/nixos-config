@@ -202,7 +202,8 @@ function hex2ansi() {
         g=$(printf '%d' 0x"${hex:3:2}")
         b=$(printf '%d' 0x"${hex:5:2}")
 
-        echo -e "\033[38;2;$r;$g;${b}m$USER\033[0m"
+        echo -e "\033[38;2;$r;$g;${b}mplaceholder\033[0m" | command xclip -selection clip
+        echo -e "\033[38;2;$r;$g;${b}mCopied to clipboard! \033[0m"
     else
         printf "\033[38;2;240;91;106mInvalid hex color code\033[0m\n"
 
