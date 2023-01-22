@@ -26,20 +26,17 @@ main() {
             sudo echo -n ""
         fi
 
-        printf "\n\033[0;95mChecking syntax errors [1/4]\033[0m\n"
+        printf "\n\033[0;95mChecking syntax errors [1/3]\033[0m\n"
         check_syntax_and_format || {
-            printf "\033[0;91msyntax errors detected or files are not correctly formatted!\033[0m\n"
+            printf "\n\033[0;91msyntax errors detected or files are not correctly formatted!\033[0m\n"
 
-            exit 1
+            return 1
         }
 
-        printf "\n\033[0;95mEnsuring symlinks [2/4]\033[0m\n"
+        printf "\n\033[0;95mEnsuring symlinks [2/3]\033[0m\n"
         ensure_symlinks
 
-        # printf "\n\033[0;92mUpdating channels [3/4]\033[0m\n"
-        # sudo nix-channel --update
-
-        printf "\n\033[0;92mBuilding and updating [4/4]\033[0m\n"
+        printf "\n\033[0;92mBuilding and updating [3/3]\033[0m\n"
         sudo nixos-rebuild boot --upgrade
 
         printf "\n\033[1;34mSuccessfully updated! ❄️❄️❄️\033[0m\n"
@@ -110,10 +107,10 @@ main() {
 
     if [ "$reboot" = 1 ]; then
         reboot
-        exit 0
+        return 0
     elif [ "$turnoff" = 1 ]; then
         poweroff
-        exit 0
+        return 0
     fi
 }
 
@@ -152,11 +149,11 @@ while [ "$#" -gt 0 ]; do
     -h | --h | -help | --help)
         echo "$template"
         shift 1
-        exit 0
+        return 0
         ;;
     -* | *)
         printf "unknown option: %s\nRun 'sh %s --help' for usage\n" "$1" "$0" >&2
-        exit 1
+        return 1
         ;;
     esac
 
@@ -168,7 +165,8 @@ done
 
 if [ "$subcommand" = 0 ]; then
     echo "$template"
-    exit 1
+
+    return 1
 fi
 
 main
