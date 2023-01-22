@@ -7,8 +7,8 @@ in
     src = pkgs.fetchFromGitHub {
       owner = owner;
       repo = repo;
-      rev = "9a6cb5f53a6c85fc6c8d67bea99d56b8bdee25a5";
-      sha256 = "1irwvir4jqxipd3a8z3klk771h6nywsplf9659xqd19dw6961n4m";
+      rev = "466505379526d47c2177459cadc4c383d1e36a4b";
+      sha256 = "0gw70h7cfsn416h0r9v291jy1v14vbvm1vs59bjsryifah18p90d";
     };
 
     installPhase = ''
@@ -17,6 +17,11 @@ in
       mv $out/bin/main.sh $out/bin/nyx
       chmod +x $out/bin/nyx
     '';
+
+    propagatedBuildInputs = with pkgs; [
+      alejandra
+      exa
+    ];
 
     meta = with pkgs.lib; {
       description = "A CLI tool to manage NixOS computers";
