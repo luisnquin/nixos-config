@@ -57,9 +57,13 @@ in {
 
           # Python-related
           pyright
-          python311
-          python310Packages.pipx
           virtualenv
+          (python310.withPackages # Best abstraction you've ever seen
+            (p:
+              with p; [
+                openai # Used by codex
+                pipx
+              ]))
 
           # Other
           nodePackages.firebase-tools

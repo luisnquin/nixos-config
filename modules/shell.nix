@@ -11,58 +11,84 @@ in {
   };
 
   home-manager.users."${owner.username}" = {
-    programs.zsh = {
-      enable = true;
-      plugins = with pkgs; [
-        {
-          name = "zsh-nix-shell";
-          file = "nix-shell.plugin.zsh";
-          src = fetchFromGitHub {
-            owner = "chisui";
-            repo = "zsh-nix-shell";
-            rev = "v0.5.0";
-            sha256 = "0za4aiwwrlawnia4f29msk822rj9bgcygw6a8a6iikiwzjjz0g91";
-          };
-        }
-        {
-          name = "zsh-you-should-use";
-          file = "you-should-use.plugin.zsh";
-          src = fetchFromGitHub {
-            owner = "MichaelAquilina";
-            repo = "zsh-you-should-use";
-            rev = "5b316f4af3ac90e044f386003aacdaa0ad606488";
-            sha256 = "192jb680f1sc5xpgzgccncsb98xa414aysprl52a0bsmd1slnyxs";
-          };
-        }
-        {
-          name = "Extract";
-          file = "extract.sh";
-          src = fetchFromGitHub {
-            owner = "xvoland";
-            repo = "Extract";
-            rev = "439e92c5b355b40c36d8a445636d0e761ec08217";
-            sha256 = "1yaphcdnpxcdrlwidw47waix8kmv2lb5a9ccmf8dynlwvhyvh1wi";
-          };
-        }
-        {
-          name = "zinsults";
-          file = "zinsults.plugin.zsh";
-          src = fetchFromGitHub {
-            owner = "ahmubashshir";
-            repo = "zinsults";
-            rev = "2963cde1d19e3af4279442a4f67e4c0224341c42";
-            sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
-          };
-        }
-      ];
+    programs = {
+      zsh = {
+        enable = true;
+
+        localVariables = {
+          # Used by codex
+          ZSH_CUSTOM = "/home/${owner.username}/.zsh";
+        };
+
+        plugins = with pkgs; [
+          {
+            name = "nix-shell";
+            file = "nix-shell.plugin.zsh";
+            src = fetchFromGitHub {
+              owner = "chisui";
+              repo = "zsh-nix-shell";
+              rev = "v0.5.0";
+              sha256 = "0za4aiwwrlawnia4f29msk822rj9bgcygw6a8a6iikiwzjjz0g91";
+            };
+          }
+          {
+            name = "you-should-use";
+            file = "you-should-use.plugin.zsh";
+            src = fetchFromGitHub {
+              owner = "MichaelAquilina";
+              repo = "zsh-you-should-use";
+              rev = "5b316f4af3ac90e044f386003aacdaa0ad606488";
+              sha256 = "192jb680f1sc5xpgzgccncsb98xa414aysprl52a0bsmd1slnyxs";
+            };
+          }
+          {
+            name = "extract";
+            file = "extract.sh";
+            src = fetchFromGitHub {
+              owner = "xvoland";
+              repo = "Extract";
+              rev = "439e92c5b355b40c36d8a445636d0e761ec08217";
+              sha256 = "1yaphcdnpxcdrlwidw47waix8kmv2lb5a9ccmf8dynlwvhyvh1wi";
+            };
+          }
+          {
+            name = "zinsults";
+            file = "zinsults.plugin.zsh";
+            src = fetchFromGitHub {
+              owner = "ahmubashshir";
+              repo = "zinsults";
+              rev = "2963cde1d19e3af4279442a4f67e4c0224341c42";
+              sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
+            };
+          }
+          {
+            name = "zsh_codex";
+            file = "zsh_codex.plugin.zsh";
+            src = fetchFromGitHub {
+              owner = "tom-doerr";
+              repo = "zsh_codex";
+              rev = "7858a610050ea29cc85977ba80e87e4bbb34f46f";
+              sha256 = "03rjbwjlwjja5ybhs1crzaxzcylmls7pq97x3v0npv38712xsaib";
+            };
+          }
+        ];
+      };
+
+      alacritty = {
+        enable = true;
+        package = pkgs.alacritty;
+      };
     };
 
-    programs.alacritty = {
-      enable = true;
-      package = pkgs.alacritty;
-    };
+    xdg.configFile = {
+      "openaiapirc".text = ''
+        [openai]
+        organization_id = ${owner.openaiOrganizationId}
+        secret_key = ${owner.openaiSecretKey}
+      '';
 
-    xdg.configFile."alacritty.yml".text = builtins.readFile ../dots/home/alacritty.yml;
+      "alacritty.yml".text = builtins.readFile ../dots/home/alacritty.yml;
+    };
   };
 
   programs = {
@@ -197,10 +223,8 @@ in {
     # should stick to pure sh without sh word split.
     interactiveShellInit = builtins.readFile ../dots/.shrc;
 
-    # sessionVariables = {};
-
-    systemPackages = [
-      pkgs.cached-nix-shell
+    systemPackages = with pkgs; [
+      cached-nix-shell
     ];
 
     variables = {
