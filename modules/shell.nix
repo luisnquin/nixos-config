@@ -208,8 +208,6 @@ in {
     };
 
     shellAliases = {
-      # My own
-      nyx = "sh ~/.dotfiles/.scripts/main.sh";
       gest = "go clean -testcache && go test -v";
       setup = "tmux rename-window \"setup 🦭\" \\; split-window -h \\; split-window -v \\; resize-pane -D 3 \\; selectp -t 0 \\; split-window -v \\; resize-pane -D 3 \\; selectp -t 0 \\; send-keys -t 2 \"spt\" ENTER \\; send-keys -t 1 \"gotop --nvidia --color=vice\" ENTER \\; send-keys -t 3 \"k9s  --readonly\" ENTER; clear";
 
