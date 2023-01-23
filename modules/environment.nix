@@ -59,6 +59,7 @@ in {
           pyright
           virtualenv
           (python310.withPackages # Best abstraction you've ever seen
+            
             (p:
               with p; [
                 openai # Used by codex
@@ -164,6 +165,10 @@ in {
   };
 
   home-manager.users."${owner.username}" = {
-    xdg.configFile."go/env".text = builtins.readFile ../dots/home/go/env;
+    xdg.configFile = {
+      "go/env".text = builtins.readFile ../dots/home/go/env;
+
+      "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues owner.rclone);
+    };
   };
 }
