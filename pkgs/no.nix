@@ -1,15 +1,10 @@
-{
-  lib,
-  buildGoModule,
-  fetchFromGitHub,
-  ...
-}: let
+{pkgs ? import <nixpkgs> {}}: let
   owner = "luisnquin";
 in
-  buildGoModule rec {
+  pkgs.buildGoModule rec {
     pname = "no";
     version = "0.0.1";
-    src = fetchFromGitHub {
+    src = pkgs.fetchFromGitHub {
       owner = owner;
       repo = pname;
       rev = "e466d78346426db9f30eb947d015040c7b2ded88";
@@ -22,7 +17,7 @@ in
     vendorSha256 = "sha256-bGDhws+Ye/VDqIAcfBTIkjfp3IWkEx9a/fwri0wl258=";
     doCheck = false;
 
-    meta = with lib; {
+    meta = with pkgs.lib; {
       description = "Unlike gnu yes";
       homepage = "https://github.com/${owner}/${pname}";
       license = licenses.gpl3Only;

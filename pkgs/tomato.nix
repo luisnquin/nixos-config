@@ -1,15 +1,10 @@
-{
-  fetchgit,
-  stdenv,
-  pkgs,
-  lib,
-}: let
+{pkgs ? import <nixpkgs> {}}: let
   repository-url = "https://github.com/gabrielzschmitz/Tomato.C";
 in
-  stdenv.mkDerivation {
+  pkgs.stdenv.mkDerivation {
     name = "tomato";
 
-    src = fetchgit {
+    src = pkgs.fetchgit {
       url = repository-url;
       rev = "d0ee8ccc194be905ea01d5685bcd9011e1a89b00";
       sha256 = "12gqr57h4gjrn5is4izwvmhyqiqr063qbkcvbzn4kb1dj6kanbli";
@@ -35,7 +30,7 @@ in
       mpv
     ];
 
-    meta = with lib; {
+    meta = with pkgs.lib; {
       description = "A pomodoro timer written in pure C.";
       homepage = repository-url;
       license = licenses.gpl3Plus;
