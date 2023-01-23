@@ -175,6 +175,10 @@ in {
           secret_key = ${openai.secret-key}
         '';
 
+        "ai/.ai-cli".text = ''
+          OPENAI_API_KEY=${openai.secret-key}
+        '';
+
         "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues rclone);
       };
     };
