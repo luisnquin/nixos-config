@@ -5,38 +5,43 @@
 
 ⚠ This is a single user setup and is not intended to be anything else
 
-## Usage
-
-### Installation
+## Installation
 
 ```bash
 # Nix environment setup + nyx computer manager
-$ sh <(curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/.scripts/init.sh)
+$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/.scripts/init.sh | sh
 ```
 
-### Manage updates with
+## Nyx manager
 
-```bash
-# Updates the computer using the .nix files
-$ nyx update
-```
-
-### See more with
-
-```bash
-# Displays help
+```sh
+# A sh script focused in NixOS
 $ nyx --help
+
+nyx [command] [flags]
+
+Available commands:
+  update     Updates the machine
+  inspect      Verifies if the configuration.nix file has been changed and not saved to a git repository
+  style 💅     Applies alejandra style to all .nix files
+  ls           List elements in dotfiles directory
+  clean        Cleans with the old generations
+
+Global flags:
+-r, --reboot Reboots the machine before the end of the program
+-t, --turnoff Power off the machine before the end of the program
+-h, --help Print help information
 ```
 
-_Change the alias for the name of your machine in_ `configuration.nix`.
+## My current computer
 
-## My computer
+TODO: update screenshoot
 
 ![image](https://user-images.githubusercontent.com/86449787/183443225-e7442ddf-ab0f-47d1-b712-68a6d1d669c6.png)
 
 Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more options.
 
-## Inspired by
+## Some configurations comes here thanks to
 
 - [angristan](https://github.com/angristan/nixos-config)
 - [kmein](https://github.com/kmein/niveum)
