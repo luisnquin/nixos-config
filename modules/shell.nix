@@ -81,12 +81,6 @@ in {
     };
 
     xdg.configFile = {
-      "openaiapirc".text = ''
-        [openai]
-        organization_id = ${owner.openaiOrganizationId}
-        secret_key = ${owner.openaiSecretKey}
-      '';
-
       "alacritty.yml".text = builtins.readFile ../dots/home/alacritty.yml;
     };
   };

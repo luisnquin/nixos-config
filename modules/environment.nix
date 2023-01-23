@@ -164,11 +164,19 @@ in {
     "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
   };
 
-  home-manager.users."${owner.username}" = {
-    xdg.configFile = {
-      "go/env".text = builtins.readFile ../dots/home/go/env;
+  home-manager = with owner; {
+    users."${username}" = {
+      xdg.configFile = {
+        "go/env".text = builtins.readFile ../dots/home/go/env;
 
-      "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues owner.rclone);
+        "openaiapirc".text = ''
+          [openai]
+          organization_id = ${openai.organization-id}
+          secret_key = ${openai.secret-key}
+        '';
+
+        "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues rclone);
+      };
     };
   };
 }
