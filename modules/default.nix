@@ -1,6 +1,5 @@
 {config, ...}: {
   imports = [
-    "/etc/nixos/modules/services/default.nix"
     "/etc/nixos/modules/virtual_host.nix"
     "/etc/nixos/modules/environment.nix"
     "/etc/nixos/modules/spotify.nix"

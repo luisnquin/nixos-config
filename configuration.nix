@@ -13,6 +13,7 @@ in {
 
   # Entry point 🐙
   require = [
+    "/etc/nixos/services/default.nix"
     "/etc/nixos/modules/default.nix"
     "/etc/nixos/pkgs/default.nix"
     "/etc/nixos/home.nix"
@@ -22,7 +23,9 @@ in {
     loader = {
       efi.canTouchEfiVariables = true;
 
-      grub = {
+      grub = let
+        resolution = "1920x1080";
+      in {
         enable = true;
         version = 2;
         device = "nodev";
@@ -33,8 +36,8 @@ in {
         # Theming
         theme = "/etc/nixos/dots/boot/grub/themes/catppuccin-mocha-grub-theme";
         # the default value of these two sucks
-        gfxmodeBios = "1920x1080";
-        gfxmodeEfi = "1920x1080";
+        gfxmodeBios = resolution;
+        gfxmodeEfi = resolution;
       };
     };
 
