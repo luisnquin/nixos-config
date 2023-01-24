@@ -124,6 +124,7 @@ in {
           gnumake
           openjdk
           neovim
+          facter # To collect and display system facts
           wget
           vim
           bat
