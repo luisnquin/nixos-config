@@ -10,9 +10,21 @@ pkgs.buildNpmPackage rec {
     sha256 = "137j00kx39p7g566ja0r78gg944k3s6i7p7327zmnpqgpxn4b5yl";
   };
 
-  npmDepsHash = "sha256-MR7Oqks9E8dCykhWjRhYOWFkK9ITeQlY1eCqfKMgbGM=";
+  nativeBuildInputs = with pkgs; [
+    installShellFiles
+  ];
 
+  npmDepsHash = "sha256-MR7Oqks9E8dCykhWjRhYOWFkK9ITeQlY1eCqfKMgbGM=";
   npmPackFlags = ["--ignore-scripts"];
+
+  outputs = ["out"];
+
+  # make it work
+  postInstall = ''
+    installShellCompletion --cmd ai \
+      --bash <($out/bin/ai autocomplete:script bash) \
+      --zsh <($out/bin/ai autocomplete:script zsh)
+  '';
 
   meta = with pkgs.lib; {
     description = "Get answers for CLI commands from GPT3 right from your terminal";
