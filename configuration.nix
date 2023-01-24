@@ -22,6 +22,7 @@ in {
   boot = with pkgs; {
     loader = {
       efi.canTouchEfiVariables = true;
+      timeout = 8;
 
       grub = let
         resolution = "1920x1080";
