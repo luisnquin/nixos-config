@@ -82,7 +82,7 @@ window:
   startup_mode: Windowed
 
   # Window title
-  title: Terminal 🫐
+  title: wHO are you? do you even exist? 🫐
 
   # Allow terminal applications to change Alacritty's window title.
   dynamic_title: true
