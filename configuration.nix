@@ -148,10 +148,16 @@ in {
       banner = "Hiiii how'r u, plz let me in";
       settings.passwordAuthentication = true;
 
-      knownHosts = [
-        "https://github.com"
-        "https://gitlab.com"
-      ];
+      knownHosts = let
+        primaryPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJcSOpun+OjJng87LUXArDX3y2LLts7pOpfyCC1Mygew luisnquin@rat";
+      in {
+        "https://github.com" = {
+          publicKey = primaryPublicKey;
+        };
+        "https://gitlab.com" = {
+          publicKey = primaryPublicKey;
+        };
+      };
     };
 
     # pulseaudio doesn't give a good support for some programs
