@@ -145,7 +145,13 @@ in {
 
     openssh = {
       enable = true;
+      banner = "Hiiii how'r u, plz let me in";
       settings.passwordAuthentication = true;
+
+      knownHosts = [
+        "https://github.com"
+        "https://gitlab.com"
+      ];
     };
 
     # pulseaudio doesn't give a good support for some programs
