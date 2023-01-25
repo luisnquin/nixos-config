@@ -27,18 +27,16 @@ in {
       grub = let
         resolution = "1920x1080";
       in {
+        theme = "/etc/nixos/dots/boot/grub/themes/catppuccin-mocha-grub-theme";
+        gfxmodeBios = resolution;
+        gfxmodeEfi = resolution;
+
         enable = true;
         version = 2;
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
         forceInstall = false;
-
-        # Theming
-        theme = "/etc/nixos/dots/boot/grub/themes/catppuccin-mocha-grub-theme";
-        # the default value of these two sucks
-        gfxmodeBios = resolution;
-        gfxmodeEfi = resolution;
       };
     };
 
@@ -60,59 +58,14 @@ in {
       enable = false;
       powerOnBoot = false;
     };
-
-    pulseaudio = {
-      enable = false;
-      package = pkgs.pulseaudioFull;
-
-      # ref https://github.com/NixOS/nixpkgs/issues/71362#issuecomment-753461502
-      extraConfig = ''
-        unload-module module-native-protocol-unix
-        load-module module-native-protocol-unix auth-anonymous=1
-      '';
-    };
   };
 
-  security = {
-    # hands out realtime scheduling priority to user processes on demand
-    rtkit.enable = true;
-
-    sudo = {
-      enable = true;
-      wheelNeedsPassword = true;
-    };
-  };
-
-  users = {
-    motd = "It's a good moment to tell you that this will be a great day for you 🌇";
-
-    users = with owner; {
-      ${username} = {
-        isNormalUser = true;
-        home = ''/home/${username}/'';
-        # Used by desktop manager
-        description = ''${username} 🌂'';
-        shell = pkgs.zsh;
-        hashedPassword = null;
-        # ❄️
-
-        extraGroups = [
-          "wheel"
-          "docker"
-        ];
-      };
-    };
-  };
+  # manage realtime priorities
+  security.rtkit.enable = true;
 
   networking = {
     networkmanager.enable = true;
     hostName = "nyx";
-
-    firewall = {
-      enable = true;
-      allowedTCPPorts = [20 80 443 8088];
-      allowPing = false;
-    };
   };
 
   time = {
@@ -141,25 +94,7 @@ in {
   sound.enable = true;
 
   services = {
-    gnome.gnome-keyring.enable = true;
     thermald.enable = true;
-
-    openssh = {
-      enable = true;
-      banner = "Hiiii how'r u, plz let me in";
-      settings.passwordAuthentication = true;
-
-      knownHosts = let
-        primaryPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJcSOpun+OjJng87LUXArDX3y2LLts7pOpfyCC1Mygew luisnquin@rat";
-      in {
-        "https://github.com" = {
-          publicKey = primaryPublicKey;
-        };
-        "https://gitlab.com" = {
-          publicKey = primaryPublicKey;
-        };
-      };
-    };
 
     # pulseaudio doesn't give a good support for some programs
     pipewire = {
@@ -169,12 +104,6 @@ in {
       pulse.enable = true;
       jack.enable = true;
     };
-  };
-
-  # sway.enable = true;
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
   };
 
   system = {

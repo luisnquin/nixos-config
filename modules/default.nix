@@ -2,6 +2,7 @@
   imports = [
     "/etc/nixos/modules/virtual_host.nix"
     "/etc/nixos/modules/environment.nix"
+    "/etc/nixos/modules/security.nix"
     "/etc/nixos/modules/spotify.nix"
     "/etc/nixos/modules/desktop.nix"
     "/etc/nixos/modules/torrent.nix"
