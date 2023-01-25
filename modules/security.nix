@@ -2,7 +2,9 @@
   config,
   pkgs,
   ...
-}: {
+}: let
+  owner = import "/etc/nixos/owner.nix";
+in {
   security = {
     sudo = {
       enable = true;
