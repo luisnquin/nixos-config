@@ -27,6 +27,12 @@
       set -g window-status-separator ""
       set-option -ga terminal-overrides ",*256col*:Tc:RGB"
 
+      # Refresh 'status-left' and 'status-right' more often, from every 15s to 5s
+      set -g status-interval 5
+
+      # Increase tmux messages display duration from 750ms to 4s
+      set -g display-time 4000
+
       set -g status-right '#(${pkgs.gitmux}/bin/gitmux "#{pane_current_path}")'
     '';
   };
