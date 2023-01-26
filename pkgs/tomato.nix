@@ -6,8 +6,8 @@ in
 
     src = pkgs.fetchgit {
       url = repository-url;
-      rev = "d0ee8ccc194be905ea01d5685bcd9011e1a89b00";
-      sha256 = "12gqr57h4gjrn5is4izwvmhyqiqr063qbkcvbzn4kb1dj6kanbli";
+      rev = "dda8e0ffe0b8612691ed336962f33580fb3a6038";
+      sha256 = "193xr63s4700bsamac0zjff0l6n8bcm60f546jfxqaafz126f9zv";
     };
 
     installPhase = ''
