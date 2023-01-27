@@ -260,6 +260,9 @@ in {
       la = "exa -a";
       cat = "bat -p";
 
+      ".." = "cd ..";
+      "..." = "cd ../..";
+
       nix-shell = "cached-nix-shell";
       ns = "nix-shell";
 
