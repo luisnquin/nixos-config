@@ -113,10 +113,11 @@ in {
       gr = "git reset -q";
       # Displays the changes in the latest commit
       gch = "git show --pretty='format:%h %s' --name-status -r HEAD";
+      gss = "git status -s";
       grb = "git rebase";
       gs = "git stash";
+      gsiu = "git stash --include-untracked";
       gsp = "git stash pop";
-      gss = "git status -s";
       gt = "git tag";
 
       lg = "lazygit";
