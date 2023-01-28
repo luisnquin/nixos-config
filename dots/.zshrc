@@ -21,5 +21,3 @@ load_local_env() {
 }
 
 load_local_env && add-zsh-hook chpwd load_local_env
-
-source <(nao completion zsh); compdef _nao nao
