@@ -122,13 +122,13 @@ in {
       # Ref: https://starship.rs/config
       settings = {
         custom = {
-          weather = {
-            description = "Displays the weather of the day";
-            format = " on a [$output]($style) day ";
-            command = ''cat ~/.cache/environment-info.json | jq -r '.weather | "\(.text)(\(.feels_like)°)"' | tr "[:upper:]" "[:lower:]"'';
-            when = "test -e ~/.cache/environment-info.json";
-            style = "#a1a877";
-          };
+          # weather = {
+          #   description = "Displays the weather of the day";
+          #   format = " on a [$output]($style) day ";
+          #   command = ''cat ~/.cache/environment-info.json | jq -r '.weather | "\(.text)(\(.feels_like)°)"' | tr "[:upper:]" "[:lower:]"'';
+          #   when = "test -e ~/.cache/environment-info.json";
+          #   style = "#a1a877";
+          # };
 
           git_remote = {
             description = "Display symbol for remote git server";
@@ -149,19 +149,19 @@ in {
             symbol = " ";
           };
 
-          # Nor this
           current_client = {
             description = "Diplays the current client in case there's the environment variable";
             shell = ["bash" "--noprofile" "--norc"];
-            format = "in [$symbol($output)]($style) env";
-            when = ''[ -n "''${CLIENT+x}" ]'';
+            format = " [$symbol($output)]($style)";
+            command = ''echo "($(grep -oP 'CLIENT=\K.*' .env | tr '[:lower:]' '[:upper:]') env)"'';
+            when = ''test -e .env && grep -o 'CLIENT' .env'';
             style = "#c319f7";
             symbol = " ";
           };
         };
 
         format = ''
-          $directory''${custom.git_remote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}''${custom.dotfiles_workspace}''${custom.current_client}''${custom.weather}
+          $directory''${custom.git_remote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}''${custom.dotfiles_workspace}''${custom.current_client}
           $character
         '';
         scan_timeout = 30;
