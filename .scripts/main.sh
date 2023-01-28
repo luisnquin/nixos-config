@@ -5,12 +5,10 @@ dotfiles_dir="$HOME/.dotfiles/"
 config_file="${dotfiles_dir}configuration.nix"
 hardware_file="${dotfiles_dir}hardware-configuration.nix"
 
-reboot=0
-turnoff=0
 subcommand=0
 
 template=$(
-    printf "\033[38;2;142;41;242mnyx\033[0m [command] [flags]\n\n\e[4mAvailable commands:\e[0m\n  \033[38;2;136;192;208mupdate \033[0m\tUpdates the machine\n  \033[38;2;219;245;76minspect\033[0m\tVerifies if the configuration.nix file has been changed and not saved to a git repository\n  \033[38;2;232;232;232mstyle\033[0m 💅\tApplies alejandra style to all .nix files\n  \033[38;2;143;188;187mls\033[0m\t\tList elements in dotfiles directory\n  \033[38;2;191;97;106mclean\033[0m\t\tCleans with the old generations\n\n\e[4mGlobal flags:\e[0m\n-r, --reboot\tReboots the machine before the end of the program\n-t, --turnoff\tPower off the machine before the end of the program\n-h, --help\tPrint help information\n"
+    printf "\033[38;2;142;41;242mnyx\033[0m [command] [flags]\n\n\e[4mAvailable commands:\e[0m\n  \033[38;2;136;192;208mupdate \033[0m\tUpdates the machine\n  \033[38;2;219;245;76minspect\033[0m\tVerifies if the configuration.nix file has been changed and not saved to a git repository\n  \033[38;2;232;232;232mstyle\033[0m 💅\tApplies alejandra style to all .nix files\n  \033[38;2;143;188;187mls\033[0m\t\tList elements in dotfiles directory\n  \033[38;2;191;97;106mclean\033[0m\t\tCleans with the old generations\n\n\e[4mGlobal flags:\e[0m\n-h, --help\tPrint help information\n"
 )
 
 main() {
@@ -110,12 +108,6 @@ main() {
         ;;
 
     esac
-
-    if [ "$reboot" = 1 ]; then
-        reboot || printf "\n\033[0;91mcould not reboot\033[0m\n" && exit 1
-    elif [ "$turnoff" = 1 ]; then
-        poweroff || printf "\n\033[0;91mcould not turn off\033[0m\n" && exit 1
-    fi
 }
 
 check_syntax_and_format() {
@@ -159,11 +151,6 @@ while [ "$#" -gt 0 ]; do
         printf "unknown option: %s\nRun 'sh %s --help' for usage\n" "$1" "$0" >&2
         exit 1
         ;;
-    esac
-
-    case "$2" in
-    -r | --r | -reboot | --reboot) reboot=1 shift 2 ;;
-    -t | --t | -turnoff | --turnoff) turnoff=1 shift 2 ;;
     esac
 done
 
