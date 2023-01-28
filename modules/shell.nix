@@ -122,6 +122,14 @@ in {
       # Ref: https://starship.rs/config
       settings = {
         custom = {
+          weather = {
+            description = "Displays the weather of the day";
+            format = " on a [$output]($style) day ";
+            command = ''cat ~/.cache/environment-info.json | jq -r '.weather | "\(.text)(\(.feels_like)°)"' | tr "[:upper:]" "[:lower:]"'';
+            when = "test -e ~/.cache/environment-info.json";
+            style = "#a1a877";
+          };
+
           git_remote = {
             description = "Display symbol for remote git server";
             shell = ["bash" "--noprofile" "--norc"];
@@ -153,7 +161,7 @@ in {
         };
 
         format = ''
-          $directory''${custom.git_remote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}''${custom.dotfiles_workspace}''${custom.current_client}
+          $directory''${custom.git_remote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}''${custom.dotfiles_workspace}''${custom.current_client}''${custom.weather}
           $character
         '';
         scan_timeout = 30;
