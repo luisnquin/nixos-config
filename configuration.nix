@@ -89,7 +89,9 @@ in {
     fontDir.enable = true;
   };
 
-  i18n.defaultLocale = "es_PE.UTF-8";
+  # Chinese
+  i18n.defaultLocale = "zh_CN.UTF-8";
+  # zh-CN
 
   sound.enable = true;
 
