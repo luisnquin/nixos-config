@@ -90,7 +90,17 @@ in {
   };
 
   # Chinese
-  i18n.defaultLocale = "zh_CN.UTF-8";
+  i18n = {
+    defaultLocale = "zh_CN.UTF-8";
+    inputMethod = {
+      enabled = "ibus";
+      ibus = {
+        engines = with pkgs.ibus-engines; [
+          libpinyin
+        ];
+      };
+    };
+  };
   # zh-CN
 
   sound.enable = true;
