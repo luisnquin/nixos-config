@@ -7,8 +7,8 @@ in
     src = pkgs.fetchFromGitHub {
       owner = owner;
       repo = repo;
-      rev = "da63baae2fe091fa8ab7aae83ff82e8502127ae2";
-      sha256 = "1ajp7xm8x7jqq9wqzwb7qi755507i2sc3i1acwa2rxarr2s4p4q0";
+      rev = "9cfc7ad094047069b45d9deadfce7634700eb963";
+      sha256 = "0vlx4hzax2qk69lzkf0l9zr6n775ia9f4bpznxk99jcx21k0gi9n";
     };
 
     installPhase = ''
