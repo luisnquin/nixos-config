@@ -49,7 +49,13 @@ main() {
         version=$(nixos-version)
 
         before=$(df --output=size,used,pcent --human-readable / | tail -n +2)
-        sudo nix-collect-garbage --delete-old
+        sudo nix-collect-garbage --delete-old # TODO: steps prompt
+        nix-store --delete
+        sudo rm -rf /tmp/*
+        rm -rf ~/.npm/_npx
+        docker system prune
+        docker system prune --volumes
+
         after=$(df --output=size,used,pcent --human-readable / | tail -n +2)
 
         printf "\nNix version: %s" "$version"
