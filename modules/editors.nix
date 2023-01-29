@@ -21,6 +21,7 @@ in {
 
   environment.systemPackages = with pkgs; [
     neovim
+    vscode
     vim
   ];
 
