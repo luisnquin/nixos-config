@@ -66,9 +66,6 @@ in {
       git-ignore
       gitlab-runner
       gitui # Better than lazygit?
-      lazygit
-      # onefetch
-      pre-commit
     ];
 
     shellAliases = {
@@ -120,7 +117,7 @@ in {
       gsp = "git stash pop";
       gt = "git tag";
 
-      lg = "lazygit";
+      lg = "gitui";
     };
   };
 }
