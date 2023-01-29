@@ -39,7 +39,6 @@ in {
           rustc
           rustfmt
           rustup
-          vscode-extensions.matklad.rust-analyzer
 
           # JavaScript-related
           nodePackages.typescript
@@ -52,7 +51,6 @@ in {
           alejandra
           nixos-option
           rnix-lsp
-          vscode-extensions.jnoortheen.nix-ide
           nix-prefetch-git # Tool to get information from remote repository like sha256
 
           # Python-related
@@ -72,7 +70,6 @@ in {
           onlyoffice-bin
           redoc-cli
           awscli2
-          vscode
           clang
 
           # websocat
@@ -123,10 +120,8 @@ in {
           openssl
           gnumake
           openjdk
-          neovim
           facter # To collect and display system facts
           wget
-          vim
           bat
           exa # ls command replacement
           vlc
