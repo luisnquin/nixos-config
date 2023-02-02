@@ -57,11 +57,11 @@ in {
           # Python-related
           pyright
           virtualenv
-          (python310.withPackages # Best abstraction you've ever seen
-            
+
+          # Best abstraction you've ever seen
+          (python310.withPackages
             (p:
               with p; [
-                openai # Used by codex
                 pipx
               ]))
 

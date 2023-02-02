@@ -61,16 +61,6 @@ in {
               sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
             };
           }
-          {
-            name = "zsh_codex";
-            file = "zsh_codex.plugin.zsh";
-            src = fetchFromGitHub {
-              owner = "tom-doerr";
-              repo = "zsh_codex";
-              rev = "7858a610050ea29cc85977ba80e87e4bbb34f46f";
-              sha256 = "03rjbwjlwjja5ybhs1crzaxzcylmls7pq97x3v0npv38712xsaib";
-            };
-          }
         ];
       };
 
