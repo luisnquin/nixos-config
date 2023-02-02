@@ -45,6 +45,7 @@ in {
           nodePackages.pnpm
           nodejs-18_x
           deno
+          yarn
           bun
 
           # Nix-related
