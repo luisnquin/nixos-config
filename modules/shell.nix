@@ -272,6 +272,8 @@ in {
       poff = "poweroff";
       actl = "act --list";
       neofetch = "freshfetch";
+      # The most useful alias, lol
+      gotry = "xdg-open https://go.dev/play >>/dev/null";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
       nyancat = "nyancat --no-counter";
       ale = "alejandra --quiet";
