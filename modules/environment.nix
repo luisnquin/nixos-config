@@ -108,6 +108,7 @@ in {
           # Fufu stuff
           octofetch
           nyancat
+          ranger
           genact
           tree
         ];
