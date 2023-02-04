@@ -65,7 +65,7 @@ in {
       git-chglog # I'm using conventional commits so
       git-ignore
       gitlab-runner
-      gitui # Better than lazygit?
+      lazygit
     ];
 
     shellAliases = {
@@ -116,8 +116,7 @@ in {
       gsiu = "git stash --include-untracked";
       gsp = "git stash pop";
       gt = "git tag";
-
-      lg = "gitui";
+      lg = "lazygit";
     };
   };
 }
