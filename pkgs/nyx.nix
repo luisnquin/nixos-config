@@ -1,20 +1,19 @@
 {pkgs ? import <nixpkgs> {}}: let
   owner = "luisnquin";
-  repo = "nixos-config";
 in
-  pkgs.stdenv.mkDerivation {
+  pkgs.stdenv.mkDerivation rec {
     name = "nyx";
     src = pkgs.fetchFromGitHub {
       owner = owner;
-      repo = repo;
-      rev = "9cfc7ad094047069b45d9deadfce7634700eb963";
-      sha256 = "0vlx4hzax2qk69lzkf0l9zr6n775ia9f4bpznxk99jcx21k0gi9n";
+      repo = name;
+      rev = "fd2612b998043dd025f0fbb30da74bb2ef2c605d";
+      sha256 = "1si58criblgv9r65agynglrdxgyszpv0rydmssmj2r9ghy3wvnii";
     };
 
     installPhase = ''
       mkdir -p $out/bin/
-      cp $src/.scripts/main.sh $out/bin/
-      mv $out/bin/main.sh $out/bin/nyx
+      cp $src/nyx.sh $out/bin/
+      mv $out/bin/nyx.sh $out/bin/nyx
       chmod +x $out/bin/nyx
     '';
 
@@ -25,8 +24,8 @@ in
 
     meta = with pkgs.lib; {
       description = "A CLI tool to manage NixOS computers";
-      homepage = "https://github.com/${owner}/${pname}";
-      license = licenses.mit;
-      maintainers = with maintainers; ["${owner}"];
+      homepage = "https://github.com/${owner}/${name}";
+      license = licenses.unlicense;
+      maintainers = with maintainers; [luisnquin];
     };
   }
