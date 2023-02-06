@@ -241,6 +241,7 @@ in {
       down = "cd ~/Downloads/";
       etc = "cd ~/.etc/";
       gopl = "cd ~/Workspace/playground/go/";
+      rustpl = "cd ~/Workspace/playground/rust/";
       pl = "cd ~/Workspace/playground/";
       pr = "cd ~/Workspace/projects/";
       tests = "cd ~/Tests/";
