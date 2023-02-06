@@ -9,7 +9,7 @@
 
 ```bash
 # Nix environment setup + nyx computer manager
-$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/.scripts/init.sh | sh
+$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/init.sh | sh
 ```
 
 ## Nyx manager
@@ -28,8 +28,6 @@ Available commands:
   clean        Cleans with the old generations
 
 Global flags:
--r, --reboot Reboots the machine before the end of the program
--t, --turnoff Power off the machine before the end of the program
 -h, --help Print help information
 ```
 
