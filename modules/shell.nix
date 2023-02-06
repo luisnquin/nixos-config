@@ -249,9 +249,7 @@ in {
       workspace = "cd ~/Workspace/";
 
       # Overwriten program calls
-      cp = "cp --interactive";
       rm = "rm --interactive";
-      mv = "mv --interactive";
       du = "du --human-readable";
       xclip = "xclip -selection c";
       ls = "exa --icons";
