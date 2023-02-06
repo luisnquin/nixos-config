@@ -4,7 +4,6 @@
   ...
 }: {
   environment.systemPackages = with pkgs; [
-    # (callPackage ./chatgpt-desktop.nix {})
     # (callPackage ./terminalizer.nix {})
     (callPackage ./transg-tui.nix {})
     (callPackage ./minecraft.nix {})
