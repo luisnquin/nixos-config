@@ -120,6 +120,15 @@ in {
           #   style = "#a1a877";
           # };
 
+          go_version_used = {
+            description = "Displays the Go version used in the current project";
+            shell = ["bash" "--noprofile" "--norc"];
+            format = " but using [$output]($style)";
+            command = "awk '/go/ {print $2; exit}' go.mod";
+            detect_files = ["go.mod"];
+            style = "#285f66";
+          };
+
           git_remote = {
             description = "Display symbol for remote git server";
             shell = ["bash" "--noprofile" "--norc"];
@@ -151,7 +160,7 @@ in {
         };
 
         format = ''
-          $directory''${custom.git_remote}$git_branch$git_commit$c$golang$nodejs$python$rust$nix_shell''${env_var.CLIENT}''${custom.dotfiles_workspace}''${custom.current_client}
+          $directory''${custom.git_remote}$git_branch$git_commit$c$golang''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
           $character
         '';
         scan_timeout = 30;
