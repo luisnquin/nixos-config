@@ -227,34 +227,3 @@ if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
         grep "$*" ~/.zsh_history
     }
 fi
-
-pill() {
-    environment_file="/home/$USER/.cache/environment-info.json"
-
-    connection_info=$(cat "$environment_file" | jq -r '"\(if .connection.under_a_vpn then " under a vpn" else " no vpn" end), \(.connection.ip_address)"')
-    weather_info=$(cat "$environment_file" | jq -r '"🌤 \(.weather.feels_like)° \(.weather.text)"')
-    disk_stats=($(df / -h --output=size,used,pcent | sed -n '2p' | awk '{print $1,$2,$3}'))
-    nixos_version=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+')
-    nix_version=$(nix --version | grep -oP '\d+\.\d+')
-    nb_of_failed_units=$(systemctl --failed | grep -c "failed")
-    day=$(LC_TIME=en_US.UTF-8 date +%A)
-    kernel_info=$(uname -smr)
-
-    printf "\033[38;2;206;232;74m󰘚 $kernel_info\033[0m | \033[38;2;126;51;255m NixOS v$nixos_version / Nix v$nix_version\033[0m %-59s \033[38;2;255;162;13m$connection_info\033[0m\n"
-    printf "$day, ${weather_info} %-96s"
-    echo "${disk_stats[3]} - ${disk_stats[1]}/${disk_stats[2]}"
-
-    if [[ $nb_of_failed_units != "0" ]]; then printf "%-118s\033[38;2;224;45;60m$nb_of_failed_units failed units\033[0m\n"; else echo; fi
-
-    while read -r channel; do
-        frags=($(echo "$channel" | tr ' ' '\n'))
-        printf "\033[38;2;114;243;247m<-%s\033[0m \033[38;2;220;130;255m%s\033[0m\n" "${frags[1]}" "${frags[2]}"
-    done <<<"$(nix-channel --list)"
-}
-
-# This trick isn't working, lol
-# if ! test -e /tmp/.info_message_displayed && [ "$TERM_PROGRAM" != "vscode" ]; then
-#     pill
-#
-#     echo "" >/tmp/.info_message_displayed
-# fi
