@@ -160,7 +160,7 @@ in {
         };
 
         format = ''
-          $directory''${custom.git_remote}$git_branch$git_commit$c$golang''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
+          $directory''${custom.git_remote}$git_branch$git_state$git_metrics$c$golang''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
           $character
         '';
         scan_timeout = 30;
@@ -194,6 +194,10 @@ in {
         git_branch = {
           symbol = " ";
           style = "#ebb63b";
+        };
+
+        git_metrics = {
+          disabled = false;
         };
 
         golang = {
