@@ -124,7 +124,7 @@ gbh() {
     done
 }
 
-billboard() {
+cinema() {
     city=$(echo "$1" | xargs | tr '[:upper:]' '[:lower:]')
 
     get_available_cities() {
