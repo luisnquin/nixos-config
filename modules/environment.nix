@@ -9,6 +9,7 @@ in {
     systemPackages = with pkgs; let
       gg = {
         apps = [
+          element-web
           obs-studio
           discord
           vivaldi
