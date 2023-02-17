@@ -7,44 +7,6 @@ google() {
     xdg-open "http://www.google.com/search?q=$search"
 }
 
-emoji() {
-    emojis=(🍍 🍝 🥞 🥗 🧋 🍁 🍂 🍃 🌱)
-
-    month_nb=$(date +%m)
-
-    case $month_nb in
-    1 | 2) # Summer
-        emojis+=(🐚 🌴 🍹 🌻 🏊 ☀️ 👙)
-
-        # Valentine's month
-        if [[ $month_nb -eq 2 ]]; then
-            emojis+=(💞 🍫 🧸 💐 🌹 💌)
-        fi
-
-        ;;
-    3 | 4 | 5) # Spring
-        emojis+=(🐣 🌳 🍀 🍃 🌈 🌷 🐝 🐇)
-
-        ;;
-    9 | 11) # Autumn
-        emojis+=(🍂 🥮 ☕ 🌰 🍊)
-
-        if [[ $month_nb -eq 11 ]]; then
-            emojis+=(🎂 🍰 🎁 🎉 🎈)
-        fi
-
-        ;;
-    10) # Halloween
-        emojis+=(🐈‍⬛ 🦇 🕷️ 🥀 🍬 🍫 🎃 🍭 ⚰️ 🪦 🫀)
-
-        ;;
-    12) # Christmas
-        emojis+=(🍷 🎁 🎄 ☃️ ❄️ 🥛 🦌) ;;
-    esac
-
-    printf "%s\n" "${emojis[$((RANDOM * ${#emojis[@]} / 32767))]}"
-}
-
 upload_img() {
     local image_path=$1
 
@@ -211,15 +173,6 @@ function hex2ansi() {
 
         return 1
     fi
-}
-
-remove_node_modules() {
-    find . -name "node_modules" -type d -prune -exec rm -rf {} \;
-}
-
-take() {
-    mkdir -p "$1"
-    cd "$1" || return 1
 }
 
 if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
