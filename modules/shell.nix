@@ -236,6 +236,7 @@ in {
 
     systemPackages = with pkgs; [
       cached-nix-shell
+      zsh-completions
     ];
 
     variables = {
