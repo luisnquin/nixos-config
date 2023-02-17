@@ -58,7 +58,6 @@ in {
           # Python-related
           pyright
           virtualenv
-
           # Best abstraction you've ever seen
           (python310.withPackages
             (p:
@@ -94,11 +93,13 @@ in {
           ngrok
         ];
 
-        osint = [
-          exiftool
-          maigret
-          whois
-        ];
+        osint =
+          #  Open source intelligence
+          [
+            exiftool
+            maigret
+            whois
+          ];
 
         preferences = [
           rclone # For management in cloud storages
@@ -124,6 +125,7 @@ in {
           gnumake
           openjdk
           facter # To collect and display system facts
+          nmap
           wget
           bat
           exa # ls command replacement
