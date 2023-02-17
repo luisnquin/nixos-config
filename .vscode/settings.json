@@ -21,9 +21,8 @@
     "shellcheck.enable": true,
     "shellcheck.exclude": ["1090", "1091", "2002", "2005", "2148", "2207", "3046"],
     "material-icon-theme.folders.associations": {
+        "terminal": "Interface",
         ".scripts": "Scripts",
-        "units": "Resource",
-        "cachix": "Queue",
         "dots": "Config"
     }
 }
