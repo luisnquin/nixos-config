@@ -1,0 +1,96 @@
+{
+  config,
+  pkgs,
+  ...
+}: let
+  owner = import "/etc/nixos/owner.nix";
+in {
+  environment.systemPackages = [
+    pkgs.zsh-completions
+  ];
+
+  programs.zsh = {
+    enable = true;
+
+    autosuggestions = {
+      enable = true;
+      async = true;
+
+      highlightStyle = "fg=#9eadab";
+      strategy = [
+        "history"
+      ];
+    };
+
+    syntaxHighlighting = {
+      enable = true;
+      # styles = {};
+    };
+
+    enableBashCompletion = true;
+    enableCompletion = true;
+
+    promptInit = ''
+      if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
+          exec ${pkgs.tmux}/bin/tmux
+      fi
+    '';
+
+    interactiveShellInit = builtins.readFile ../../dots/.zshrc;
+  };
+
+  home-manager.users."${owner.username}" = {
+    programs.zsh = {
+      enable = true;
+      enableCompletion = true;
+      completionInit = ''
+        autoload -U compinit && compinit
+        source <(nao completion zsh); compdef _nao nao
+      '';
+      # TODO: improve nao completions
+
+      plugins = with pkgs; [
+        {
+          name = "nix-shell";
+          file = "nix-shell.plugin.zsh";
+          src = fetchFromGitHub {
+            owner = "chisui";
+            repo = "zsh-nix-shell";
+            rev = "v0.5.0";
+            sha256 = "0za4aiwwrlawnia4f29msk822rj9bgcygw6a8a6iikiwzjjz0g91";
+          };
+        }
+        {
+          name = "you-should-use";
+          file = "you-should-use.plugin.zsh";
+          src = fetchFromGitHub {
+            owner = "MichaelAquilina";
+            repo = "zsh-you-should-use";
+            rev = "5b316f4af3ac90e044f386003aacdaa0ad606488";
+            sha256 = "192jb680f1sc5xpgzgccncsb98xa414aysprl52a0bsmd1slnyxs";
+          };
+        }
+        {
+          name = "extract";
+          file = "extract.sh";
+          src = fetchFromGitHub {
+            owner = "xvoland";
+            repo = "Extract";
+            rev = "439e92c5b355b40c36d8a445636d0e761ec08217";
+            sha256 = "1yaphcdnpxcdrlwidw47waix8kmv2lb5a9ccmf8dynlwvhyvh1wi";
+          };
+        }
+        {
+          name = "zinsults";
+          file = "zinsults.plugin.zsh";
+          src = fetchFromGitHub {
+            owner = "ahmubashshir";
+            repo = "zinsults";
+            rev = "2963cde1d19e3af4279442a4f67e4c0224341c42";
+            sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
+          };
+        }
+      ];
+    };
+  };
+}
