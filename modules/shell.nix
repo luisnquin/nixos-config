@@ -14,11 +14,17 @@ in {
     programs = {
       zsh = {
         enable = true;
+        enableCompletion = true;
+        completionInit =
+          "autoload -U compinit && compinit"
+          "source <(nao completion zsh); compdef _nao nao"
+          # TODO: improve line above
+          ;
 
-        localVariables = {
-          # Used by codex
-          ZSH_CUSTOM = "/home/${owner.username}/.zsh";
-        };
+        #localVariables = {
+        #  # Used by codex
+        #  ZSH_CUSTOM = "/home/${owner.username}/.zsh";
+        #};
 
         plugins = with pkgs; [
           {
