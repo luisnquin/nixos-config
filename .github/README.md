@@ -9,7 +9,7 @@
 
 ```bash
 # Nix environment setup + nyx computer manager
-$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/init.sh | sh
+$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/setup.sh | sh
 ```
 
 ## Nyx manager
@@ -21,7 +21,7 @@ $ nyx --help
 nyx [command] [flags]
 
 Available commands:
-  update     Updates the machine
+  update ⛄    Updates the machine
   inspect      Verifies if the configuration.nix file has been changed and not saved to a git repository
   style 💅     Applies alejandra style to all .nix files
   ls           List elements in dotfiles directory
