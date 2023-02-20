@@ -56,14 +56,14 @@ in {
           nix-prefetch-git # Tool to get information from remote repository like sha256
 
           # Python-related
-          pyright
-          virtualenv
-          # Best abstraction you've ever seen
           (python310.withPackages
             (p:
               with p; [
                 pipx
+                pip
               ]))
+          virtualenv
+          pyright
 
           # Other
           nodePackages.firebase-tools
