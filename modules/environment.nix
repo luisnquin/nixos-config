@@ -32,6 +32,7 @@ in {
           gotools
           govulncheck
           grpc-tools
+          richgo
 
           # Rust-related
           cargo
