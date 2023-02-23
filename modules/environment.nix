@@ -33,6 +33,7 @@ in {
           govulncheck
           grpc-tools
           richgo
+          tinygo
 
           # Rust-related
           cargo
