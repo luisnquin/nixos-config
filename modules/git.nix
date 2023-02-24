@@ -111,6 +111,8 @@ in {
       gr = "git reset -q";
       # Displays the changes in the latest commit
       gch = "git show --pretty='format:%h %s' --name-status -r HEAD";
+      # Lists the authors of a directory/file.
+      gauthors = "git shortlog -n -s -- ";
       gss = "git status -s";
       grb = "git rebase";
       gs = "git stash";
