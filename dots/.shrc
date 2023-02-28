@@ -186,6 +186,13 @@ function hex2ansi() {
     fi
 }
 
+# Refresh the current terminal session(completions and source files)
+function refresh() {
+    autoload -Uz compinit && compinit
+    source ~/.dotfiles/dots/.zshrc
+    source ~/.dotfiles/dots/.shrc
+}
+
 if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
     hsi() {
         grep "$*" ~/.zsh_history
