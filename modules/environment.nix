@@ -72,7 +72,7 @@ in {
           license-generator
           onlyoffice-bin
           redoc-cli
-          awscli2
+          # awscli2
           clang
 
           # websocat
