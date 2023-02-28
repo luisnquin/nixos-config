@@ -154,7 +154,7 @@ cinema() {
         [7]='S/.14.00'
     )
 
-    printf "\033[38;2;224;29;81m Cinerama:\033[0m \033[38;2;227;220;86m%s\033[0m\n" "${dateCost[$(date +%u)]}"
+    printf "\033[38;2;224;29;81m Cinerama:\033[0m \033[38;2;227;220;86m%s\033[0m \033[38;2;64;62;62m(%s tomorrow)\033[0m\n" "${dateCost[$(date +%u)]}" "${dateCost[$(date --date=tomorrow +%u)]}"
     index=1
 
     while read -r movie; do
