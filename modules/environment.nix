@@ -80,6 +80,7 @@ in {
           # gobang
 
           scc #  Lines of code in a directory with complexity estimation.
+          # useful useful useful useful useful usefulusefulusefulusefulusefulusefulusefuluseful
           minify # HTML, CSS, and JavaScript minifier
           shfmt # Shell code formatter
           zathura # PDF viewer
