@@ -91,8 +91,7 @@ cinema() {
 
     get_available_cities() {
         curl --silent http://www.cinerama.com.pe/cines |
-            htmlq --pretty .row .container .card .row .col-md-8 .card-body .btn --attribute href |
-            awk '{sub("cartelera_cine/",""); print}' | tr '\n' ' '
+            htmlq --text .row .col-lg-12 div .news-content h2 | awk '{sub("CINERAMA ",""); print}' | tr '\n' ' '
     }
 
     # Returns options in case of no passed argument
@@ -111,8 +110,8 @@ cinema() {
         return 1
     fi
 
-    cinerama_response=$(curl -s -X GET "http://www.cinerama.com.pe/cartelera_cine/$city")
-    cinerama_raw_movies=$(echo "$cinerama_response" | htmlq --text .row .container .card .card-header | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
+    cinerama_response=$(curl -s -X GET "http://www.cinerama.com.pe/cartelera_cine/CINERAMA_$city")
+    cinerama_raw_movies=$(echo "$cinerama_response" | htmlq --text body .transformers-area .container .transformers-box .row div .transformers-content h2 | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
 
     declare -a cinerama_movies_schedules
     index=1
@@ -140,8 +139,7 @@ cinema() {
             cinerama_movies_schedules+=($(date -d @"$schedule_timestamp" +'%H:%M'))
             index=$((index + 1))
         fi
-
-    done <<<"$(echo "$cinerama_response" | htmlq --text .row .container .card .row .col-md-9 .card-body .row .ml-1)"
+    done <<<"$(echo "$cinerama_response" | htmlq --text body .transformers-area .container .transformers-box .row div .transformers-content ul li .transformers-right .row a)"
 
     typeset -gA dateCost
     dateCost=(
