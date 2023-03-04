@@ -82,7 +82,7 @@ window:
   startup_mode: Windowed
 
   # Window title
-  title: A terminal like any other 🫐
+  title: Dev shell 🫐⛄
 
   # Allow terminal applications to change Alacritty's window title.
   dynamic_title: true
