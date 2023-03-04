@@ -1,17 +1,17 @@
 {config, ...}: {
   imports = [
-    "/etc/nixos/modules/terminal/default.nix"
-    "/etc/nixos/modules/virtual_host.nix"
-    "/etc/nixos/modules/environment.nix"
-    "/etc/nixos/modules/security.nix"
-    "/etc/nixos/modules/spotify.nix"
-    "/etc/nixos/modules/desktop.nix"
-    "/etc/nixos/modules/torrent.nix"
-    "/etc/nixos/modules/editors.nix"
-    "/etc/nixos/modules/docker.nix"
-    "/etc/nixos/modules/nvidia.nix"
-    "/etc/nixos/modules/git.nix"
-    "/etc/nixos/modules/nix.nix"
-    "/etc/nixos/modules/k8s.nix"
+    ./terminal/default.nix
+    ./virtual_host.nix
+    ./environment.nix
+    ./security.nix
+    ./desktop.nix
+    ./torrent.nix
+    ./spotify.nix
+    ./editors.nix
+    ./docker.nix
+    ./nvidia.nix
+    ./git.nix
+    ./nix.nix
+    ./k8s.nix
   ];
 }

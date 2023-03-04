@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  owner = import "/etc/nixos/owner.nix";
+  owner = import ../owner.nix;
 in {
   security = {
     sudo = {

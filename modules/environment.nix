@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  owner = import "/etc/nixos/owner.nix";
+  owner = import ../owner.nix;
 in {
   environment = {
     systemPackages = with pkgs; let
@@ -167,25 +167,5 @@ in {
   # Configuration files
   environment.etc = {
     "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
-  };
-
-  home-manager = with owner; {
-    users."${username}" = {
-      xdg.configFile = {
-        "go/env".text = builtins.readFile ../dots/home/go/env;
-
-        "openaiapirc".text = ''
-          [openai]
-          organization_id = ${openai.organization-id}
-          secret_key = ${openai.secret-key}
-        '';
-
-        "ai/.ai-cli".text = ''
-          OPENAI_API_KEY=${openai.secret-key}
-        '';
-
-        "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues rclone);
-      };
-    };
   };
 }

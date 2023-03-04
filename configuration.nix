@@ -3,20 +3,18 @@
   pkgs,
   ...
 }: let
-  owner = import "/etc/nixos/owner.nix";
+  owner = import ./owner.nix;
 in {
   imports = [
-    <home-manager/nixos>
-
     ./hardware-configuration.nix
   ];
 
   # Entry point 🐙
   require = [
-    "/etc/nixos/services/default.nix"
-    "/etc/nixos/modules/default.nix"
-    "/etc/nixos/pkgs/default.nix"
-    "/etc/nixos/home.nix"
+    ./services/default.nix
+    ./modules/default.nix
+    ./pkgs/default.nix
+    # ./home.nix
   ];
 
   boot = with pkgs; {

@@ -4,10 +4,10 @@
   ...
 }: {
   imports = [
-    "/etc/nixos/modules/terminal/alacritty.nix"
-    "/etc/nixos/modules/terminal/starship.nix"
-    "/etc/nixos/modules/terminal/tmux.nix"
-    "/etc/nixos/modules/terminal/zsh.nix"
+    ./alacritty.nix
+    ./starship.nix
+    ./tmux.nix
+    ./zsh.nix
   ];
 
   console = {
