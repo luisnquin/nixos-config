@@ -42,7 +42,7 @@
       setup = "tmux rename-window \"setup 🦭\" \\; split-window -h \\; split-window -v \\; resize-pane -D 3 \\; selectp -t 0 \\; split-window -v \\; resize-pane -D 3 \\; selectp -t 0 \\; send-keys -t 1 \"gotop --nvidia --color=vice\" ENTER \\; send-keys -t 3 \"k9s  --readonly\" ENTER; clear";
 
       # It's not like you're not needed
-      runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build && make run)";
+      runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build-fast && make run)";
       v3 = "cd ~/go/src/gitlab.wiserskills.net/wiserskills/v3/";
       ds = "v3 && cd dataserver/";
 
