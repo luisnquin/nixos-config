@@ -72,6 +72,7 @@
 
       nix-shell = "cached-nix-shell";
       ns = "nix-shell";
+      utc-date = "date --rfc-3339=seconds | sed 's/ /T/'";
 
       # Those who are lazy to write definitely go here
       "~" = "cd /home/$USER/";
