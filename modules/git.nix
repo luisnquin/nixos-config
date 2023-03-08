@@ -118,6 +118,8 @@ in {
       gsiu = "git stash --include-untracked";
       gsp = "git stash pop";
       gt = "git tag";
+      # Lists last 5 tags
+      gis = "g tag --sort=v:refname | tac | head -n 5";
       lg = "lazygit";
     };
   };
