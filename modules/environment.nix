@@ -86,6 +86,7 @@ in {
           zathura # PDF viewer
           sqlc # SQL generator
           # Processors
+          awscli
           csvkit
           htmlq
           dsq
