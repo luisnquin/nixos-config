@@ -22,6 +22,7 @@ in {
     completionInit = ''
       autoload -U compinit && compinit
       source <(nao completion zsh); compdef _nao nao
+      complete -C "$(which aws_completer)" aws
     '';
     # TODO: improve nao completions
 
