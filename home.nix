@@ -23,6 +23,9 @@ in {
       autoload -U compinit && compinit
       source <(nao completion zsh); compdef _nao nao
       complete -C "$(which aws_completer)" aws
+
+      # Displays only Makefile rules unless there arent'
+      zstyle ':completion::complete:make::' tag-order targets variables
     '';
     # TODO: improve nao completions
 
