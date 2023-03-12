@@ -90,6 +90,7 @@ in {
       gmck = ''checkout_target="$1"; find . -maxdepth 1 -type d | xargs -I {} bash -c "if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} checkout $checkout_target; fi"; unset checkout_target'';
       # Git garbage collector
       ggc = "git gc --aggressive";
+      gf = "git fetch";
       # Git garbage collector over all subdirectories, skipping non-directories and non-git repositories
       gmgc = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} gc --aggressive; fi'";
       # Pull current branch
