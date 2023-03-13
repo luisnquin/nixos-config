@@ -5,7 +5,7 @@
 }: {
   environment.systemPackages = with pkgs; [
     neovim
-    vscode
+    # vscode
     vim
   ];
 

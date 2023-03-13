@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: {
-  environment.systemPackages = with pkgs; [
-    spotify
-  ];
+  #environment.systemPackages = with pkgs; [
+  #  spotify
+  #];
 }

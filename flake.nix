@@ -24,24 +24,40 @@
     ...
   } @ inputs: let
     system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system};
+    pkgs = import nixpkgs {
+      inherit system;
+      config = {allowUnfree = true;};
+    };
     lib = nixpkgs.lib;
   in {
     # packages.x86_64-linux.hello = nixpkgs.legacyPackages.x86_64-linux.hello;
     # packages.x86_64-linux.default = self.packages.x86_64-linux.hello;
 
-    nixosModules.home = import ./home/home.nix;
+    #  nixosModules.home = import ./home/home.nix;
 
-    homeConfigurations.luisnquin = home-manager.lib.homeManagerConfiguration {
-      inherit pkgs;
+    homeConfigurations = {
+      inherit system;
 
-      modules = [
-        inputs.spicetify-nix.homeManagerModule
-        ./home/home.nix
-      ];
+      #nyx = {
+      #  activationPackage = pkgs.somePackage;
+      #  # other configuration options here
+      #};
+
+      luisnquin = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
+
+        extraSpecialArgs = {
+          inherit spicetify-nix;
+        };
+
+        modules = [
+          ./home/home.nix
+          ./home/modules/default.nix
+        ];
+      };
     };
 
-    homeManagerModules = import ./home.nix;
+    #  homeManagerModules = import ./home.nix;
 
     nixosConfigurations.nyx = lib.nixosSystem {
       inherit system; # specialArgs = attrs;

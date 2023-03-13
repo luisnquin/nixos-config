@@ -8,9 +8,6 @@
 : let
   spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
 in {
-  #environment.systemPackages = with pkgs; [
-  #  spotify
-  #];
   # allow spotify to be installed if you don't have unfree enabled already
   nixpkgs.config.allowUnfreePredicate = pkg:
     builtins.elem (lib.getName pkg) [

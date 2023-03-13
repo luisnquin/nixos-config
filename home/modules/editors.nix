@@ -7,7 +7,7 @@
     enable = true;
     enableExtensionUpdateCheck = true;
     enableUpdateCheck = true;
-    package = vscode;
+    package = pkgs.vscode;
     # extensions = with vscode-extensions; [
     #   matklad.rust-analyzer
     #   jnoortheen.nix-ide

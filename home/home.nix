@@ -7,10 +7,6 @@
   owner = import ../owner.nix;
   spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
 in {
-  imports = [
-    ./modules/default.nix
-  ];
-
   home = {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
@@ -78,7 +74,7 @@ in {
   xdg = {
     enable = true;
     configFile = with owner; {
-      "go/env".text = builtins.readFile ../../dots/home/go/env;
+      "go/env".text = builtins.readFile ../dots/home/go/env;
 
       "openaiapirc".text = ''
         [openai]
@@ -91,31 +87,13 @@ in {
       '';
 
       "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues rclone);
-      "alacritty.yml".text = builtins.readFile ../../../dots/home/alacritty.yml;
-      "k9s/views.yml".text = builtins.readFile ../../dots/home/k9s/views.yml;
-      "k9s/skin.yml".text = builtins.readFile ../../dots/home/k9s/skin.yml;
+      "alacritty.yml".text = builtins.readFile ../dots/home/alacritty.yml;
+      "k9s/views.yml".text = builtins.readFile ../dots/home/k9s/views.yml;
+      "k9s/skin.yml".text = builtins.readFile ../dots/home/k9s/skin.yml;
     };
   };
 
-  programs = {
-    alacritty = {
-      enable = true;
-      package = pkgs.alacritty;
-      # Let Home Manager install and manage itself.
-    };
-    home-manager.enable = true;
-    vscode = {
-      enable = true;
-      enableExtensionUpdateCheck = true;
-      enableUpdateCheck = true;
-      package = pkgs.vscode;
-      # extensions = with vscode-extensions; [
-      #   matklad.rust-analyzer
-      #   jnoortheen.nix-ide
-      # ];
-      mutableExtensionsDir = true;
-    };
-  };
+  programs.home-manager.enable = true;
 
   #environment.systemPackages = with pkgs; [
   #  spotify
@@ -126,21 +104,4 @@ in {
   #  builtins.elem (lib.getName pkg) [
   #    "spotify"
   #  ];
-
-  imports = [
-    inputs.spicetify-nix.homeManagerModule
-  ];
-
-  # configure spicetify :)
-  programs.spicetify = {
-    enable = true;
-    theme = spicePkgs.themes.catppuccin-mocha;
-    colorScheme = "flamingo";
-
-    enabledExtensions = with spicePkgs.extensions; [
-      fullAppDisplay
-      shuffle # shuffle+ (special characters are sanitized out of ext names)
-      hidePodcasts
-    ];
-  };
 }
