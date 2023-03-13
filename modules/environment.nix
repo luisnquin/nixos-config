@@ -107,6 +107,7 @@ in {
           ranger
           genact
           tree
+          love # Game engine
         ];
 
         core = [
