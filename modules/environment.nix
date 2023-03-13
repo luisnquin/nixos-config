@@ -143,12 +143,8 @@ in {
       };
     in (builtins.concatLists (builtins.attrValues gg));
 
-    # Available in admin shell
-    extraInit = let
-      fetchEnvironmentInfoScript = builtins.readFile ../dots/scripts/fetch-environment-info.sh;
-    in ''
-      ${fetchEnvironmentInfoScript}
-    '';
+    # Root shell
+    # extraInit = "";
 
     localBinInPath = true;
   };
