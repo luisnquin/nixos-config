@@ -48,14 +48,12 @@ in {
           nodePackages.pnpm
           nodejs-18_x
           deno
-          yarn
           bun
 
           # Nix-related
           alejandra
-          nixos-option
           rnix-lsp
-          nix-prefetch-git # Tool to get information from remote repository like sha256
+          nix-prefetch-git
 
           # Python-related
           (python310.withPackages
@@ -72,29 +70,24 @@ in {
           license-generator
           onlyoffice-bin
           redoc-cli
-          # awscli2
+          postman
+          rclone # Cloud storages in one CLI
+          awscli
+          ngrok
           clang
 
-          # websocat
-          # dbeaver
-          # gobang
-
-          scc #  Lines of code in a directory with complexity estimation.
-          # useful useful useful useful useful usefulusefulusefulusefulusefulusefulusefuluseful
+          zathura
           minify # HTML, CSS, and JavaScript minifier
-          shfmt # Shell code formatter
-          zathura # PDF viewer
+          shfmt
           sqlc # SQL generator
+          scc
+
           # Processors
-          awscli
           csvkit
           htmlq
           dsq
           jq
           yq
-          # HTTP
-          postman
-          ngrok
         ];
 
         osint =
@@ -105,13 +98,10 @@ in {
             whois
           ];
 
-        preferences = [
-          rclone # For management in cloud storages
+        etc = [
           freshfetch # neofetch replacement
-          xclip # Clipboard
+          xclip
           tldr # Alternative to man
-
-          # Fufu stuff
           octofetch
           nyancat
           ranger
@@ -120,6 +110,7 @@ in {
         ];
 
         core = [
+          gnome.seahorse # Keyring
           stdenv_32bit
           coreutils
           libsecret
@@ -139,14 +130,11 @@ in {
           ntfs3g
           exfat
 
-          gnome.seahorse # Keyring
-
           # System monitoring tools
           gotop
           btop
           htop
 
-          # Compressed files
           p7zip
           unzip
           unar
