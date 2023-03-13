@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  owner = import ../../owner.nix;
+  owner = import ../../../owner.nix;
 in {
   environment.systemPackages = [
     pkgs.zsh-completions
@@ -36,6 +36,6 @@ in {
       fi
     '';
 
-    interactiveShellInit = builtins.readFile ../../dots/.zshrc;
+    interactiveShellInit = builtins.readFile ../../../dots/.zshrc;
   };
 }

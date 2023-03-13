@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  owner = import ../owner.nix;
+  owner = import ../../owner.nix;
 in {
   programs.git = {
     enable = true;

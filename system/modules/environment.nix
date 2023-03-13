@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  owner = import ../owner.nix;
+  owner = import ../../owner.nix;
 in {
   environment = {
     systemPackages = with pkgs; let
@@ -152,6 +152,6 @@ in {
 
   # Configuration files
   environment.etc = {
-    "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
+    "zathurarc".text = builtins.readFile ../../dots/etc/zathurarc;
   };
 }

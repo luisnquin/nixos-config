@@ -23,6 +23,7 @@
     "material-icon-theme.folders.associations": {
         "terminal": "Interface",
         ".scripts": "Scripts",
-        "dots": "Config"
+        "dots": "Config",
+        "system": "Controller"
     }
 }

@@ -4,7 +4,7 @@
   ...
 }: {
   imports = [
-    ./terminal/defaut.nix
+    ./terminal/default.nix
     ./editors.nix
     ./spotify.nix
     ./k8s.nix

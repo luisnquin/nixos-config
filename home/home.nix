@@ -4,12 +4,12 @@
   lib,
   ...
 }: let
-  owner = import ./owner.nix;
+  owner = import ../owner.nix;
   spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
 in {
-  # imports = [
-  #   ./home/default.nix
-  # ];
+  imports = [
+    ./modules/default.nix
+  ];
 
   home = {
     stateVersion = "23.05";
@@ -76,7 +76,7 @@ in {
   xdg = {
     enable = true;
     configFile = with owner; {
-      "go/env".text = builtins.readFile ./dots/home/go/env;
+      "go/env".text = builtins.readFile ../../dots/home/go/env;
 
       "openaiapirc".text = ''
         [openai]
@@ -89,9 +89,9 @@ in {
       '';
 
       "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues rclone);
-      "alacritty.yml".text = builtins.readFile ../../dots/home/alacritty.yml;
-      "k9s/views.yml".text = builtins.readFile ../dots/home/k9s/views.yml;
-      "k9s/skin.yml".text = builtins.readFile ../dots/home/k9s/skin.yml;
+      "alacritty.yml".text = builtins.readFile ../../../dots/home/alacritty.yml;
+      "k9s/views.yml".text = builtins.readFile ../../dots/home/k9s/views.yml;
+      "k9s/skin.yml".text = builtins.readFile ../../dots/home/k9s/skin.yml;
     };
   };
 

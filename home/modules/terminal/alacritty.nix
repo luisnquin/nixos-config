@@ -9,6 +9,6 @@
   };
 
   xdg.configFile = {
-    "alacritty.yml".text = builtins.readFile ../../dots/home/alacritty.yml;
+    "alacritty.yml".text = builtins.readFile ../../../dots/home/alacritty.yml;
   };
 }

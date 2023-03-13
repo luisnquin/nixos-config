@@ -9,7 +9,7 @@
 
 ```bash
 # Nix environment setup + nyx computer manager
-$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/setup.sh | sh
+$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/scripts/setup.sh | sh
 ```
 
 ## Nyx manager

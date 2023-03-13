@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  owner = import ./owner.nix;
+  owner = import ../owner.nix;
 in {
   imports = [
     ./hardware-configuration.nix
@@ -14,7 +14,6 @@ in {
     ./services/default.nix
     ./modules/default.nix
     ./pkgs/default.nix
-    # ./home.nix
   ];
 
   boot = with pkgs; {

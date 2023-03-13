@@ -58,7 +58,7 @@
       inherit system; # specialArgs = attrs;
 
       modules = [
-        ./configuration.nix
+        ./system/configuration.nix
 
         # {
         #   home-manager.useGlobalPkgs = true;
