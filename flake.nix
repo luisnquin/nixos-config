@@ -1,5 +1,5 @@
 {
-  description = "A very basic flake";
+  description = "My flake";
 
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
@@ -23,25 +23,16 @@
     home-manager,
     ...
   } @ inputs: let
-    system = "x86_64-linux";
     pkgs = import nixpkgs {
       inherit system;
       config = {allowUnfree = true;};
     };
+
+    system = "x86_64-linux";
     lib = nixpkgs.lib;
   in {
-    # packages.x86_64-linux.hello = nixpkgs.legacyPackages.x86_64-linux.hello;
-    # packages.x86_64-linux.default = self.packages.x86_64-linux.hello;
-
-    #  nixosModules.home = import ./home/home.nix;
-
     homeConfigurations = {
       inherit system;
-
-      #nyx = {
-      #  activationPackage = pkgs.somePackage;
-      #  # other configuration options here
-      #};
 
       luisnquin = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
@@ -57,29 +48,12 @@
       };
     };
 
-    #  homeManagerModules = import ./home.nix;
-
     nixosConfigurations.nyx = lib.nixosSystem {
-      inherit system; # specialArgs = attrs;
+      inherit system;
 
       modules = [
         ./system/configuration.nix
-
-        # {
-        #   home-manager.useGlobalPkgs = true;
-        #   home-manager.useUserPackages = true;
-        #   home-manager.users.luisnquin = ./home.nix;
-        #   # home-manager.extraSpecialArgs = [spicetify-nix.homeManagerModule ];
-        # }
       ];
     };
-
-    #homeConfigurations.luisnquin = home-manager.lib.homeManagerConfiguration {
-    #  inherit pkgs;
-    #
-    #  modules = [
-    #    ./home.nix
-    #  ];
-    #};
   };
 }
