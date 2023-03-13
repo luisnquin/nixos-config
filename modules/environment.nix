@@ -10,7 +10,7 @@ in {
       gg = {
         apps = [
           element-desktop
-          obs-studio
+          # obs-studio
           discord
           vivaldi
           etcher
