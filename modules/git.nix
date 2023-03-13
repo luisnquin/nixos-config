@@ -59,13 +59,11 @@ in {
 
   environment = {
     systemPackages = with pkgs; [
-      act
-      gh
-      git
-      git-chglog # I'm using conventional commits so
       git-ignore
-      gitlab-runner
       lazygit
+      act
+      git
+      # gh
     ];
 
     shellAliases = {
@@ -74,9 +72,7 @@ in {
       # Add file fragments
       gap = "git add --patch";
       gaa = "git add --all";
-      # Git branch to git branch, ha
       gb = "git branch";
-      # Git commit and verbose 🤨
       gc = "git commit -v";
       gd = "git diff";
       gds = "git diff --staged";
@@ -84,19 +80,13 @@ in {
       gls = "git log --oneline | head -n 10";
       gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
-      # Normal checkout
       gck = "git checkout";
-      # Checkout on all git subdirectories
-      gmck = ''checkout_target="$1"; find . -maxdepth 1 -type d | xargs -I {} bash -c "if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} checkout $checkout_target; fi"; unset checkout_target'';
-      # Git garbage collector
       ggc = "git gc --aggressive";
       gf = "git fetch";
       # Git garbage collector over all subdirectories, skipping non-directories and non-git repositories
       gmgc = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} gc --aggressive; fi'";
       # Pull current branch
       ggpull = "git pull origin $(git branch --show-current)";
-      # Pull the specified branch
-      gpull = "git pull origin";
       # Show current branch in all subdirectories, skipping non-directories and non-git repositories
       gmb = ''find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then printf " ~ \033[0;94m{}\033[0m:"; git -C {} branch --show-current; fi' '';
       # Pull the current branch of all subdirectories, skipping non-directories and non-git repositories
@@ -105,12 +95,8 @@ in {
       gmpush = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} push; fi'";
       # Push current branch
       ggpush = "git push origin $(git branch --show-current)";
-      # Push the specified branch
-      gpush = "git push origin";
       # Git reset but it doesn't output anything
       gr = "git reset -q";
-      # Displays the changes in the latest commit
-      gch = "git show --pretty='format:%h %s' --name-status -r HEAD";
       # Lists the authors of a directory/file.
       gauthors = "git shortlog -n -s -- ";
       gss = "git status -s";
@@ -120,7 +106,7 @@ in {
       gsp = "git stash pop";
       gt = "git tag";
       # Lists last 5 tags
-      gis = "g tag --sort=v:refname | tac | head -n 5";
+      gts = "g tag --sort=v:refname | tac | head -n 5";
       lg = "lazygit";
     };
   };
