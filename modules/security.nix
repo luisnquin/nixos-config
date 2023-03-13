@@ -13,7 +13,7 @@ in {
   };
 
   users = {
-    motd = "It's a good moment to tell you that this will be a great day for you 🌇";
+    motd = "This server is intended for business use only. Please refrain from using it for personal reasons ⚠️";
 
     users = with owner; {
       ${username} = {
@@ -49,7 +49,7 @@ in {
 
     openssh = {
       enable = true;
-      banner = "Hiiii how'r u, plz let me in";
+      banner = "plz let me in";
       settings.passwordAuthentication = true;
 
       knownHosts = let
