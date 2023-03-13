@@ -29,7 +29,6 @@
       dkra = "dka && dra";
       dria = "docker rmi -f $(docker image ls -qa)";
       dils = "docker image ls";
-      dss = "docker stats";
       dcp = "docker cp";
       dps = "docker ps -a";
       dl = "docker logs";
