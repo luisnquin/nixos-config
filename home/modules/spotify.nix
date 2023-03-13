@@ -20,13 +20,14 @@ in {
   # configure spicetify :)
   programs.spicetify = {
     enable = true;
-    theme = spicePkgs.themes.catppuccin-mocha;
-    colorScheme = "flamingo";
+    theme = spicePkgs.themes.Ziro;
+    colorScheme = "red-light";
 
     enabledExtensions = with spicePkgs.extensions; [
       fullAppDisplay
-      shuffle # shuffle+ (special characters are sanitized out of ext names)
-      hidePodcasts
+      popupLyrics
+      trashbin
+      shuffle
     ];
   };
 }
