@@ -30,27 +30,16 @@
     # packages.x86_64-linux.hello = nixpkgs.legacyPackages.x86_64-linux.hello;
     # packages.x86_64-linux.default = self.packages.x86_64-linux.hello;
 
-    # nixosModules.home = import ./home.nix;
+    nixosModules.home = import ./home/home.nix;
 
-    # homeManagerConfigurations.luisnquin = home-manager.lib.homeManagerConfiguration {
-    #   inherit pkgs;
-    #   modules = [
-    #     inputs.spicetify-nix.homeManagerModule
-    #     ./home.nix
-    #     {
-    #       nixpkgs = {
-    #         #config.allowUnfreePredicate = (pkg: true);
-    #         overlays = [];
-    #       };
+    homeConfigurations.luisnquin = home-manager.lib.homeManagerConfiguration {
+      inherit pkgs;
 
-    #       home = {
-    #         username = "luisnquin";
-    #         homeDirectory = "/home/luisnquin";
-    #         stateVersion = "23.05";
-    #       };
-    #     }
-    #   ];
-    # };
+      modules = [
+        inputs.spicetify-nix.homeManagerModule
+        ./home/home.nix
+      ];
+    };
 
     homeManagerModules = import ./home.nix;
 

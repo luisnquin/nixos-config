@@ -14,6 +14,8 @@ in {
   home = {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
+    homeDirectory = "/home/luisnquin";
+    username = "luisnquin";
   };
 
   programs.zsh = {
