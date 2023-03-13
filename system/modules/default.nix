@@ -6,7 +6,6 @@
     ./security.nix
     ./desktop.nix
     ./torrent.nix
-    ./spotify.nix
     ./editors.nix
     ./docker.nix
     ./nvidia.nix
