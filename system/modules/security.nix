@@ -13,7 +13,7 @@ in {
   };
 
   users = {
-    motd = "This server is intended for business use only. Please refrain from using it for personal reasons ⚠️";
+    motd = "This computer is intended for business use only. Please refrain from using it for personal reasons ⚠️";
 
     users = with owner; {
       ${username} = {
