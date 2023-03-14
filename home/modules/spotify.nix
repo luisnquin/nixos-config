@@ -8,26 +8,21 @@
 : let
   spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
 in {
-  # allow spotify to be installed if you don't have unfree enabled already
-  nixpkgs.config.allowUnfreePredicate = pkg:
-    builtins.elem (lib.getName pkg) [
-      "spotify"
-    ];
-
-  # import the flake's module for your system
   imports = [spicetify-nix.homeManagerModule];
 
-  # configure spicetify :)
-  programs.spicetify = {
+  programs.spicetify = with spicePkgs; {
     enable = true;
-    theme = spicePkgs.themes.Ziro;
-    colorScheme = "red-light";
+    theme = themes.Ziro;
+    colorScheme = "red-light"; # Kebab-case
 
-    enabledExtensions = with spicePkgs.extensions; [
+    enabledExtensions = with extensions; [
+      historyShortcut
       fullAppDisplay
+      fullAlbumDate
       popupLyrics
       trashbin
       shuffle
+      genre
     ];
   };
 }
