@@ -121,6 +121,7 @@ in {
           gnumake
           openjdk
           facter # To collect and display system facts
+          btop
           nmap
           wget
           bat
@@ -130,11 +131,6 @@ in {
           # NTFS
           ntfs3g
           exfat
-
-          # System monitoring tools
-          gotop
-          btop
-          htop
 
           p7zip
           unzip
