@@ -86,7 +86,6 @@ in {
         OPENAI_API_KEY=${openai.secret-key}
       '';
 
-      "rclone/rclone.conf".text = builtins.concatStringsSep "\n" (builtins.attrValues rclone);
       "alacritty.yml".text = builtins.readFile ../dots/home/alacritty.yml;
       "k9s/views.yml".text = builtins.readFile ../dots/home/k9s/views.yml;
       "k9s/skin.yml".text = builtins.readFile ../dots/home/k9s/skin.yml;
