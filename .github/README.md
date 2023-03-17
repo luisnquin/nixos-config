@@ -33,9 +33,7 @@ Global flags:
 
 ## My current computer
 
-TODO: update screenshoot
-
-![image](https://user-images.githubusercontent.com/86449787/183443225-e7442ddf-ab0f-47d1-b712-68a6d1d669c6.png)
+![image](https://user-images.githubusercontent.com/86449787/225793242-96fac5c3-8b77-482c-9b0a-36e18e79b425.png)
 
 Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more options.
 
