@@ -73,19 +73,6 @@ in {
 
   location.provider = "geoclue2";
 
-  fonts = {
-    fonts = with pkgs; [
-      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode" "NerdFontsSymbolsOnly"];})
-      cascadia-code
-      jetbrains-mono
-      roboto-mono
-      inconsolata
-      roboto
-    ];
-
-    fontDir.enable = true;
-  };
-
   # Chinese
   i18n = {
     defaultLocale = "en_US.UTF-8";

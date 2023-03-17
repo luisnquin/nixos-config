@@ -9,6 +9,7 @@
     ./editors.nix
     ./docker.nix
     ./nvidia.nix
+    ./fonts.nix
     ./git.nix
     ./nix.nix
     ./k8s.nix

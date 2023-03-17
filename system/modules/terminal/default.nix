@@ -78,7 +78,6 @@
       cls = "clear";
       tt = "ranger";
       poff = "poweroff";
-      actl = "act --list";
       neofetch = "freshfetch";
       gotry = "xdg-open https://go.dev/play >>/dev/null";
       whoseport = "netstat -tulpln 2> /dev/null | grep :";
