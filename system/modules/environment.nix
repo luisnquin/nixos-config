@@ -9,8 +9,10 @@ in {
     systemPackages = with pkgs; let
       gg = {
         apps = [
+          simplescreenrecorder
+          obs-studio
+
           element-desktop
-          # obs-studio
           obsidian
           discord
           vivaldi
