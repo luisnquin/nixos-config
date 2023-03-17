@@ -44,3 +44,4 @@ Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more o
 - [mogria](https://github.com/mogria/nixpkgs-config)
 - [qbit](https://github.com/qbit/nix-conf)
 - [rxyhn](https://github.com/rxyhn/dotfiles)
+- [srid](https://github.com/srid/nixos-config)
