@@ -11,6 +11,7 @@ in {
         apps = [
           element-desktop
           # obs-studio
+          obsidian
           discord
           vivaldi
           etcher
