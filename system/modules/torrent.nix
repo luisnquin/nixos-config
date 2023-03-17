@@ -40,6 +40,7 @@ in {
   # TODO: add https://github.com/PanAeon/transg-tui
   environment.systemPackages = with pkgs; [
     transmission
+    qbittorrent
     fragments # Graphical client to download torrents
   ];
 }
