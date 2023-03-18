@@ -104,14 +104,17 @@ in {
 
         etc = [
           translate-shell # Translate anything from shell
-          freshfetch # neofetch replacement
           xclip
+          ranger
           tldr # Alternative to man
+          tree
+
+          asciiquarium
+          freshfetch # neofetch replacement
           octofetch
           nyancat
-          ranger
+          cmatrix
           genact
-          tree
           love # Game engine
         ];
 
