@@ -22,11 +22,19 @@ in {
       timeout = 8;
 
       grub = let
+        falloutTheme =
+          pkgs.fetchFromGitHub
+          {
+            owner = "shvchk";
+            repo = "fallout-grub-theme";
+            rev = "80734103d0b48d724f0928e8082b6755bd3b2078";
+            sha256 = "sha256-7kvLfD6Nz4cEMrmCA9yq4enyqVyqiTkVZV5y4RyUatU=";
+          };
         resolution = "1920x1080";
       in {
-        theme = "/etc/nixos/dots/boot/grub/themes/catppuccin-mocha-grub-theme";
         gfxmodeBios = resolution;
         gfxmodeEfi = resolution;
+        theme = falloutTheme;
 
         enable = true;
         version = 2;
