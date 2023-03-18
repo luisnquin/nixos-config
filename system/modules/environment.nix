@@ -103,6 +103,7 @@ in {
           ];
 
         etc = [
+          translate-shell # Translate anything from shell
           freshfetch # neofetch replacement
           xclip
           tldr # Alternative to man
