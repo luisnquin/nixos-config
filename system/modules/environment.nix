@@ -79,6 +79,7 @@ in {
           ngrok
           clang
 
+          haskellPackages.NanoID # To generate nano id from terminal
           zathura
           minify # HTML, CSS, and JavaScript minifier
           shfmt
