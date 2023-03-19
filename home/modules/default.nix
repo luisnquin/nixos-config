@@ -8,5 +8,6 @@
     ./editors.nix
     ./spotify.nix
     ./k8s.nix
+    ./git.nix
   ];
 }

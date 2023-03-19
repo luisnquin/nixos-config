@@ -60,7 +60,6 @@ in {
   environment = {
     systemPackages = with pkgs; [
       git-ignore
-      lazygit
       gh-dash
       act
       git
