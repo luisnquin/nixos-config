@@ -59,7 +59,6 @@ in {
 
   environment = {
     systemPackages = with pkgs; [
-      git-ignore
       gh-dash
       act
       git
@@ -107,6 +106,7 @@ in {
       gt = "git tag";
       # Lists last 5 tags
       gts = "g tag --sort=v:refname | tac | head -n 5";
+      ghd = "gh-dash";
       lg = "lazygit";
     };
   };
