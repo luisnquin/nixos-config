@@ -62,7 +62,6 @@ in {
       gh-dash
       act
       git
-      # gh
     ];
 
     shellAliases = {
