@@ -115,6 +115,7 @@ in {
           octofetch
           nyancat
           cmatrix
+          facter
           genact
           love # Game engine
         ];
