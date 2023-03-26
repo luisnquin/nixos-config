@@ -72,6 +72,7 @@ in {
           nodePackages.firebase-tools
           license-generator
           onlyoffice-bin
+          commitlint
           redoc-cli
           postman
           rclone # Cloud storages in one CLI
