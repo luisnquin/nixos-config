@@ -11,7 +11,7 @@
         go_version_used = {
           description = "Displays the Go version used in the current project";
           shell = ["bash" "--noprofile" "--norc"];
-          format = " but using [$output]($style)";
+          format = " but using [$output]($style) ";
           command = "awk '/go/ {print $2; exit}' go.mod";
           detect_files = ["go.mod"];
           style = "#285f66";
