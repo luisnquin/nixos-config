@@ -86,7 +86,6 @@
       dud = "du --human-readable --summarize";
       man = "tldr";
       transg = "transgression-tui";
-      listen = "ngrok http";
       py = "python3";
       share = "ngrok http";
       top = "btop";
