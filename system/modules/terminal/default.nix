@@ -75,7 +75,6 @@
 
       open = "xdg-open";
       rc = "rclone";
-      cls = "clear";
       tt = "ranger";
       poff = "poweroff";
       neofetch = "freshfetch";
