@@ -33,7 +33,7 @@ Global flags:
 
 ## My current computer
 
-![image](https://user-images.githubusercontent.com/86449787/225793242-96fac5c3-8b77-482c-9b0a-36e18e79b425.png)
+![image](https://user-images.githubusercontent.com/86449787/228117545-0bb635b8-e6a8-4cd0-a38d-26c19b22cff2.png)
 
 Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more options.
 
