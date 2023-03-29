@@ -82,10 +82,6 @@ in {
         secret_key = ${openai.secret-key}
       '';
 
-      "ai/.ai-cli".text = ''
-        OPENAI_API_KEY=${openai.secret-key}
-      '';
-
       "alacritty.yml".text = builtins.readFile ../dots/home/alacritty.yml;
       "k9s/views.yml".text = builtins.readFile ../dots/home/k9s/views.yml;
       "k9s/skin.yml".text = builtins.readFile ../dots/home/k9s/skin.yml;
