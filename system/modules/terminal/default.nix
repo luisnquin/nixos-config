@@ -22,7 +22,7 @@
     # This code is assumed to be shell-independent, which means you
     # should stick to pure sh without sh word split.
 
-    interactiveShellInit = builtins.readFile ../../../dots/.shrc;
+    interactiveShellInit = builtins.readFile ../../dots/.shrc;
 
     systemPackages = with pkgs; [
       cached-nix-shell

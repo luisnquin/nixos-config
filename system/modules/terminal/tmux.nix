@@ -40,7 +40,7 @@
   environment = {
     systemPackages = [pkgs.tmux];
 
-    etc."gitmux.conf".text = builtins.readFile ../../../dots/etc/gitmux.conf;
+    etc."gitmux.conf".text = builtins.readFile ../../dots/etc/gitmux.conf;
   };
 }
 # set -g automatic-rename off

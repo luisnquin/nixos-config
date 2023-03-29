@@ -36,6 +36,6 @@ in {
       fi
     '';
 
-    interactiveShellInit = builtins.readFile ../../../dots/.zshrc;
+    interactiveShellInit = builtins.readFile ../../dots/.zshrc;
   };
 }
