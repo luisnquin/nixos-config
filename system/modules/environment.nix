@@ -130,6 +130,7 @@ in {
           openssl
           gnumake
           openjdk
+          gparted
           facter # To collect and display system facts
           btop
           nmap
