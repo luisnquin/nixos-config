@@ -7,7 +7,8 @@
         "editor.formatOnType": false
     },
     "files.associations": {
-        ".shrc": "shellscript"
+        ".shrc": "shellscript",
+        "flake.lock": "json"
     },
     "[nix]": {
         "editor.defaultFormatter": "kamadorueda.alejandra",
