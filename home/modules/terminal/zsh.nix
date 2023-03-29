@@ -6,11 +6,7 @@
   programs.zsh = {
     enable = true;
     enableCompletion = true;
-    completionInit = ''
-      autoload -U compinit && compinit
-      source <(nao completion zsh); compdef _nao nao
-    '';
-    # TODO: improve nao completions
+    completionInit = builtins.readFile ../../dots/completionInit.zsh;
 
     plugins = with pkgs; [
       {
