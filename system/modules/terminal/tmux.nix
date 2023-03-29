@@ -43,10 +43,3 @@
     etc."gitmux.conf".text = builtins.readFile ../../dots/etc/gitmux.conf;
   };
 }
-# set -g automatic-rename off
-# set -g status-left-length 40
-# set -g status-left "#S #[fg=white]#[fg=yellow]#I #[fg=cyan]#P"
-# set -g status-bg black
-# set -g status-fg magenta
-# set -g status-right "#{sysstat_cpu} | #{sysstat_mem} | #{sysstat_swap} | #{sysstat_loadavg} | #[fg=cyan]#(echo $USER)#[default]@#H"
-
