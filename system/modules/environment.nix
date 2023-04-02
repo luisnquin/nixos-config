@@ -2,9 +2,7 @@
   config,
   pkgs,
   ...
-}: let
-  owner = import ../../owner.nix;
-in {
+}: {
   environment = {
     systemPackages = with pkgs; let
       gg = {
