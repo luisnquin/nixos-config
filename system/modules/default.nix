@@ -1,7 +1,7 @@
 {config, ...}: {
   imports = [
     ./terminal/default.nix
-    ./virtual_host.nix
+    ./virtual-host.nix
     ./environment.nix
     ./security.nix
     ./desktop.nix
