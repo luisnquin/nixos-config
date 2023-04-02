@@ -21,21 +21,6 @@
         ];
 
         dev = [
-          # Go-related
-          air
-          delve
-          gcc
-          go_1_20
-          go-protobuf
-          gofumpt
-          golangci-lint
-          gopls
-          gotools
-          govulncheck
-          grpc-tools
-          richgo
-          tinygo
-
           # Rust-related
           cargo
           clippy

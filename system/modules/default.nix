@@ -13,5 +13,6 @@
     ./git.nix
     ./nix.nix
     ./k8s.nix
+    ./go.nix
   ];
 }

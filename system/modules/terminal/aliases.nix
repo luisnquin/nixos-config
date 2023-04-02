@@ -1,6 +1,5 @@
 {config, ...}: {
   environment.shellAliases = {
-    gest = "go clean -testcache && richgo test -v";
     setup = "tmux rename-window \"setup 🦭\" \\; split-window -h \\; split-window -v \\; resize-pane -D 3 \\; selectp -t 0 \\; split-window -v \\; resize-pane -D 3 \\; selectp -t 0 \\; send-keys -t 1 \"btop\" ENTER \\; send-keys -t 3 \"k9s  --readonly\" ENTER; clear";
 
     runds = "(ds; rm -rf compose/nginx/env.json && make compose-up && make build-fast && make run)";
@@ -36,13 +35,11 @@
     utc-date = "date --rfc-3339=seconds | sed 's/ /T/'";
     lsd = "echo lsd? lol";
 
-    gmt = "go mod tidy";
     open = "xdg-open";
     rc = "rclone";
     tt = "ranger";
     poff = "poweroff";
     neofetch = "freshfetch";
-    gotry = "xdg-open https://go.dev/play >>/dev/null";
     whoseport = "netstat -tulpln 2> /dev/null | grep :";
     nyancat = "nyancat --no-counter";
     ale = "alejandra --quiet";
