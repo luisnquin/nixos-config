@@ -9,12 +9,11 @@
     settings = {
       custom = {
         go_version_used = {
-          description = "Displays the Go version used in the current project";
+          description = "Displays 🎉 if the go version used in the current project is the same as the local available";
           shell = ["bash" "--noprofile" "--norc"];
-          format = " but using [$output]($style) ";
-          command = "awk '/go/ {print $2; exit}' go.mod";
-          detect_files = ["go.mod"];
-          style = "#285f66";
+          symbol = "🎉";
+          format = " $symbol";
+          when = ''test -e go.mod && [ "$(awk '/go/ {print $2; exit}' go.mod)" = "$(go version | awk '{sub(/^go/,"",$3); print $3}' | cut -d '.' -f 1,2)" ]'';
         };
 
         git_remote = {
