@@ -75,6 +75,7 @@ in {
           commitlint
           redoc-cli
           postman
+          argocd
           rclone # Cloud storages in one CLI
           awscli
           ngrok
