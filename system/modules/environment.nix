@@ -36,11 +36,6 @@
           deno
           bun
 
-          # Nix-related
-          alejandra
-          rnix-lsp
-          nix-prefetch-git
-
           # Python-related
           (python310.withPackages
             (p:

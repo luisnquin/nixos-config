@@ -30,8 +30,6 @@
     "..." = "cd ../..";
     "~" = "cd /home/$USER/";
 
-    nix-shell = "cached-nix-shell";
-    ns = "nix-shell";
     utc-date = "date --rfc-3339=seconds | sed 's/ /T/'";
     lsd = "echo lsd? lol";
 

@@ -18,15 +18,7 @@
   environment = {
     interactiveShellInit = builtins.readFile ../../dots/.shrc;
 
-    systemPackages = with pkgs; [
-      cached-nix-shell
-    ];
-
-    variables = {
-      # The other related config only apply to the build
-      NIXPKGS_ALLOW_UNFREE = "1";
-      EDITOR = "nano";
-    };
+    variables.EDITOR = "nano";
 
     shells = [pkgs.zsh];
   };

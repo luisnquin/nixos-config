@@ -1,13 +1,8 @@
-{config, ...}: {
-  nixpkgs.config = {
-    permittedInsecurePackages = [
-      "electron-12.2.3"
-    ];
-    allowBroken = false;
-    # The day I meet the man who has this option in false
-    allowUnfree = true;
-  };
-
+{
+  config,
+  pkgs,
+  ...
+}: {
   nix = {
     gc = {
       automatic = true;
@@ -37,5 +32,29 @@
       # Number of seconds between checking free disk space.
       min-free-check-interval = 30;
     };
+  };
+
+  nixpkgs.config = {
+    permittedInsecurePackages = [
+      "electron-12.2.3"
+    ];
+    allowBroken = false;
+    allowUnfree = true;
+  };
+
+  environment = {
+    systemPackages = with pkgs; [
+      nix-prefetch-git
+      cached-nix-shell
+      alejandra
+      rnix-lsp
+    ];
+
+    shellAliases = {
+      nix-shell = "cached-nix-shell";
+      ns = "nix-shell";
+    };
+
+    variables.NIXPKGS_ALLOW_UNFREE = "1";
   };
 }
