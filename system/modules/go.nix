@@ -23,7 +23,6 @@
     shellAliases = {
       gotry = "xdg-open https://go.dev/play >>/dev/null";
       gest = "go clean -testcache && richgo test -v";
-      gmt = "go mod tidy";
     };
 
     variables = {
