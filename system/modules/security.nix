@@ -13,7 +13,7 @@ in {
   };
 
   users = {
-    motd = "This computer is intended for business use only. Please refrain from using it for personal reasons ⚠️";
+    motd = "The best time to plant a tree was 20 years ago. The second best time is now 🌿";
 
     users = with owner; {
       ${username} = {
