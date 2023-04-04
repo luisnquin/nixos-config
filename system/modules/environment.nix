@@ -51,6 +51,7 @@
           license-generator
           onlyoffice-bin
           commitlint
+          asciinema
           redoc-cli
           postman
           argocd
