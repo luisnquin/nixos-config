@@ -44,10 +44,18 @@
           style = "#c319f7";
           symbol = " ";
         };
+
+        go = {
+          detect_files = ["go.mod"];
+          command = "awk '/go/ {print $2; exit}' go.mod";
+          format = "via [$symbol($output)]($style)";
+          style = "#5ddade";
+          symbol = "ﳑ ";
+        };
       };
 
       format = ''
-        $directory''${custom.git_remote}$git_branch$git_state$git_metrics$c$golang''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
+        $directory''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
         $character
       '';
       scan_timeout = 30;
@@ -73,7 +81,7 @@
         style = "#8d3beb";
       };
 
-      # Is not working, lol
+      # Is not working
       env_var = {
         disabled = false;
       };
@@ -87,14 +95,14 @@
         disabled = false;
       };
 
-      golang = {
-        symbol = "ﳑ ";
-        detect_extensions = ["go"];
-        detect_files = ["go.mod" "go.sum" "go.work" ".go-version"];
-        version_format = "v\${major}.\${minor}";
-        format = "via [$symbol($version)]($style)";
-        style = "#5ddade";
-      };
+      # golang = {
+      #   symbol = "ﳑ ";
+      #   detect_extensions = ["go"];
+      #   detect_files = ["go.mod" "go.sum" "go.work" ".go-version"];
+      #   version_format = "v\${major}.\${minor}";
+      #   format = "via [$symbol($version)]($style)";
+      #   style = "#5ddade";
+      # };
 
       nix_shell = {
         symbol = " ";
