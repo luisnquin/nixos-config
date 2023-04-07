@@ -185,10 +185,10 @@ function hex2ansi() {
 }
 
 # Refresh the current terminal session(completions and source files)
-function refresh() {
+refresh() {
     autoload -Uz compinit && compinit
-    source ~/.dotfiles/dots/.zshrc
-    source ~/.dotfiles/dots/.shrc
+    source ~/.dotfiles/system/dots/.zshrc
+    source ~/.dotfiles/system/dots/.shrc
 }
 
 if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
