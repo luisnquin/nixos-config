@@ -1,3 +1,5 @@
+#!/bin/sh
+
 microphone_state=''
 
 if [[ $(output=$(amixer set Capture toggle); echo "$output" | grep -m 1 --fixed-strings --only-matching '[on]') ]]; then
