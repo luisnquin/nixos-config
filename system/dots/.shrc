@@ -167,7 +167,7 @@ cinema() {
     done <<<"$cinerama_raw_movies"
 }
 
-function hex2ansi() {
+hex2ansi() {
     local hex=${1}
 
     if [[ $hex =~ ^#[0-9A-Fa-f]{6}$ ]]; then
