@@ -191,6 +191,8 @@ refresh() {
     source ~/.dotfiles/system/dots/.shrc
 }
 
+alias rrr=refresh
+
 if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
     hsi() {
         grep "$*" ~/.zsh_history
