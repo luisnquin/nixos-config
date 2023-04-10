@@ -54,11 +54,13 @@
           asciinema
           redoc-cli
           postman
+          gnumake
           argocd
           rclone # Cloud storages in one CLI
           awscli
           ngrok
           clang
+          just
 
           haskellPackages.NanoID # To generate nano id from terminal
           zathura
@@ -108,7 +110,6 @@
           binutils
           openssh
           openssl
-          gnumake
           openjdk
           gparted
           facter # To collect and display system facts
