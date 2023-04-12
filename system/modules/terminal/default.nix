@@ -4,6 +4,7 @@
   ...
 }: {
   imports = [
+    ./cool-retro-term.nix
     ./starship.nix
     ./aliases.nix
     ./tmux.nix
