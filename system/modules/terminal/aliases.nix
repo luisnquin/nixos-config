@@ -31,7 +31,7 @@
     "~" = "cd /home/$USER/";
 
     utc-date = "date --rfc-3339=seconds | sed 's/ /T/'";
-    lsd = "echo lsd? lol";
+    lsd = "echo 'lsd? lol'";
 
     open = "xdg-open";
     rc = "rclone";
