@@ -48,5 +48,6 @@
     share = "ngrok http";
     top = "btop";
     unrar = "unar";
+    mt = "mocktail";
   };
 }
