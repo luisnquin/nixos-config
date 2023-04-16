@@ -49,5 +49,8 @@
     top = "btop";
     unrar = "unar";
     mt = "mocktail";
+
+    # https://stackoverflow.com/questions/19331497/set-environment-variables-from-file-of-key-value-pairs
+    poisonenv = "export $(xargs < .env)";
   };
 }
