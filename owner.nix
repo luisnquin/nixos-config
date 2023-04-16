@@ -13,10 +13,6 @@ let
       email = "git@luisquinones.me";
       deprecatedEmail = secondaryEmail;
     };
-
-    spotifyUsername = "yeselony";
   };
-
-  secrets = import "/etc/nixos/secrets.nix";
 in
-  owner // secrets
+  owner

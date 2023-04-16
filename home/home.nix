@@ -7,23 +7,17 @@
   owner = import ../owner.nix;
   spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
 in {
-  home = {
+  home = with owner; {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
-    homeDirectory = "/home/luisnquin";
-    username = "luisnquin";
+    homeDirectory = "/home/${username}";
+    username = "${username}";
   };
 
   xdg = {
     enable = true;
-    configFile = with owner; {
+    configFile = {
       "go/env".text = builtins.readFile ./dots/go/env;
-
-      "openaiapirc".text = ''
-        [openai]
-        organization_id = ${openai.organization-id}
-        secret_key = ${openai.secret-key}
-      '';
     };
   };
 

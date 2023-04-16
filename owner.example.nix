@@ -11,10 +11,6 @@ let
       email = "<your-git-email>";
       deprecatedEmail = secondaryEmail;
     };
-
-    spotifyUsername = "<your-spotify-username>";
   };
-
-  secrets = import "/etc/nixos/secrets.nix";
 in
-  owner // secrets
+  owner
