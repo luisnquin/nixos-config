@@ -50,6 +50,7 @@
           nodePackages.firebase-tools
           license-generator
           onlyoffice-bin
+          hyperfine # Benchmarking tool
           commitlint
           asciinema
           redoc-cli
