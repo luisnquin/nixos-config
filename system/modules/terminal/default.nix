@@ -7,6 +7,7 @@
     ./cool-retro-term.nix
     ./starship.nix
     ./aliases.nix
+    ./nushell.nix
     ./tmux.nix
     ./zsh.nix
   ];
