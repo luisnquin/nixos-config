@@ -74,7 +74,7 @@ in {
   };
 
   time = {
-    timeZone = "America/Lima";
+    timeZone = "America/El_Salvador";
     # Without this option, the machine will have a UTC time
     hardwareClockInLocalTime = true;
   };
