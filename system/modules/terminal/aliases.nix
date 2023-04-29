@@ -14,7 +14,7 @@
     rustpl = "cd ~/Workspace/playground/rust/";
     pl = "cd ~/Workspace/playground/";
     pr = "cd ~/Workspace/projects/";
-    tests = "cd ~/Tests/";
+    tests = "cd ~/Work/tests/";
     tmp = "cd /tmp/";
 
     # Overwriten program calls
