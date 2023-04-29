@@ -4,6 +4,7 @@
   ...
 }: {
   environment.systemPackages = with pkgs; [
+    (callPackage ./panicparse.nix {})
     (callPackage ./transg-tui.nix {})
     (callPackage ./minecraft.nix {})
     (callPackage ./npkill.nix {})
