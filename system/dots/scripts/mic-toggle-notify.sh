@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# For now it requires manual configuration for KDE
+
 microphone_state=''
 
 if [[ $(output=$(amixer set Capture toggle); echo "$output" | grep -m 1 --fixed-strings --only-matching '[on]') ]]; then
