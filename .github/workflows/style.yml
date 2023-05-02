@@ -4,15 +4,10 @@ on: [push, pull_request]
 
 jobs:
     check-formatting:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-20.04
         steps:
             - uses: actions/checkout@v2
-            - name: Install Alejandra
-              run: |
-                  wget https://github.com/kamadorueda/alejandra/releases/download/3.0.0/alejandra-x86_64-unknown-linux-musl
-                  mv alejandra-x86_64-unknown-linux-musl alejandra
-                  chmod +x alejandra
-                  mv alejandra /usr/local/bin
+            - uses: luisnquin/setup-alejandra@v1.0.0
 
             - name: Check formatting
               run: alejandra --check **/*.nix
