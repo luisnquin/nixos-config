@@ -74,9 +74,9 @@
           # Processors
           csvkit
           htmlq
+          yq-go
           dsq
           jq
-          yq
         ];
 
         osint =
