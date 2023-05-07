@@ -18,3 +18,7 @@ delete_until_not_alphanumerics() {
 zle -N delete_until_not_alphanumerics
 
 bindkey '\e^?' delete_until_not_alphanumerics
+
+stats() {
+    fc -l 1 | awk 'BEGIN {FS="[ \t]+|//|"} {print $3}' | sort | uniq -c | sort -nr | head -15
+}
