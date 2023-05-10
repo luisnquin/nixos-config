@@ -7,8 +7,8 @@ in
     src = pkgs.fetchFromGitHub {
       owner = owner;
       repo = pname;
-      rev = "7670745339e535a644d7592e5c7b3fea13fddf8f";
-      sha256 = "0y34q5g6ngxlwr40var6h6rqi47njqz07yss1ph1iw4bsaja9kgx";
+      rev = "3d083e562cc48a55111c7558d65d6bc66cde9f2a";
+      sha256 = "0p0fvg82zjj0jgh0yv8nbxkm7lb99f0p8w17kb00rwadrzh4la2y";
     };
 
     ldflags = ["-X main.version=${version}"];
