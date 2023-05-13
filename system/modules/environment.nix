@@ -91,6 +91,7 @@
           translate-shell # Translate anything from shell
           xclip
           ranger
+          glow # To render markdown in the terminal
           tldr # Alternative to man
           tree
 
