@@ -12,30 +12,15 @@
 $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstrap.sh | sh
 ```
 
-## Nyx manager
+## Manager
 
-```sh
-# A sh script focused in NixOS
-$ nyx --help
-
-nyx [command] [flags]
-
-Available commands:
-  update ⛄    Updates the machine
-  inspect      Verifies if the configuration.nix file has been changed and not saved to a git repository
-  style 💅     Applies alejandra style to all .nix files
-  ls           List elements in dotfiles directory
-  clean        Cleans with the old generations
-
-Global flags:
--h, --help Print help information
-```
+![image](https://i.ibb.co/0mqcSg6/s.png)
 
 ## My current computer
 
-![image](https://user-images.githubusercontent.com/86449787/228117545-0bb635b8-e6a8-4cd0-a38d-26c19b22cff2.png)
+![image](https://i.ibb.co/h904GZT/image.png)
 
-Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more options.
+Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more NixOS options.
 
 ## Some configurations comes here thanks to
 
