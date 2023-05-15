@@ -103,7 +103,9 @@ in {
       gs = "git stash";
       gsiu = "git stash --include-untracked";
       gsp = "git stash pop";
+      gcl = "git clone";
       gt = "git tag";
+
       # Lists last 5 tags
       gts = "g tag --sort=v:refname | tac | head -n 5";
       ghd = "gh-dash";
