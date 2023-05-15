@@ -59,6 +59,7 @@
           argocd
           rclone # Cloud storages in one CLI
           awscli
+          pgweb
           ngrok
           clang
           just
