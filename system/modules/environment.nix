@@ -116,6 +116,7 @@
           openssl
           openjdk
           gparted
+          killall
           facter # To collect and display system facts
           btop
           nmap
