@@ -100,14 +100,19 @@ in {
       gauthors = "git shortlog -n -s -- ";
       gss = "git status -s";
       grb = "git rebase";
+
       gs = "git stash";
+      # "git stash --interactive(?)"
+      gsi = "git stash --patch";
       gsiu = "git stash --include-untracked";
       gsp = "git stash pop";
-      gcl = "git clone";
-      gt = "git tag";
 
+      gt = "git tag";
+      gtd = "git tag --delete";
       # Lists last 5 tags
       gts = "g tag --sort=v:refname | tac | head -n 5";
+
+      gcl = "git clone";
       ghd = "gh-dash";
       lg = "lazygit";
     };
