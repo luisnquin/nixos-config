@@ -22,3 +22,19 @@ bindkey '\e^?' delete_until_not_alphanumerics
 stats() {
     fc -l 1 | awk 'BEGIN {FS="[ \t]+|//|"} {print $3}' | sort | uniq -c | sort -nr | head -15
 }
+
+# Dedicated completions for pushing tags
+gtp() {
+    if [[ $1 == "" ]]; then echo "fatal: a tag is required" && return 1; fi
+
+    git push origin $1
+}
+
+_gtp() {
+    if ! test -d '.git'; then return 1; fi
+
+    local tags=($(git tag --list))
+    _values 'tags' ${tags[@]}
+}
+
+compdef _gtp gtp
