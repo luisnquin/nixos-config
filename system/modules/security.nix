@@ -17,7 +17,7 @@ in {
   };
 
   users = {
-    motd = "The best time to plant a tree was 20 years ago. The second best time is now 🌿";
+    motd = "Celebrate life's grandeur, it's brilliance, it's magnificence";
 
     users = with owner; {
       ${username} = {
