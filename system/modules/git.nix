@@ -94,6 +94,7 @@ in {
       gmpush = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} push; fi'";
       # Push current branch
       ggpush = "git push origin $(git branch --show-current)";
+      ggpulsh = "ggpull && ggpush";
       # Git reset but it doesn't output anything
       gr = "git reset -q";
       # Lists the authors of a directory/file.
