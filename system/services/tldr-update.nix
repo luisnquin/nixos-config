@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: {
-  systemd.services.tldrUpdate = {
+  systemd.services.tldr-update = {
     enable = true;
     description = "Updates tldr system pages";
     serviceConfig = {
