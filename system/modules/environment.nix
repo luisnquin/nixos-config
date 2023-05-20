@@ -65,7 +65,6 @@
           just
 
           haskellPackages.NanoID # To generate nano id from terminal
-          wkhtmltopdf-bin
           zathura
           minify # HTML, CSS, and JavaScript minifier
           shfmt
