@@ -87,6 +87,11 @@
             whois
           ];
 
+        auditing = [
+          osv-scanner
+          semgrep
+        ];
+
         etc = [
           translate-shell # Translate anything from shell
           xclip
