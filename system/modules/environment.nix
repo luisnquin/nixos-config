@@ -136,7 +136,8 @@
           zip
         ];
       };
-    in builtins.concatLists (builtins.attrValues gg);
+    in
+      builtins.concatLists (builtins.attrValues gg);
 
     # Root shell
     # extraInit = "";
