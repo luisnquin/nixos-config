@@ -4,7 +4,7 @@ in
   pkgs.stdenv.mkDerivation rec {
     name = "nyx";
     src = pkgs.fetchFromGitHub {
-      owner = owner;
+      inherit owner;
       repo = name;
       rev = "999506560720fa32a1f57177941fc75d18f5b3ad";
       sha256 = "16iybxsmms1mky2cq2i714g2ysifz8jjxqlb7xba23qxwcgmfjay";

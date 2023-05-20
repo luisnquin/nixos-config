@@ -9,7 +9,7 @@ in
     pname = "nao";
     version = "3.0.0";
     src = pkgs.fetchFromGitHub {
-      owner = owner;
+      inherit owner;
       repo = pname;
       rev = "v${version}";
       # sha256 = "0m2fzpqxk7hrbxsgqplkg7h2p7gv6s1miymv3gvw0cz039skag0s";

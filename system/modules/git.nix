@@ -11,7 +11,7 @@ in {
     lfs.enable = true;
     config = {
       user = {
-        name = owner.git.name;
+        inherit (owner.git) name;
         email = owner.git.deprecatedEmail;
         ${owner.git.username} = owner.git.username;
       };

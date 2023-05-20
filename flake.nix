@@ -6,7 +6,7 @@
     nixpkgs.url = "nixpkgs/nixos-unstable";
 
     home-manager = {
-      url = github:nix-community/home-manager;
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -29,7 +29,7 @@
     };
 
     system = "x86_64-linux";
-    lib = nixpkgs.lib;
+    inherit (nixpkgs) lib;
   in {
     homeConfigurations = {
       inherit system;

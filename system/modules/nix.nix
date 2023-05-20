@@ -48,6 +48,7 @@
       cached-nix-shell
       alejandra
       rnix-lsp
+      statix
       nurl
     ];
 

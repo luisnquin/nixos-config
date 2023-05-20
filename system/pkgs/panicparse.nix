@@ -5,7 +5,7 @@ in
     pname = "pp";
     version = "2.3.1";
     src = pkgs.fetchFromGitHub {
-      owner = owner;
+      inherit owner;
       repo = "panicparse";
       rev = "a67acbb1be08722cbfb23fcfff41ed435b9fd329";
       sha256 = "156mawfrq1i43sxkvy4ci5hx6bxaw12z4dgpykj2fq1xq7ykhn19";

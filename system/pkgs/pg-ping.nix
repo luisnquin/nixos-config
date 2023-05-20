@@ -5,7 +5,7 @@ in
     pname = "pg-ping";
     version = "1.1.0";
     src = pkgs.fetchFromGitHub {
-      owner = owner;
+      inherit owner;
       repo = pname;
       rev = "3d083e562cc48a55111c7558d65d6bc66cde9f2a";
       sha256 = "0p0fvg82zjj0jgh0yv8nbxkm7lb99f0p8w17kb00rwadrzh4la2y";
