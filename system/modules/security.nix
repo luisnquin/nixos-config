@@ -17,7 +17,7 @@ in {
   };
 
   users = {
-    motd = "Celebrate life's grandeur, it's brilliance, it's magnificence";
+    motd = "Celebrate life's grandeur, it's brilliance, it's magnificence 🪷";
 
     users = with owner; {
       ${username} = {
