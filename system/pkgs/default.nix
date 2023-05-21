@@ -10,6 +10,7 @@
     (callPackage ./pg-ping.nix {})
     (callPackage ./npkill.nix {})
     (callPackage ./tomato.nix {})
+    (callPackage ./pgweb.nix {})
     (callPackage ./nyx.nix {})
     (callPackage ./no.nix {})
     # (callPackage ./nao.nix {})
