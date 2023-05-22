@@ -28,3 +28,7 @@ pem() {
     export $(grep -v '^#' .env | xargs)
     printf "\033[38;2;159;240;72mTaken\! \033[0m\n"
 }
+
+ports() {
+    watch -tn 1 "sudo lsof -i -Pn | grep LISTEN | awk '{print \$1, \$3, \$9}' | column -t -s ' ' | sort | uniq"
+}
