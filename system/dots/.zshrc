@@ -38,3 +38,13 @@ _gtp() {
 }
 
 compdef _gtp gtp
+
+pem() {
+    if ! test -e .env; then
+        printf "\033[38;2;201;71;71m.env file not found\033[0m\n"
+        return 1
+    fi
+
+    export $(grep -v '^#' .env | xargs)
+    printf "\033[38;2;159;240;72mTaken\! \033[0m\n"
+}

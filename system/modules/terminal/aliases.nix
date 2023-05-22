@@ -51,8 +51,5 @@
     top = "btop";
     unrar = "unar";
     mt = "mocktail";
-
-    # https://stackoverflow.com/questions/19331497/set-environment-variables-from-file-of-key-value-pairs
-    poisonenv = ''if ! test -e .env; then printf "\033[38;2;212;42;62mNothing can be used to poison the environment\033[0m\n"; return 1; fi; export $(xargs <.env); printf "\033[38;2;156;34;227mPoisoned environment \033[0m\n"'';
   };
 }
