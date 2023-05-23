@@ -32,3 +32,5 @@ pem() {
 ports() {
     watch -tn 1 "sudo lsof -i -Pn | grep LISTEN | awk '{print \$1, \$3, \$9}' | column -t -s ' ' | sort | uniq"
 }
+
+[[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null

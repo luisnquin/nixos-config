@@ -46,6 +46,9 @@
           virtualenv
           pyright
 
+          # Ocaml my beloved
+          opam
+
           # Other
           nodePackages.firebase-tools
           license-generator
