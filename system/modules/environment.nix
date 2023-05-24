@@ -47,6 +47,11 @@
           pyright
 
           # Ocaml my beloved
+          ocamlPackages.ocaml-lsp
+          ocamlPackages.utop
+          dune-release
+          ocamlformat
+          dune_3
           opam
 
           # Other
