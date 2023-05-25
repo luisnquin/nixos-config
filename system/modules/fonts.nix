@@ -10,6 +10,7 @@
       jetbrains-mono
       roboto-mono
       inconsolata
+      monocraft
       roboto
     ];
 
