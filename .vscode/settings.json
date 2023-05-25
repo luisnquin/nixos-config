@@ -8,7 +8,8 @@
     },
     "files.associations": {
         ".shrc": "shellscript",
-        "flake.lock": "json"
+        "flake.lock": "json",
+        "zathurarc": "shellscript"
     },
     "[nix]": {
         "editor.defaultFormatter": "kamadorueda.alejandra",
@@ -20,11 +21,12 @@
         "editor.tabSize": 2
     },
     "shellcheck.enable": true,
-    "shellcheck.exclude": ["1090", "1091", "2002", "2005", "2148", "2207", "3046"],
+    "shellcheck.exclude": ["1090", "1091", "2002", "2005", "2121", "2148", "2207", "3046"],
     "material-icon-theme.folders.associations": {
         "terminal": "Interface",
         ".scripts": "Scripts",
         "dots": "Config",
         "system": "Controller"
-    }
+    },
+    "cSpell.words": ["inconsolata", "guioptions"]
 }
