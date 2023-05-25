@@ -2,7 +2,7 @@
 set window-title-page "true"
 set window-height "850"
 
-#stop at page boundries
+#stop at page boundaries
 set scroll-page-aware "true"
 set smooth-scroll "true"
 set scroll-full-overlap 0.01
