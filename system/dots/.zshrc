@@ -34,3 +34,7 @@ ports() {
 }
 
 [[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null
+
+trans_ee() {
+    trans en:es "$@" | tee -a ~/Documents/translations.txt
+}
