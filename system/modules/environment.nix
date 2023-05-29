@@ -11,7 +11,6 @@
           obs-studio
 
           element-desktop
-          obsidian
           discord
           vivaldi
           etcher
