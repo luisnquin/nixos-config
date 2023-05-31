@@ -1,3 +1,2 @@
 GO111MODULE=on
-GOPRIVATE=gitlab.wiserskills.net/wiserskills/
 CGO_ENABLED=0
