@@ -38,3 +38,7 @@ ports() {
 trans_ee() {
     trans en:es "$@" | tee -a ~/Documents/translations.txt
 }
+
+if test -f /home/"$USER"/Work/init.sh; then
+    source /home/"$USER"/Work/init.sh
+fi
