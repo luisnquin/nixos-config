@@ -12,8 +12,9 @@ in {
 
   programs.spicetify = with spicePkgs; {
     enable = true;
-    theme = themes.Ziro;
-    colorScheme = "red-light"; # Kebab-case
+    theme = themes.Comfy;
+    # theme = themes.Ziro;
+    # colorScheme = "ylx-ui"; # Kebab-case
 
     enabledExtensions = with extensions; [
       historyShortcut
