@@ -46,7 +46,6 @@
           pyright
 
           # Ocaml my beloved
-          ocamlPackages.ocaml-lsp
           dune-release
           ocamlformat
           opam
