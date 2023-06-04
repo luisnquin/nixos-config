@@ -49,7 +49,6 @@
           ocamlPackages.ocaml-lsp
           dune-release
           ocamlformat
-          dune_3
           opam
 
           # Other
