@@ -70,6 +70,7 @@ in {
       ga = "git add";
       # Add file fragments
       gap = "git add --patch";
+      ginit = "git init && touch .gitignore";
       gaa = "git add --all";
       gb = "git branch";
       gc = "git commit -v";
