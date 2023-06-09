@@ -15,6 +15,8 @@
           vivaldi
           etcher
           brave
+          # Fix login issues in desktop application(KDE):
+          # https://stackoverflow.com/questions/70867064/signing-into-slack-desktop-not-working-on-4-23-0-64-bit-ubuntu
           slack
           gimp
         ];
