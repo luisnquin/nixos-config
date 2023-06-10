@@ -7,7 +7,6 @@
 in {
   systemd.services.ensure-home-fs = {
     enable = true;
-
     serviceConfig = {
       Type = "oneshot";
       ExecStart = ''
@@ -18,7 +17,7 @@ in {
                             /home/${username}/Work/ \
                             /home/${username}/Work/ \
                             /home/${username}/Temp/ \
-                            /home/${username}/.etc/
+                            /home/${username}/.etc/'
       '';
     };
   };
