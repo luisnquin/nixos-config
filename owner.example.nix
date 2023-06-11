@@ -1,15 +1,13 @@
 let
   owner = rec {
-    username = "<your-username>";
-    fullName = "<your-full-name>";
-    email = "<your-email>";
-    secondaryEmail = "<your-secondary-email>";
+    username = "<username>";
+    fullName = "<full-name>";
+    email = "<email>";
 
     git = {
       inherit username;
       name = fullName;
-      email = "<your-git-email>";
-      deprecatedEmail = secondaryEmail;
+      email = "<git-email>";
     };
   };
 in
