@@ -26,7 +26,7 @@
       # Required by cachix
       trusted-users = ["root" "luisnquin"];
       # Defines the maximum number of jobs that Nix will try to build in parallel.
-      max-jobs = 4;
+      max-jobs = 6;
       # When free disk space in /nix/store drops below min-free during a build, Nix performs a garbage-collection.
       min-free = 10000000000; # 10GB
       # Number of seconds between checking free disk space.
