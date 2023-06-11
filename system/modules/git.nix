@@ -12,7 +12,7 @@ in {
     config = {
       user = {
         inherit (owner.git) name;
-        email = owner.git.deprecatedEmail;
+        email = owner.git.email;
         ${owner.git.username} = owner.git.username;
       };
 
