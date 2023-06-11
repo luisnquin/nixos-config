@@ -82,6 +82,7 @@
           htmlq
           yq-go
           dsq
+          xsv
           jq
         ];
 
