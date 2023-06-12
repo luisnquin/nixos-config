@@ -35,6 +35,10 @@ in {
         ];
       };
     };
+
+    extraGroups = {
+      vboxusers.members = ["${owner.username}"];
+    };
   };
 
   networking.firewall = {
