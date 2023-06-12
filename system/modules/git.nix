@@ -89,7 +89,7 @@ in {
       # Git garbage collector over all subdirectories, skipping non-directories and non-git repositories
       gmgc = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} gc --aggressive; fi'";
       # Pull current branch
-      ggpull = "git pull origin $(git branch --show-current)";
+      ggpull = "git pull origin --ff-only $(git branch --show-current)";
       # Show current branch in all subdirectories, skipping non-directories and non-git repositories
       gmb = ''find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then printf " ~ \033[0;94m{}\033[0m:"; git -C {} branch --show-current; fi' '';
       # Pull the current branch of all subdirectories, skipping non-directories and non-git repositories
