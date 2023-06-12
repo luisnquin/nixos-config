@@ -72,7 +72,10 @@ in {
       gap = "git add --patch";
       ginit = "git init && touch .gitignore";
       gaa = "git add --all";
+
       gb = "git branch";
+      gbx = "git branch --show-current | xclip";
+
       gc = "git commit -v";
       gd = "git diff";
       gds = "git diff --staged";
