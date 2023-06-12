@@ -14,11 +14,14 @@
       url = "github:the-argus/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hyprland.url = "github:hyprwm/Hyprland";
   };
 
   outputs = {
     self,
     nixpkgs,
+    hyprland,
     spicetify-nix,
     home-manager,
     ...
@@ -52,6 +55,8 @@
       inherit system;
 
       modules = [
+        hyprland.nixosModules.default
+        {programs.hyprland.enable = true;}
         ./system/configuration.nix
       ];
     };
