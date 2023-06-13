@@ -118,6 +118,9 @@ in {
       gts = "g tag --sort=v:refname | tac | head -n 5";
 
       gcl = "git clone";
+      # Shallow clone
+      gcls = "git clone --depth 1";
+
       ghd = "gh-dash";
       lg = "lazygit";
     };
