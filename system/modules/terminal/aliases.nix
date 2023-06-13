@@ -8,6 +8,8 @@
     rustpl = "cd ~/Workspace/playground/rust/";
     pl = "cd ~/Workspace/playground/";
     pr = "cd ~/Workspace/projects/";
+    virt = "cd ~/Virt/";
+
     tmp = "cd /tmp/";
 
     # Overwriten program calls
