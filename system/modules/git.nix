@@ -60,6 +60,7 @@ in {
   environment = {
     systemPackages = with pkgs; [
       git-sizer
+      git-open
       gh-dash
       act
       git
@@ -75,6 +76,8 @@ in {
 
       gb = "git branch";
       gbx = "git branch --show-current | xclip";
+
+      gopen = "git-open >/dev/null";
 
       gc = "git commit -v";
       gd = "git diff";
