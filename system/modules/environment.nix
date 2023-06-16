@@ -103,7 +103,6 @@
           translate-shell # Translate anything from shell
           xclip
           ranger
-          anki
           glow # To render markdown in the terminal
           tldr # Alternative to man
           tree
