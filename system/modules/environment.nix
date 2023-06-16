@@ -112,6 +112,7 @@
           octofetch
           nyancat
           cmatrix
+          scrcpy
           facter
           genact
           love # Game engine
