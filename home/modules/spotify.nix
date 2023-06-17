@@ -12,7 +12,8 @@ in {
 
   programs.spicetify = with spicePkgs; {
     enable = true;
-    theme = themes.Comfy;
+    theme = themes."catppuccin-mocha";
+    # colorScheme = "catppuccin-macchiato";
     # theme = themes.Ziro;
     # colorScheme = "ylx-ui"; # Kebab-case
 
