@@ -7,6 +7,7 @@
     systemPackages = with pkgs; [
       air
       delve
+      errcheck
       gcc
       go_1_20
       go-protobuf
