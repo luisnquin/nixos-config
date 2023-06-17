@@ -4,7 +4,7 @@
   ...
 }: {
   programs.vscode = {
-    enable = true;
+    enable = false;
     enableExtensionUpdateCheck = true;
     enableUpdateCheck = true;
     package = pkgs.vscode;
