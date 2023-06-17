@@ -20,9 +20,12 @@ in {
       historyShortcut
       fullAppDisplay
       fullAlbumDate
+      hidePodcasts
       popupLyrics
+      songStats
       trashbin
       shuffle
+      wikify
       genre
     ];
   };
