@@ -4,10 +4,10 @@
     dot = "cd ~/.dotfiles/";
     down = "cd ~/Downloads/";
     etc = "cd ~/.etc/";
-    gopl = "cd ~/Workspace/playground/go/";
-    rustpl = "cd ~/Workspace/playground/rust/";
-    pl = "cd ~/Workspace/playground/";
-    pr = "cd ~/Workspace/projects/";
+    gopl = "cd ~/Projects/playground/go/";
+    rustpl = "cd ~/Projects/playground/rust/";
+    pl = "cd ~/Projects/playground/";
+    pr = "cd ~/Projects/";
     virt = "cd ~/Virt/";
 
     tmp = "cd /tmp/";
