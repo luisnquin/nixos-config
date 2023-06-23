@@ -19,7 +19,7 @@ in {
   boot = with pkgs; {
     loader = {
       efi.canTouchEfiVariables = true;
-      timeout = 8;
+      timeout = 15;
 
       grub = let
         falloutTheme =
