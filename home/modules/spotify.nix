@@ -24,6 +24,7 @@ in {
       hidePodcasts
       popupLyrics
       songStats
+      skipStats
       trashbin
       shuffle
       wikify
