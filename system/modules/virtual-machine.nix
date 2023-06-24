@@ -17,6 +17,7 @@
   };
 
   environment.systemPackages = with pkgs; [
+    vagrant # Development environments
     virt-manager
     # CPU emulator
     qemu
