@@ -19,6 +19,7 @@
       grpc-tools
       richgo
       tinygo
+      unconvert
     ];
 
     shellAliases = {
