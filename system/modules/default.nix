@@ -4,7 +4,7 @@
     ./virtual-machine.nix
     ./environment.nix
     ./security.nix
-    ./postgres.nix
+    # ./postgres.nix
     ./desktop.nix
     # ./torrent.nix
     ./editors.nix
