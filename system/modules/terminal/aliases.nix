@@ -34,7 +34,7 @@
     rc = "rclone";
     tt = "ranger";
     poff = "poweroff";
-    neofetch = "freshfetch";
+    neofetch = "macchina";
     whoseport = "netstat -tulpln 2> /dev/null | grep :";
     nyancat = "nyancat --no-counter";
     ale = "alejandra --quiet";

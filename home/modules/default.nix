@@ -1,6 +1,7 @@
 {config, ...}: {
   imports = [
     ./terminal/default.nix
+    ./macchina.nix
     ./editors.nix
     ./spotify.nix
     ./docker.nix

@@ -108,8 +108,8 @@
           tree
 
           asciiquarium
-          freshfetch # neofetch replacement
           octofetch
+          macchina
           nyancat
           cmatrix
           scrcpy
