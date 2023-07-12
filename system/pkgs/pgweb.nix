@@ -1,13 +1,13 @@
 {pkgs ? import <nixpkgs> {}}:
 pkgs.buildGoModule rec {
   pname = "pgweb";
-  version = "0.14.0";
+  version = "0.14.1";
 
   src = pkgs.fetchFromGitHub {
     owner = "sosedoff";
     repo = pname;
     rev = "v${version}";
-    sha256 = "sha256-NPuL7ffDLpnu0khJBIz+tItYyeHYPeOuTHXr4DjBgM0=";
+    hash = "sha256-0wwDye7Iku9+brYoVqlCpnm+A3xsr8tL2dyWaBVvres=";
   };
 
   postPatch = ''
@@ -15,9 +15,16 @@ pkgs.buildGoModule rec {
     rm -f pkg/client/{client,dump}_test.go
   '';
 
-  vendorSha256 = "sha256-W+Vybea4oppD4BHRqcyouQL79cF+y+sONY9MRggti20=";
+  vendorHash = "sha256-Jpvf6cST3kBvYzCQLoJ1fijUC/hP1ouptd2bQZ1J/Lo=";
 
   ldflags = ["-s" "-w"];
+
+  checkFlags = let
+    skippedTests = [
+      # There is a `/tmp/foo` file on the test machine causing the test case to fail on macOS
+      "TestParseOptions"
+    ];
+  in ["-skip" "${builtins.concatStringsSep "|" skippedTests}"];
 
   meta = with pkgs.lib; {
     description = "A web-based database browser for PostgreSQL";
