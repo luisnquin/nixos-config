@@ -10,6 +10,8 @@ compdef _nao nao
 source <(argocd completion zsh)
 compdef _argocd argocd
 
+source <(senv completion zsh)
+
 # Show only Makefile rules unless they aren't defined
 zstyle ':completion::complete:make::' tag-order targets variables
 
