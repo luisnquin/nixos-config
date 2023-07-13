@@ -6,6 +6,7 @@
     ./spotify.nix
     ./docker.nix
     ./btop.nix
+    ./nao.nix
     ./k8s.nix
     ./git.nix
   ];
