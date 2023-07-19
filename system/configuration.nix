@@ -1,10 +1,8 @@
 {
-  config,
   pkgs,
+  host,
   ...
-}: let
-  owner = import ../owner.nix;
-in {
+}: {
   imports = [
     ./hardware-configuration.nix
   ];
@@ -30,10 +28,9 @@ in {
             rev = "80734103d0b48d724f0928e8082b6755bd3b2078";
             sha256 = "sha256-7kvLfD6Nz4cEMrmCA9yq4enyqVyqiTkVZV5y4RyUatU=";
           };
-        resolution = "1920x1080";
       in {
-        gfxmodeBios = resolution;
-        gfxmodeEfi = resolution;
+        gfxmodeBios = host.resolution;
+        gfxmodeEfi = host.resolution;
         theme = falloutTheme;
 
         enable = true;
@@ -70,11 +67,11 @@ in {
 
   networking = {
     networkmanager.enable = true;
-    hostName = "nyx";
+    hostName = host.name;
   };
 
   time = {
-    timeZone = "America/El_Salvador";
+    timeZone = host.timeZone;
     # Without this option, the machine will have a UTC time
     hardwareClockInLocalTime = true;
   };
@@ -83,7 +80,7 @@ in {
 
   # Chinese
   i18n = {
-    defaultLocale = "en_US.UTF-8";
+    defaultLocale = host.i18nLocale;
     inputMethod = {
       enabled = "ibus";
       ibus = {

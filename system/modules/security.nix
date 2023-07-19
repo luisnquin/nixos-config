@@ -1,10 +1,8 @@
 {
-  config,
+  user,
   pkgs,
   ...
-}: let
-  owner = import ../../owner.nix;
-in {
+}: {
   security = {
     sudo = {
       enable = true;
@@ -19,12 +17,12 @@ in {
   users = {
     motd = "Celebrate life's grandeur, it's brilliance, it's magnificence 🪷";
 
-    users = with owner; {
-      ${username} = {
+    users = {
+      ${user.alias} = {
         isNormalUser = true;
-        home = ''/home/${username}/'';
+        home = ''/home/${user.alias}/'';
         # Used by desktop manager
-        description = ''${username} 🌂'';
+        description = ''${user.alias} 🌂'';
         shell = pkgs.zsh;
         hashedPassword = null;
         # ❄️
@@ -37,7 +35,7 @@ in {
     };
 
     extraGroups = {
-      vboxusers.members = ["${owner.username}"];
+      vboxusers.members = ["${user.alias}"];
     };
   };
 

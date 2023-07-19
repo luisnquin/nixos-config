@@ -1,10 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: let
-  owner = import ../../owner.nix;
-in {
+{pkgs, ...}: {
   environment = {
     systemPackages = with pkgs; [
       kubernetes

@@ -1,10 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: let
-  owner = import ../../../owner.nix;
-in {
+{pkgs, ...}: {
   environment.systemPackages = [
     pkgs.zsh-completions
   ];
@@ -24,7 +18,6 @@ in {
 
     syntaxHighlighting = {
       enable = true;
-      # styles = {};
     };
 
     enableBashCompletion = true;

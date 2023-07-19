@@ -1,0 +1,16 @@
+[owner]
+name = "luisnquin"
+
+[hosts.luisnquin]
+name = "nyx"
+resolution = "1920x1080"
+timeZone = "America/El_Salvador"
+i18nLocale = "en_US.UTF-8"
+
+[users.luisnquin]
+fullName = "Luis Quiñones"
+email = "lpaandres2020@gmail.com"
+gitEmail = "lpaandres2020@gmail.com"
+
+
+# You

@@ -1,17 +1,15 @@
 {
-  config,
   pkgs,
+  user,
   ...
-}: let
-  username = (import ../../owner.nix).username;
-in {
+}: {
   systemd = {
     services.clean-computer-trash-bin = {
       enable = true;
       description = "Cleans the bin folder";
       serviceConfig = {
         Type = "simple";
-        ExecStart = ''${pkgs.bash}/bin/bash -c "rm -rf /home/${username}/.local/share/Trash/files/{*,.*}"'';
+        ExecStart = ''${pkgs.bash}/bin/bash -c "rm -rf /home/${user.alias}/.local/share/Trash/files/{*,.*}"'';
       };
 
       wantedBy = ["timers.target"];

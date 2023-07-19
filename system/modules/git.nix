@@ -1,19 +1,17 @@
 {
-  config,
+  user,
   pkgs,
   ...
-}: let
-  owner = import ../../owner.nix;
-in {
+}: {
   programs.git = {
     enable = true;
 
     lfs.enable = true;
     config = {
       user = {
-        inherit (owner.git) name;
-        email = owner.git.email;
-        ${owner.git.username} = owner.git.username;
+        name = user.fullName;
+        email = user.gitEmail;
+        ${user.alias} = user.alias;
       };
 
       init = {

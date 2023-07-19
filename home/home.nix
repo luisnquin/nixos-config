@@ -1,17 +1,16 @@
 {
   spicetify-nix,
   pkgs,
-  lib,
+  user,
   ...
 }: let
-  owner = import ../owner.nix;
   spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
 in {
-  home = with owner; {
+  home = {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
-    homeDirectory = "/home/${username}";
-    username = "${username}";
+    homeDirectory = "/home/${user.alias}";
+    username = "${user.alias}";
   };
 
   xdg = {

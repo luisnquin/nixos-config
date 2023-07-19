@@ -1,5 +1,5 @@
 {
-  description = "My flake";
+  description = "My NixOS configuration";
 
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
@@ -28,7 +28,17 @@
       config = {allowUnfree = true;};
     };
 
+    metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
     system = "x86_64-linux";
+
+    setSpecialArgs = rec {
+      owner = metadata.owner.name;
+      user = metadata.users.${metadata.owner.name} // {alias = owner;};
+      host = metadata.hosts.${metadata.owner.name};
+
+      inherit spicetify-nix;
+    };
+
     inherit (nixpkgs) lib;
   in {
     homeConfigurations = {
@@ -37,9 +47,7 @@
       luisnquin = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
 
-        extraSpecialArgs = {
-          inherit spicetify-nix;
-        };
+        extraSpecialArgs = setSpecialArgs;
 
         modules = [
           ./home/home.nix
@@ -50,6 +58,8 @@
 
     nixosConfigurations.nyx = lib.nixosSystem {
       inherit system;
+
+      specialArgs = setSpecialArgs;
 
       modules = [
         ./system/configuration.nix
