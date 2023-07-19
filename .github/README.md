@@ -30,3 +30,4 @@ Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more N
 - [qbit](https://github.com/qbit/nix-conf)
 - [rxyhn](https://github.com/rxyhn/dotfiles)
 - [srid](https://github.com/srid/nixos-config)
+- [wegank](https://github.com/wegank/nixos-config)
