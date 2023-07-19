@@ -12,13 +12,11 @@
 $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstrap.sh | sh
 ```
 
-## Manager
+## My computer
+
+![image](https://github.com/luisnquin/nixos-config/assets/86449787/43208b4a-d448-4bcb-9793-e11e0b80c75f)
 
 ![image](https://i.ibb.co/0mqcSg6/s.png)
-
-## My current computer
-
-![image](https://i.ibb.co/h904GZT/image.png)
 
 Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more NixOS options.
 
