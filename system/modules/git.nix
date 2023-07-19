@@ -78,6 +78,9 @@
       gopen = "git-open >/dev/null";
 
       gc = "git commit -v";
+      gca = "git commit --amend";
+      gcm = "git commit --message";
+
       gd = "git diff";
       gds = "git diff --staged";
       gl = "git log --oneline";
