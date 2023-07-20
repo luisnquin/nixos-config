@@ -31,10 +31,23 @@
     metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
     system = "x86_64-linux";
 
-    setSpecialArgs = rec {
-      owner = metadata.owner.name;
-      user = metadata.users.${metadata.owner.name} // {alias = owner;};
-      host = metadata.hosts.${metadata.owner.name};
+    setSpecialArgs = let
+      flakeTomlError = message: "error in flake.toml: ${message}";
+    in rec {
+      owner =
+        if metadata.owner.name != null && metadata.owner.name != ""
+        then metadata.owner.name
+        else builtins.throw (flakeTomlError "missing 'owner'");
+
+      user =
+        if builtins.hasAttr "${owner}" metadata.users
+        then metadata.users.${metadata.owner.name} // {alias = owner;}
+        else builtins.throw (flakeTomlError "missing '${owner}' owner in users collection");
+
+      host =
+        if builtins.hasAttr "${owner}" metadata.hosts
+        then metadata.hosts.${metadata.owner.name}
+        else builtins.throw (flakeTomlError "missing '${owner}' owner in hosts collection");
 
       inherit spicetify-nix;
     };
