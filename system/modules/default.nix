@@ -7,7 +7,7 @@
     ./environment.nix
     ./security.nix
     ./desktop.nix
-    # ./torrent.nix
+    ./torrent.nix
     ./docker.nix
     ./nvidia.nix
     ./fonts.nix
