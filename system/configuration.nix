@@ -7,11 +7,11 @@
     ./hardware-configuration.nix
   ];
 
-  # Entry point 🐙
+  # 🐙
   require = [
-    ./services/default.nix
-    ./modules/default.nix
-    ./pkgs/default.nix
+    ./services
+    ./modules
+    ./pkgs
   ];
 
   boot = with pkgs; {
