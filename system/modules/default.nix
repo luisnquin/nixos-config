@@ -7,14 +7,12 @@
     # ./postgres.nix
     ./desktop.nix
     # ./torrent.nix
-    ./editors.nix
     ./docker.nix
     ./nvidia.nix
     # ./latex.nix
+    ./dev
     ./fonts.nix
-    ./git.nix
     ./nix.nix
     ./k8s.nix
-    ./go.nix
   ];
 }

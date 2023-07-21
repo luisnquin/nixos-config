@@ -22,36 +22,6 @@
         ];
 
         dev = [
-          # Rust-related
-          cargo
-          clippy
-          rust-analyzer
-          rustc
-          rustfmt
-          rustup
-
-          # JavaScript-related
-          nodePackages.typescript
-          nodePackages.pnpm
-          nodejs-18_x
-          deno
-          bun
-
-          # Python-related
-          (python310.withPackages
-            (p:
-              with p; [
-                pipx
-                pip
-              ]))
-          virtualenv
-          pyright
-
-          # Ocaml my beloved
-          dune-release
-          ocamlformat
-          opam
-
           # Other
           nodePackages.firebase-tools
           license-generator
