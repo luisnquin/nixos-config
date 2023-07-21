@@ -1,16 +1,15 @@
 {config, ...}: {
   imports = [
-    ./terminal/default.nix
+    ./terminal
+    ./dev
+
     ./virtual-machine.nix
     ./environment.nix
     ./security.nix
-    # ./postgres.nix
     ./desktop.nix
     # ./torrent.nix
     ./docker.nix
     ./nvidia.nix
-    # ./latex.nix
-    ./dev
     ./fonts.nix
     ./nix.nix
     ./k8s.nix
