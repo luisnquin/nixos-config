@@ -15,7 +15,7 @@
   };
 
   users = {
-    motd = ''Confront story'';
+    motd = ''Confront [hi]story'';
 
     users = {
       ${user.alias} = {
