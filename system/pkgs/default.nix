@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     (callPackage ./panicparse.nix {})
     (callPackage ./transg-tui.nix {})

@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   # ref: https://search.nixos.org/options?channel=22.11&from=0&size=50&sort=relevance&type=packages&query=virtualization.libvirtd
   virtualisation = {
     libvirtd = {

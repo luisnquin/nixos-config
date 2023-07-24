@@ -1,4 +1,4 @@
-{config, ...}: {
+{...}: {
   imports = [
     ./terminal/default.nix
     ./macchina.nix

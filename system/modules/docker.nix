@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   networking.firewall.trustedInterfaces = ["docker0"];
 
   virtualisation.docker = {

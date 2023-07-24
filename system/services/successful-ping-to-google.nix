@@ -1,8 +1,4 @@
-{
-  pkgs,
-  config,
-  ...
-}: {
+{pkgs, ...}: {
   systemd.services.successful-ping-to-google = {
     enable = true;
     description = "Service that works until Google is successfully pinged";

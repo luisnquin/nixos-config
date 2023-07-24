@@ -1,6 +1,5 @@
 {
   spicetify-nix,
-  config,
   pkgs,
   lib,
   ...

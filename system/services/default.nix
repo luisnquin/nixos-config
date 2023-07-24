@@ -1,4 +1,4 @@
-{config, ...}: {
+{...}: {
   imports = [
     ./successful-ping-to-google.nix
     ./discord-skip-host-update.nix

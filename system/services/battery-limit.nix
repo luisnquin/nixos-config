@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   systemd.services.battery-charge-threshold = {
     enable = true;
     description = "Set the battery charge threshold";
