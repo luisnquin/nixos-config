@@ -15,7 +15,12 @@
   };
 
   users = {
-    motd = "Celebrate life's grandeur, it's brilliance, it's magnificence 🪷";
+    motd = ''
+      Our galaxy consists of some 300 billion stars. Around half are orbited by planets, and it's said that on average, conditions on two of a star's planets are suitable for life.
+
+      No great leap of imagination is needed to believe the universe must be home to a myriad of life forms.
+      But what sorts of intelligence would develop on these worlds?
+      That's truly beyond our imagination.'';
 
     users = {
       ${user.alias} = {
