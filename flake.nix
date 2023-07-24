@@ -3,7 +3,6 @@
   # future.isDeclarative = true; ❄️
 
   inputs = {
-    # Specify the source of Home Manager and Nixpkgs.
     nixpkgs.url = "nixpkgs/nixos-unstable";
 
     home-manager = {
