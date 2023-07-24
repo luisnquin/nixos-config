@@ -1,5 +1,6 @@
 {
   description = "My NixOS configuration";
+  # future.isDeclarative = true; ❄️
 
   inputs = {
     # Specify the source of Home Manager and Nixpkgs.
