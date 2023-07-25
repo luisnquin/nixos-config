@@ -52,15 +52,17 @@
       inherit spicetify-nix;
     };
 
+    specialArgs = setSpecialArgs;
+
     inherit (nixpkgs) lib;
   in {
     homeConfigurations = {
       inherit system;
 
-      luisnquin = home-manager.lib.homeManagerConfiguration {
+      "${specialArgs.user.alias}" = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
 
-        extraSpecialArgs = setSpecialArgs;
+        extraSpecialArgs = specialArgs;
 
         modules = [
           ./home/home.nix
@@ -69,10 +71,10 @@
       };
     };
 
-    nixosConfigurations.nyx = lib.nixosSystem {
+    nixosConfigurations."${specialArgs.host.name}" = lib.nixosSystem {
       inherit system;
 
-      specialArgs = setSpecialArgs;
+      specialArgs = specialArgs;
 
       modules = [
         ./system/configuration.nix
