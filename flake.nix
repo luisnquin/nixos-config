@@ -32,22 +32,22 @@
     system = "x86_64-linux";
 
     setSpecialArgs = let
-      flakeTomlError = message: "error in flake.toml: ${message}";
+      flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
     in rec {
       owner =
         if metadata.owner.name != null && metadata.owner.name != ""
         then metadata.owner.name
-        else builtins.throw (flakeTomlError "missing 'owner'");
+        else flakeTomlError "missing 'owner'";
 
       user =
         if builtins.hasAttr "${owner}" metadata.users
         then metadata.users.${metadata.owner.name} // {alias = owner;}
-        else builtins.throw (flakeTomlError "missing '${owner}' owner in users collection");
+        else flakeTomlError "missing '${owner}' owner in users collection";
 
       host =
         if builtins.hasAttr "${owner}" metadata.hosts
         then metadata.hosts.${metadata.owner.name}
-        else builtins.throw (flakeTomlError "missing '${owner}' owner in hosts collection");
+        else flakeTomlError "missing '${owner}' owner in hosts collection";
 
       inherit spicetify-nix;
     };
