@@ -28,10 +28,10 @@
       config = {allowUnfree = true;};
     };
 
-    metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
     system = "x86_64-linux";
 
     setSpecialArgs = let
+      metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
       flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
     in rec {
       owner =
