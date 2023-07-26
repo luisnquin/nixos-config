@@ -41,12 +41,12 @@
 
       user =
         if builtins.hasAttr "${owner}" metadata.users
-        then metadata.users.${metadata.owner.name} // {alias = owner;}
+        then metadata.users.${owner} // {alias = owner;}
         else flakeTomlError "missing '${owner}' owner in users collection";
 
       host =
         if builtins.hasAttr "${owner}" metadata.hosts
-        then metadata.hosts.${metadata.owner.name}
+        then metadata.hosts.${owner}
         else flakeTomlError "missing '${owner}' owner in hosts collection";
 
       inherit spicetify-nix;
