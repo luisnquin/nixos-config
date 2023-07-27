@@ -45,6 +45,16 @@
           sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
         };
       }
+      {
+        name = "zsh-better-npm-completion";
+        file = "zsh-better-npm-completion.plugin.zsh";
+        src = fetchFromGitHub {
+          owner = "lukechilds";
+          repo = "zsh-better-npm-completion";
+          rev = "47e5987ca422de43784f9d76311d764f82af2717";
+          sha256 = "0n9pd29rr7y6k5v4rzhpd94nsixsscdmhgvwisvbfz843pfikr5f";
+        };
+      }
     ];
   };
 }
