@@ -3,7 +3,6 @@
     systemPackages = with pkgs; let
       gg = {
         apps = [
-          simplescreenrecorder
           obs-studio
 
           element-desktop
@@ -23,7 +22,6 @@
           license-generator
           onlyoffice-bin
           hyperfine # Benchmarking tool
-          commitlint
           asciinema
           redoc-cli
           postman
@@ -47,8 +45,6 @@
           csvkit
           htmlq
           yq-go
-          dsq
-          xsv
           jq
         ];
 
@@ -69,19 +65,11 @@
           translate-shell # Translate anything from shell
           xclip
           ranger
-          glow # To render markdown in the terminal
           tldr # Alternative to man
           tree
 
-          asciiquarium
-          octofetch
           macchina
-          nyancat
-          cmatrix
-          scrcpy
-          facter
           genact
-          love # Game engine
         ];
 
         core = [
