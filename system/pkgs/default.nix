@@ -7,7 +7,6 @@
     (callPackage ./pg-ping.nix {})
     (callPackage ./npkill.nix {})
     (callPackage ./tomato.nix {})
-    (callPackage ./pgweb.nix {})
     (callPackage ./no.nix {})
   ];
 }
