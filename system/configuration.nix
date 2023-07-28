@@ -112,7 +112,7 @@
     autoUpgrade = {
       enable = false;
       allowReboot = false;
-      channel = "https://nixos.org/channels/nixos-23.05";
+      channel = "https://nixos.org/channels/nixos-unstable";
     };
   };
 }
