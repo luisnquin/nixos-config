@@ -88,7 +88,6 @@
           btop
           nmap
           wget
-          bat
           dig
           exa # ls command replacement
           vlc
