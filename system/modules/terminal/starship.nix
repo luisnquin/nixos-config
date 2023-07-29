@@ -99,15 +99,6 @@
         disabled = false;
       };
 
-      # golang = {
-      #   symbol = "ﳑ ";
-      #   detect_extensions = ["go"];
-      #   detect_files = ["go.mod" "go.sum" "go.work" ".go-version"];
-      #   version_format = "v\${major}.\${minor}";
-      #   format = "via [$symbol($version)]($style)";
-      #   style = "#5ddade";
-      # };
-
       nix_shell = {
         symbol = " ";
         style = "#c07bed";
