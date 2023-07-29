@@ -51,7 +51,7 @@
       };
 
       format = ''
-        $directory''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
+        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
         $character
       '';
       scan_timeout = 30;
@@ -88,6 +88,14 @@
       };
 
       git_metrics = {
+        disabled = false;
+      };
+
+      hostname = {
+        ssh_only = false;
+        ssh_symbol = "🌐 ";
+        format = ":[$hostname](bold red) ";
+        trim_at = ".local";
         disabled = false;
       };
 
