@@ -27,7 +27,7 @@
           format = "via [$symbol($output)]($style)";
           command = ''NIXOS_VERSION=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+'); NIX_VERSION=$(nix --version | grep -oP '\d+\.\d+'); echo "v$NIXOS_VERSION/$NIX_VERSION"'';
           when = "pwd | grep -q '.dotfiles'";
-          style = "#5dd5fc";
+          style = "#8fcff2";
           symbol = " ";
         };
 
