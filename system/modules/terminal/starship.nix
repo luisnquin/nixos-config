@@ -51,7 +51,7 @@
       };
 
       format = ''
-        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
+        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
         $character
       '';
       scan_timeout = 30;
@@ -104,6 +104,37 @@
         style = "#c07bed";
         impure_msg = "impure";
         pure_msg = "pure";
+      };
+
+      python = {
+        symbol = "";
+        format = "via [\${symbol}\${pyenv_prefix}( \${version} )(\($virtualenv\) )]($style)";
+        version_format = "$major.$minor";
+        style = "#a716e0 bold";
+        python_binary = ["python3" "python"];
+        detect_extensions = ["py"];
+        detect_files = [".python-version" "Pipfile" "__init__.py" "pyproject.toml" "requirements.txt" "setup.py" "poetry.lock"];
+      };
+
+      rust = {
+        symbol = "";
+        version_format = "\${raw}";
+        format = "via [$symbol ($version )]($style)";
+        detect_extensions = ["rs"];
+        detect_files = ["Cargo.toml"];
+        style = "bold #ebaf3f";
+      };
+
+      ocaml = {
+        symbol = "";
+        version_format = "\${raw}";
+        format = "via [$symbol ($version )(\\(\($switch_name\)\\) )]($style)";
+        global_switch_indicator = "G";
+        local_switch_indicator = "L";
+        detect_extensions = ["opam" "ml" "mli" "re" "rei"];
+        detect_files = ["dune" "dune-project" "jbuild" "jbuild-ignore" ".merlin"];
+        detect_folders = ["_opam" "esy.lock"];
+        style = "bold yellow";
       };
     };
   };
