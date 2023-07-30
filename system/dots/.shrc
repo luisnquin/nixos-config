@@ -1,38 +1,5 @@
 #!/bin/bash
 
-google() {
-    search=""
-    for term in "$@"; do search="$search%20$term"; done
-    xdg-open "http://www.google.com/search?q=$search"
-}
-
-upload_img() {
-    local image_path=$1
-
-    # Check that the image path is valid
-    if ! test -f "$image_path"; then
-        printf "Error: '%s' is not a valid image file\n" "$image_path" >&2
-        return 1
-    fi
-
-    # Make the POST request to the imgbb API
-    response=$(curl -f -H "Content-Type: multipart/form-data" \
-        -F "image=@$image_path" \
-        -X POST "https://api.imgbb.com/1/upload?key=72fd020dc10851413f82a48f9318faa6")
-
-    # Check if the request was successful
-    if ! jq -e '.success' <<<"$response" >/dev/null; then
-        printf "Error: failed to upload image\n\nResponse: %s\n" "$response" >&2
-
-        return 1
-    fi
-
-    # Extract the image URL from the response
-    image_url=$(jq -r '.data.url' <<<"$response")
-
-    printf "%s\n" "$image_url"
-}
-
 gbh() {
     typeset -gA branch_color
     branch_color=(
@@ -86,87 +53,6 @@ gbh() {
     done
 }
 
-cinema() {
-    city=$(echo "$1" | xargs | tr '[:upper:]' '[:lower:]')
-
-    get_available_cities() {
-        curl --silent http://www.cinerama.com.pe/cines |
-            htmlq --text .row .col-lg-12 div .news-content h2 | awk '{sub("CINERAMA ",""); print}' | tr '\n' ' '
-    }
-
-    # Returns options in case of no passed argument
-    if [ -z "$city" ]; then
-        cities=($(get_available_cities | tr '\n' ' '))
-
-        printf "\033[0;38;2;255;110;114mNo argument provided 🔥, options:\n"
-
-        for city in "${cities[@]}"; do
-            city=$(echo "$city" | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
-            echo " - ${city}"
-        done
-
-        printf "\033[0m"
-
-        return 1
-    fi
-
-    cinerama_response=$(curl -s -X GET "http://www.cinerama.com.pe/cartelera_cine/CINERAMA_$city")
-    cinerama_raw_movies=$(echo "$cinerama_response" | htmlq --text body .transformers-area .container .transformers-box .row div .transformers-content h2 | sed 's/.*/\L&/; s/[a-zñ]*/\u&/g')
-
-    declare -a cinerama_movies_schedules
-    index=1
-
-    while read -r schedule; do
-        # Sometimes at dawn there's nothing added for the current day
-        if [[ "$schedule" == "" ]]; then
-            break
-        fi
-
-        schedule_timestamp=$(date --date "$schedule" +%s)
-        latest_schedules=($(echo "${cinerama_movies_schedules[-1]}" | tr ',' ' '))
-        last_unix_schedule=$(date --date "${latest_schedules[-1]}" +%s)
-
-        if [ -z "${latest_schedules[-1]}" ]; then # if last_unix_schedule is null
-            cinerama_movies_schedules+=("$(date -d @"$schedule_timestamp" +'%H:%M')")
-
-            continue
-        fi
-
-        if [[ $schedule_timestamp > $last_unix_schedule ]]; then
-            latest_schedules+=($(date -d @"$schedule_timestamp" +'%H:%M'))
-            cinerama_movies_schedules[index]=$(printf '%s\n' "$(IFS=, printf '%s' "${latest_schedules[*]}")")
-        else
-            cinerama_movies_schedules+=($(date -d @"$schedule_timestamp" +'%H:%M'))
-            index=$((index + 1))
-        fi
-    done <<<"$(echo "$cinerama_response" | htmlq --text body .transformers-area .container .transformers-box .row div .transformers-content ul li .transformers-right .row a)"
-
-    typeset -gA dateCost
-    dateCost=(
-        [1]='S/.9.00'
-        [2]='S/.7.00'
-        [3]='S/.9.00'
-        [4]='S/.12.00'
-        [5]='S/.12.00'
-        [6]='S/.14.00'
-        [7]='S/.14.00'
-    )
-
-    printf "\033[38;2;224;29;81m Cinerama:\033[0m \033[38;2;227;220;86m%s\033[0m \033[38;2;64;62;62m(%s tomorrow)\033[0m\n" "${dateCost[$(date +%u)]}" "${dateCost[$(date --date=tomorrow +%u)]}"
-    index=1
-
-    while read -r movie; do
-        schedules="${cinerama_movies_schedules[$index]}"
-
-        if [[ "$schedules" == "" ]]; then
-            schedules="(not available)"
-        fi
-
-        printf " \033[38;2;235;229;66m\033[0m %-50s %s\n" "$movie" "$schedules"
-        index=$((index + 1))
-    done <<<"$cinerama_raw_movies"
-}
-
 hex2ansi() {
     local hex=${1}
 
@@ -192,12 +78,6 @@ refresh() {
 }
 
 alias rrr=refresh
-
-if echo "$(ps -p$$ -ocmd=)" | grep -q "zsh"; then
-    hsi() {
-        grep "$*" ~/.zsh_history
-    }
-fi
 
 gmt() {
     if test -e go.mod; then
