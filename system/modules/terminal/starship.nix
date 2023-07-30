@@ -104,6 +104,7 @@
         style = "#c07bed";
         impure_msg = "impure";
         pure_msg = "pure";
+        format = "with [$symbol$state( \($name\))]($style) ";
       };
 
       python = {
