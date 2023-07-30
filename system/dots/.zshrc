@@ -19,16 +19,6 @@ zle -N delete_until_not_alphanumerics
 
 bindkey '\e^?' delete_until_not_alphanumerics
 
-pem() {
-    if ! test -e .env; then
-        printf "\033[38;2;201;71;71m.env file not found\033[0m\n"
-        return 1
-    fi
-
-    export $(grep -v '^#' .env | xargs)
-    printf "\033[38;2;159;240;72mTaken\! \033[0m\n"
-}
-
 find-up() {
     path="$(pwd)"
 
@@ -39,15 +29,11 @@ find-up() {
     [ -e "$path"/"$1" ] && echo "$path"/"$1"
 }
 
-ports() {
-    watch -tn 1 "sudo lsof -i -Pn | grep LISTEN | awk '{print \$1, \$3, \$9}' | column -t -s ' ' | sort | uniq"
-}
-
-[[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null
-
 trans_ee() {
     trans en:es "$@" | tee -a ~/Documents/translations.txt
 }
+
+[[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null
 
 if test -f /home/"$USER"/Work/init.bash; then
     source /home/"$USER"/Work/init.bash
