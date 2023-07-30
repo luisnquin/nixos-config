@@ -107,6 +107,17 @@
         format = "with [$symbol$state( \($name\))]($style) ";
       };
 
+      nodejs = {
+        version_format = "$major.$minor";
+        symbol = "";
+        format = "via [$symbol ($version )]($style)";
+        detect_extensions = ["js" "mjs" "cjs" "ts" "mts" "cts"];
+        detect_files = ["package.json" ".node-version"];
+        detect_folders = ["node_modules"];
+        style = "bold green";
+        not_capable_style = "bold red";
+      };
+
       python = {
         symbol = "";
         format = "via [\${symbol}\${pyenv_prefix}( \${version} )(\($virtualenv\) )]($style)";
