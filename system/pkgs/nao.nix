@@ -3,23 +3,30 @@
   owner = "luisnquin";
 in
   pkgs.buildGoModule rec {
-    # Completions
-    # https://github.com/NixOS/nixpkgs/blob/nixos-22.11/pkgs/applications/networking/cluster/kubernetes/kubectl.nix#L28
-    # https://github.com/NixOS/nixpkgs/blob/nixos-22.11/pkgs/applications/virtualization/docker/default.nix#L229
     pname = "nao";
-    version = "3.0.0";
+    version = "3.2.2";
     src = pkgs.fetchFromGitHub {
       inherit owner;
       repo = pname;
       rev = "v${version}";
-      # sha256 = "0m2fzpqxk7hrbxsgqplkg7h2p7gv6s1miymv3gvw0cz039skag0s";
+      sha256 = "sha256-hB5AqlFVYYjTx10v6jc45+IT0X/f0tLs1S8V68uhwYs=";
     };
 
-    ldflags = ["-X main.version=${version}"];
-    buildTarget = "./cmd/nao";
+    vendorSha256 = "sha256-MTVJWksGWva+Xet+T2aIOXzkxB7w9raJVwa/p1bwkOo=";
 
-    vendorSha256 = "";
     doCheck = false;
+
+    buildTarget = "./cmd/nao";
+    ldflags = ["-X main.version=${version}"];
+
+    # nativeBuildInputs = with pkgs; [installShellFiles];
+
+    # postInstall = ''
+    #   installShellCompletion --cmd nao \
+    #     --bash <($out/bin/nao completion bash) \
+    #     --fish <($out/bin/nao completion fish) \
+    #     --zsh <($out/bin/nao completion zsh)
+    # '';
 
     meta = with pkgs.lib; {
       description = "A CLI tool to take notes without worrying about the path where the file is";
