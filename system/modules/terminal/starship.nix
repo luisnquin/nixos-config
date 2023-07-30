@@ -24,7 +24,7 @@
         dotfiles_workspace = {
           description = "Displays the current NixOS version";
           shell = ["bash" "--noprofile" "--norc"];
-          format = "using [$symbol($output)]($style)";
+          format = "using [$symbol($output )]($style)";
           command = ''NIXOS_VERSION=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+'); NIX_VERSION=$(nix --version | grep -oP '\d+\.\d+'); echo "$NIXOS_VERSION;$NIX_VERSION"'';
           when = "pwd | grep -q '.dotfiles'";
           style = "#8fcff2";
@@ -34,11 +34,10 @@
         current_client = {
           description = "Diplays the current client in case there's the environment variable";
           shell = ["bash" "--noprofile" "--norc"];
-          format = " [$symbol($output)]($style)";
-          command = ''echo "($(grep -oP 'CLIENT=\K.*' .env | tr '[:lower:]' '[:upper:]') env)"'';
+          format = " [($output )]($style)";
+          command = ''echo "[$(grep -oP 'CLIENT=\K.*' .env | tr '[:lower:]' '[:upper:]')]"'';
           when = ''test -e .env && grep -o 'CLIENT' .env'';
           style = "#c319f7";
-          symbol = " ";
         };
 
         go = {
@@ -51,7 +50,7 @@
       };
 
       format = ''
-        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}
+        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
         $character
       '';
       scan_timeout = 30;
@@ -96,6 +95,13 @@
         ssh_symbol = "🌐 ";
         format = "\\[[$hostname](bold #db2c75)\\] ";
         trim_at = ".local";
+        disabled = false;
+      };
+
+      kubernetes = {
+        symbol = "󱃾";
+        format = "\\[[$symbol $context( \($namespace\))]($style)\\] ";
+        style = "cyan bold";
         disabled = false;
       };
 
