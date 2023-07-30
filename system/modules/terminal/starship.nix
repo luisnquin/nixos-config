@@ -94,7 +94,7 @@
       hostname = {
         ssh_only = false;
         ssh_symbol = "🌐 ";
-        format = ":[$hostname](bold red) ";
+        format = "\\[[$hostname](bold #db2c75)\\] ";
         trim_at = ".local";
         disabled = false;
       };
