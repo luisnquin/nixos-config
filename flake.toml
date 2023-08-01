@@ -6,6 +6,8 @@ name = "nyx"
 resolution = "1920x1080"
 timeZone = "America/El_Salvador"
 i18nLocale = "en_US.UTF-8"
+browser = "brave"
+
 
 [users.luisnquin]
 fullName = "Luis Quiñones"
