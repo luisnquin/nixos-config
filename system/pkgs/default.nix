@@ -3,6 +3,8 @@
     paths = [
       ../../tools/nyx
 
+      # ./docker-desktop
+
       ./panicparse.nix
       ./transg-tui.nix
       ./minecraft.nix
