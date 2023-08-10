@@ -8,6 +8,11 @@ in
       path = ./.;
     };
 
+    propagatedBuildInputs = with pkgs; [
+      alejandra
+      exa
+    ];
+
     installPhase = ''
       mkdir -p $out/bin/
       cp $src/nyx.sh $out/bin/
@@ -15,14 +20,9 @@ in
       chmod +x $out/bin/nyx
     '';
 
-    propagatedBuildInputs = with pkgs; [
-      alejandra
-      exa
-    ];
-
     meta = with pkgs.lib; {
       description = "A script to manage my NixOS computer";
-      homepage = "https://github.com/${owner}/${name}";
+      homepage = "https://github.com/${owner}/nix-config";
       license = licenses.unlicense;
       maintainers = with maintainers; [luisnquin];
     };
