@@ -4,7 +4,7 @@
 
     settings = {
       custom = {
-        go_version_used = {
+        go_is_updated = {
           description = "Displays 🎉 if the go version used in the current project is the same as the local available";
           shell = ["bash" "--noprofile" "--norc"];
           symbol = "🎉";
@@ -43,14 +43,14 @@
         go = {
           detect_files = ["go.mod"];
           command = "awk '/go/ {print $2; exit}' go.mod";
-          format = "via [$symbol($output)]($style)";
+          format = "via [$symbol ($output)]($style)";
           style = "#5ddade";
-          symbol = "ﳑ ";
+          symbol = "ﳑ";
         };
       };
 
       format = ''
-        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_version_used}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
+        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
         $character
       '';
       scan_timeout = 30;
