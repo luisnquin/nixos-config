@@ -3,63 +3,15 @@
     systemPackages = with pkgs; let
       gg = {
         apps = [
-          obs-studio
-
           element-desktop
+          obs-studio
           discord
           etcher
-          # Fix login issues in desktop application(KDE):
-          # https://stackoverflow.com/questions/70867064/signing-into-slack-desktop-not-working-on-4-23-0-64-bit-ubuntu
-          slack
+          slack # https://stackoverflow.com/questions/70867064/signing-into-slack-desktop-not-working-on-4-23-0-64-bit-ubuntu
           gimp
         ];
 
-        dev = [
-          # Other
-          nodePackages.firebase-tools
-          license-generator
-          onlyoffice-bin
-          hyperfine # Benchmarking tool
-          asciinema
-          redoc-cli
-          postman
-          gnumake
-          argocd
-          rclone # Cloud storages in one CLI
-          awscli
-          pgweb
-          ngrok
-          clang
-          just
-
-          haskellPackages.NanoID # To generate nano id from terminal
-          zathura
-          minify # HTML, CSS, and JavaScript minifier
-          shfmt
-          sqlc # SQL generator
-          scc
-
-          # Processors
-          csvkit
-          htmlq
-          yq-go
-          jq
-        ];
-
-        osint =
-          #  Open source intelligence
-          [
-            exiftool
-            maigret
-            whois
-          ];
-
-        auditing = [
-          osv-scanner
-          semgrep
-        ];
-
-        etc = [
+        clap = [
           translate-shell # Translate anything from shell
           xclip
           ranger
@@ -70,7 +22,7 @@
           genact
         ];
 
-        core = [
+        essentials = [
           gnome.seahorse # Keyring
           stdenv_32bit
           coreutils
@@ -100,6 +52,14 @@
           zip
         ];
       };
+
+      osint =
+        #  Open source intelligence
+        [
+          exiftool
+          maigret
+          whois
+        ];
     in
       builtins.concatLists (builtins.attrValues gg);
 
