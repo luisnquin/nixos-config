@@ -2,7 +2,7 @@
   programs.zsh = {
     enable = true;
     enableCompletion = true;
-    completionInit = builtins.readFile ../../dots/completionInit.zsh;
+    completionInit = builtins.readFile ../../dots/completionInit.zsh + builtins.readFile ../../../tools/nyx/completions.zsh;
 
     plugins = with pkgs; [
       {

@@ -14,9 +14,3 @@ source <(senv completion zsh)
 
 # Show only Makefile rules unless they aren't defined
 zstyle ':completion::complete:make::' tag-order targets variables
-
-_nyx() {
-    compadd update ls inspect style clean
-}
-
-compdef _nyx nyx
