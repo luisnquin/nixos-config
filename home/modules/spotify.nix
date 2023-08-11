@@ -11,10 +11,10 @@ in {
 
   programs.spicetify = with spicePkgs; {
     enable = true;
-    theme = themes."catppuccin-mocha";
-    # colorScheme = "catppuccin-macchiato";
+    theme = themes."Sleek";
+    colorScheme = "cherry";
     # theme = themes.Ziro;
-    # colorScheme = "ylx-ui"; # Kebab-case
+    # colorScheme = "ylx-ui";
 
     enabledExtensions = with extensions; [
       historyShortcut
