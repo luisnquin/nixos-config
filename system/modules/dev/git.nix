@@ -57,9 +57,6 @@
 
   environment = {
     systemPackages = with pkgs; [
-      git-sizer
-      git-open
-      gh-dash
       act
       git
     ];
