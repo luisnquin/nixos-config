@@ -30,10 +30,7 @@
           binutils
           openssh
           openssl
-          openjdk
           gparted
-          killall
-          facter # To collect and display system facts
           cmake
           btop
           nmap
