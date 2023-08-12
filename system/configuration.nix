@@ -110,7 +110,7 @@
   system = {
     stateVersion = "23.05";
     autoUpgrade = {
-      enable = false;
+      enable = true;
       allowReboot = false;
       channel = "https://nixos.org/channels/nixos-unstable";
     };
