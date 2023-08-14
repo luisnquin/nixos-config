@@ -46,8 +46,8 @@
         src = fetchFromGitHub {
           owner = "ahmubashshir";
           repo = "zinsults";
-          rev = "2963cde1d19e3af4279442a4f67e4c0224341c42";
-          sha256 = "1mlb0zqaj48iwr3h1an02ls780i2ks2fkdsb4103aj7xr8ls239b";
+          rev = "1ea07a3d1535d7343344176b73fec7f5c760225c";
+          sha256 = "1zi7ni5sri8a8favkk4vxwn6n5sawvvi5lhn9c48hkv0rf5y84nr";
         };
       }
       {
