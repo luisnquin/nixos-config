@@ -2,8 +2,8 @@
   nix = {
     gc = {
       automatic = true;
-      dates = "weekly";
-      options = "--delete-old";
+      dates = "daily";
+      options = "--delete-older-than 3d";
     };
 
     # Nix store
