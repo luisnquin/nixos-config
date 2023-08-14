@@ -48,15 +48,13 @@
           unar
           zip
         ];
-      };
 
-      osint =
-        #  Open source intelligence
-        [
+        osint = [
           exiftool
           maigret
           whois
         ];
+      };
     in
       builtins.concatLists (builtins.attrValues gg);
 
