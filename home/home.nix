@@ -3,9 +3,7 @@
   pkgs,
   user,
   ...
-}: let
-  spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
-in {
+}: {
   home = {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
