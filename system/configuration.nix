@@ -71,7 +71,7 @@
   };
 
   time = {
-    timeZone = host.timeZone;
+    inherit (host) timeZone;
     # Without this option, the machine will have a UTC time
     hardwareClockInLocalTime = true;
   };

@@ -24,5 +24,5 @@ pkgs.stdenv.mkDerivation {
     # docker-scout
   ];
 
-  dpkg = pkgs.dpkg;
+  inherit (pkgs) dpkg;
 }

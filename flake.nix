@@ -71,9 +71,8 @@
     };
 
     nixosConfigurations."${specialArgs.host.name}" = lib.nixosSystem {
+      inherit specialArgs;
       inherit system;
-
-      specialArgs = specialArgs;
 
       modules = [
         ./system/configuration.nix
