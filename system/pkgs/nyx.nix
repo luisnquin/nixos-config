@@ -1,9 +1,15 @@
-{pkgs ? import <nixpkgs> {}}: let
+{
+  stdenv,
+  fetchFromGitHub,
+  alejandra,
+  exa,
+  lib,
+}: let
   owner = "luisnquin";
 in
-  pkgs.stdenv.mkDerivation rec {
+  stdenv.mkDerivation rec {
     name = "nyx";
-    src = pkgs.fetchFromGitHub {
+    src = fetchFromGitHub {
       inherit owner;
       repo = name;
       rev = "999506560720fa32a1f57177941fc75d18f5b3ad";
@@ -17,12 +23,12 @@ in
       chmod +x $out/bin/nyx
     '';
 
-    propagatedBuildInputs = with pkgs; [
+    propagatedBuildInputs = [
       alejandra
       exa
     ];
 
-    meta = with pkgs.lib; {
+    meta = with lib; {
       description = "A CLI tool to manage NixOS computers";
       homepage = "https://github.com/${owner}/${name}";
       license = licenses.unlicense;

@@ -1,6 +1,10 @@
-{pkgs ? import <nixpkgs> {}}:
-# How to build ref: https://git.marvid.fr/scolobb/nix-GINsim/src/branch/master/ginsim.nix
-pkgs.stdenv.mkDerivation rec {
+{
+  stdenv,
+  makeWrapper,
+  openjdk,
+  lib,
+}:
+stdenv.mkDerivation rec {
   name = "minecraft";
   src = builtins.fetchurl {
     url = "https://github.com/ztgasdf/fenix-english/releases/download/v0.2/LauncherFenix-Minecraft-v7-patched.jar";
@@ -9,12 +13,12 @@ pkgs.stdenv.mkDerivation rec {
 
   dontUnpack = true;
 
-  nativeBuildInputs = with pkgs; [
+  nativeBuildInputs = [
     # copyDesktopItems
     makeWrapper
   ];
 
-  propagatedBuildInputs = with pkgs; [
+  propagatedBuildInputs = [
     openjdk
   ];
 
@@ -22,7 +26,7 @@ pkgs.stdenv.mkDerivation rec {
     mkdir -pv $out/share/java $out/bin
     cp ${src} $out/share/java/minecraft.jar
 
-    makeWrapper ${pkgs.openjdk}/bin/java $out/bin/minecraft \
+    makeWrapper ${openjdk}/bin/java $out/bin/minecraft \
       --add-flags "-jar $out/share/java/minecraft.jar" \
       --set _JAVA_OPTIONS '-Dawt.useSystemAAFontSettings=on' \
       --set _JAVA_AWT_WM_NONREPARENTING 1
@@ -46,7 +50,7 @@ pkgs.stdenv.mkDerivation rec {
   #  })
   #];
 
-  meta = with pkgs.lib; {
+  meta = with lib; {
     description = "Unofficial English patch for LauncherFenix";
     homepage = "https://github.com/ztgasdf/fenix-english";
     maintainers = with maintainers; ["${owner}"];

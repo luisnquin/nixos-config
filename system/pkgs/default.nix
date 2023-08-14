@@ -1,4 +1,4 @@
-{pkgs, ...}: {
+{pkgs ? import <nixpkgs> {}, ...}: {
   environment.systemPackages = with pkgs; let
     paths = [
       ../../tools/nyx

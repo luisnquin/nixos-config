@@ -1,13 +1,17 @@
-{pkgs ? import <nixpkgs> {}}: let
+{
+  fetchFromGitHub,
+  buildGoModule,
+  lib,
+}: let
   owner = "luisnquin";
   version = "0.4.2";
   commit = "d820302777c02bb622a2eed73a6ed8551d152205";
 in
-  pkgs.buildGoModule rec {
+  buildGoModule rec {
     pname = "senv";
     inherit version;
 
-    src = pkgs.fetchFromGitHub {
+    src = fetchFromGitHub {
       inherit owner;
 
       repo = pname;
@@ -21,7 +25,7 @@ in
     buildTarget = ".";
     ldflags = ["-X main.version=${version} -X main.commit=${commit}"];
 
-    meta = with pkgs.lib; {
+    meta = with lib; {
       description = "Switch your .env file from the command line";
       homepage = "https://github.com/${owner}/${pname}";
       license = licenses.mit;

@@ -1,11 +1,15 @@
-{pkgs ? import <nixpkgs> {}}
+{
+  buildGoModule,
+  fetchFromGitHub,
+  lib,
+}
 : let
   owner = "luisnquin";
 in
-  pkgs.buildGoModule rec {
+  buildGoModule rec {
     pname = "nao";
     version = "3.2.2";
-    src = pkgs.fetchFromGitHub {
+    src = fetchFromGitHub {
       inherit owner;
       repo = pname;
       rev = "v${version}";
@@ -13,7 +17,6 @@ in
     };
 
     vendorSha256 = "sha256-MTVJWksGWva+Xet+T2aIOXzkxB7w9raJVwa/p1bwkOo=";
-
     doCheck = false;
 
     buildTarget = "./cmd/nao";
@@ -28,7 +31,7 @@ in
     #     --zsh <($out/bin/nao completion zsh)
     # '';
 
-    meta = with pkgs.lib; {
+    meta = with lib; {
       description = "A CLI tool to take notes without worrying about the path where the file is";
       homepage = "https://github.com/${owner}/${pname}";
       license = licenses.mit;

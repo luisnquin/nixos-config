@@ -1,10 +1,14 @@
-{pkgs ? import <nixpkgs> {}}: let
+{
+  buildGoModule,
+  fetchFromGitHub,
+  lib,
+}: let
   owner = "maruel";
 in
-  pkgs.buildGoModule rec {
+  buildGoModule rec {
     pname = "pp";
     version = "2.3.1";
-    src = pkgs.fetchFromGitHub {
+    src = fetchFromGitHub {
       inherit owner;
       repo = "panicparse";
       rev = "a67acbb1be08722cbfb23fcfff41ed435b9fd329";
@@ -18,7 +22,7 @@ in
     vendorSha256 = "sha256-8sUW2cTlo5z4fmAezK9Gz5JqJRH1nf3QOVI5+UlV00s=";
     doCheck = false;
 
-    meta = with pkgs.lib; {
+    meta = with lib; {
       description = "Crash your app in style";
       homepage = "https://github.com/${owner}/${pname}";
       license = licenses.asl20;
