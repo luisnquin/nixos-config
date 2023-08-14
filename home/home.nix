@@ -1,9 +1,4 @@
-{
-  spicetify-nix,
-  pkgs,
-  user,
-  ...
-}: {
+{user, ...}: {
   home = {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
