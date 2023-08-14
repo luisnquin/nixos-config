@@ -46,6 +46,7 @@
       cached-nix-shell
       alejandra
       rnix-lsp
+      deadnix
       statix
       nurl
     ];
