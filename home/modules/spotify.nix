@@ -1,7 +1,6 @@
 {
   spicetify-nix,
   pkgs,
-  lib,
   ...
 }
 : let
