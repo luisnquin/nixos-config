@@ -66,7 +66,6 @@
 
         modules = [
           ./home/home.nix
-          ./home/modules/default.nix
         ];
       };
     };

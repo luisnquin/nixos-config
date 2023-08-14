@@ -1,4 +1,8 @@
 {user, ...}: {
+  require = [
+    ./modules
+  ];
+
   home = {
     stateVersion = "23.05";
     enableNixpkgsReleaseCheck = true;
