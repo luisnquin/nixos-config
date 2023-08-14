@@ -3,7 +3,9 @@
  [![nixos-unstable](https://img.shields.io/badge/NixOS-unstable-informational.svg?style=flat&logo=nixos&logoColor=dee1e6&colorA=101419&colorB=70a5eb)](https://github.com/nixos/nixpkgs)
 [![nix-fmt](https://github.com/luisnquin/nixos-config/actions/workflows/style.yml/badge.svg)](https://github.com/luisnquin/nixos-config/actions/workflows/style.yml)
 
-⚠ This is a single user setup and is not intended to be anything else
+> **Warning**
+>
+> _Maybe_ this is a single user setup and is not intended to be anything else
 
 ## Installation
 
