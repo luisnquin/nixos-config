@@ -4,6 +4,11 @@
     enableCompletion = true;
     completionInit = builtins.readFile ../../dots/completionInit.zsh + builtins.readFile ../../../tools/nyx/completions.zsh;
 
+    history = {
+      expireDuplicatesFirst = true;
+      save = 10000 * 2;
+    };
+
     plugins = with pkgs; [
       {
         name = "nix-shell";
