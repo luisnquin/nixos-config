@@ -13,10 +13,12 @@
     };
 
     # Ref: https://nixos.org/manual/nix/stable/command-ref/conf-file.html
+    extraOptions = builtins.readFile ../dots/nix.conf;
     settings = {
       # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
       auto-optimise-store = true;
       keep-outputs = true;
+      warn-dirty = false;
       download-attempts = 3;
       # Required by cachix
       trusted-users = ["root" "luisnquin"];
@@ -27,9 +29,6 @@
       # Number of seconds between checking free disk space.
       min-free-check-interval = 30;
     };
-
-    # https://nixos.org/manual/nix/stable/command-ref/conf-file.html
-    extraOptions = builtins.readFile ../dots/nix.conf;
   };
 
   nixpkgs.config = {
