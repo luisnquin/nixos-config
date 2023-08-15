@@ -15,8 +15,7 @@ in
 
     installPhase = ''
       mkdir -p $out/bin/
-      cp $src/nyx.sh $out/bin/
-      mv $out/bin/nyx.sh $out/bin/nyx
+      cp $src/main.sh $out/bin/nyx
       chmod +x $out/bin/nyx
     '';
 
