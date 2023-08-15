@@ -33,23 +33,23 @@
     setSpecialArgs = let
       metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
       flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
-    in rec {
-      owner =
-        if metadata.owner.name != null && metadata.owner.name != ""
-        then metadata.owner.name
-        else flakeTomlError "missing 'owner'";
+
+      selected =
+        if metadata.use != null && metadata.use != ""
+        then metadata.use
+        else flakeTomlError "missing 'use'";
+    in {
+      inherit spicetify-nix;
 
       user =
-        if builtins.hasAttr "${owner}" metadata.users
-        then metadata.users.${owner} // {alias = owner;}
-        else flakeTomlError "missing '${owner}' owner in users collection";
+        if builtins.hasAttr "${selected}" metadata.users
+        then metadata.users.${selected} // {alias = selected;}
+        else flakeTomlError "missing '${selected}' owner in users collection";
 
       host =
-        if builtins.hasAttr "${owner}" metadata.hosts
-        then metadata.hosts.${owner}
-        else flakeTomlError "missing '${owner}' owner in hosts collection";
-
-      inherit spicetify-nix;
+        if builtins.hasAttr "${selected}" metadata.hosts
+        then metadata.hosts.${selected}
+        else flakeTomlError "missing '${selected}' owner in hosts collection";
     };
 
     specialArgs = setSpecialArgs;

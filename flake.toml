@@ -1,5 +1,4 @@
-[owner]
-name = "luisnquin"
+use = "luisnquin"
 
 [hosts.luisnquin]
 name = "nyx"
