@@ -53,7 +53,7 @@ update_system() {
 
     (
         cd /home/"$USER"/.dotfiles
-        sudo nixos-rebuild switch --upgrade --flake .#nyx
+        sudo nixos-rebuild switch --upgrade --flake .
     )
 }
 
@@ -62,7 +62,7 @@ update_home() {
 
     (
         cd /home/"$USER"/.dotfiles
-        home-manager switch --flake .#luisnquin
+        home-manager switch --flake .
     )
 }
 
