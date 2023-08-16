@@ -14,15 +14,18 @@
       url = "github:the-argus/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    senv.url = "github:luisnquin/senv";
   };
 
-  outputs = {
+  outputs = inputs @ {
     self,
     nixpkgs,
-    spicetify-nix,
     home-manager,
+    spicetify-nix,
+    senv,
     ...
-  } @ inputs: let
+  }: let
     pkgs = import nixpkgs {
       inherit system;
       config = {allowUnfree = true;};
@@ -40,6 +43,8 @@
         else flakeTomlError "missing 'use'";
     in {
       inherit spicetify-nix;
+
+      senv = senv.defaultPackage.${system};
 
       user =
         if builtins.hasAttr "${selected}" metadata.users

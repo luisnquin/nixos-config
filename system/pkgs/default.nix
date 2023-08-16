@@ -11,7 +11,6 @@
       ./pg-ping.nix
       ./npkill.nix
       ./tomato.nix
-      ./senv.nix
       # ./nao.nix
       ./no.nix
     ];

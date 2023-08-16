@@ -54,11 +54,46 @@
         "type": "indirect"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1692084312,
+        "narHash": "sha256-Za++qKVK6ovjNL9poQZtLKRM/re663pxzbJ+9M4Pgwg=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "8353344d3236d3fda429bb471c1ee008857d3b7c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
+        "senv": "senv",
         "spicetify-nix": "spicetify-nix"
+      }
+    },
+    "senv": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1692157689,
+        "narHash": "sha256-1p1HnHiOQvkiRJpK0BgjXS/MeGV5POtBSHN7zO8QKHw=",
+        "owner": "luisnquin",
+        "repo": "senv",
+        "rev": "cb64e6b56abd37f14841ae84768d3a1a68643896",
+        "type": "github"
+      },
+      "original": {
+        "owner": "luisnquin",
+        "repo": "senv",
+        "type": "github"
       }
     },
     "spicetify-nix": {
