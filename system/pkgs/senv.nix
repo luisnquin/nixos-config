@@ -4,8 +4,8 @@
   lib,
 }: let
   owner = "luisnquin";
-  version = "0.4.2";
-  commit = "d820302777c02bb622a2eed73a6ed8551d152205";
+  version = "0.4.3";
+  commit = "97642edf08b76d10dae9cbaf804e681f69749b02";
 in
   buildGoModule rec {
     pname = "senv";
@@ -16,7 +16,7 @@ in
 
       repo = pname;
       rev = "v${version}";
-      sha256 = "sha256-xHtJi3AXceoLntSI3/I0rlHCzXyP4DT4f1UzddkzK2I=";
+      sha256 = "sha256-lDfP8IoXvxwZu1iDDfzgsE/ko8ZJcSn9t2DM6p04fGY=";
     };
 
     vendorSha256 = "sha256-C33Kj6PXoXa3OuH1ZP5kDJGR+BNaqbDrDGNtVpYgHZU=";
