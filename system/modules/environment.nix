@@ -1,7 +1,6 @@
 {
   pkgs,
   senv,
-  config,
   ...
 }: {
   environment = {
