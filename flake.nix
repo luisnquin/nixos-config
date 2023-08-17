@@ -18,8 +18,7 @@
     senv.url = "github:luisnquin/senv";
   };
 
-  outputs = inputs @ {
-    self,
+  outputs = {
     nixpkgs,
     home-manager,
     spicetify-nix,
