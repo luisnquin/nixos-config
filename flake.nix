@@ -40,21 +40,25 @@
         if metadata.use != null && metadata.use != ""
         then metadata.use
         else flakeTomlError "missing 'use'";
-    in {
-      inherit spicetify-nix;
 
-      senv = senv.defaultPackage.${system};
+      data = {
+        user =
+          if builtins.hasAttr "${selected}" metadata.users
+          then metadata.users.${selected} // {alias = selected;}
+          else flakeTomlError "missing '${selected}' owner in users collection";
 
-      user =
-        if builtins.hasAttr "${selected}" metadata.users
-        then metadata.users.${selected} // {alias = selected;}
-        else flakeTomlError "missing '${selected}' owner in users collection";
+        host =
+          if builtins.hasAttr "${selected}" metadata.hosts
+          then metadata.hosts.${selected}
+          else flakeTomlError "missing '${selected}' owner in hosts collection";
+      };
 
-      host =
-        if builtins.hasAttr "${selected}" metadata.hosts
-        then metadata.hosts.${selected}
-        else flakeTomlError "missing '${selected}' owner in hosts collection";
-    };
+      flakes = {
+        inherit spicetify-nix;
+        senv = senv.defaultPackage.${system};
+      };
+    in
+      flakes // data;
 
     specialArgs = setSpecialArgs;
 
