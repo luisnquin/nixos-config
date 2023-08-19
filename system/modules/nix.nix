@@ -28,6 +28,9 @@
       min-free = 10000000000; # 10GB
       # Number of seconds between checking free disk space.
       min-free-check-interval = 30;
+      # https://nix.dev/recipes/faq#what-to-do-if-a-binary-cache-is-down-or-unreachable
+      trusted-substituters = ["https://cache.nixos.org"];
+      substituters = ["https://cache.nixos.org"];
     };
   };
 
