@@ -10,7 +10,6 @@
       ./minecraft.nix
       ./pg-ping.nix
       ./npkill.nix
-      ./tomato.nix
       # ./nao.nix
       ./no.nix
     ];

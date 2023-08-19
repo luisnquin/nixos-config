@@ -15,6 +15,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     senv.url = "github:luisnquin/senv";
   };
 
@@ -22,6 +23,7 @@
     nixpkgs,
     home-manager,
     spicetify-nix,
+    tomato-c,
     senv,
     ...
   }: let
@@ -54,8 +56,10 @@
       };
 
       flakes = {
-        inherit spicetify-nix;
+        tomato-c = tomato-c.defaultPackage.${system};
         senv = senv.defaultPackage.${system};
+
+        inherit spicetify-nix;
       };
     in
       flakes // data;
