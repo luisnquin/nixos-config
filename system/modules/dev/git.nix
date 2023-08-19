@@ -44,6 +44,10 @@
         rebase = true;
       };
 
+      rebase = {
+        autoStash = true;
+      };
+
       fetch = {
         prune = true;
       };
