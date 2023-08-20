@@ -6,7 +6,7 @@
 }: {
   environment = {
     systemPackages = with pkgs; let
-      gg = {
+      nixpkgs = builtins.concatLists (builtins.attrValues {
         apps = [
           element-desktop
           obs-studio
@@ -25,11 +25,6 @@
 
           macchina
           genact
-        ];
-
-        projects = [
-          tomato-c
-          senv
         ];
 
         essentials = [
@@ -64,9 +59,13 @@
           maigret
           whois
         ];
-      };
+      });
     in
-      builtins.concatLists (builtins.attrValues gg);
+      nixpkgs
+      ++ [
+        tomato-c
+        senv
+      ];
 
     # Root shell
     # extraInit = "";
