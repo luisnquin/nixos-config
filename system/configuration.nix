@@ -34,7 +34,6 @@
         theme = falloutTheme;
 
         enable = true;
-        version = 2;
         device = "nodev";
         useOSProber = true;
         efiSupport = true;
@@ -44,7 +43,7 @@
 
     kernelPackages = linuxPackages_latest;
     supportedFilesystems = ["ntfs"];
-    cleanTmpDir = true;
+    tmp.cleanOnBoot = true;
   };
 
   hardware = {
