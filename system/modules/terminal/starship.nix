@@ -15,7 +15,7 @@ _: {
         git_remote = {
           description = "Display symbol for remote git server";
           shell = ["bash" "--noprofile" "--norc"];
-          format = "hosted in [$output ]($style)";
+          format = "hosted in [$output  ]($style)";
           command = ''GIT_REMOTE_SYMBOL=$(command git ls-remote --get-url 2> /dev/null | awk '{if ($0 ~ /github/) print ""; else if ($0 ~ /gitlab/) print ""; else if ($0 ~ /bitbucket/) print ""; else if ($0 ~ /git/) print ""; else print ""}'); echo "$GIT_REMOTE_SYMBOL "'';
           when = "git rev-parse --is-inside-work-tree 2> /dev/null";
           style = "#ededed";
@@ -45,7 +45,7 @@ _: {
           command = "awk '/go/ {print $2; exit}' go.mod";
           format = "via [$symbol ($output)]($style)";
           style = "#5ddade";
-          symbol = "ﳑ";
+          symbol = "";
         };
       };
 
