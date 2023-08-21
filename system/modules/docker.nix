@@ -18,7 +18,7 @@
       docker-compose
       lazydocker
 
-      hadolint # Dockerfile linter
+      # hadolint # Dockerfile linter
     ];
 
     shellAliases = {
