@@ -56,7 +56,11 @@
     openssh = {
       enable = true;
       banner = "plz let me in";
-      settings.passwordAuthentication = true;
+
+      settings = {
+        # Everything in pascal case: https://github.com/NixOS/nixpkgs/issues/234683
+        PasswordAuthentication = true;
+      };
 
       knownHosts = let
         primaryPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJcSOpun+OjJng87LUXArDX3y2LLts7pOpfyCC1Mygew luisnquin@rat";
