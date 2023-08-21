@@ -17,7 +17,7 @@
     clang
     just
 
-    haskellPackages.NanoID
+    # haskellPackages.NanoID
     zathura
     minify # HTML, CSS, and JavaScript minifier
     shfmt
