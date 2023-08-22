@@ -1,10 +1,15 @@
-{user, ...}: {
+{
+  user,
+  nix,
+  ...
+}: {
   require = [
     ./modules
   ];
 
   home = {
-    stateVersion = "23.05";
+    inherit (nix) stateVersion;
+
     enableNixpkgsReleaseCheck = true;
     homeDirectory = "/home/${user.alias}";
     username = "${user.alias}";

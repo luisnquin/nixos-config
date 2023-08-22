@@ -1,14 +1,17 @@
 use = "luisnquin"
 
-[hosts.luisnquin]
-name = "nyx"
-resolution = "1920x1080"
-timeZone = "America/El_Salvador"
-i18nLocale = "en_US.UTF-8"
-browser = "brave"
-
-
 [users.luisnquin]
 fullName = "Luis Quiñones"
 email = "lpaandres2020@gmail.com"
 gitEmail = "lpaandres2020@gmail.com"
+
+[hosts.luisnquin]
+name = "nyx"
+timeZone = "America/El_Salvador"
+resolution = "1920x1080"
+i18nLocale = "en_US.UTF-8"
+browser = "brave"
+
+[nix]
+stateVersion = "23.11"
+channel = "nixos-unstable"

@@ -1,6 +1,7 @@
 {
   pkgs,
   host,
+  nix,
   ...
 }: {
   imports = [
@@ -107,11 +108,11 @@
   };
 
   system = {
-    stateVersion = "23.05";
+    inherit (nix) stateVersion;
     autoUpgrade = {
       enable = true;
       allowReboot = false;
-      channel = "https://nixos.org/channels/nixos-unstable";
+      channel = "https://nixos.org/channels/${nix.channel}";
     };
   };
 }
