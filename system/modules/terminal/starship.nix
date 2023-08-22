@@ -31,6 +31,16 @@ _: {
           symbol = " ";
         };
 
+        environment_name = {
+          description = "Displays the name of your current senv environment";
+          shell = ["bash" "--noprofile" "--norc"];
+          format = "using [$symbol ($output )]($style)";
+          command = "senv out";
+          when = "senv out";
+          style = "#a8e046";
+          symbol = "󱕴";
+        };
+
         current_client = {
           description = "Diplays the current client in case there's the environment variable";
           shell = ["bash" "--noprofile" "--norc"];
@@ -50,7 +60,7 @@ _: {
       };
 
       format = ''
-        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
+        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics''${custom.environment_name}$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
         $character
       '';
       scan_timeout = 30;
