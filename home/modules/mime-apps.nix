@@ -2,7 +2,7 @@
   xdg.mimeApps = let
     dolphinDesktop = "org.kde.dolphin.desktop";
     vivaldiDesktop = "vivaldi-stable.desktop";
-    braveDesktop = "brave.desktop";
+    braveDesktop = "brave-browser.desktop";
   in {
     enable = true;
 
