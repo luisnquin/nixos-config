@@ -166,11 +166,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1692744175,
-        "narHash": "sha256-D4VXI+56AHQ/p/mvhpkOwUbfrgoBSvSEukUpAVkf5LQ=",
+        "lastModified": 1692756608,
+        "narHash": "sha256-RnhPN7VCCiEO3C+2yE6cjCgvdwl66RlNWgODROM0zJw=",
         "owner": "luisnquin",
         "repo": "senv",
-        "rev": "2cc44691334ac6b74f4c9a0eaf343cafc68e39db",
+        "rev": "9886ec699e14b3ce0ca38c9fe325231e52244f8c",
         "type": "github"
       },
       "original": {
