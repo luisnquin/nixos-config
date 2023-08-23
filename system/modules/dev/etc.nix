@@ -1,6 +1,7 @@
 {pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     nodePackages.firebase-tools
+    nodePackages_latest.cspell
     license-generator
     onlyoffice-bin
 
