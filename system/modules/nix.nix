@@ -37,6 +37,7 @@
   nixpkgs.config = {
     permittedInsecurePackages = [
       "electron-12.2.3"
+      "nodejs-16.20.2"
     ];
     allowBroken = false;
     allowUnfree = true;

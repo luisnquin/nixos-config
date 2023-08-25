@@ -2,6 +2,7 @@
   imports = [
     ./editors.nix
     ./python.nix
+    ./audit.nix
     ./ocaml.nix
     ./node.nix
     ./rust.nix
