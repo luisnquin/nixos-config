@@ -13,6 +13,7 @@
     ./docker.nix
     ./nvidia.nix
     ./fonts.nix
+    ./boot.nix
     ./nix.nix
     ./k8s.nix
   ];
