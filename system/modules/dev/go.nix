@@ -5,7 +5,7 @@
       delve
       errcheck
       gcc
-      go_1_20
+      go_1_21
       go-protobuf
       gofumpt
       golangci-lint
