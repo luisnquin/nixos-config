@@ -8,11 +8,13 @@
     spicetify-nix.url = "github:the-argus/spicetify-nix";
     tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     senv.url = "github:luisnquin/senv";
+    fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
   };
 
   outputs = {
     nixpkgs,
     home-manager,
+    fallout-grub-theme,
     spicetify-nix,
     tomato-c,
     senv,
@@ -47,6 +49,7 @@
 
     specialArgs =
       {
+        fallout-grub-theme = fallout-grub-theme.defaultPackage.${system};
         tomato-c = tomato-c.defaultPackage.${system};
         senv = senv.defaultPackage.${system};
 
