@@ -20,6 +20,7 @@
     senv,
     ...
   }: let
+    # cannot be top-level due to: https://github.com/NixOS/nix/issues/3966
     setup = let
       metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
       flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
@@ -47,27 +48,29 @@
         else flakeTomlError "missing one or more attributes of 'nix'";
     };
 
-    specialArgs =
+    system = "x86_64-linux";
+
+    pkgs = import nixpkgs {
+      inherit system;
+      config.allowUnfree = true;
+    };
+
+    specialArgs = let
+      getDefault = pkg: pkg.defaultPackage.${system};
+    in
       {
-        fallout-grub-theme = fallout-grub-theme.defaultPackage.${system};
-        tomato-c = tomato-c.defaultPackage.${system};
-        senv = senv.defaultPackage.${system};
+        fallout-grub-theme = getDefault fallout-grub-theme;
+        tomato-c = getDefault tomato-c;
+        senv = getDefault senv;
 
         inherit spicetify-nix;
       }
       // setup;
-
-    pkgs = import nixpkgs {
-      inherit system;
-      config = {allowUnfree = true;};
-    };
-
-    system = "x86_64-linux";
   in {
     homeConfigurations = {
       inherit system;
 
-      "${specialArgs.user.alias}" = home-manager.lib.homeManagerConfiguration {
+      "${setup.user.alias}" = home-manager.lib.homeManagerConfiguration {
         extraSpecialArgs = specialArgs;
         inherit pkgs;
 
@@ -77,7 +80,7 @@
       };
     };
 
-    nixosConfigurations."${specialArgs.host.name}" = nixpkgs.lib.nixosSystem {
+    nixosConfigurations."${setup.host.name}" = nixpkgs.lib.nixosSystem {
       inherit specialArgs system;
 
       modules = [
