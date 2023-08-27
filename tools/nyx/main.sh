@@ -44,6 +44,10 @@ ensure_symlinks() {
     sudo ln -sf ~/.dotfiles/* /etc/nixos/
 }
 
+log_dotfiles_command_to_execute() {
+    printf "\n\e[38;2;112;112;112m(%s)\033[0;32m %s\033[0m %s\n" "$(basename "$DOTFILES_DIR_PATH")" "$1" "$2"
+}
+
 list_folder() {
     exa --icons --sort=type "$DOTFILES_DIR_PATH"
 }
@@ -52,7 +56,8 @@ update_system() {
     printf "\033[38;2;240;89;104mUpdating system...\033[0m\n"
 
     (
-        cd /home/"$USER"/.dotfiles
+        cd "$DOTFILES_DIR_PATH"
+        log_dotfiles_command_to_execute "sudo nixos-rebuild" "switch --upgrade --flake ."
         sudo nixos-rebuild switch --upgrade --flake .
     )
 }
@@ -61,7 +66,8 @@ update_home() {
     printf "\033[38;2;240;89;104mUpdating home...\033[0m\n"
 
     (
-        cd /home/"$USER"/.dotfiles
+        cd "$DOTFILES_DIR_PATH"
+        log_dotfiles_command_to_execute "home-manager" "switch --flake ."
         home-manager switch --flake .
     )
 }
