@@ -51,6 +51,4 @@ trans_de_en() {
 
 [[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null
 
-if test -f /home/"$USER"/Work/init.bash; then
-    source /home/"$USER"/Work/init.bash
-fi
+if test -f /home/"$USER"/Work/.bashrc; then source /home/"$USER"/Work/.bashrc; fi
