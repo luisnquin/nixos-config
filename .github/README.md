@@ -1,11 +1,13 @@
 # NixOS environment configuration
 
- [![nixos-unstable](https://img.shields.io/badge/NixOS-unstable-informational.svg?style=flat&logo=nixos&logoColor=dee1e6&colorA=101419&colorB=70a5eb)](https://github.com/nixos/nixpkgs)
+[![nixos-unstable](https://img.shields.io/badge/NixOS-unstable-informational.svg?style=flat&logo=nixos&logoColor=dee1e6&colorA=101419&colorB=70a5eb)](https://github.com/nixos/nixpkgs)
 [![nix-fmt](https://github.com/luisnquin/nixos-config/actions/workflows/style.yml/badge.svg)](https://github.com/luisnquin/nixos-config/actions/workflows/style.yml)
 
 > **Warning**
 >
 > _Maybe_ this is a single user setup and is not intended to be anything else
+
+![clipboard](https://github.com/luisnquin/nixos-config/assets/86449787/b9c8967a-eae8-4c29-adf6-6626a0a3326e)
 
 ## Installation
 
