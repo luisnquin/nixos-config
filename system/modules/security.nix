@@ -15,7 +15,7 @@
   };
 
   users = {
-    motd = ''Confront [hi]story'';
+    motd = ''_Confront [hi]story'';
 
     users = {
       ${user.alias} = {
