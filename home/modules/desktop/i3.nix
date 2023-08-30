@@ -16,7 +16,15 @@
       keybindings = with pkgs; let
         brightnessctl-path = "${brightnessctl}/bin/brightnessctl";
         amixer-path = "${alsa-utils}/bin/amixer";
+        maim-path = "${maim}/bin/maim";
         rofi-path = "${rofi}/bin/rofi";
+
+        exec-nid = "exec --no-startup-id";
+
+        # new-screenshot-path = ''"/home/$USER/Pictures/screenshots/$(${coreutils}/bin/date)"'';
+        save-img-stdin-to-clipboard = "${xclip}/bin/xclip -selection clipboard -t image/png";
+        capture-active-window = "${maim-path} --window $(${xdotool}/bin/xdotool getactivewindow)";
+        capture-selection = "${maim-path} --select";
       in
         lib.mkOptionDefault {
           "XF86AudioMute" = "exec ${amixer-path} set Master toggle";
@@ -25,9 +33,6 @@
           "XF86MonBrightnessDown" = "exec ${brightnessctl-path} set 4%-";
           "XF86MonBrightnessUp" = "exec ${brightnessctl-path} set 4%+";
 
-          # Closes current window
-          "${modifier}+Shift+w" = "kill";
-
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+q" = "exec ${rofi-path} -modi drun -show drun";
@@ -35,6 +40,14 @@
           "${modifier}+Shift+q" = "exec ${rofi-path} -show window";
           "${modifier}+b" = "bexec ${brave}/bin/brave";
           "${modifier}+Shift+x" = "exec systemctl suspend";
+
+          # Closes the current window
+          "${modifier}+Shift+w" = "kill";
+
+          # Screenshots
+          "Print" = ''${exec-nid} ${maim-path} | ${save-img-stdin-to-clipboard}'';
+          "${modifier}+Print" = "${exec-nid} ${capture-active-window} | ${save-img-stdin-to-clipboard}";
+          "${modifier}+Shift+Print" = "${exec-nid} ${capture-selection} | ${save-img-stdin-to-clipboard}";
         };
 
       startup = with pkgs; let

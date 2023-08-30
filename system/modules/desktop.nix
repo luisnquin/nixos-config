@@ -122,7 +122,7 @@
 #
 # i3 config file (v4)
 #
-# Please see https://i3wm.org/docs/userguide.html for a complete reference!
+# Please see https://i3wm.org/edocs/userguide.html for a complete reference!
 # set $mod Mod4
 # # Font for window titles. Will also be used by the bar unless a different font
 # # is used in the bar {} block below.
