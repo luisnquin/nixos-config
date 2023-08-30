@@ -1,11 +1,12 @@
 {...}: {
   imports = [
-    ./terminal/default.nix
+    ./desktop
+    ./terminal
+
     ./mime-apps.nix
     ./macchina.nix
     ./browser.nix
     ./editors.nix
-    ./desktop.nix
     ./spotify.nix
     ./docker.nix
     ./btop.nix
