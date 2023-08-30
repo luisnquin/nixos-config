@@ -8,7 +8,7 @@ _: {
       scan_timeout = 30;
 
       character = {
-        success_symbol = "[](bold green)";
+        success_symbol = "[](bold green)";
         error_symbol = "[](bold red)";
       };
 
