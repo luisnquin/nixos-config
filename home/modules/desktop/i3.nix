@@ -38,7 +38,7 @@
         };
 
       startup = with pkgs; let
-        background-img-path = "~/Projects/github.com/luisnquin/walls/desktop/landscapes/i-wanted-a-large-day.jpg";
+        background-image = ./../../dots/background-image.png;
       in [
         {
           command = "${dex}/bin/dex --autostart --environment i3";
@@ -56,7 +56,7 @@
           notification = false;
         }
         {
-          command = "${nitrogen}/bin/nitrogen --set-auto ${background-img-path}";
+          command = "${nitrogen}/bin/nitrogen --set-auto ${background-image}";
         }
         {
           command = "${numlockx}/bin/numlockx on";
