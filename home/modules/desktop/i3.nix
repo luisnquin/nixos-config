@@ -23,6 +23,7 @@
         save-img-stdin-to-clipboard = "${xclip}/bin/xclip -selection clipboard -t image/png";
         capture-active-window = "${maim-path} --window $(${xdotool}/bin/xdotool getactivewindow)";
         capture-selection = "${maim-path} --select";
+        capture-taken-notification = message: "${pkgs.libnotify}/bin/notify-send 'Screenshot taken!' '${message}' --icon=${./../../dots/icons/screenshot.jpg}";
 
         exec-nid = "exec --no-startup-id";
       in
@@ -45,9 +46,9 @@
           "${modifier}+Shift+w" = "kill";
 
           # Screenshots
-          "Print" = ''${exec-nid} ${maim-path} | ${save-img-stdin-to-clipboard}'';
-          "${modifier}+Print" = "${exec-nid} ${capture-active-window} | ${save-img-stdin-to-clipboard}";
-          "${modifier}+Shift+Print" = "${exec-nid} ${capture-selection} | ${save-img-stdin-to-clipboard}";
+          "Print" = ''${exec-nid} ${maim-path} | ${save-img-stdin-to-clipboard} && ${capture-taken-notification "From whole screen"}'';
+          "${modifier}+Print" = "${exec-nid} ${capture-active-window} | ${save-img-stdin-to-clipboard} && ${capture-taken-notification "From active window"}";
+          "${modifier}+Shift+Print" = "${exec-nid} ${capture-selection} | ${save-img-stdin-to-clipboard} && ${capture-taken-notification "From selected area"}";
         };
 
       startup = let

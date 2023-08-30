@@ -10,7 +10,7 @@
     shadow = false;
 
     settings = {
-      corner-radius = 1;
+      corner-radius = 10;
       detect-rounded-corners = false;
     };
 
