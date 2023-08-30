@@ -5,6 +5,7 @@
     ./macchina.nix
     ./browser.nix
     ./editors.nix
+    ./desktop.nix
     ./spotify.nix
     ./docker.nix
     ./btop.nix
