@@ -35,13 +35,13 @@
           "XF86MonBrightnessUp" = "exec ${brightnessctl-path} set 4%+";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
+          "${modifier}+b" = "exec ${brave}/bin/brave";
 
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+q" = "exec ${rofi-path} -modi drun -show drun";
           "${modifier}+Return" = "exec ${alacritty}/bin/alacritty";
           "${modifier}+Shift+q" = "exec ${rofi-path} -show window";
-          "${modifier}+b" = "bexec ${brave}/bin/brave";
           "${modifier}+Shift+x" = "exec systemctl suspend";
 
           # Closes the current window
