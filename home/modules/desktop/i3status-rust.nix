@@ -3,8 +3,8 @@
     enable = true;
     package = pkgs.i3status-rust;
     bars = {
-      top = {
-        icons = "Symbols Nerd";
+      bottom = {
+        icons = "none";
         theme = "gruvbox-dark";
         settings = {
           theme = {

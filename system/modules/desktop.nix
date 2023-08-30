@@ -37,7 +37,7 @@
 
         extraPackages = with pkgs; [
           i3blocks
-          i3status
+          # i3status
           i3lock
           # dmenu
 

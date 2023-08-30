@@ -13,6 +13,57 @@
         outer = 5;
       };
 
+      fonts = {
+        names = ["DejaVu Sans Mono" "FontAwesome5Free"];
+        style = "Bold Semi-Condensed";
+        size = 11.0;
+      };
+
+      bars = [
+        {
+          # I don't know how to reference the file internally created by i3status-rust.nix with xdg.configFile
+          statusCommand = "${pkgs.i3status-rust}/bin/i3status-rs ~/.config/i3status-rust/config-bottom.toml";
+
+          colors = {
+            separator = "#666666";
+            background = "#222222";
+            statusline = "#dddddd";
+
+            focusedWorkspace =
+              # "#0088CC #0088CC #ffffff";
+              {
+                background = "#0088CC";
+                border = "#0088CC";
+                text = "#ffffff";
+              };
+
+            activeWorkspace =
+              # "#333333 #333333 #ffffff";
+              {
+                background = "#333333";
+                border = "#333333";
+                text = "#ffffff";
+              };
+
+            inactiveWorkspace =
+              # "#333333 #333333 #888888";
+              {
+                background = "#333333";
+                border = "#333333";
+                text = "#888888";
+              };
+
+            urgentWorkspace =
+              #"#2f343a #900000 #ffffff";
+              {
+                background = "#2f343a";
+                border = "#900000";
+                text = "#ffffff";
+              };
+          };
+        }
+      ];
+
       keybindings = with pkgs; let
         brightnessctl-path = "${brightnessctl}/bin/brightnessctl";
         amixer-path = "${alsa-utils}/bin/amixer";
@@ -76,6 +127,11 @@
           always = true;
           notification = false;
         }
+        # {
+        #   command = "systemctl --user restart polybar.service";
+        #   always = true;
+        #   notification = false;
+        # }
         {
           command = "${pkgs.nitrogen}/bin/nitrogen --set-auto ${background-image}";
         }
