@@ -34,6 +34,8 @@
           "XF86MonBrightnessDown" = "exec ${brightnessctl-path} set 4%-";
           "XF86MonBrightnessUp" = "exec ${brightnessctl-path} set 4%+";
 
+          "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
+
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+minus" = "scratchpad show";
           "${modifier}+q" = "exec ${rofi-path} -modi drun -show drun";
