@@ -39,7 +39,7 @@
           i3blocks
           i3status
           i3lock
-          dmenu
+          # dmenu
 
           numlockx
           nitrogen
