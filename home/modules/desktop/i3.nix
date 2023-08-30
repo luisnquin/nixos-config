@@ -19,12 +19,12 @@
         maim-path = "${maim}/bin/maim";
         rofi-path = "${rofi}/bin/rofi";
 
-        exec-nid = "exec --no-startup-id";
-
         # new-screenshot-path = ''"/home/$USER/Pictures/screenshots/$(${coreutils}/bin/date)"'';
         save-img-stdin-to-clipboard = "${xclip}/bin/xclip -selection clipboard -t image/png";
         capture-active-window = "${maim-path} --window $(${xdotool}/bin/xdotool getactivewindow)";
         capture-selection = "${maim-path} --select";
+
+        exec-nid = "exec --no-startup-id";
       in
         lib.mkOptionDefault {
           "XF86AudioMute" = "exec ${amixer-path} set Master toggle";
@@ -50,29 +50,34 @@
           "${modifier}+Shift+Print" = "${exec-nid} ${capture-selection} | ${save-img-stdin-to-clipboard}";
         };
 
-      startup = with pkgs; let
+      startup = let
         background-image = ./../../dots/background-image.png;
       in [
         {
-          command = "${dex}/bin/dex --autostart --environment i3";
+          command = "${pkgs.dex}/bin/dex --autostart --environment i3";
           always = false;
           notification = false;
         }
         {
-          command = "${xss-lock}/bin/xss-lock --transfer-sleep-lock -- i3lock --nofork";
+          command = "${pkgs.xss-lock}/bin/xss-lock --transfer-sleep-lock -- i3lock --nofork";
           always = false;
           notification = false;
         }
         {
-          command = "${networkmanagerapplet}/bin/nm-applet";
+          command = "${pkgs.networkmanagerapplet}/bin/nm-applet";
           always = false;
           notification = false;
         }
         {
-          command = "${nitrogen}/bin/nitrogen --set-auto ${background-image}";
+          command = "${pkgs.picom-next}/bin/picom";
+          always = true;
+          notification = false;
         }
         {
-          command = "${numlockx}/bin/numlockx on";
+          command = "${pkgs.nitrogen}/bin/nitrogen --set-auto ${background-image}";
+        }
+        {
+          command = "${pkgs.numlockx}/bin/numlockx on";
         }
       ];
     };

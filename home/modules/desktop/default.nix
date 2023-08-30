@@ -11,6 +11,7 @@
   imports = [
     ./i3status-rust.nix
     ./dunst.nix
+    ./picom.nix
     ./rofi.nix
     ./i3.nix
   ];
