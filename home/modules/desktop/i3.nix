@@ -6,12 +6,17 @@
     config = rec {
       modifier = "Mod4";
 
-      window.border = 0;
+      window = {
+        border = 0;
+        titlebar = true;
+      };
 
       gaps = {
         inner = 15;
         outer = 5;
       };
+
+      terminal = "alacritty";
 
       fonts = {
         names = ["DejaVu Sans Mono" "FontAwesome5Free"];
