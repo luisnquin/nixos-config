@@ -1,19 +1,17 @@
-{
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
+  # https://github.com/greshake/i3status-rust/blob/master/doc/themes.md
   programs.i3status-rust = {
     enable = true;
     package = pkgs.i3status-rust;
     bars = {
       bottom = {
-        icons = "none";
-        theme = "gruvbox-dark";
+        icons = "material-nf";
+        # theme = "space-villain";
         settings = {
           theme = {
-            theme = "solarized-dark";
+            theme = "ctp-mocha";
             overrides = {
-              idle_bg = "#123456";
+              idle_bg = "#3857c7";
               idle_fg = "#abcdef";
             };
           };
