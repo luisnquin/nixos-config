@@ -4,7 +4,13 @@
   xsession.windowManager.i3 = {
     enable = true;
 
-    config = rec {
+    config = let
+      fonts = {
+        names = ["Jetbrains Mono"];
+        style = "Bold Semi-Condensed";
+        size = 10.0;
+      };
+    in rec {
       modifier = "Mod4";
 
       window = {
@@ -19,11 +25,7 @@
 
       terminal = "alacritty";
 
-      fonts = {
-        names = ["DejaVu Sans Mono" "FontAwesome5Free"];
-        style = "Bold Semi-Condensed";
-        size = 15.0;
-      };
+      inherit fonts;
 
       bars = [
         {
@@ -31,6 +33,8 @@
           statusCommand = "${pkgs.i3status-rust}/bin/i3status-rs ~/.config/i3status-rust/config-bottom.toml";
           command = "${pkgs.i3}/bin/i3bar -t";
           position = "top";
+
+          inherit fonts;
 
           trayOutput = "none"; # application icons in status bar
 
