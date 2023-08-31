@@ -1,4 +1,9 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  host,
+  user,
+  ...
+}: {
   programs.i3status-rust = {
     enable = true;
     package = pkgs.i3status-rust;
@@ -18,29 +23,48 @@
 
         blocks = [
           {
+            block = "sound";
+            format = "󰕾 {$volume.eng(w:2) |}";
+          }
+          {
+            block = "docker";
+            interval = 7;
+            format = "󰡨 $running/$total ";
+          }
+          {
+            block = "github";
+            format = " $total.eng(w:1)t";
+            interval = 40;
+            token = user.gitHubNotificationsToken;
+            hide_if_total_is_zero = false;
+            info = ["total"];
+            warning = ["mention" "review_requested" "security_alert"];
+          }
+          {
+            block = "cpu";
+            interval = 5;
+            format = " $utilization";
+          }
+          {
+            block = "memory";
+            format = "󰍛 $mem_used_percents.eng(w:1)";
+            interval = 30;
+            warning_mem = 70;
+            critical_mem = 85;
+          }
+          {
             block = "disk_space";
             path = "/";
             info_type = "available";
+            format = "󰨣 $available/$total";
             interval = 60;
             warning = 20.0;
             alert = 10.0;
           }
           {
-            block = "memory";
-            format_mem = " $icon $mem_used_percents ";
-            format_swap = " $icon $swap_used_percents ";
-          }
-          {
-            block = "cpu";
+            block = "nvidia_gpu";
             interval = 1;
-          }
-          {
-            block = "load";
-            interval = 1;
-            format = " $icon $1m ";
-          }
-          {
-            block = "sound";
+            format = "󰢮 $utilization $temperature $clocks";
           }
           {
             block = "time";

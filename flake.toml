@@ -4,12 +4,14 @@ use = "luisnquin"
 fullName = "Luis Quiñones"
 email = "lpaandres2020@gmail.com"
 gitEmail = "lpaandres2020@gmail.com"
+gitHubNotificationsToken = "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"
 
 [hosts.luisnquin]
 name = "nyx"
 timeZone = "America/El_Salvador"
 resolution = "1920x1080"
 i18nLocale = "en_US.UTF-8"
+batteryThreshold = 60
 browser = "brave"
 
 [nix]
