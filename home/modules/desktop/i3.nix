@@ -10,7 +10,7 @@
 
       window = {
         border = 0;
-        titlebar = true;
+        titlebar = false;
       };
 
       gaps = {
