@@ -42,8 +42,8 @@
             focusedWorkspace =
               # "#0088CC #0088CC #ffffff";
               {
-                background = "#0088CC";
-                border = "#0088CC";
+                background = "#7317cf";
+                border = "#7317cf";
                 text = "#ffffff";
               };
 
@@ -137,11 +137,6 @@
           always = true;
           notification = false;
         }
-        # {
-        #   command = "systemctl --user restart polybar.service";
-        #   always = true;
-        #   notification = false;
-        # }
         {
           command = "${pkgs.nitrogen}/bin/nitrogen --set-auto ${background-image}";
         }
