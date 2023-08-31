@@ -31,15 +31,15 @@
             interval = 7;
             format = "󰡨 $running/$total ";
           }
-          {
-            block = "github";
-            format = " $total.eng(w:1)t";
-            interval = 40;
-            token = user.gitHubNotificationsToken;
-            hide_if_total_is_zero = false;
-            info = ["total"];
-            warning = ["mention" "review_requested" "security_alert"];
-          }
+          # {
+          #   block = "github";
+          #   format = " $total.eng(w:1)t";
+          #   interval = 40;
+          #   token = user.gitHubNotificationsToken;
+          #   hide_if_total_is_zero = false;
+          #   info = ["total"];
+          #   warning = ["mention" "review_requested" "security_alert"];
+          # }
           {
             block = "cpu";
             interval = 5;
