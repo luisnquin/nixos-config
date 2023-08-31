@@ -12,10 +12,10 @@
     settings = {
       global = {
         width = 300;
-        height = 310;
+        height = 300;
         offset = "60x90";
         origin = "top-right";
-        transparency = 8;
+        transparency = 10;
         frame_color = "#dae2e8";
         font = "Cascadia Code 9";
       };
