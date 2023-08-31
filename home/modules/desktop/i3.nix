@@ -1,4 +1,6 @@
 {pkgs, ...}: {
+  # https://i3wm.org/docs/userguide.html
+  # https://mipmip.github.io/home-manager-option-search/?query=xsession.windowManager.i3.config
   xsession.windowManager.i3 = {
     enable = true;
     # package = pkgs.i3;
@@ -28,6 +30,7 @@
         {
           # I don't know how to reference the file internally created by i3status-rust.nix with xdg.configFile
           statusCommand = "${pkgs.i3status-rust}/bin/i3status-rs ~/.config/i3status-rust/config-bottom.toml";
+          position = "top";
 
           colors = {
             separator = "#666666";
