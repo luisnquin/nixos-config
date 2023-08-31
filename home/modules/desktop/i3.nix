@@ -86,14 +86,17 @@
         capture-selection = "${maim-path} --select";
         capture-taken-notification = message: "${pkgs.libnotify}/bin/notify-send 'Screenshot taken!' '${message}' --icon=${./../../dots/icons/screenshot.jpg}";
 
+        display-volume-update = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
+        display-volume-muted = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
+
         exec-nid = "exec --no-startup-id";
       in
         lib.mkOptionDefault {
-          "XF86AudioMute" = "exec ${amixer-path} set Master toggle";
-          "XF86AudioLowerVolume" = "exec ${amixer-path} set Master 4%-";
-          "XF86AudioRaiseVolume" = "exec ${amixer-path} set Master 4%+";
-          "XF86MonBrightnessDown" = "exec ${brightnessctl-path} set 4%-";
-          "XF86MonBrightnessUp" = "exec ${brightnessctl-path} set 4%+";
+          "XF86AudioMute" = "exec ${amixer-path} set Master toggle && ${display-volume-muted}";
+          "XF86AudioLowerVolume" = "exec ${amixer-path} set Master 4%- && ${display-volume-update}";
+          "XF86AudioRaiseVolume" = "exec ${amixer-path} set Master 4%+ && ${display-volume-update}";
+          "XF86MonBrightnessDown" = "exec ${brightnessctl-path} set 4%- && ${display-volume-update}";
+          "XF86MonBrightnessUp" = "exec ${brightnessctl-path} set 4%+ && ${display-volume-update}";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
           "${modifier}+b" = "exec ${brave}/bin/brave";
@@ -131,6 +134,10 @@
           command = "${pkgs.networkmanagerapplet}/bin/nm-applet";
           always = false;
           notification = false;
+        }
+        {
+          command = "${pkgs.volnoti}/bin/volnoti";
+          always = true;
         }
         {
           command = "${pkgs.picom-next}/bin/picom";
