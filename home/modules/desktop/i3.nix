@@ -3,7 +3,6 @@
   # https://mipmip.github.io/home-manager-option-search/?query=xsession.windowManager.i3.config
   xsession.windowManager.i3 = {
     enable = true;
-    # package = pkgs.i3;
 
     config = rec {
       modifier = "Mod4";
@@ -23,18 +22,21 @@
       fonts = {
         names = ["DejaVu Sans Mono" "FontAwesome5Free"];
         style = "Bold Semi-Condensed";
-        size = 11.0;
+        size = 15.0;
       };
 
       bars = [
         {
           # I don't know how to reference the file internally created by i3status-rust.nix with xdg.configFile
           statusCommand = "${pkgs.i3status-rust}/bin/i3status-rs ~/.config/i3status-rust/config-bottom.toml";
+          command = "${pkgs.i3}/bin/i3bar -t";
           position = "top";
+
+          trayOutput = "none"; # application icons in status bar
 
           colors = {
             separator = "#666666";
-            background = "#222222";
+            background = "#00000000"; # Transparent
             statusline = "#dddddd";
 
             focusedWorkspace =
