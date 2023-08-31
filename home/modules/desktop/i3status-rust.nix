@@ -1,7 +1,5 @@
 {
   pkgs,
-  host,
-  user,
   ...
 }: {
   programs.i3status-rust = {
