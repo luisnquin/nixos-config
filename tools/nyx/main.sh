@@ -4,6 +4,7 @@
 DOTFILES_DIR_PATH="$HOME/.dotfiles/"
 CONFIG_FILE_PATH="${DOTFILES_DIR_PATH}system/configuration.nix"
 HARDWARE_FILE_PATH="${DOTFILES_DIR_PATH}system/hardware-configuration.nix"
+NIX_LOGO_PATH="/path/to/nix-logo.png"
 
 template=$(
     printf "\033[38;2;133;133;133mnyx\033[0m [command] [flags]\n\n\e[4mAvailable commands:\e[0m\n  \033[38;2;136;192;208mupdate \033[0m\tUpdates your computer using your \033[38;2;154;32;201msystem\033[0m and/or \033[38;2;242;161;56mhome\033[0m configuration\n  \033[38;2;219;245;76minspect\033[0m\tVerifies if the configuration.nix file has been changed and not saved to a git repository\n  \033[38;2;232;232;232mstyle\033[0m 💅\tApplies alejandra style to all .nix files\n  \033[38;2;143;188;187mls\033[0m\t\tList elements in dotfiles directory\n  \033[38;2;191;97;106mclean\033[0m\t\tCleans with the old generations\n\n\e[4mGlobal flags:\e[0m\n-h, --help\tPrint help information\n"
@@ -87,19 +88,26 @@ update_computer() {
 
     printf "\n\033[0;92mStarting update process...\033[0m\n\n"
 
+    body_message=""
+
     case "$1" in
     system)
         update_system
+        body_message="Your system and home workspaces have been updated."
         ;;
     home)
         update_home
+        body_message="Your home workspace have been updated."
         ;;
     all | "")
         update_system
         echo
         update_home
+        body_message="Your system and home workspace have been updated."
         ;;
     esac
+
+    notify-send "NixOS update" "$body_message" --icon="$NIX_LOGO_PATH" --app-name="nyx"
 
     printf "\n\033[1;34mSuccessfully updated! ❄️❄️❄️\033[0m\n"
 }
