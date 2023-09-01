@@ -10,6 +10,8 @@
 
   # 🐙
   require = [
+    ./../tools
+
     ./services
     ./modules
     ./pkgs

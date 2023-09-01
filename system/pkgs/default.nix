@@ -1,16 +1,11 @@
 {pkgs ? import <nixpkgs> {}, ...}: {
   environment.systemPackages = with pkgs; let
     paths = [
-      ../../tools/nyx
-
-      # ./docker-desktop
-
       ./panicparse.nix
       ./transg-tui.nix
       ./minecraft.nix
       ./pg-ping.nix
       ./npkill.nix
-      # ./nao.nix
       ./no.nix
     ];
   in
