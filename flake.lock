@@ -274,11 +274,11 @@
         "nixpkgs": "nixpkgs_5"
       },
       "locked": {
-        "lastModified": 1692756608,
-        "narHash": "sha256-RnhPN7VCCiEO3C+2yE6cjCgvdwl66RlNWgODROM0zJw=",
+        "lastModified": 1693667571,
+        "narHash": "sha256-h0hF10bPrjcO4L32kCcWfiMwECkF8YBCZAA+iFILzis=",
         "owner": "luisnquin",
         "repo": "senv",
-        "rev": "9886ec699e14b3ce0ca38c9fe325231e52244f8c",
+        "rev": "1c2df533b8561dcb75fa2ed273b5e0a64b3ad106",
         "type": "github"
       },
       "original": {
