@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   # https://github.com/greshake/i3status-rust/blob/master/doc/themes.md
   programs.i3status-rust = {
     enable = true;
@@ -35,7 +39,14 @@
           #   hide_if_total_is_zero = false;
           #   info = ["total"];
           #   warning = ["mention" "review_requested" "security_alert"];
-          # }
+          #
+          {
+            block = "battery";
+            interval = 7;
+            full_threshold = host.batteryThreshold;
+            format = " $percentage {$time |}";
+            full_format = "$icon -> 󱩰 ";
+          }
           {
             block = "cpu";
             interval = 5;
