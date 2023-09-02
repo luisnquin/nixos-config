@@ -11,6 +11,7 @@ timeZone = "America/El_Salvador"
 resolution = "1920x1080"
 i18nLocale = "en_US.UTF-8"
 batteryThreshold = 60
+usePlasma = false
 browser = "brave"
 
 [nix]

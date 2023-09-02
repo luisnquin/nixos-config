@@ -1,4 +1,4 @@
-{...}: {
+{host, ...}: {
   # https://github.com/Th0rgal/horus-nix-home/blob/master/configs/i3.nix
   # https://github.com/Th0rgal/horus-nix-home/blob/master/configs/compton.nix
   # https://www.reddit.com/r/unixporn/comments/fltmar/i3gaps_nixos_arch_my_incredible_nixos_desktop/
@@ -8,11 +8,14 @@
   # https://www.reddit.com/r/NixOS/comments/vdlq9e/how_to_use_window_managers_in_nixos/?rdt=38930
   # https://github.com/i3-wsman/i3-wsman
   # https://github.com/davatorium/rofi
-  imports = [
-    ./i3status-rust.nix
-    ./dunst.nix
-    ./picom.nix
-    ./rofi.nix
-    ./i3.nix
-  ];
+  imports =
+    if host.usePlasma
+    then []
+    else [
+      ./i3status-rust.nix
+      ./dunst.nix
+      ./picom.nix
+      ./rofi.nix
+      ./i3.nix
+    ];
 }
