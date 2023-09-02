@@ -8,6 +8,7 @@
     tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     senv.url = "github:luisnquin/senv";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
+    nao.url = "github:luisnquin/nao";
   };
 
   outputs = inputs:
@@ -53,6 +54,7 @@
           fallout-grub-theme = getDefault fallout-grub-theme;
           tomato-c = getDefault tomato-c;
           senv = getDefault senv;
+          nao = getDefault nao;
 
           inherit spicetify-nix;
         }
