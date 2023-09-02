@@ -93,7 +93,7 @@ update_computer() {
     case "$1" in
     system)
         update_system
-        body_message="Your system and home workspaces have been updated."
+        body_message="Your system workspace have been updated."
         ;;
     home)
         update_home
