@@ -1,6 +1,5 @@
 {
   description = "My NixOS configuration";
-  # future.isDeclarative = true; ❄️
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable"; # https://github.com/NixOS/nix/issues/3966
@@ -13,7 +12,6 @@
 
   outputs = inputs:
     with inputs; let
-      # cannot be top-level due to: https://github.com/NixOS/nix/issues/3966
       setup = let
         metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
         flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
@@ -60,29 +58,21 @@
         }
         // setup;
 
-      mkNixos = name: config:
+      mkNixos = config:
         nixpkgs.lib.nixosSystem {
+          inherit specialArgs system;
+          modules = [config];
+        };
+
+      mkHome = config:
+        home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = specialArgs;
+          modules = [config];
         };
     in {
-      homeConfigurations = {
-        inherit system;
+      nixosConfigurations."${setup.host.name}" = mkNixos ./system/configuration.nix;
 
-        "${setup.user.alias}" = home-manager.lib.homeManagerConfiguration {
-          extraSpecialArgs = specialArgs;
-          inherit pkgs;
-
-          modules = [
-            ./home/home.nix
-          ];
-        };
-      };
-
-      nixosConfigurations."${setup.host.name}" = nixpkgs.lib.nixosSystem {
-        inherit specialArgs system;
-
-        modules = [
-          ./system/configuration.nix
-        ];
-      };
+      homeConfigurations."${setup.user.alias}" = mkHome ./home/home.nix;
     };
 }
