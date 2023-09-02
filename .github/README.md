@@ -33,3 +33,4 @@ Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more N
 - [rxyhn](https://github.com/rxyhn/dotfiles)
 - [srid](https://github.com/srid/nixos-config)
 - [wegank](https://github.com/wegank/nixos-config)
+- [Th0rgal](https://github.com/Th0rgal/horus-nix-home)
