@@ -23,6 +23,11 @@
 
         blocks = [
           {
+            block = "custom";
+            command = "echo '' `curl api.ipify.org`";
+            interval = 60;
+          }
+          {
             block = "sound";
             format = "󰕾 {$volume.eng(w:2) |}";
           }
