@@ -23,18 +23,22 @@
 
         blocks = [
           {
+            block = "net";
+            format = " ^icon_net_down$speed_down.eng(prefix:K) ^icon_net_up$speed_up.eng(prefix:K) ";
+          }
+          {
             block = "custom";
             command = "echo '' `curl api.ipify.org`";
             interval = 60;
           }
           {
-            block = "sound";
-            format = "󰕾 {$volume.eng(w:2) |}";
-          }
-          {
             block = "docker";
             interval = 7;
             format = "󰡨 $running/$total ";
+          }
+          {
+            block = "sound";
+            format = "󰕾 {$volume.eng(w:2) |}";
           }
           # {
           #   block = "github";
