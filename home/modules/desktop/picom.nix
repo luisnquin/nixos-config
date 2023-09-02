@@ -3,17 +3,18 @@
   services.picom = {
     enable = true;
     package = pkgs.picom-next;
-    activeOpacity = 0.9;
     backend = "xrender";
+
     fade = true;
     fadeDelta = 10;
     shadow = false;
+
+    activeOpacity = 0.9;
+    menuOpacity = 0.8;
 
     settings = {
       corner-radius = 10;
       detect-rounded-corners = false;
     };
-
-    # vSync = false;
   };
 }
