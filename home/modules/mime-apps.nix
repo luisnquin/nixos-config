@@ -1,4 +1,4 @@
-{host, user, ...}: {
+{host, ...}: {
   xdg.mimeApps = let
     dolphinDesktop = "org.kde.dolphin.desktop";
     vivaldiDesktop = "vivaldi-stable.desktop";
