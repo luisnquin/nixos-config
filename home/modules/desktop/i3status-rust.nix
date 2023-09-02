@@ -76,7 +76,7 @@
           {
             block = "nvidia_gpu";
             interval = 1;
-            format = "󰢮 $utilization $temperature $clocks";
+            format = "󰢮 $utilization $temperature";
           }
           {
             block = "time";
