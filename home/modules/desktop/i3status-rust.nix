@@ -64,15 +64,15 @@
             warning_mem = 70;
             critical_mem = 85;
           }
-          {
-            block = "disk_space";
-            path = "/";
-            info_type = "available";
-            format = "󰨣 $available/$total";
-            interval = 60;
-            warning = 20.0;
-            alert = 10.0;
-          }
+          # {
+          #   block = "disk_space";
+          #   path = "/";
+          #   info_type = "available";
+          #   format = "󰨣 $available/$total";
+          #   interval = 60;
+          #   warning = 20.0;
+          #   alert = 10.0;
+          # }
           {
             block = "nvidia_gpu";
             interval = 1;
