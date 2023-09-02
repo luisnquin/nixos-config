@@ -32,7 +32,7 @@ main() {
         shift 1
         ;;
     style)
-        format_files
+        format_nix_files
         shift 1
         ;;
     -h | --h | -help | --help)
@@ -51,7 +51,7 @@ update_computer() {
     require_sudo
 
     printf "\n\033[0;95mChecking syntax errors\033[0m\n"
-    format_nix_files || {
+    check_nix_files_format || {
         printf "\n\033[0;91mSyntax errors detected or files are not correctly formatted!\033[0m\n"
         exit 1
     }
@@ -159,7 +159,14 @@ update_home() {
 format_nix_files() {
     (
         cd "$DOTFILES_DIR_PATH"
-        alejandra --check --quiet ./*
+        alejandra --quiet ./*.nix
+    )
+}
+
+check_nix_files_format() {
+    (
+        cd "$DOTFILES_DIR_PATH"
+        alejandra --check --quiet ./*.nix
     )
 }
 
