@@ -59,10 +59,6 @@
           inherit spicetify-nix;
         }
         // setup;
-
-      mkNixos = name: config:
-        nixpkgs.lib.nixosSystem {
-        };
     in {
       homeConfigurations = {
         inherit system;
