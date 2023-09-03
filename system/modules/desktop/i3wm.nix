@@ -1,28 +1,8 @@
-{
-  pkgs,
-  host,
-  ...
-}: {
+{pkgs, ...}: {
   environment.pathsToLink = ["/libexec"];
-  programs.dconf.enable = true;
 
   services.xserver = {
-    enable = true;
-    autorun = true;
-    layout = host.keyboardLayout;
-    libinput.enable = true;
-
-    displayManager = {
-      defaultSession = "none+i3";
-      gdm = {
-        enable = true;
-        autoSuspend = false;
-      };
-    };
-
-    desktopManager = {
-      xterm.enable = true;
-    };
+    displayManager.defaultSession = "none+i3";
 
     windowManager.i3 = {
       enable = true;

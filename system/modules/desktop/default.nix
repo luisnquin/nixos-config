@@ -9,5 +9,6 @@
 in {
   imports = [
     desktopModule
+    ./common.nix
   ];
 }
