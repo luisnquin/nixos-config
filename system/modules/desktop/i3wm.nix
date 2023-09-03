@@ -1,11 +1,15 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   environment.pathsToLink = ["/libexec"];
   programs.dconf.enable = true;
 
   services.xserver = {
     enable = true;
     autorun = true;
-    layout = "latam";
+    layout = host.keyboardLayout;
     libinput.enable = true;
 
     displayManager = {

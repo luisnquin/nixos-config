@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   environment.systemPackages = with pkgs; [
     lightly-qt
     flat-remix-gtk
@@ -10,7 +14,7 @@
   services.xserver = {
     enable = true;
     autorun = true;
-    layout = "latam";
+    layout = host.keyboardLayout;
     libinput.enable = true;
 
     displayManager = {

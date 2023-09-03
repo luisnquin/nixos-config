@@ -1,6 +1,7 @@
 {...}: {
   imports = [
     ./terminal
+    ./desktop
     ./dev
 
     # https://github.com/NixOS/nixpkgs/pull/249369
@@ -8,7 +9,6 @@
     # ./virtual-machine.nix
     ./environment.nix
     ./security.nix
-    ./desktop.nix
     ./torrent.nix
     ./docker.nix
     ./nvidia.nix
