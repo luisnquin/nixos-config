@@ -44,7 +44,15 @@
 
       pkgs = import nixpkgs {
         inherit system;
-        config.allowUnfree = true;
+
+        config = {
+          permittedInsecurePackages = [
+            "electron-12.2.3"
+            "nodejs-16.20.2"
+          ];
+          allowBroken = false;
+          allowUnfree = true;
+        };
       };
 
       specialArgs = let
@@ -62,7 +70,7 @@
 
       mkNixos = config:
         nixpkgs.lib.nixosSystem {
-          inherit specialArgs system;
+          inherit specialArgs system pkgs;
           modules = [config];
         };
 
