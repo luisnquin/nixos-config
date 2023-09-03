@@ -12,14 +12,11 @@
   '';
 in {
   # https://nixos.wiki/wiki/Nvidia"
-
-  services.xserver.videoDrivers = ["nvidia"];
   environment.systemPackages = [nvidia-offload];
+  services.xserver.videoDrivers = ["nvidia"];
 
-  boot = {
-    initrd.kernelModules = ["nvidia" "nvidia_modeset" "nvidia-uvm" "nvidia_drm" "kvm-intel"];
-    blacklistedKernelModules = ["nouveau"];
-  };
+  # boot.blacklistedKernelModules = ["nouveau"];
+  # boot.initrd.kernelModules = ["nvidia" "nvidia_modeset" "nvidia-uvm" "nvidia_drm" "kvm-intel"];
 
   hardware = {
     opengl = {
