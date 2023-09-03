@@ -2,27 +2,57 @@
   config,
   pkgs,
   ...
-}: {
-  hardware.nvidia = {
-    package = config.boot.kernelPackages.nvidiaPackages.beta;
-    powerManagement.enable = true;
-    modesetting.enable = true;
-    prime = {
-      offload.enable = true;
-      intelBusId = "PCI:0:2:0";
-      nvidiaBusId = "PCI:1:0:0";
-    };
+}: let
+  nvidia-offload = pkgs.writeShellScriptBin "nvidia-offload" ''
+    export __NV_PRIME_RENDER_OFFLOAD=1
+    export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export __VK_LAYER_NV_optimus=NVIDIA_only
+    exec "$@"
+  '';
+in {
+  # https://nixos.wiki/wiki/Nvidia"
+
+  services.xserver.videoDrivers = ["nvidia"];
+  environment.systemPackages = [nvidia-offload];
+
+  boot = {
+    initrd.kernelModules = ["nvidia" "nvidia_modeset" "nvidia-uvm" "nvidia_drm" "kvm-intel"];
+    blacklistedKernelModules = ["nouveau"];
   };
 
-  environment.systemPackages = let
-    nvidia-offload = pkgs.writeShellScriptBin "nvidia-offload" ''
-      export __NV_PRIME_RENDER_OFFLOAD=1
-      export __NV_PRIME_RENDER_OFFLOAD_PROVIDER=NVIDIA-G0
-      export __GLX_VENDOR_LIBRARY_NAME=nvidia
-      export __VK_LAYER_NV_optimus=NVIDIA_only
-      exec "$@"
-    '';
-  in [
-    nvidia-offload
-  ];
+  hardware = {
+    opengl = {
+      enable = true;
+      driSupport = true;
+      driSupport32Bit = true;
+    };
+
+    nvidia = {
+      modesetting.enable = true;
+      # open source (nouveau)
+      open = false;
+      nvidiaSettings = true; # `$ nvidia-settings`
+
+      powerManagement = {
+        enable = true;
+        finegrained = true;
+      };
+
+      prime = {
+        allowExternalGpu = false;
+
+        # Values below differ from laptop to laptop
+        nvidiaBusId = "PCI:1:0:0";
+        intelBusId = "PCI:0:2:0";
+
+        offload = {
+          enable = true;
+          enableOffloadCmd = true;
+        };
+      };
+
+      package = config.boot.kernelPackages.nvidiaPackages.beta;
+    };
+  };
 }

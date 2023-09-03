@@ -57,7 +57,6 @@
         enable = true;
         autorun = true;
         layout = "latam";
-        videoDrivers = ["nvidia"];
         libinput.enable = true;
       }
       // (
