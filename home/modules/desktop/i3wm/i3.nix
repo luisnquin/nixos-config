@@ -88,7 +88,7 @@
         save-img-stdin-to-clipboard = "${xclip}/bin/xclip -selection clipboard -t image/png";
         capture-active-window = "${maim-path} --window $(${xdotool}/bin/xdotool getactivewindow)";
         capture-selection = "${maim-path} --select";
-        capture-taken-notification = message: "${pkgs.libnotify}/bin/notify-send 'Screenshot taken!' '${message}' --icon=${./../../dots/icons/screenshot.jpg}";
+        capture-taken-notification = message: "${pkgs.libnotify}/bin/notify-send 'Screenshot taken!' '${message}' --icon=${./../../../dots/icons/screenshot.jpg}";
 
         display-volume-update = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
         display-volume-muted = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
@@ -122,7 +122,7 @@
         };
 
       startup = let
-        background-image = ./../../dots/background-image.png;
+        background-image = ./../../../dots/background-image.png;
       in [
         {
           command = "${pkgs.dex}/bin/dex --autostart --environment i3";
