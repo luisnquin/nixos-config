@@ -19,6 +19,9 @@
         useOSProber = true;
         efiSupport = true;
         forceInstall = false;
+
+        # For a better future: https://github.com/NixOS/nixpkgs/issues/23926
+        configurationLimit = 42;
       };
     };
 
