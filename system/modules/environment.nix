@@ -2,7 +2,6 @@
   tomato-c,
   pkgs,
   senv,
-  nao,
   ...
 }: {
   environment = {
@@ -66,7 +65,6 @@
       ++ [
         tomato-c
         senv
-        nao
       ];
 
     # Root shell
