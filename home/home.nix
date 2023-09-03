@@ -15,6 +15,9 @@
     username = "${user.alias}";
   };
 
+  # I'm not using standard paths
+  news.display = "silent";
+
   xdg = {
     enable = true;
     configFile = {
