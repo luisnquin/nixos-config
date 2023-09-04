@@ -18,7 +18,7 @@ in
     ];
 
     postPatch = ''
-      substituteInPlace ./main.sh \
+      substituteInPlace ./main.bash \
         --replace '/path/to/nix-logo.png' '${placeholder "out"}/assets/nix-logo.png'
     '';
 
@@ -28,7 +28,7 @@ in
       mkdir -p $out/
 
       mkdir -p $out/bin/
-      cp ./main.sh $out/bin/nyx
+      cp ./main.bash $out/bin/nyx
       chmod +x $out/bin/nyx
 
       mkdir -p $/out/assets/

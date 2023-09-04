@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/usr/bin/bash
 
 DOTFILES_DIR_PATH="$HOME/.dotfiles/"
 NIX_LOGO_PATH="/path/to/nix-logo.png"
@@ -196,15 +196,15 @@ program_help() {
     UNDERLINE="\e[4m"
     SPECIAL_END="\e[0m"
 
-    echo "$DIRTY$PROGRAM_NAME$SPECIAL_END [command] [flags]"
+    echo -e "$DIRTY$PROGRAM_NAME$SPECIAL_END [command] [flags]"
     echo
-    echo "${UNDERLINE}Available commands:$SPECIAL_END"
-    echo "  ${SKY_BLUE}update $SPECIAL_END   Updates your computer using your ${MAGENTA}system${SPECIAL_END} and/or ${ORANGE}home${SPECIAL_END} configuration"
-    echo "  ${YELLOW}inspect$SPECIAL_END    Verifies if the configuration.nix file has been changed and not saved to a git repository"
-    echo "  ${WHITE_PINK}style$SPECIAL_END 💅   Applies alejandra style to all .nix files"
-    echo "  ${RED}clean$SPECIAL_END      Cleans with the old generations"
+    echo -e "${UNDERLINE}Available commands:$SPECIAL_END"
+    echo -e "  ${SKY_BLUE}update $SPECIAL_END   Updates your computer using your ${MAGENTA}system${SPECIAL_END} and/or ${ORANGE}home${SPECIAL_END} configuration"
+    echo -e "  ${YELLOW}inspect$SPECIAL_END    Verifies if the configuration.nix file has been changed and not saved to a git repository"
+    echo -e "  ${WHITE_PINK}style$SPECIAL_END 💅   Applies alejandra style to all .nix files"
+    echo -e "  ${RED}clean$SPECIAL_END      Cleans with the old generations"
     echo
-    echo "${UNDERLINE}Global flags:${SPECIAL_END}"
+    echo -e "${UNDERLINE}Global flags:${SPECIAL_END}"
     echo " -h, --help    Print help information"
 }
 
