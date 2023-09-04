@@ -4,10 +4,6 @@ DOTFILES_DIR_PATH="$HOME/.dotfiles/"
 NIX_LOGO_PATH="/path/to/nix-logo.png"
 PROGRAM_NAME="nyx"
 
-template=$(
-    printf "\033[38;2;133;133;133m%s\033[0m [command] [flags]\n\n\e[4mAvailable commands:\e[0m\n  \033[38;2;136;192;208mupdate \033[0m\tUpdates your computer using your \033[38;2;154;32;201msystem\033[0m and/or \033[38;2;242;161;56mhome\033[0m configuration\n  \033[38;2;219;245;76minspect\033[0m\tVerifies if the configuration.nix file has been changed and not saved to a git repository\n  \033[38;2;232;232;232mstyle\033[0m 💅\tApplies alejandra style to all .nix files\n  \033[38;2;191;97;106mclean\033[0m\t\tCleans with the old generations\n\n\e[4mGlobal flags:\e[0m\n-h, --help\tPrint help information\n" "$PROGRAM_NAME"
-)
-
 main() {
     set -e
 
@@ -36,7 +32,7 @@ main() {
         shift 1
         ;;
     -h | --h | -help | --help)
-        echo "$template"
+        program_help
         shift 1
         exit 0
         ;;
@@ -186,6 +182,30 @@ ensure_symlinks() {
     sudo rm -rf /etc/nixos/
     sudo mkdir -p /etc/nixos/
     sudo ln -sf ~/.dotfiles/* /etc/nixos/
+}
+
+program_help() {
+    WHITE_PINK="\e[38;2;232;232;232m"
+    SKY_BLUE="\e[38;2;136;192;208m"
+    MAGENTA="\e[38;2;154;32;201m"
+    ORANGE="\e[38;2;242;161;56m"
+    DIRTY="\e[38;2;133;133;133m"
+    YELLOW="\e[38;2;219;245;76m"
+    RED="\e[38;2;191;97;106m"
+
+    UNDERLINE="\e[4m"
+    SPECIAL_END="\e[0m"
+
+    echo "$DIRTY$PROGRAM_NAME$SPECIAL_END [command] [flags]"
+    echo
+    echo "${UNDERLINE}Available commands:$SPECIAL_END"
+    echo "  ${SKY_BLUE}update $SPECIAL_END   Updates your computer using your ${MAGENTA}system${SPECIAL_END} and/or ${ORANGE}home${SPECIAL_END} configuration"
+    echo "  ${YELLOW}inspect$SPECIAL_END    Verifies if the configuration.nix file has been changed and not saved to a git repository"
+    echo "  ${WHITE_PINK}style$SPECIAL_END 💅   Applies alejandra style to all .nix files"
+    echo "  ${RED}clean$SPECIAL_END      Cleans with the old generations"
+    echo
+    echo "${UNDERLINE}Global flags:${SPECIAL_END}"
+    echo " -h, --help    Print help information"
 }
 
 help_and_exit_1() {
