@@ -84,11 +84,8 @@
         maim-path = "${maim}/bin/maim";
         rofi-path = "${rofi}/bin/rofi";
 
-        # new-screenshot-path = ''"/home/$USER/Pictures/screenshots/$(${coreutils}/bin/date)"'';
-        save-img-stdin-to-clipboard = "${xclip}/bin/xclip -selection clipboard -t image/png";
-        capture-active-window = "${maim-path} --window $(${xdotool}/bin/xdotool getactivewindow)";
-        capture-selection = "${maim-path} --select";
-        capture-taken-notification = message: "${pkgs.libnotify}/bin/notify-send 'Screenshot taken!' '${message}' --icon=${./../../../dots/icons/screenshot.jpg}";
+        # Scripts
+        screen-capture-bin = "${pkgs.callPackage ./../../../dots/scripts/screen-capture {}}/bin/screen-capture";
 
         display-volume-update = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
         display-volume-muted = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
@@ -116,9 +113,9 @@
           "${modifier}+Shift+w" = "kill";
 
           # Screenshots
-          "Print" = ''${exec-nid} ${maim-path} | ${save-img-stdin-to-clipboard} && ${capture-taken-notification "From whole screen"}'';
-          "${modifier}+Print" = "${exec-nid} ${capture-active-window} | ${save-img-stdin-to-clipboard} && ${capture-taken-notification "From active window"}";
-          "${modifier}+Shift+Print" = "${exec-nid} ${capture-selection} | ${save-img-stdin-to-clipboard} && ${capture-taken-notification "From selected area"}";
+          "Print" = ''${exec-nid} ${screen-capture-bin} --whole-window'';
+          "${modifier}+Print" = "${exec-nid} ${screen-capture-bin} --active-window";
+          "${modifier}+Shift+Print" = "${exec-nid} ${screen-capture-bin} --selection";
         };
 
       startup = let
