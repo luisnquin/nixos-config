@@ -84,7 +84,7 @@
         rofi-path = "${rofi}/bin/rofi";
 
         # Scripts
-        screen-capture-bin = "${pkgs.callPackage ./../../../dots/scripts/screen-capture {}}/bin/screen-capture";
+        screen-capture-bin = "${pkgs.callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
 
         display-volume-update = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
         display-volume-muted = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
