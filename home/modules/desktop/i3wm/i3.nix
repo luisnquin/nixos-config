@@ -112,7 +112,7 @@
           "${modifier}+Shift+w" = "kill";
 
           # Screenshots
-          "Print" = ''${exec-nid} ${screen-capture-bin} --whole-window'';
+          "Print" = ''${exec-nid} ${screen-capture-bin} --screen'';
           "${modifier}+Print" = "${exec-nid} ${screen-capture-bin} --active-window";
           "${modifier}+Shift+Print" = "${exec-nid} ${screen-capture-bin} --selection";
         };
