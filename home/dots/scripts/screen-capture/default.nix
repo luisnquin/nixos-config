@@ -1,6 +1,7 @@
 {pkgs ? import <nixpkgs> {}}: let
   runtimePackages = with pkgs; [
     libnotify
+    xdotool
     xclip
     maim
   ];
