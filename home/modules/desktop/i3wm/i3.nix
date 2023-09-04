@@ -81,7 +81,6 @@
       keybindings = with pkgs; let
         brightnessctl-path = "${brightnessctl}/bin/brightnessctl";
         amixer-path = "${alsa-utils}/bin/amixer";
-        maim-path = "${maim}/bin/maim";
         rofi-path = "${rofi}/bin/rofi";
 
         # Scripts
