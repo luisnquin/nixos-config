@@ -45,10 +45,9 @@ notify_audio_update() {
 
     sink_icon_path=""
 
-    if [ "$vol_state" = "off" ]; then
+    if [ "$vol_state" = "off" ] || [ "$vol_level" = 0 ]; then
         sink_icon_path="$ASSETS_PATH/volume-off.512.png"
     else
-
         if [ "$vol_level" -lt 34 ]; then
             sink_icon_path="$ASSETS_PATH/volume-low.512.png"
         elif [ "$vol_level" -lt 67 ]; then
