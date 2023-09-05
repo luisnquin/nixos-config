@@ -30,8 +30,8 @@ in
       mkdir -p $out/
 
       mkdir -p $out/bin/
-      cp ./main.sh $out/bin/dunstify-sound
-      chmod +x $out/bin/dunstify-sound
+      cp ./main.sh $out/bin/${name}
+      chmod +x $out/bin/${name}
 
       mkdir -p $/out/assets/
       cp -r $src/assets/ $out/assets/
@@ -40,7 +40,7 @@ in
     '';
 
     postInstall = ''
-      wrapProgram ${placeholder "out"}/bin/dunstify-sound \
+      wrapProgram ${placeholder "out"}/bin/${name} \
         --prefix PATH : ${pkgs.lib.makeBinPath runtimePackages}
     '';
   }

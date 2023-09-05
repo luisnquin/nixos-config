@@ -31,8 +31,8 @@ in
       mkdir -p $out/
 
       mkdir -p $out/bin/
-      cp ./main.sh $out/bin/screen-capture
-      chmod +x $out/bin/screen-capture
+      cp ./main.sh $out/bin/${name}
+      chmod +x $out/bin/${name}
 
       mkdir -p $/out/assets/
       cp -r $src/assets/ $out/assets/
@@ -41,7 +41,7 @@ in
     '';
 
     postInstall = ''
-      wrapProgram ${placeholder "out"}/bin/screen-capture \
+      wrapProgram ${placeholder "out"}/bin/${name} \
         --prefix PATH : ${pkgs.lib.makeBinPath runtimePackages}
     '';
   }
