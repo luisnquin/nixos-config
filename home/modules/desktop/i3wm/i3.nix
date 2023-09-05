@@ -93,7 +93,7 @@
         exec-nid = "exec --no-startup-id";
       in
         lib.mkOptionDefault {
-          "XF86AudioMicMute" = "exec ${dunstify-sound-bin} --toogle-mic";
+          "XF86AudioMicMute" = "exec ${dunstify-sound-bin} --toggle-mic";
           "XF86AudioMute" = "exec ${dunstify-sound-bin} --toggle-vol";
           "XF86AudioLowerVolume" = "exec ${dunstify-sound-bin} --dec";
           "XF86AudioRaiseVolume" = "exec ${dunstify-sound-bin} --inc";
