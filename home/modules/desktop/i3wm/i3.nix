@@ -80,15 +80,12 @@
 
       keybindings = with pkgs; let
         inherit (pkgs) callPackage;
+
+        dunstify-brightness-bin = "${callPackage ./../../../scripts/dunstify-brightness {}}/bin/dunstify-brightness";
         screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
         dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {}}/bin/dunstify-sound";
 
-        brightnessctl-path = "${brightnessctl}/bin/brightnessctl";
-        amixer-path = "${alsa-utils}/bin/amixer";
         rofi-path = "${rofi}/bin/rofi";
-
-        display-volume-update = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
-        display-volume-muted = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
 
         exec-nid = "exec --no-startup-id";
       in
@@ -98,8 +95,8 @@
           "XF86AudioLowerVolume" = "exec ${dunstify-sound-bin} --dec";
           "XF86AudioRaiseVolume" = "exec ${dunstify-sound-bin} --inc";
 
-          "XF86MonBrightnessDown" = "exec ${brightnessctl-path} set 4%- && ${display-volume-update}";
-          "XF86MonBrightnessUp" = "exec ${brightnessctl-path} set 4%+ && ${display-volume-update}";
+          "XF86MonBrightnessDown" = "exec ${dunstify-brightness-bin} --dec";
+          "XF86MonBrightnessUp" = "exec ${dunstify-brightness-bin} --inc";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
           "${modifier}+b" = "exec ${brave}/bin/brave";
