@@ -7,8 +7,6 @@
 >
 > _Maybe_ this is a single user setup and is not intended to be anything else
 
-![clipboard](https://github.com/luisnquin/nixos-config/assets/86449787/b9c8967a-eae8-4c29-adf6-6626a0a3326e)
-
 ## Installation
 
 ```bash
