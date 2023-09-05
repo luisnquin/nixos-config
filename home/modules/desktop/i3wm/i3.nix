@@ -88,7 +88,6 @@
         rofi-path = "${rofi}/bin/rofi";
 
         display-volume-update = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
-        display-volume-muted = "${volnoti}/bin/volnoti-show $(${amixer-path} sget Master | grep 'Right:' | awk -F'[][]' '{ print $2 }')";
 
         exec-nid = "exec --no-startup-id";
       in
