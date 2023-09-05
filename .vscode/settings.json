@@ -29,5 +29,16 @@
         "dots": "Config",
         "system": "Controller"
     },
-    "cSpell.words": ["inconsolata", "guioptions", "pcent", "mupdate", "xdtool", "getactivewindow"]
+    "cSpell.words": [
+        "inconsolata",
+        "guioptions",
+        "pcent",
+        "mupdate",
+        "xdtool",
+        "getactivewindow",
+        "brightnessctl",
+        "dunstify",
+        "pactl",
+        "hlcolor"
+    ]
 }
