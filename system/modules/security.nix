@@ -15,7 +15,9 @@
   };
 
   users = {
-    motd = ''_Confront [hi]story'';
+    defaultUserShell = pkgs.zsh;
+    # mutableUsers = false;
+    motd = ''Confront [hi]story'';
 
     users = {
       ${user.alias} = {
