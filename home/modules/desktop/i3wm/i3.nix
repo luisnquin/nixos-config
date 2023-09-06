@@ -81,9 +81,10 @@
       keybindings = with pkgs; let
         inherit (pkgs) callPackage;
 
+        dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
         dunstify-brightness-bin = "${callPackage ./../../../scripts/dunstify-brightness {}}/bin/dunstify-brightness";
         screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
-        dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
+        spotify-dbus = "${callPackage ./../../../scripts/spotify-dbus {}}/bin/spotify-dbus";
 
         rofi-path = "${rofi}/bin/rofi";
 
@@ -97,6 +98,10 @@
 
           "XF86MonBrightnessDown" = "exec ${dunstify-brightness-bin} --dec";
           "XF86MonBrightnessUp" = "exec ${dunstify-brightness-bin} --inc";
+
+          "${modifier}+Shift+braceright" = "exec ${spotify-dbus} --next";
+          "${modifier}+Shift+braceleft" = "exec ${spotify-dbus} --prev";
+          "${modifier}+Pause" = "exec ${spotify-dbus} --toggle";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
           "${modifier}+b" = "exec ${brave}/bin/brave";

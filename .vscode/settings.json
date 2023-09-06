@@ -36,6 +36,7 @@
         "mupdate",
         "xdtool",
         "getactivewindow",
+        "mpris",
         "brightnessctl",
         "dunstify",
         "pactl",
