@@ -15,7 +15,7 @@
           theme = {
             theme = "ctp-mocha";
             overrides = {
-              idle_bg = "#3857c7";
+              idle_bg = "#343845";
               idle_fg = "#abcdef";
             };
           };
