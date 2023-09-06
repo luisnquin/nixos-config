@@ -8,7 +8,7 @@
     description = "Updates tldr system pages";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = ''${pkgs.sudo}/bin/sudo -u ${user.alias} ${pkgs.tldr}/bin/tldr --update'';
+      ExecStart = ''${pkgs.sudo}/bin/sudo -u ${user.alias} ${pkgs.tealdeer}/bin/tldr --update'';
     };
 
     wantedBy = ["multi-user.target"];

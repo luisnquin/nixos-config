@@ -20,7 +20,7 @@
           translate-shell # Translate anything from shell
           xclip
           ranger
-          tldr # Alternative to man
+          tealdeer # Alternative to tdlr client and man
           tree
 
           macchina
