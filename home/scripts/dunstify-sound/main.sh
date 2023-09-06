@@ -8,6 +8,8 @@ LEVEL_OFFSET=4
 SOURCE_TAG="string:x-dunst-stack-tag:source"
 SINK_TAG="string:x-dunst-stack-tag:sink"
 
+BAR_COLOR="bar-color-placeholder"
+
 main() {
     case "$1" in
     --inc)
@@ -58,7 +60,7 @@ notify_audio_update() {
     fi
 
     dunstify -h "int:value:$vol_level" \
-        -h string:hlcolor:"#ebdbb2" \
+        -h "string:hlcolor:$BAR_COLOR" \
         -u low \
         -h "$SINK_TAG" \
         -i "$sink_icon_path" \

@@ -83,7 +83,7 @@
 
         dunstify-brightness-bin = "${callPackage ./../../../scripts/dunstify-brightness {}}/bin/dunstify-brightness";
         screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
-        dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {}}/bin/dunstify-sound";
+        dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
 
         rofi-path = "${rofi}/bin/rofi";
 
