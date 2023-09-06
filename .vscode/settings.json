@@ -10,7 +10,8 @@
         ".shrc": "shellscript",
         "flake.lock": "json",
         "zathurarc": "shellscript",
-        ".gitmux.conf": "yaml"
+        ".gitmux.conf": "yaml",
+        "*.schema": "json"
     },
     "[nix]": {
         "editor.defaultFormatter": "kamadorueda.alejandra",

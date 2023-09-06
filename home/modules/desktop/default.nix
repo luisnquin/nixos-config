@@ -2,7 +2,7 @@
   desktopModule =
     {
       "plasma" = ./plasma;
-      "hrpr" = ./hypr;
+      "hypr" = ./hypr;
       "i3" = ./i3wm;
     }
     .${host.desktop};

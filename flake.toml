@@ -1,3 +1,5 @@
+#:schema ./docs/flake.json.schema
+
 use = "luisnquin"
 
 [users.luisnquin]
