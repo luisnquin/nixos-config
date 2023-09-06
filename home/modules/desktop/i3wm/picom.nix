@@ -15,6 +15,8 @@
     settings = {
       corner-radius = 10;
       detect-rounded-corners = false;
+      # https://github.com/dunst-project/dunst/issues/697
+      unredir-if-possible = true;
     };
   };
 }
