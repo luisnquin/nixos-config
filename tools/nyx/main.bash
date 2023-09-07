@@ -1,6 +1,10 @@
 #!/usr/bin/bash
 
-DOTFILES_DIR_PATH="$HOME/.dotfiles/"
+if [ -z "$DOTFILES_PATH" ]; then
+    echo "unable to read DOTFILES_PATH variable..."
+    exit 1
+fi
+
 NIX_LOGO_PATH="/path/to/nix-logo.png"
 PROGRAM_NAME="nyx"
 
@@ -114,12 +118,12 @@ clean_computer() {
 }
 
 inspect_files() {
-    stat "$DOTFILES_DIR_PATH/.git/" >/dev/null
+    stat "$DOTFILES_PATH/.git/" >/dev/null
 
-    nix_files=$(find "$DOTFILES_DIR_PATH" -type f -name "*.nix")
+    nix_files=$(find "$DOTFILES_PATH" -type f -name "*.nix")
 
     (
-        cd "$DOTFILES_DIR_PATH"
+        cd "$DOTFILES_PATH"
 
         for file in $nix_files; do
             changes=$(git diff --compact-summary "$file")
@@ -136,7 +140,7 @@ update_system() {
     printf "\033[38;2;240;89;104mUpdating system...\033[0m\n"
 
     (
-        cd "$DOTFILES_DIR_PATH"
+        cd "$DOTFILES_PATH"
         log_command_to_execute "sudo nixos-rebuild" "switch --upgrade --flake ."
         sudo nixos-rebuild switch --upgrade --flake .
     )
@@ -146,7 +150,7 @@ update_home() {
     printf "\033[38;2;240;89;104mUpdating home...\033[0m\n"
 
     (
-        cd "$DOTFILES_DIR_PATH"
+        cd "$DOTFILES_PATH"
         log_command_to_execute "home-manager" "switch --flake ."
         home-manager switch --flake .
     )
@@ -154,14 +158,14 @@ update_home() {
 
 format_nix_files() {
     (
-        cd "$DOTFILES_DIR_PATH"
+        cd "$DOTFILES_PATH"
         alejandra --quiet ./*.nix
     )
 }
 
 check_nix_files_format() {
     (
-        cd "$DOTFILES_DIR_PATH"
+        cd "$DOTFILES_PATH"
         alejandra --check --quiet ./*.nix
     )
 }
@@ -171,7 +175,7 @@ require_sudo() {
 }
 
 log_command_to_execute() {
-    printf "\n\e[38;2;112;112;112m(%s)\033[0;32m %s\033[0m %s\n" "$(basename "$DOTFILES_DIR_PATH")" "$1" "$2"
+    printf "\n\e[38;2;112;112;112m(%s)\033[0;32m %s\033[0m %s\n" "$(basename "$DOTFILES_PATH")" "$1" "$2"
 }
 
 greet() {
