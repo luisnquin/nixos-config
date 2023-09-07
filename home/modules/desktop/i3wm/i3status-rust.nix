@@ -23,6 +23,10 @@
 
         blocks = [
           {
+            block = "sound";
+            format = "󰕾 {$volume.eng(w:2) |}";
+          }
+          {
             block = "net";
             format = " ^icon_net_down$speed_down.eng(prefix:K) ^icon_net_up$speed_up.eng(prefix:K) ";
           }
@@ -36,10 +40,6 @@
             interval = 7;
             format = "󰡨 $running/$total ";
           }
-          {
-            block = "sound";
-            format = "󰕾 {$volume.eng(w:2) |}";
-          }
           # {
           #   block = "github";
           #   format = " $total.eng(w:1)t";
@@ -49,13 +49,6 @@
           #   info = ["total"];
           #   warning = ["mention" "review_requested" "security_alert"];
           #
-          {
-            block = "battery";
-            interval = 7;
-            full_threshold = host.batteryThreshold;
-            format = " $percentage {$time |}";
-            full_format = "$icon -> 󱩰 ";
-          }
           {
             block = "cpu";
             interval = 5;
@@ -77,10 +70,17 @@
           #   warning = 20.0;
           #   alert = 10.0;
           # }
+          # {
+          #   block = "nvidia_gpu";
+          #   interval = 10;
+          #   format = "󰢮 $utilization $temperature";
+          # }
           {
-            block = "nvidia_gpu";
-            interval = 10;
-            format = "󰢮 $utilization $temperature";
+            block = "battery";
+            interval = 7;
+            full_threshold = host.batteryThreshold;
+            format = " $percentage {$time |}";
+            full_format = " 󱩰 ";
           }
           {
             block = "time";
