@@ -79,7 +79,7 @@
           # }
           {
             block = "nvidia_gpu";
-            interval = 1;
+            interval = 10;
             format = "󰢮 $utilization $temperature";
           }
           {
