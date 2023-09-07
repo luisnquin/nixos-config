@@ -71,9 +71,4 @@
 
     localBinInPath = true;
   };
-
-  # Configuration files
-  environment.etc = {
-    "zathurarc".text = builtins.readFile ../dots/etc/zathurarc;
-  };
 }

@@ -6,6 +6,7 @@
     ./mime-apps.nix
     ./macchina.nix
     ./browser.nix
+    ./zathura.nix
     ./editors.nix
     ./spotify.nix
     ./docker.nix

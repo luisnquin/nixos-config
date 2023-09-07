@@ -18,7 +18,6 @@
     clang
     just
 
-    zathura
     minify # HTML, CSS, and JavaScript minifier
     shfmt
     sqlc

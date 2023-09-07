@@ -9,7 +9,6 @@
     "files.associations": {
         ".shrc": "shellscript",
         "flake.lock": "json",
-        "zathurarc": "shellscript",
         ".gitmux.conf": "yaml",
         "*.schema": "json"
     },
