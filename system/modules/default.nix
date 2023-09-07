@@ -17,6 +17,5 @@
     ./audio.nix
     ./boot.nix
     ./nix.nix
-    ./k8s.nix
   ];
 }
