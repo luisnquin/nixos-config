@@ -1,0 +1,75 @@
+configuration {
+  location: 0;
+  xoffset: 0;
+  yoffset: 0;
+
+  font: "Cascadia Code 10";
+  show-icons: false;
+  case-sensitive: false;
+  terminal: "alacritty";
+
+  clipboard {
+    display-name: "󰅍";
+  }
+
+  drun {
+    display-name: "󰌧";
+  }
+
+  run {
+    display-name: "";
+  }
+
+  window {
+    display-name: "";
+  }
+
+  timeout {
+    delay: 10;
+    action: "kb-cancel";
+  }
+}
+
+* {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  spacing: 0;
+
+  bg: #eee0cb;
+  bg-alt: #bdf7ea;
+  fg: #839788;
+  fg-alt: #2b345e;
+
+  background-color: @bg;
+  text-color: @fg;
+}
+
+window {
+  transparency: "real";
+  width: 750px;
+}
+
+entry {
+  background-color: inherit;
+  padding: 12px 3px;
+}
+
+prompt {
+  background-color: inherit;
+  padding: 12px;
+}
+
+listview {
+  lines: 8;
+}
+
+element-text {
+  // text-color: @fg-alt;
+  padding: 10px 20px;
+}
+
+element-text selected {
+  text-color: @fg-alt;
+  background-color: @bg-alt;
+}
