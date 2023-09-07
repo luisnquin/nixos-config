@@ -84,7 +84,7 @@
           }
           {
             block = "time";
-            interval = 60;
+            interval = 1;
             format = "  $timestamp.datetime(f:'%a %d/%m %R') ";
           }
         ];
