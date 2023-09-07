@@ -8,6 +8,7 @@
     # https://github.com/NixOS/nixpkgs/issues/249138
     # ./virtual-machine.nix
     ./environment.nix
+    ./clipboard.nix
     ./security.nix
     ./torrent.nix
     ./docker.nix
