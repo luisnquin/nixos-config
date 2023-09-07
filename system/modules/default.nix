@@ -14,6 +14,7 @@
     ./docker.nix
     ./nvidia.nix
     ./fonts.nix
+    ./audio.nix
     ./boot.nix
     ./nix.nix
     ./k8s.nix

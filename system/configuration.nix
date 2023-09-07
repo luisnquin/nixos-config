@@ -57,20 +57,7 @@
   };
   # zh-CN
 
-  sound.enable = true;
-
-  services = {
-    thermald.enable = true;
-
-    # pulseaudio doesn't give a good support for some programs
-    pipewire = {
-      enable = true;
-      alsa.enable = true;
-      alsa.support32Bit = true;
-      pulse.enable = true;
-      jack.enable = true;
-    };
-  };
+  services.thermald.enable = true;
 
   system = {
     inherit (nix) stateVersion;
