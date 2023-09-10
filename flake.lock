@@ -387,11 +387,11 @@
         "nixpkgs": "nixpkgs_7"
       },
       "locked": {
-        "lastModified": 1692654548,
-        "narHash": "sha256-RpKkQ7xhM2XqfZdXra0ju0cTBL3Al9NMVQ/oleFydDs=",
+        "lastModified": 1694356995,
+        "narHash": "sha256-gs3N2hCHrUSwT0hr59/Oxj9ZGfmfDsA7C9mkBU2IwjA=",
         "owner": "gabrielzschmitz",
         "repo": "Tomato.C",
-        "rev": "6e43e85aa15f3d96811311a3950eba8ce9715634",
+        "rev": "883d911a36fa57d1cffc19cdbd57636426318ddf",
         "type": "github"
       },
       "original": {
