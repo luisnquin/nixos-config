@@ -91,17 +91,17 @@
         exec-nid = "exec --no-startup-id";
       in
         lib.mkOptionDefault {
-          "XF86AudioMicMute" = "exec ${dunstify-sound-bin} --toggle-mic";
-          "XF86AudioMute" = "exec ${dunstify-sound-bin} --toggle-vol";
-          "XF86AudioLowerVolume" = "exec ${dunstify-sound-bin} --dec";
-          "XF86AudioRaiseVolume" = "exec ${dunstify-sound-bin} --inc";
+          "XF86AudioMicMute" = "${exec-nid} ${dunstify-sound-bin} --toggle-mic";
+          "XF86AudioMute" = "${exec-nid} ${dunstify-sound-bin} --toggle-vol";
+          "XF86AudioLowerVolume" = "${exec-nid} ${dunstify-sound-bin} --dec";
+          "XF86AudioRaiseVolume" = "${exec-nid} ${dunstify-sound-bin} --inc";
 
-          "XF86MonBrightnessDown" = "exec ${dunstify-brightness-bin} --dec";
-          "XF86MonBrightnessUp" = "exec ${dunstify-brightness-bin} --inc";
+          "XF86MonBrightnessDown" = "${exec-nid} ${dunstify-brightness-bin} --dec";
+          "XF86MonBrightnessUp" = "${exec-nid} ${dunstify-brightness-bin} --inc";
 
-          "${modifier}+Shift+braceright" = "exec ${spotify-dbus} --next";
-          "${modifier}+Shift+braceleft" = "exec ${spotify-dbus} --prev";
-          "${modifier}+Pause" = "exec ${spotify-dbus} --toggle";
+          "${modifier}+Shift+braceright" = "${exec-nid} ${spotify-dbus} --next";
+          "${modifier}+Shift+braceleft" = "${exec-nid} ${spotify-dbus} --prev";
+          "${modifier}+Pause" = "${exec-nid} ${spotify-dbus} --toggle";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
           "${modifier}+b" = "exec ${brave}/bin/brave";
