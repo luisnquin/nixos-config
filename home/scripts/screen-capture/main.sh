@@ -2,35 +2,40 @@
 
 NOTIFICATION_ICON_PATH="/path/to/icon"
 
-capture_and_notify() {
-    maim_args="$1"
-    notification_body="$2"
-
-    screenshot_path="/tmp/$(uuidgen).png"
-
-    # normally failed exit code when user cancel capture
-    if eval "maim $maim_args" >"$screenshot_path"; then
-        notify-send 'Screenshot taken!' "$notification_body" --icon="$NOTIFICATION_ICON_PATH"
-        xclip -sel clip -t image/png "$screenshot_path"
-    fi
-
-    rm -f "$screenshot_path"
-}
-
 main() {
     set -e
 
+    screenshot_path="/tmp/$(uuidgen).png"
+
     case "$1" in
     --selection)
-        capture_and_notify '--select' 'From selection'
+        if maim --select >"$screenshot_path"; then
+            xclip -sel clip -t image/png "$screenshot_path"
+
+            notify-send 'Screenshot taken!' 'From selection' --icon="$NOTIFICATION_ICON_PATH"
+        fi
+
+        rm -f "$screenshot_path"
         ;;
 
     --active-window)
-        capture_and_notify '--window $(xdotool getactivewindow)' 'From active window'
+        if maim --window "$(xdotool getactivewindow)" >"$screenshot_path"; then
+            xclip -sel clip -t image/png "$screenshot_path"
+
+            notify-send 'Screenshot taken!' 'From active window' --icon="$NOTIFICATION_ICON_PATH"
+        fi
+
+        rm -f "$screenshot_path"
         ;;
 
     --screen)
-        capture_and_notify '' 'From screen'
+        if maim >"$screenshot_path"; then
+            xclip -sel clip -t image/png "$screenshot_path"
+
+            notify-send 'Screenshot taken!' 'From screen' --icon="$NOTIFICATION_ICON_PATH"
+        fi
+
+        rm -f "$screenshot_path"
         ;;
 
     -* | *)
