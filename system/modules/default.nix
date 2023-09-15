@@ -16,6 +16,7 @@
     ./fonts.nix
     ./audio.nix
     ./boot.nix
+    ./vpn.nix
     ./nix.nix
   ];
 }
