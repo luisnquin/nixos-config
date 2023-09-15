@@ -6,6 +6,7 @@
 
     history = {
       expireDuplicatesFirst = true;
+      ignoreSpace = true;
       save = 10000 * 2;
     };
 
