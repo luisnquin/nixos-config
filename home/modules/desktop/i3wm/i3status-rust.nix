@@ -27,6 +27,14 @@
             format = "󰕾 {$volume.eng(w:2) |}";
           }
           {
+            block = "vpn";
+            driver = "mullvad";
+            format_connected = "VPN 󱜠 ";
+            format_disconnected = "VPN  ";
+            state_connected = "good";
+            state_disconnected = "warning";
+          }
+          {
             block = "net";
             format = " ^icon_net_down$speed_down.eng(prefix:K) ^icon_net_up$speed_up.eng(prefix:K) ";
           }
