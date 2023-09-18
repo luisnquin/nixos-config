@@ -1,4 +1,5 @@
 {
+  nix-search,
   tomato-c,
   pkgs,
   senv,
@@ -62,6 +63,7 @@
     in
       nixpkgs
       ++ [
+        nix-search
         tomato-c
         senv
       ];

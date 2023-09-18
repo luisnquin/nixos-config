@@ -6,8 +6,9 @@
     home-manager.url = "github:nix-community/home-manager";
     spicetify-nix.url = "github:the-argus/spicetify-nix";
     tomato-c.url = "github:gabrielzschmitz/Tomato.C";
-    senv.url = "github:luisnquin/senv";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
+    nix-search.url = "github:luisnquin/nix-search";
+    senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
   };
 
@@ -60,6 +61,7 @@
       in
         {
           fallout-grub-theme = getDefault fallout-grub-theme;
+          nix-search = getDefault nix-search;
           tomato-c = getDefault tomato-c;
           senv = getDefault senv;
           nao = getDefault nao;
