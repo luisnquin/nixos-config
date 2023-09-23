@@ -142,8 +142,8 @@ _: {
           description = "Displays the name of your current senv environment";
           shell = ["bash" "--noprofile" "--norc"];
           format = "using [$symbol ($output )]($style)";
-          command = "senv out";
-          when = "senv out";
+          command = "senv --get";
+          when = "senv --get";
           style = "#a8e046";
           symbol = "󱕴";
         };
