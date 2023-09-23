@@ -6,11 +6,9 @@
       ];
       "hypr" = [
         ./hypr
-        ./greenclip.nix
       ];
       "i3" = [
         ./i3wm
-        ./greenclip.nix
       ];
     }
     .${host.desktop};
