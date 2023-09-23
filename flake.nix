@@ -8,6 +8,7 @@
     tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
     nix-search.url = "github:luisnquin/nix-search";
+    hyprland.url = "github:hyprwm/Hyprland";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
   };
@@ -60,6 +61,7 @@
         getDefault = pkg: pkg.defaultPackage.${system};
       in
         {
+          inherit (hyprland.packages.${system}) hyprland;
           fallout-grub-theme = getDefault fallout-grub-theme;
           nix-search = getDefault nix-search;
           tomato-c = getDefault tomato-c;

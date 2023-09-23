@@ -15,7 +15,7 @@ keyboardLayout = "latam"
 resolution = "1920x1080"
 batteryThreshold = 60
 browser = "brave"
-desktop = "i3"
+desktop = "hypr"
 
 [nix]
 stateVersion = "23.11"
