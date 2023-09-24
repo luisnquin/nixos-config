@@ -1,8 +1,10 @@
 {pkgs, ...}: let
   inherit (pkgs) callPackage;
 
+  spotify-dbus-bin = "${callPackage ./../../../scripts/spotify-dbus {}}/bin/spotify-dbus";
   dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
   screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
+
   dunstify-brightness = callPackage ./../../../scripts/dunstify-brightness {};
   cliphist-rofi = callPackage ./../../../scripts/cliphist-rofi {};
 in {
@@ -144,18 +146,22 @@ in {
     bind = ,XF86AudioMute, exec, ${dunstify-sound-bin} --toggle-vol
     bind = ,XF86AudioLowerVolume, exec, ${dunstify-sound-bin} --dec
     bind = ,XF86AudioRaiseVolume, exec, ${dunstify-sound-bin} --inc
+
     bind = ,Print, exec, ${screen-capture-bin} --screen
     bind = $mainMod, Print, exec, ${screen-capture-bin} --active-window
     bind = SUPER_SHIFT, Print, exec, ${screen-capture-bin} --selection
+
     bind = ,XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec
     bind = ,XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc
 
+    bind = SUPER_SHIFT, KEY_APOSTROPHE, exec, ${spotify-dbus-bin} --next";
+    bind = SUPER_SHIFT, KEY_BACKSLASH, exec, ${spotify-dbus-bin} --prev";
+    bind = ,Pause, exec, ${spotify-dbus-bin} --toggle";
+
     bind = SUPER_SHIFT, R, exec, ${pkgs.hyprland}/bin/hyprctl reload
 
-
-
     bind = SUPER_SHIFT, C, exec, ${pkgs.rofi}/bin/rofi -modi "clipboard:${cliphist-rofi}/bin/cliphist-rofi" -show clipboard
-    bind = SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window
+    bind = SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show windows
     bind = $mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun
 
     # Move focus with mainMod + arrow keys
