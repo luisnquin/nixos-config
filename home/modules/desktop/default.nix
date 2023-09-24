@@ -14,4 +14,6 @@
     .${host.desktop};
 in {
   imports = desktopModules;
+
+  xsession.enable = true;
 }
