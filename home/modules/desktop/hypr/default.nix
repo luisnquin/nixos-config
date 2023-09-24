@@ -1,8 +1,8 @@
 {
   imports = [
+    ./clipboard.nix
     ./waybar.nix
 
-    ./../greenclip.nix
     ./../dunst.nix
     ./../rofi.nix
   ];
