@@ -1,6 +1,7 @@
 {pkgs, ...}: let
   inherit (pkgs) callPackage;
 
+  screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
   dunstify-brightness = callPackage ./../../../scripts/dunstify-brightness {};
   cliphist-rofi = callPackage ./../../../scripts/cliphist-rofi {};
 in {
@@ -138,6 +139,9 @@ in {
     bind = $mainMod, F, fullscreen
     bind = $mainMod, M, exit,
 
+    bind = ,Print, exec, ${screen-capture-bin} --screen
+    bind = $mainMod, Print, exec, ${screen-capture-bin} --active-window
+    bind = SUPER_SHIFT, Print, exec, ${screen-capture-bin} --selection
     bind = ,XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec
     bind = ,XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc
 
