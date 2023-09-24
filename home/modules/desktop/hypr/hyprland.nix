@@ -136,6 +136,7 @@ in {
 
     bind = SUPER_SHIFT, R, exec, ${pkgs.hyprland}/bin/hyprctl reload
 
+    bind = SUPER_SHIFT, C, exec, ${pkgs.rofi}/bin/rofi -modi "clipboard:${cliphist-rofi}/bin/cliphist-rofi" -show clipboard
     bind = SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window
     bind = $mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun
 
