@@ -136,17 +136,20 @@
     '';
     settings = [
       {
-        "layer" = "top";
         "position" = "top";
+        "layer" = "top";
+
         modules-left = [
           "custom/launcher"
-          "temperature"
+          # "temperature"
           "mpd"
           "custom/cava-internal"
         ];
+
         modules-center = [
-          "clock"
+          "custom/clock"
         ];
+
         modules-right = [
           "pulseaudio"
           "backlight"
@@ -156,6 +159,7 @@
           "custom/powermenu"
           "tray"
         ];
+
         "custom/launcher" = {
           "format" = " ";
           "on-click" = "pkill rofi || rofi2";
@@ -163,10 +167,12 @@
           "on-click-right" = "exec wallpaper_random";
           "tooltip" = false;
         };
+
         "custom/cava-internal" = {
           "exec" = "sleep 1s && cava-internal";
           "tooltip" = false;
         };
+
         "pulseaudio" = {
           "scroll-step" = 1;
           "format" = "{icon} {volume}%";
@@ -177,12 +183,13 @@
           "on-click" = "pamixer -t";
           "tooltip" = false;
         };
-        "clock" = {
-          "interval" = 1;
-          "format" = "{:%I:%M %p  %A %b %d}";
-          "tooltip" = true;
-          "tooltip-format" = "{=%A; %d %B %Y}\n<tt>{calendar}</tt>";
+
+        "custom/clock" = {
+          "exec" = "date +'%Y-%m-%d %H:%M'";
+          "interval" = 2;
+          "tooltip" = false;
         };
+
         "memory" = {
           "interval" = 1;
           "format" = "󰻠 {percentage}%";
@@ -190,10 +197,12 @@
             "warning" = 85;
           };
         };
+
         "cpu" = {
           "interval" = 1;
           "format" = "󰍛 {usage}%";
         };
+
         "mpd" = {
           "max-length" = 25;
           "format" = "<span foreground='#bb9af7'></span> {title}";
@@ -208,6 +217,7 @@
           "smooth-scrolling-threshold" = 5;
           "tooltip-format" = "{title} - {artist} ({elapsedTime:%M:%S}/{totalTime:%H:%M:%S})";
         };
+
         "network" = {
           "format-disconnected" = "󰯡 Disconnected";
           "format-ethernet" = "󰒢 Connected!";
@@ -216,11 +226,13 @@
           "interval" = 1;
           "tooltip" = false;
         };
+
         "custom/powermenu" = {
           "format" = "";
           "on-click" = "pkill rofi || ~/.config/rofi/powermenu/type-3/powermenu.sh";
           "tooltip" = false;
         };
+
         "tray" = {
           "icon-size" = 15;
           "spacing" = 5;
