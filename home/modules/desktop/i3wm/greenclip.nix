@@ -1,4 +1,8 @@
 {user, ...}: {
+  home.packages = with pkgs; [
+    greenclip
+  ];
+
   xdg.configFile = {
     "greenclip.toml".text = ''
       [greenclip]
