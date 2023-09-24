@@ -7,7 +7,7 @@
     hyprland = {
       enable = true;
       package = hyprland;
-      nvidiaPatches = true;
+      enableNvidiaPatches = true;
     };
   };
 
