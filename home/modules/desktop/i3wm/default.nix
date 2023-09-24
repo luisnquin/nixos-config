@@ -10,10 +10,10 @@
   # https://github.com/davatorium/rofi
   imports = [
     ./i3status-rust.nix
+    ./greenclip.nix
     ./picom.nix
     ./i3.nix
 
-    ./../greenclip.nix
     ./../dunst.nix
     ./../rofi.nix
   ];
