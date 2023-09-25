@@ -8,9 +8,11 @@
     tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
     nix-search.url = "github:luisnquin/nix-search";
-    hyprland.url = "github:hyprwm/Hyprland";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
+
+    hyprland-contrib.url = "github:hyprwm/contrib";
+    hyprland.url = "github:hyprwm/Hyprland";
   };
 
   outputs = inputs:
@@ -70,6 +72,7 @@
 
           inherit spicetify-nix;
         }
+        // hyprland-contrib.packages.${system}
         // setup;
 
       mkNixos = config:

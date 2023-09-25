@@ -1,5 +1,13 @@
 {pkgs, ...}: {
   home.packages = with pkgs; [xdg-desktop-portal-hyprland];
+{
+  grimblast,
+  pkgs,
+  ...
+}: {
+  home.packages = [
+    pkgs.xdg-desktop-portal-hyprland
+  ];
 
   xdg.configFile."hypr/hyprland.conf".text = let
     inherit (pkgs) callPackage;
@@ -150,9 +158,9 @@
     bind = ,XF86AudioLowerVolume, exec, ${dunstify-sound-bin} --dec
     bind = ,XF86AudioRaiseVolume, exec, ${dunstify-sound-bin} --inc
 
-    bind = ,Print, exec, ${screen-capture-bin} --screen
-    bind = $mainMod, Print, exec, ${screen-capture-bin} --active-window
-    bind = SUPER_SHIFT, Print, exec, ${screen-capture-bin} --selection
+    bind = ,Print, exec, ${grimblast}/bin/grimblast copy screen
+    bind = $mainMod, Print, exec, ${grimblast}/bin/grimblast copy active
+    bind = SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze copy area
 
     bind = ,XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec
     bind = ,XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc
