@@ -10,12 +10,12 @@
     grimblast
   ];
 
+  # More keysyms here: https://github.com/xkbcommon/libxkbcommon/blob/master/include/xkbcommon/xkbcommon-keysyms.h
   xdg.configFile."hypr/hyprland.conf".text = let
     inherit (pkgs) callPackage;
 
     spotify-dbus-bin = "${callPackage ./../../../scripts/spotify-dbus {}}/bin/spotify-dbus";
     dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
-    # screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
 
     dunstify-brightness = callPackage ./../../../scripts/dunstify-brightness {};
     cliphist-rofi = callPackage ./../../../scripts/cliphist-rofi {};
