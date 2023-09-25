@@ -137,8 +137,8 @@
         "network" = {
           "format-disconnected" = "󰯡 Disconnected";
           "format-ethernet" = "󰒢 Connected!";
-          "format-linked" = "󰖪 {essid} (No IP)";
-          "format-wifi" = "󰖩 {essid}";
+          "format-linked" = "󰖪  {essid} (No IP)";
+          "format-wifi" = "󰖩  {essid}";
           "interval" = 1;
           "tooltip" = false;
         };
