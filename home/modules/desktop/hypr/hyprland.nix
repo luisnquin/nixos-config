@@ -7,6 +7,7 @@
 }: {
   home.packages = [
     pkgs.xdg-desktop-portal-hyprland
+    grimblast
   ];
 
   xdg.configFile."hypr/hyprland.conf".text = let
@@ -14,7 +15,7 @@
 
     spotify-dbus-bin = "${callPackage ./../../../scripts/spotify-dbus {}}/bin/spotify-dbus";
     dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
-    screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
+    # screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
 
     dunstify-brightness = callPackage ./../../../scripts/dunstify-brightness {};
     cliphist-rofi = callPackage ./../../../scripts/cliphist-rofi {};
@@ -158,9 +159,9 @@
     bind = ,XF86AudioLowerVolume, exec, ${dunstify-sound-bin} --dec
     bind = ,XF86AudioRaiseVolume, exec, ${dunstify-sound-bin} --inc
 
-    bind = ,Print, exec, ${grimblast}/bin/grimblast copy screen
-    bind = $mainMod, Print, exec, ${grimblast}/bin/grimblast copy active
-    bind = SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze copy area
+    bind = ,Print, exec, ${grimblast}/bin/grimblast --notify copy screen
+    bind = $mainMod, Print, exec, ${grimblast}/bin/grimblast --notify copy active
+    bind = SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze --notify copy area
 
     bind = ,XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec
     bind = ,XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc
