@@ -29,6 +29,7 @@
           # "backlight"
           "memory"
           "cpu"
+          "battery"
           "network"
           "custom/powermenu"
         ];
@@ -98,6 +99,19 @@
           "states" = {
             "warning" = 85;
           };
+        };
+
+        "battery" = {
+          "states" = {
+            "warning" = 30;
+            "critical" = 15;
+          };
+          "format" = "{icon} {capacity}%";
+          "format-charging" = "󰂄 {capacity}%";
+          "format-plugged" = "󱟠 {capacity}%";
+          "format-alt" = "{time} {icon}";
+          "format-full" = "󱟢 {capacity}%";
+          "format-icons" = ["󰁺" "󰁻" "󰁽" "󰁿" "󰂀" "󰂂"];
         };
 
         "cpu" = {
