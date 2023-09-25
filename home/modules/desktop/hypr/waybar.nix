@@ -13,9 +13,10 @@
 
         modules-left = [
           "custom/launcher"
+          "hyprland/workspaces"
           # "temperature"
-          "mpd"
-          "custom/cava-internal"
+          # "mpd"
+          # "custom/cava-internal"
         ];
 
         modules-center = [
@@ -23,25 +24,54 @@
         ];
 
         modules-right = [
+          "tray"
           "pulseaudio"
-          "backlight"
+          # "backlight"
           "memory"
           "cpu"
           "network"
           "custom/powermenu"
-          "tray"
         ];
+
+        "workspaces" = {
+          "all-outputs" = true;
+          "disable-scroll" = true;
+          "format" = "{icon}";
+          "format-icons" = {
+            "1" = "";
+            "2" = "";
+            "3" = "";
+            "4" = "";
+            "5" = "";
+            "6" = "";
+            "7" = "";
+            "8" = "";
+            "9" = "";
+            "10" = "";
+            "urgent" = "";
+            "focused" = "";
+            "default" = "";
+          };
+
+          "persistent_workspaces" = {
+            "1" = [];
+            "2" = [];
+            "3" = [];
+            "4" = [];
+            "5" = [];
+            "6" = [];
+            "7" = [];
+            "8" = [];
+            "9" = [];
+            "10" = [];
+          };
+        };
 
         "custom/launcher" = {
           "format" = " ";
           "on-click" = "pkill rofi || rofi2";
           "on-click-middle" = "exec default_wall";
           "on-click-right" = "exec wallpaper_random";
-          "tooltip" = false;
-        };
-
-        "custom/cava-internal" = {
-          "exec" = "sleep 1s && cava-internal";
           "tooltip" = false;
         };
 
@@ -75,20 +105,20 @@
           "format" = "󰍛 {usage}%";
         };
 
-        "mpd" = {
-          "max-length" = 25;
-          "format" = "<span foreground='#bb9af7'></span> {title}";
-          "format-paused" = " {title}";
-          "format-stopped" = "<span foreground='#bb9af7'></span>";
-          "format-disconnected" = "";
-          "on-click" = "mpc --quiet toggle";
-          "on-click-right" = "mpc update; mpc ls | mpc add";
-          "on-click-middle" = "kitty --class='ncmpcpp' ncmpcpp ";
-          "on-scroll-up" = "mpc --quiet prev";
-          "on-scroll-down" = "mpc --quiet next";
-          "smooth-scrolling-threshold" = 5;
-          "tooltip-format" = "{title} - {artist} ({elapsedTime:%M:%S}/{totalTime:%H:%M:%S})";
-        };
+        # "mpd" = {
+        #   "max-length" = 25;
+        #   "format" = "<span foreground='#bb9af7'></span> {title}";
+        #   "format-paused" = " {title}";
+        #   "format-stopped" = "<span foreground='#bb9af7'></span>";
+        #   "format-disconnected" = "";
+        #   "on-click" = "mpc --quiet toggle";
+        #   "on-click-right" = "mpc update; mpc ls | mpc add";
+        #   "on-click-middle" = "kitty --class='ncmpcpp' ncmpcpp ";
+        #   "on-scroll-up" = "mpc --quiet prev";
+        #   "on-scroll-down" = "mpc --quiet next";
+        #   "smooth-scrolling-threshold" = 5;
+        #   "tooltip-format" = "{title} - {artist} ({elapsedTime:%M:%S}/{totalTime:%H:%M:%S})";
+        # };
 
         "network" = {
           "format-disconnected" = "󰯡 Disconnected";
