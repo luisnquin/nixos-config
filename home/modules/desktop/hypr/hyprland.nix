@@ -167,9 +167,9 @@
     bind = ,XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec
     bind = ,XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc
 
-    bind = SUPER_SHIFT, KEY_APOSTROPHE, exec, ${spotify-dbus-bin} --next";
-    bind = SUPER_SHIFT, KEY_BACKSLASH, exec, ${spotify-dbus-bin} --prev";
-    bind = ,Pause, exec, ${spotify-dbus-bin} --toggle";
+    bind = SUPER_SHIFT, braceright, exec, ${spotify-dbus-bin} --next
+    bind = SUPER_SHIFT, braceleft, exec, ${spotify-dbus-bin} --prev
+    bind = $mainMod,Pause, exec, ${spotify-dbus-bin} --toggle
 
     bind = SUPER_SHIFT, R, exec, ${pkgs.hyprland}/bin/hyprctl reload
 
