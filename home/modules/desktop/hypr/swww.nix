@@ -15,6 +15,10 @@ in {
     exec-once = ${pkgs.swww}/bin/swww init
     exec = ${pkgs.swww}/bin/swww img ${./../../../dots/background.png}
 
-    bind = $mainMod, L, exec, ${swww-switcher-bin} ${builtins.concatStringsSep " " wallpaper-files}
+    bind = $mainMod, L, exec, ${swww-switcher-bin} ${builtins.concatStringsSep " " (wallpaper-files
+      ++ [
+        ./../../../dots/background.png
+        ./../../../dots/background.gif
+      ])}
   '';
 }
