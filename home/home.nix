@@ -13,6 +13,8 @@
     enableNixpkgsReleaseCheck = true;
     homeDirectory = "/home/${user.alias}";
     username = "${user.alias}";
+
+    file.".face".source = ./dots/.face;
   };
 
   # I'm not using standard paths
