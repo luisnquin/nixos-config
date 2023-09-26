@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "app"
+version = "0.1.0"
+description = ""
+authors = ["Luis Quiñones Requelme <lpaandres2020@gmail.com>"]
+packages = [{include = "app"}]
+
+[tool.poetry.scripts]
+cli = "app.cli:main"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+autopep8 = "^2.0.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
