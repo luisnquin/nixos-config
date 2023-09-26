@@ -119,7 +119,8 @@
 
         "tray" = {
           "icon-size" = 15;
-          "spacing" = 5;
+          "spacing" = 10;
+        };
 
         "user" = {
           "format" = "{avatar}";
