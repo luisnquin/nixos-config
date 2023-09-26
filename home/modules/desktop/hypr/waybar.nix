@@ -13,6 +13,7 @@
 
         modules-left = [
           "custom/launcher"
+          "user"
           "hyprland/workspaces"
           # "temperature"
           # "mpd"
@@ -152,6 +153,13 @@
         "tray" = {
           "icon-size" = 15;
           "spacing" = 5;
+
+        "user" = {
+          "format" = "{avatar}";
+          "interval" = 60;
+          "height" = 30;
+          "width" = 30;
+          "icon" = true;
         };
       }
     ];
