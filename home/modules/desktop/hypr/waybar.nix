@@ -61,7 +61,7 @@
 
         "pulseaudio" = {
           "scroll-step" = 1;
-          "format" = "{icon} {volume}%";
+          "format" = "{icon}  {volume}%";
           "format-muted" = "󰖁 Muted";
           "format-icons" = {
             "default" = ["" "" ""];
@@ -101,21 +101,6 @@
           "interval" = 1;
           "format" = "󰍛 {usage}%";
         };
-
-        # "mpd" = {
-        #   "max-length" = 25;
-        #   "format" = "<span foreground='#bb9af7'></span> {title}";
-        #   "format-paused" = " {title}";
-        #   "format-stopped" = "<span foreground='#bb9af7'></span>";
-        #   "format-disconnected" = "";
-        #   "on-click" = "mpc --quiet toggle";
-        #   "on-click-right" = "mpc update; mpc ls | mpc add";
-        #   "on-click-middle" = "kitty --class='ncmpcpp' ncmpcpp ";
-        #   "on-scroll-up" = "mpc --quiet prev";
-        #   "on-scroll-down" = "mpc --quiet next";
-        #   "smooth-scrolling-threshold" = 5;
-        #   "tooltip-format" = "{title} - {artist} ({elapsedTime:%M:%S}/{totalTime:%H:%M:%S})";
-        # };
 
         "network" = {
           "format-disconnected" = "󰯡 Disconnected";
