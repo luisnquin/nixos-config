@@ -32,7 +32,7 @@
           "cpu"
           "battery"
           "network"
-          "custom/powermenu"
+          "custom/power"
         ];
 
         "workspaces" = {
@@ -144,7 +144,7 @@
           "tooltip" = false;
         };
 
-        "custom/powermenu" = {
+        "custom/power" = {
           "format" = "";
           "on-click" = ''${pkgs.rofi}/bin/rofi -modi "power-menu:${pkgs.rofi-power-menu}/bin/rofi-power-menu" -show power-menu'';
           "tooltip" = false;

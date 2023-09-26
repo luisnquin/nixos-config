@@ -82,7 +82,6 @@
 
  #mode,
  #clock,
- #memory,
  #temperature,
  #cpu,
  #mpd,
@@ -91,9 +90,10 @@
  #pulseaudio,
  #network,
  #battery,
- #custom-powermenu {
-     padding-left: 10px;
-     padding-right: 10px;
+ #memory,
+ #user,
+ #custom-power {
+     padding: 0 8px;
  }
 
  #memory {
@@ -132,7 +132,7 @@
      color: rgb(255, 255, 255);
  }
 
- #custom-powermenu {
+ #custom-power {
      color: rgb(242, 143, 173);
      padding-right: 15px;
  }
