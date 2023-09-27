@@ -89,9 +89,9 @@
                     "desktop": {
                         "type": "string",
                         "enum": [
-                            "i3",
+                            "hyprland",
                             "plasma",
-                            "hypr"
+                            "i3"
                         ]
                     },
                     "i18nLocale": {

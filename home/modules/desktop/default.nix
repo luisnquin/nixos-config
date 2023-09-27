@@ -4,11 +4,11 @@
       "plasma" = [
         ./plasma
       ];
-      "hypr" = [
-        ./hypr
+      "hyprland" = [
+        ./hyprland
       ];
       "i3" = [
-        ./i3wm
+        ./i3
       ];
     }
     .${host.desktop};

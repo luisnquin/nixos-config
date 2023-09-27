@@ -1,9 +1,9 @@
 {host, ...}: let
   desktopModule =
     {
+      "hyprland" = ./hyprland.nix;
       "plasma" = ./plasma.nix;
-      "hypr" = ./hypr.nix;
-      "i3" = ./i3wm.nix;
+      "i3" = ./i3.nix;
     }
     .${host.desktop};
 in {
