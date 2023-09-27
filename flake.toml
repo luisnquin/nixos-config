@@ -1,4 +1,4 @@
-#:schema ./docs/flake.json.schema
+#:schema ./.schema
 
 use = "luisnquin"
 
