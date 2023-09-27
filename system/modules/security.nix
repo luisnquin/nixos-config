@@ -24,7 +24,7 @@
         isNormalUser = true;
         home = ''/home/${user.alias}/'';
         # Used by desktop manager
-        description = ''${user.alias} 🌂'';
+        description = ''${user.alias} 🍂'';
         shell = pkgs.zsh;
         hashedPassword = null;
         # ❄️
