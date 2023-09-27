@@ -18,7 +18,6 @@
 
         clap = [
           translate-shell # Translate anything from shell
-          ranger
           tealdeer # Alternative to tdlr client and man
           tree
 

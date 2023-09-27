@@ -3,6 +3,7 @@
     ./desktop
     ./terminal
 
+    ./file-manager.nix
     ./obs-studio.nix
     ./mime-apps.nix
     ./macchina.nix
