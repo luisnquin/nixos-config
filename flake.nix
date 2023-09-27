@@ -63,13 +63,14 @@
         getDefault = pkg: pkg.defaultPackage.${system};
       in
         {
-          inherit (hyprland.packages.${system}) hyprland;
           fallout-grub-theme = getDefault fallout-grub-theme;
           nix-search = getDefault nix-search;
           tomato-c = getDefault tomato-c;
           senv = getDefault senv;
           nao = getDefault nao;
 
+          xlib = import ./lib {inherit (pkgs) lib;};
+          inherit (hyprland.packages.${system}) hyprland;
           inherit spicetify-nix;
         }
         // hyprland-contrib.packages.${system}

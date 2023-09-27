@@ -1,13 +1,11 @@
-{pkgs, ...}: let
+{
+  pkgs,
+  xlib,
+  ...
+}: let
   inherit (pkgs) callPackage;
 
-  getFolderPaths = with builtins;
-    folderPath: let
-      fileNames = attrNames (readDir folderPath);
-    in
-      map (p: folderPath + ("/" + p)) fileNames;
-
-  wallpaperFiles = getFolderPaths ./../../../dots/wallpapers;
+  wallpaperFiles = xlib.getFolderPaths ./../../../dots/wallpapers;
 in {
   home.packages = [pkgs.swww];
 
