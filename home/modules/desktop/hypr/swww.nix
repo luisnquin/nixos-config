@@ -1,13 +1,15 @@
 {pkgs, ...}: let
   inherit (pkgs) callPackage;
 
-  files = builtins.attrNames (builtins.readDir ./../../../dots/wallpapers);
+  getFolderPaths = with builtins;
+    folderPath: let
+      fileNames = attrNames (readDir folderPath);
+    in
+      map (p: folderPath + ("/" + p)) fileNames;
 
-  wallpaper-files = builtins.map (p: ./. + "/../../../dots/wallpapers" + ("/" + p)) files;
+  wallpaperFiles = getFolderPaths ./../../../dots/wallpapers;
 in {
-  home.packages = with pkgs; [
-    swww
-  ];
+  home.packages = [pkgs.swww];
 
   xdg.configFile."hypr/hyprland.conf".text = let
     swww-switcher-bin = "${callPackage ./../../../scripts/swww-switcher {}}/bin/cli";
@@ -15,7 +17,7 @@ in {
     exec-once = ${pkgs.swww}/bin/swww init
     exec = ${pkgs.swww}/bin/swww img ${./../../../dots/background.png}
 
-    bind = $mainMod, L, exec, ${swww-switcher-bin} ${builtins.concatStringsSep " " (wallpaper-files
+    bind = $mainMod, L, exec, ${swww-switcher-bin} ${builtins.concatStringsSep " " (wallpaperFiles
       ++ [
         ./../../../dots/background.png
         ./../../../dots/background.gif
