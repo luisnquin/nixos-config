@@ -14,11 +14,11 @@
 $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstrap.sh | sh
 ```
 
-## My computer
+## Environments
 
-![image](https://github.com/luisnquin/nixos-config/assets/86449787/43208b4a-d448-4bcb-9793-e11e0b80c75f)
+### Hyprland
 
-![image](https://i.ibb.co/0mqcSg6/s.png)
+![image](https://github.com/luisnquin/nixos-config/assets/86449787/ff921198-44b6-404a-8243-28eff5a0f6f7)
 
 Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more NixOS options.
 
