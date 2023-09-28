@@ -16,7 +16,7 @@
           if readFileType folderPath == "directory"
           then let
             rawEntries = readDir folderPath;
-            entries = lib.attrsets.filterAttrs (n: v: v == "regular") rawEntries;
+            entries = lib.attrsets.filterAttrs (_n: v: v == "regular") rawEntries;
           in
             attrNames entries
           else inputError "expected a path to folder"
