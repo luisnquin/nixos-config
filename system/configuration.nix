@@ -11,10 +11,10 @@
   # 🐙
   require = [
     ./../tools
+    ./../pkgs
 
     ./services
     ./modules
-    ./pkgs
   ];
 
   hardware = {
