@@ -2,14 +2,13 @@
   pkgs,
   libx,
   ...
-}: let
-  inherit (pkgs) callPackage;
-
-  wallpaperFiles = libx.getFilesInDirectory ./../../../dots/wallpapers;
-in {
+}: {
   home.packages = [pkgs.swww];
 
   xdg.configFile."hypr/hyprland.conf".text = let
+    inherit (pkgs) callPackage;
+
+    wallpaperFiles = libx.getFilesInDirectory ./../../../dots/wallpapers;
     swww-switcher-bin = "${callPackage ./../../../scripts/swww-switcher {}}/bin/cli";
   in ''
     exec-once = ${pkgs.swww}/bin/swww init
