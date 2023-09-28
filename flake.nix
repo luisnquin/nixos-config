@@ -69,7 +69,7 @@
           senv = getDefault senv;
           nao = getDefault nao;
 
-          xlib = import ./lib {inherit (pkgs) lib;};
+          libx = import ./lib {inherit (pkgs) lib;};
           inherit (hyprland.packages.${system}) hyprland;
           inherit spicetify-nix;
         }

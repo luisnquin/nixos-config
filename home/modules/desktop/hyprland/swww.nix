@@ -1,11 +1,11 @@
 {
   pkgs,
-  xlib,
+  libx,
   ...
 }: let
   inherit (pkgs) callPackage;
 
-  wallpaperFiles = xlib.getFolderPaths ./../../../dots/wallpapers;
+  wallpaperFiles = libx.getFilesInDirectory ./../../../dots/wallpapers;
 in {
   home.packages = [pkgs.swww];
 

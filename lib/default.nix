@@ -1,5 +1,12 @@
 {lib}: {
-  getFolderPaths = with builtins;
+  # Retrieves a list of file paths within the specified directory path.
+  #
+  # Arguments:
+  # - folderPath: A path to the directory.
+  #
+  # Returns:
+  # A list of regular file paths within the directory.
+  getFilesInDirectory = with builtins;
     folderPath: let
       inputError = message: throw "input error: ${message}";
 
@@ -7,7 +14,11 @@
         if lib.isPath folderPath
         then
           if readFileType folderPath == "directory"
-          then attrNames (readDir folderPath)
+          then let
+            rawEntries = readDir folderPath;
+            entries = lib.attrsets.filterAttrs (n: v: v == "regular") rawEntries;
+          in
+            attrNames entries
           else inputError "expected a path to folder"
         else inputError "value is not a path";
     in
