@@ -30,8 +30,9 @@
         # ❄️
 
         extraGroups = [
-          "wheel"
+          "networkmanager"
           "docker"
+          "wheel"
         ];
       };
     };
