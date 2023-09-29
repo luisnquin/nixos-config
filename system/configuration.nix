@@ -11,7 +11,6 @@
   # 🐙
   require = [
     ./../tools
-    ./../pkgs
 
     ./services
     ./modules

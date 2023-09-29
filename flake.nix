@@ -70,6 +70,8 @@
           nao = getDefault nao;
 
           libx = import ./lib {inherit (pkgs) lib;};
+          pkgsx = import ./pkgs {inherit pkgs;};
+
           inherit (hyprland.packages.${system}) hyprland;
           inherit spicetify-nix;
         }

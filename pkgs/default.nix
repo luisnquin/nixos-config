@@ -1,13 +1,12 @@
-{pkgs ? import <nixpkgs> {}, ...}: {
-  environment.systemPackages = with pkgs; let
-    paths = [
-      ./panicparse.nix
-      ./transg-tui.nix
-      ./minecraft.nix
-      ./pg-ping.nix
-      ./npkill.nix
-      ./no.nix
-    ];
-  in
-    lib.lists.forEach paths (path: callPackage path {});
-}
+{pkgs ? import <nixpkgs> {}, ...}:
+with pkgs.lib; let
+  packages = {
+    panicparse = ./panicparse.nix;
+    transg-tui = ./transg-tui.nix;
+    minecraft = ./minecraft.nix;
+    pg-ping = ./pg-ping.nix;
+    npkill = ./npkill.nix;
+    no = ./no.nix;
+  };
+in
+  attrsets.mapAttrs (_name: packagePath: pkgs.callPackage packagePath {}) packages
