@@ -10,7 +10,9 @@
       target = "graphical-session.target";
     };
     style = builtins.readFile ./styles/waybar-v1.css;
-    settings = [
+    settings = let
+      runBtopWithAlacritty = "${pkgs.alacritty}/bin/alacritty -e ${pkgs.btop}/bin/btop";
+    in [
       {
         "position" = "top";
         "layer" = "top";
@@ -80,12 +82,19 @@
           "tooltip" = false;
         };
 
+        "cpu" = {
+          "interval" = 1;
+          "format" = "󰍛 {usage}%";
+          "on-click" = runBtopWithAlacritty;
+        };
+
         "memory" = {
           "interval" = 1;
           "format" = "󰻠 {percentage}%";
           "states" = {
             "warning" = 85;
           };
+          "on-click" = runBtopWithAlacritty;
         };
 
         "battery" = {
@@ -99,11 +108,6 @@
           "format-alt" = "{time} {icon}";
           "format-full" = "󱟢 {capacity}%";
           "format-icons" = ["󰁺" "󰁻" "󰁽" "󰁿" "󰂀" "󰂂"];
-        };
-
-        "cpu" = {
-          "interval" = 1;
-          "format" = "󰍛 {usage}%";
         };
 
         "network" = {
