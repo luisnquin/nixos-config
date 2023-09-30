@@ -4,13 +4,15 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable"; # https://github.com/NixOS/nix/issues/3966
     home-manager.url = "github:nix-community/home-manager";
-    spicetify-nix.url = "github:the-argus/spicetify-nix";
-    tomato-c.url = "github:gabrielzschmitz/Tomato.C";
+
+    rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
     nix-search.url = "github:luisnquin/nix-search";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
 
+    spicetify-nix.url = "github:the-argus/spicetify-nix";
+    tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     hyprland-contrib.url = "github:hyprwm/contrib";
     hyprland.url = "github:hyprwm/Hyprland";
   };
@@ -63,6 +65,7 @@
         getDefault = pkg: pkg.defaultPackage.${system};
       in
         {
+          rofi-network-manager = getDefault rofi-network-manager;
           fallout-grub-theme = getDefault fallout-grub-theme;
           nix-search = getDefault nix-search;
           tomato-c = getDefault tomato-c;

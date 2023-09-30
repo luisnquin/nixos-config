@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  rofi-network-manager,
+  pkgs,
+  ...
+}: {
   programs.waybar = {
     enable = true;
     systemd = {
@@ -109,6 +113,7 @@
           "format-wifi" = "󰖩  {essid}";
           "interval" = 1;
           "tooltip" = false;
+          "on-click" = "${rofi-network-manager}/bin/rofi-network-manager";
         };
 
         "custom/power" = {
