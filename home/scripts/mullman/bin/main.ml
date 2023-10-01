@@ -38,7 +38,7 @@ let get_mullvad_status () =
     String.lowercase_ascii raw_conn
   in
 
-  if connection == "connected" then
+  if connection = "connected" then
     let frags2 = out_lines.(1) |> String.split_on_char ':' in
 
     let network_frags =
