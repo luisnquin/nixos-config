@@ -79,8 +79,9 @@
         };
 
         "custom/mullvad" = {
-          "exec" = "${mullvanBin} '{{emoji}}  {{network-ip}}'";
+          "exec" = "${mullvanBin} --waybar \"{{emoji}}  {{network-ip}}\"";
           "interval" = 2;
+          "return-type" = "json";
           "on-click" = "${mullvanBin} --toggle-connection";
         };
 

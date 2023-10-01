@@ -133,8 +133,16 @@
  }
 
  #custom-mullvad {
-     color: rgb(245, 172, 103);
+     color: rgb(248, 134, 99);
      padding-right: 5px;
+ }
+
+ #custom-mullvad.connected {
+     color: rgb(245, 172, 103);
+ }
+
+ #custom-mullvad.disconnected {
+     color: rgb(156, 152, 148);
  }
 
  #custom-power {
