@@ -78,6 +78,7 @@ let get_formatted_status format =
   let out_format = Format.asprintf "%s" format
   and placeholders =
     [
+      "{{emoji}}";
       "{{server-id}}";
       "{{city}}";
       "{{country}}";
@@ -89,7 +90,15 @@ let get_formatted_status format =
     ]
   and values =
     let status = get_mullvad_status () in
+    let emoji =
+      match status.connection with
+      | "connected" -> "󰠥"
+      | "disconnected" -> "󱑘"
+      | "disconnecting" -> ""
+      | _ -> "󰦅"
+    in
     [
+      emoji;
       status.server_id;
       status.city;
       status.country;
