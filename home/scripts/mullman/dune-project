@@ -1,0 +1,24 @@
+(lang dune 3.8)
+
+(name mullman)
+
+(generate_opam_files true)
+
+(source
+ (github luisnquin/nixos-config))
+
+(authors "Luis Qui\195\177ones Requelme")
+
+(maintainers "Luis Qui\195\177ones Requelme")
+
+(documentation https://url/to/documentation)
+
+(package
+ (name mullman)
+ (synopsis "A simple mullvad wrapper to extend functionality")
+ (description "A simple mullvad wrapper to extend functionality")
+ (depends ocaml dune)
+ (tags
+  (topics "to describe" your project)))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
