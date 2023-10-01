@@ -74,7 +74,9 @@ let get_mullvad_status () =
       country = "unknown";
     }
 
-let get_formatted_status format =
+let get_formatted_status out_kind format =
+  let status = get_mullvad_status () in
+
   let out_format = Format.asprintf "%s" format
   and placeholders =
     [
@@ -89,7 +91,6 @@ let get_formatted_status format =
       "{{network-proto}}";
     ]
   and values =
-    let status = get_mullvad_status () in
     let emoji =
       match status.connection with
       | "connected" -> "󰠥"
@@ -109,6 +110,7 @@ let get_formatted_status format =
       status.network_proto;
     ]
   in
+
   let rec replace_placeholders text placeholders replacements =
     match (placeholders, replacements) with
     | [], _ | _, [] -> text
@@ -116,8 +118,24 @@ let get_formatted_status format =
         let text' = Str.global_replace (Str.regexp_string ph) repl text in
         replace_placeholders text' phs repls
   in
+
   let output_text = replace_placeholders out_format placeholders values in
-  Printf.printf "%s\n" output_text
+
+  match out_kind with
+  | "waybar" ->
+      let tooltip =
+        let tooltip_format =
+          "{{country}}, {{city}} - {{server-id}} \
+           ({{network-ip}}:{{network-port}}/{{network-proto}})"
+        in
+
+        if status.connection = "connected" then
+          replace_placeholders tooltip_format placeholders values
+        else "Nothing to say."
+      in
+      Printf.printf "{\"text\": \"%s\", \"tooltip\": \"%s\", \"class\": \"%s\"}"
+        output_text tooltip status.connection
+  | _ -> Printf.printf "%s\n" output_text
 
 let toggle_mullvad_connection () =
   let status = get_mullvad_status () in
@@ -130,10 +148,15 @@ let toggle_mullvad_connection () =
   exit code
 
 let main () =
-  if Array.length Sys.argv != 0 then
+  if Array.length Sys.argv > 1 then
     match Sys.argv.(1) with
     | "--toggle" | "-t" | "--toggle-connection" -> toggle_mullvad_connection ()
-    | out_format -> get_formatted_status out_format
-  else ()
+    | "--waybar" ->
+        if Array.length Sys.argv > 2 then
+          get_formatted_status "waybar" Sys.argv.(2)
+        else (* ha *)
+          Printf.eprintf "Error: Missing waybar format argument\n"
+    | out_format -> get_formatted_status "" out_format
+  else Printf.eprintf "Error: Missing command argument\n"
 
 let () = main ()
