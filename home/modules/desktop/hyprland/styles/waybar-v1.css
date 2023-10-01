@@ -132,6 +132,11 @@
      color: rgb(255, 255, 255);
  }
 
+ #custom-mullvad {
+     color: rgb(245, 172, 103);
+     padding-right: 5px;
+ }
+
  #custom-power {
      color: rgb(242, 143, 173);
      padding-right: 15px;

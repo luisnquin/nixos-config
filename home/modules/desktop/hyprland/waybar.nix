@@ -12,6 +12,7 @@
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
       runBtopWithAlacritty = "${pkgs.alacritty}/bin/alacritty -e ${pkgs.btop}/bin/btop";
+      mullvanBin = "${pkgs.callPackage ./../../../scripts/mullman {}}/bin/mullman";
     in [
       {
         "position" = "top";
@@ -21,6 +22,7 @@
           "custom/launcher"
           "user"
           "hyprland/workspaces"
+          "tray"
         ];
 
         modules-center = [
@@ -28,9 +30,9 @@
         ];
 
         modules-right = [
-          "tray"
-          "pulseaudio"
+          # "pulseaudio"
           # "backlight"
+          "custom/mullvad"
           "memory"
           "cpu"
           "battery"
@@ -74,6 +76,12 @@
           };
           "on-click" = "pamixer -t";
           "tooltip" = false;
+        };
+
+        "custom/mullvad" = {
+          "exec" = "${mullvanBin} '{{emoji}}  {{network-ip}}'";
+          "interval" = 2;
+          "on-click" = "${mullvanBin} --toggle-connection";
         };
 
         "custom/clock" = {
