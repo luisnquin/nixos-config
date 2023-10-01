@@ -5,9 +5,9 @@ description: "A simple mullvad wrapper to extend functionality"
 maintainer: ["Luis Quiñones Requelme"]
 authors: ["Luis Quiñones Requelme"]
 tags: ["topics" "to describe" "your" "project"]
-homepage: "https://github.com/username/reponame"
+homepage: "https://github.com/luisnquin/nixos-config"
 doc: "https://url/to/documentation"
-bug-reports: "https://github.com/username/reponame/issues"
+bug-reports: "https://github.com/luisnquin/nixos-config/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.8"}
