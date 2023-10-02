@@ -1,5 +1,5 @@
 {
-  description = "My NixOS configuration";
+  description = "Infrastructure for NixOS, Flakes and home manager ❄️";
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable"; # https://github.com/NixOS/nix/issues/3966
