@@ -2,7 +2,6 @@
   dunstify-brightness,
   dunstify-sound,
   screen-capture,
-  spotify-dbus,
   pkgs,
   ...
 }: {
@@ -86,7 +85,6 @@
       ];
 
       keybindings = with pkgs; let
-        inherit (pkgs) callPackage;
 
         dunstify-brightness-bin = "${dunstify-brightness}/bin/dunstify-brightness";
         dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";

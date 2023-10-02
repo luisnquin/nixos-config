@@ -3,7 +3,6 @@
   makeWrapper,
   openjdk,
   stdenv,
-  lib,
 }:
 stdenv.mkDerivation rec {
   name = "minecraft";
