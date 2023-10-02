@@ -3,8 +3,8 @@ with pkgs.lib; let
   packages = {
     panicparse = ./panicparse.nix;
     transg-tui = ./transg-tui.nix;
-    minecraft = ./minecraft.nix;
     pg-ping = ./pg-ping.nix;
+    minecraft = ./minecraft;
     npkill = ./npkill.nix;
     no = ./no.nix;
   };
