@@ -1,4 +1,11 @@
-{pkgs, ...}: {
+{
+  dunstify-brightness,
+  dunstify-sound,
+  screen-capture,
+  spotify-dbus,
+  pkgs,
+  ...
+}: {
   # https://i3wm.org/docs/userguide.html
   # https://mipmip.github.io/home-manager-option-search/?query=xsession.windowManager.i3.config
   xsession.windowManager.i3 = {
@@ -81,12 +88,11 @@
       keybindings = with pkgs; let
         inherit (pkgs) callPackage;
 
-        dunstify-sound-bin = "${callPackage ./../../../scripts/dunstify-sound {barColor = "#ffadbb";}}/bin/dunstify-sound";
-        dunstify-brightness-bin = "${callPackage ./../../../scripts/dunstify-brightness {}}/bin/dunstify-brightness";
-        screen-capture-bin = "${callPackage ./../../../scripts/screen-capture {}}/bin/screen-capture";
-        spotify-dbus = "${callPackage ./../../../scripts/spotify-dbus {}}/bin/spotify-dbus";
-
-        rofi-path = "${rofi}/bin/rofi";
+        dunstify-brightness-bin = "${dunstify-brightness}/bin/dunstify-brightness";
+        dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
+        screen-capture-bin = "${screen-capture}/bin/screen-capture";
+        spotify-dbus-bin = "${spotify-dbus-bin}/bin/spotify-dbus";
+        rofi-bin = "${rofi}/bin/rofi";
 
         exec-nid = "exec --no-startup-id";
       in
@@ -99,16 +105,16 @@
           "XF86MonBrightnessDown" = "${exec-nid} ${dunstify-brightness-bin} --dec";
           "XF86MonBrightnessUp" = "${exec-nid} ${dunstify-brightness-bin} --inc";
 
-          "${modifier}+Shift+braceright" = "${exec-nid} ${spotify-dbus} --next";
-          "${modifier}+Shift+braceleft" = "${exec-nid} ${spotify-dbus} --prev";
-          "${modifier}+Pause" = "${exec-nid} ${spotify-dbus} --toggle";
+          "${modifier}+Shift+braceright" = "${exec-nid} ${spotify-dbus-bin} --next";
+          "${modifier}+Shift+braceleft" = "${exec-nid} ${spotify-dbus-bin} --prev";
+          "${modifier}+Pause" = "${exec-nid} ${spotify-dbus-bin} --toggle";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
           "${modifier}+b" = "exec ${brave}/bin/brave";
 
-          "${modifier}+Shift+q" = "exec ${rofi-path} -show window";
-          "${modifier}+q" = "exec ${rofi-path} -modi drun -show drun";
-          "${modifier}+Shift+c" = ''exec ${rofi-path} -modi "clipboard:greenclip print" -show clipboard'';
+          "${modifier}+Shift+q" = "exec ${rofi-bin} -show window";
+          "${modifier}+q" = "exec ${rofi-bin} -modi drun -show drun";
+          "${modifier}+Shift+c" = ''exec ${rofi-bin} -modi "clipboard:greenclip print" -show clipboard'';
 
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+minus" = "scratchpad show";

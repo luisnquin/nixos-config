@@ -1,5 +1,6 @@
 {
   rofi-network-manager,
+  mullman,
   pkgs,
   ...
 }: {
@@ -12,7 +13,7 @@
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
       runBtopWithAlacritty = "${pkgs.alacritty}/bin/alacritty -e ${pkgs.btop}/bin/btop";
-      mullvanBin = "${pkgs.callPackage ./../../../scripts/mullman {}}/bin/mullman";
+      mullvanBin = "${mullman}/bin/mullman";
     in [
       {
         "position" = "top";

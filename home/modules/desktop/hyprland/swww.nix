@@ -1,4 +1,5 @@
 {
+  swww-switcher,
   pkgs,
   libx,
   ...
@@ -9,7 +10,7 @@
     inherit (pkgs) callPackage;
 
     wallpaperFiles = libx.getFilesInDirectory ./../../../dots/wallpapers;
-    swww-switcher-bin = "${callPackage ./../../../scripts/swww-switcher {}}/bin/cli";
+    swww-switcher-bin = "${swww-switcher}/bin/cli";
   in ''
     exec-once = ${pkgs.swww}/bin/swww init
     exec = ${pkgs.swww}/bin/swww img ${./../../../dots/background.png}
