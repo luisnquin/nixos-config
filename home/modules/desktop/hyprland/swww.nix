@@ -7,7 +7,6 @@
   home.packages = [pkgs.swww];
 
   xdg.configFile."hypr/hyprland.conf".text = let
-    inherit (pkgs) callPackage;
 
     wallpaperFiles = libx.getFilesInDirectory ./../../../dots/wallpapers;
     swww-switcher-bin = "${swww-switcher}/bin/cli";
