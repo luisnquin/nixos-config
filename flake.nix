@@ -8,7 +8,7 @@
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
     nix-search.url = "github:luisnquin/nix-search";
-    mscripts.url = "github:luisnquin/mscripts";
+    scripts.url = "github:luisnquin/scripts";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
 
@@ -80,7 +80,7 @@
           inherit spicetify-nix;
         }
         // hyprland-contrib.packages.${system}
-        // mscripts.packages.${system}
+        // scripts.packages.${system}
         // setup;
 
       mkNixos = config:
