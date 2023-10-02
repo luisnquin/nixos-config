@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: {
-  environment.systemPackages = with pkgs; [
+  home.packages = with pkgs; [
     nodePackages.firebase-tools
     nodePackages_latest.cspell
     license-generator
@@ -20,7 +20,7 @@
     awscli
     pgweb
     ngrok
-    clang
+    # clang
     just
 
     minify # HTML, CSS, and JavaScript minifier

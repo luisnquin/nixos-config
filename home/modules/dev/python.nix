@@ -1,5 +1,5 @@
 {pkgs, ...}: {
-  environment.systemPackages = with pkgs; [
+  home.packages = with pkgs; [
     (python310.withPackages
       (p:
         with p; [

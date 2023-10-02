@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: {
-  environment.systemPackages = with pkgs; [
+  home.packages = with pkgs; [
     nodePackages.typescript
     nodePackages.pnpm
     pkgsx.npkill

@@ -1,7 +1,8 @@
 {...}: {
   imports = [
-    ./desktop
     ./terminal
+    ./desktop
+    ./dev
 
     ./file-manager.nix
     ./obs-studio.nix

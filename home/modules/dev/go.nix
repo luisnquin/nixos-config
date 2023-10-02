@@ -1,6 +1,6 @@
 {pkgs, ...}: {
-  environment = {
-    systemPackages = with pkgs; [
+  home = {
+    packages = with pkgs; [
       air
       delve
       errcheck
@@ -18,14 +18,14 @@
       unconvert
     ];
 
-    shellAliases = {
-      gotry = "xdg-open https://go.dev/play >>/dev/null";
-      gest = "go clean -testcache && richgo test -v";
-    };
-
-    variables = {
+    sessionVariables = {
       PATH = "$PATH:$GORROT:$GOPATH/bin";
       GOPATH = "/home/$USER/go";
     };
+  };
+
+  programs.zsh.shellAliases = {
+    gotry = "xdg-open https://go.dev/play >>/dev/null";
+    gest = "go clean -testcache && richgo test -v";
   };
 }
