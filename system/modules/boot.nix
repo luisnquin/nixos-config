@@ -28,6 +28,7 @@
       };
     };
 
+    kernelParams = ["i8042.reset=1"];
     kernelPackages = linuxPackages_latest;
     supportedFilesystems = ["ntfs"];
     tmp.cleanOnBoot = true;
