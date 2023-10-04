@@ -5,7 +5,15 @@
     enable = true;
     autorun = true;
     layout = host.keyboardLayout;
-    libinput.enable = true;
+    libinput = {
+      enable = true;
+
+      touchpad = {
+        tapping = true;
+        naturalScrolling = true;
+        middleEmulation = true;
+      };
+    };
 
     displayManager.gdm = {
       enable = true;
