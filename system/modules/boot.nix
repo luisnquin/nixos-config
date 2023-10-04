@@ -30,6 +30,9 @@
 
     kernelParams = ["i8042.reset=1"];
     kernelPackages = linuxPackages_latest;
+    extraModprobeConfig = ''
+      options snd-intel-dspcfg dsp_driver=1
+    '';
     supportedFilesystems = ["ntfs"];
     tmp.cleanOnBoot = true;
   };
