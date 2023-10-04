@@ -7,6 +7,7 @@
           pip
         ]))
     virtualenv
+    poetry
     pyright
   ];
 }
