@@ -87,7 +87,7 @@
         };
 
         "custom/clock" = {
-          "exec" = "date +'%Y-%m-%d %H:%M'";
+          "exec" = "date +'%Y[%m[%d]] %H[%M]'";
           "interval" = 2;
           "tooltip" = false;
         };
