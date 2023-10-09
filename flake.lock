@@ -496,11 +496,11 @@
         "nixpkgs": "nixpkgs_8"
       },
       "locked": {
-        "lastModified": 1696219188,
-        "narHash": "sha256-y5qgnYDbGtPizjBCNS2PzWY25exmbJbAqdmTfeUKvWU=",
+        "lastModified": 1696826525,
+        "narHash": "sha256-0PZJTDRmCmKBJedOFZR0AR2D5uZzTVmGnnWzGsoVOi8=",
         "owner": "luisnquin",
         "repo": "rofi-network-manager",
-        "rev": "26a014c3f4bf80084db3ce565d846bfef00f0b9f",
+        "rev": "c959c8e3720ce94b540a7fc8cec2096e33933d48",
         "type": "github"
       },
       "original": {
