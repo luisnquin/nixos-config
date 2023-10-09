@@ -10,17 +10,16 @@
     onlyoffice-bin
 
     pkgsx.pg-ping
-    hyperfine # Benchmarking tool
+    hyperfine # benchmarking
     asciinema
     redoc-cli
     postman
     gnumake
     argocd
-    rclone # Cloud storages in one CLI
+    rclone # cloud storages
     awscli
     pgweb
     ngrok
-    # clang
     just
 
     minify # HTML, CSS, and JavaScript minifier

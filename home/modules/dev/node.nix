@@ -4,11 +4,9 @@
   ...
 }: {
   home.packages = with pkgs; [
-    nodePackages.typescript
     nodePackages.pnpm
-    pkgsx.npkill
+    pkgsx.npkill # remove node_modules from child directories
     nodejs-18_x
-    deno
     bun
   ];
 }

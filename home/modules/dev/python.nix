@@ -3,11 +3,11 @@
     (python310.withPackages
       (p:
         with p; [
-          pipx
+          pipx # install and run apps in isolated environments
           pip
         ]))
-    virtualenv
-    poetry
-    pyright
+    virtualenv # to create raw environments
+    poetry # package manager
+    pyright # linter
   ];
 }
