@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  pkgsx,
+  ...
+}: {
   home = {
     packages = with pkgs; [
       air # hot reload
@@ -13,6 +17,7 @@
       gotools # useful stuff for go
       govulncheck # audit dependencies
       grpc-tools
+      pkgsx.pp # to help to debug panic errors
       richgo # go test but with better outputs
       tinygo
       unconvert # linter to check unnecessary type conversions
