@@ -57,6 +57,7 @@
   # zh-CN
 
   services.thermald.enable = true;
+  services.udisks2.enable = true;
 
   system = {
     inherit (nix) stateVersion;
