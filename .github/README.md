@@ -14,13 +14,16 @@
 $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstrap.sh | sh
 ```
 
+## Resources
+
+- [Used scripts](https://github.com/luisnquin/scripts)
+- [Full NixOS options](https://nmikhailov.github.io/nixpkgs/ch-options.html)
+  
 ## Environments
 
 ### Hyprland
 
 ![image](https://github.com/luisnquin/nixos-config/assets/86449787/ff921198-44b6-404a-8243-28eff5a0f6f7)
-
-Check [here](https://nmikhailov.github.io/nixpkgs/ch-options.html) to see more NixOS options.
 
 ## Some configurations comes here thanks to
 
