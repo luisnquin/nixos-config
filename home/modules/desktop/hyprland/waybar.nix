@@ -90,6 +90,7 @@
           "exec" = "date +'%Y-%m-%d %H:%M'";
           "interval" = 2;
           "tooltip" = false;
+          "on-click" = "${pkgs.gsimplecal}/bin/gsimplecal";
         };
 
         "cpu" = {
