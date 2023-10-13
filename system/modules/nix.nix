@@ -48,6 +48,10 @@
       deadnix
       statix
       nurl
+
+      nixpkgs-review
+      nixpkgs-lint
+      nixpkgs-fmt
     ];
 
     shellAliases = {
