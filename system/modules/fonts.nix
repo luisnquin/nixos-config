@@ -16,4 +16,6 @@
 
     fontDir.enable = true;
   };
+
+  environment.systemPackages = [pkgs.fontpreview];
 }
