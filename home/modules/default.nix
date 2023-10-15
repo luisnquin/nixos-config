@@ -6,6 +6,7 @@
 
     ./file-manager.nix
     ./obs-studio.nix
+    ./gsimplecal.nix
     ./mime-apps.nix
     ./macchina.nix
     ./browser.nix
