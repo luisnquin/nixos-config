@@ -1,9 +1,14 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  pkgsx,
+  ...
+}: {
   fonts = {
     packages = with pkgs; [
       (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode" "NerdFontsSymbolsOnly"];})
-      cascadia-code
+      pkgsx.coders-crux
       jetbrains-mono
+      cascadia-code
       roboto-mono
       inconsolata
       roboto

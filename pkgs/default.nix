@@ -1,6 +1,7 @@
 {pkgs ? import <nixpkgs> {}, ...}:
 with pkgs.lib; let
   packages = {
+    coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
     pg-ping = ./pg-ping.nix;
     minecraft = ./minecraft;
