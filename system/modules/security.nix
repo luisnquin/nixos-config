@@ -12,6 +12,9 @@
         Defaults 	insults
       '';
     };
+
+    # we don't care about if we're using DE or WM
+    polkit.enable = true;
   };
 
   users = {
