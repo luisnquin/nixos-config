@@ -24,10 +24,10 @@
         metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
         flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
 
-        hasValue = x: x != null && x != "";
+        notEmptyString = x: x != null && x != "";
 
         selected =
-          if hasValue metadata.use
+          if notEmptyString metadata.use
           then metadata.use
           else flakeTomlError "missing 'use'";
       in {
@@ -42,7 +42,7 @@
           else flakeTomlError "missing '${selected}' owner in hosts collection";
 
         nix =
-          if hasValue metadata.nix.stateVersion && hasValue metadata.nix.channel
+          if notEmptyString metadata.nix.stateVersion && notEmptyString metadata.nix.channel
           then metadata.nix
           else flakeTomlError "missing one or more attributes of 'nix'";
       };
