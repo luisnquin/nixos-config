@@ -13,7 +13,6 @@
     hyperfine # benchmarking
     asciinema
     redoc-cli
-    postman
     gnumake
     argocd
     rclone # cloud storages
