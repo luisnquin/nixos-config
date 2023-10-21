@@ -21,7 +21,7 @@
 
         modules-left = [
           "custom/launcher"
-          "user"
+          # "user"
           "hyprland/workspaces"
           "tray"
         ];
@@ -87,7 +87,7 @@
         };
 
         "custom/clock" = {
-          "exec" = "date +'%Y-%m-%d %H:%M'";
+          "exec" = "date +' %H:%M'";
           "interval" = 2;
           "tooltip" = false;
           "on-click" = "${pkgs.gsimplecal}/bin/gsimplecal";
