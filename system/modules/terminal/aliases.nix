@@ -16,9 +16,9 @@ _: {
     rm = "rm --interactive";
     du = "du --human-readable";
     xclip = "xclip -selection c";
-    ls = "eza --icons";
-    ll = "eza -l";
-    la = "eza -a";
+    ls = "exa --icons";
+    ll = "exa -l";
+    la = "exa -a";
     cat = "bat -p";
 
     ".." = "cd ..";

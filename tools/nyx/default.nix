@@ -14,7 +14,7 @@ in
 
     propagatedBuildInputs = with pkgs; [
       alejandra
-      eza
+      exa
     ];
 
     postPatch = ''
@@ -39,7 +39,7 @@ in
 
     postInstall = ''
       wrapProgram ${placeholder "out"}/bin/nyx \
-        --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [eza alejandra])}
+        --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [exa alejandra])}
     '';
 
     # substituteInPlace ${placeholder "out"}/bin/nyx \
