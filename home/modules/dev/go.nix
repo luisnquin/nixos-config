@@ -17,7 +17,7 @@
       gotools # useful stuff for go
       govulncheck # audit dependencies
       grpc-tools
-      panicparse # to help to debug panic errors
+      pkgsx.pp # to help to debug panic errors
       richgo # go test but with better outputs
       tinygo
       unconvert # linter to check unnecessary type conversions
