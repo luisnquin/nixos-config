@@ -11,6 +11,7 @@
     inherit (nix) stateVersion;
 
     enableNixpkgsReleaseCheck = true;
+
     homeDirectory = "/home/${user.alias}";
     username = "${user.alias}";
 
