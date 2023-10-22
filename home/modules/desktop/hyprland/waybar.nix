@@ -1,6 +1,6 @@
 {
   rofi-network-manager,
-  mullman,
+  mullx,
   pkgs,
   ...
 }: {
@@ -13,7 +13,7 @@
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
       runBtopWithAlacritty = "${pkgs.alacritty}/bin/alacritty -e ${pkgs.btop}/bin/btop";
-      mullvanBin = "${mullman}/bin/mullman";
+      mullxBin = "${mullx}/bin/mullx";
     in [
       {
         "position" = "top";
@@ -80,10 +80,10 @@
         };
 
         "custom/mullvad" = {
-          "exec" = "${mullvanBin} --waybar \"{{emoji}}  {{network-ip}}\"";
+          "exec" = "${mullxBin} --waybar \"{{emoji}}  {{network-ip}}\"";
           "interval" = 2;
           "return-type" = "json";
-          "on-click" = "${mullvanBin} --toggle-connection";
+          "on-click" = "${mullxBin} --toggle-connection";
         };
 
         "custom/clock" = {
