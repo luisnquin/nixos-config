@@ -23,7 +23,6 @@ in {
       popupLyrics
       songStats
       skipStats
-      trashbin
       shuffle
       wikify
       genre
