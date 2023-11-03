@@ -1,6 +1,7 @@
 {
   makeDesktopItem,
   makeWrapper,
+  steam-run,
   openjdk,
   stdenv,
 }:
@@ -37,7 +38,7 @@ stdenv.mkDerivation rec {
 
   desktopItem = makeDesktopItem {
     name = "Minecraft";
-    exec = name;
+    exec = "${steam-run}/bin/steam-run ${name}";
     icon = name;
     desktopName = "Minecraft";
     genericName = "Minecraft is a game made up of blocks, creatures, and community";
