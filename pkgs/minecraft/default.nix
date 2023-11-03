@@ -7,8 +7,8 @@
 stdenv.mkDerivation rec {
   name = "minecraft";
   src = builtins.fetchurl {
-    url = "https://files.launcherfenix.com.ar/prelauncher/v7/LauncherFenix-Minecraft-v7.jar";
-    sha256 = "1w80fii2nab4whycl4nj20r1imi2sqd9sag7bcbvcbxjqmkxpcz7";
+    url = "https://skmedix.pl/binaries_/SKlauncher-3.1.2.jar";
+    sha256 = "627b807380dab8455cd04ba07cdb5a70a7c6f5d510c64296456f41588b60201a";
   };
 
   dontUnpack = true;
