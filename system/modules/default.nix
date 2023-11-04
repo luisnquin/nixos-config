@@ -12,6 +12,7 @@
     ./security.nix
     ./torrent.nix
     ./docker.nix
+    ./thunar.nix
     ./nvidia.nix
     ./fonts.nix
     ./audio.nix
