@@ -32,7 +32,7 @@ y = 0
 
 [custom_ascii]
 color = "#583ba3"
-path = "/etc/nixos/home/dots/macchina/assets/halloween.ascii"
+path = "/etc/nixos/home/dots/macchina/assets/v.ascii"
 
 [randomize]
 key_color = false
