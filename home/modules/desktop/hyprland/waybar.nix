@@ -55,9 +55,10 @@
             "9" = "九";
             "10" = "十";
           };
-          "persistent-workspaces" = {
-            "*" = 10;
-          };
+          # "persistent-workspaces" = {
+          #   "*" = 10;
+          # };
+          "active-only" = true;
         };
 
         "custom/launcher" = {
