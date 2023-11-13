@@ -2,7 +2,7 @@
   stdenv,
   fetchFromGitHub,
   alejandra,
-  exa,
+  eza,
   lib,
 }: let
   owner = "luisnquin";
@@ -25,7 +25,7 @@ in
 
     propagatedBuildInputs = [
       alejandra
-      exa
+      eza
     ];
 
     meta = with lib; {

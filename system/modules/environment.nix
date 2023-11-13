@@ -42,7 +42,7 @@
           nmap
           wget
           dig
-          exa # ls command replacement
+          eza # ls command replacement
           vlc
 
           # NTFS
