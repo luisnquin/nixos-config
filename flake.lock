@@ -531,11 +531,11 @@
         "systems": "systems_6"
       },
       "locked": {
-        "lastModified": 1697996115,
-        "narHash": "sha256-MnorGu5R6aS6bSg98h9/lArHobqqm1T8actvETtTcxU=",
+        "lastModified": 1699888734,
+        "narHash": "sha256-jy9M6BT5TGlLGN+ABbxyT8IVdMBwEq80uRW1lYby8LA=",
         "owner": "luisnquin",
         "repo": "scripts",
-        "rev": "afc17be30187e998393186752b3a4341d32d3705",
+        "rev": "b85d9b5ca028768a1ad083877221956fea2ea8cb",
         "type": "github"
       },
       "original": {
