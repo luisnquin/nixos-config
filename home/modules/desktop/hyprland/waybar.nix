@@ -58,7 +58,7 @@
           # "persistent-workspaces" = {
           #   "*" = 10;
           # };
-          "active-only" = true;
+          # "active-only" = true;
         };
 
         "custom/launcher" = {
