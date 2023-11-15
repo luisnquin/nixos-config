@@ -1,5 +1,6 @@
 {
   dunstify-brightness,
+  battery-notifier,
   dunstify-sound,
   cliphist-rofi,
   spotify-dbus,
@@ -16,6 +17,8 @@
   xdg.configFile."hypr/hyprland.conf".text = let
     dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
     spotify-dbus-bin = "${spotify-dbus}/bin/spotify-dbus";
+    # TODO => use systemd for this and only enable it when using window managers
+    battery-notifier-bin = "${battery-notifier}/bin/battery-notifier";
   in ''
     exec-once=dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 
@@ -28,6 +31,8 @@
 
     # Execute your favorite apps at launch
     # exec-once = waybar & hyprpaper & firefox
+
+    exec-once = ${battery-notifier-bin}
 
     # Source a file (multi-file configs)
     # source = ~/.config/hypr/myColors.conf
