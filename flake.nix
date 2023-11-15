@@ -55,7 +55,6 @@
         config = {
           permittedInsecurePackages = [
             "electron-19.1.9"
-            "nodejs-16.20.2"
           ];
           allowBroken = false;
           allowUnfree = true;
