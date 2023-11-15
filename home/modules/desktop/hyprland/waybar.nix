@@ -126,9 +126,10 @@
           "format-disconnected" = "󰯡 Disconnected";
           "format-ethernet" = "󰒢 Connected!";
           "format-linked" = "󰖪  {essid} (No IP)";
-          "format-wifi" = "󰖩  {essid}";
-          "interval" = 1;
-          "tooltip" = false;
+          "format-wifi" = "󰖩  {ipaddr}";
+          "interval" = 5;
+          "tooltip" = true;
+          "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
           "on-click" = "${rofi-network-manager}/bin/rofi-network-manager";
         };
 
