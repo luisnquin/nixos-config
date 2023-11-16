@@ -8,17 +8,21 @@
   pkgs,
   ...
 }: {
-  home.packages = [
-    pkgs.xdg-desktop-portal-hyprland
-    grimblast
-  ];
+  home.packages = [pkgs.xdg-desktop-portal-hyprland];
 
   # More keysyms here: https://github.com/xkbcommon/libxkbcommon/blob/master/include/xkbcommon/xkbcommon-keysyms.h
   xdg.configFile."hypr/hyprland.conf".text = let
     dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
     spotify-dbus-bin = "${spotify-dbus}/bin/spotify-dbus";
+
     # TODO => use systemd for this and only enable it when using window managers
     battery-notifier-bin = "${battery-notifier}/bin/battery-notifier";
+
+    grimblast-mod = grimblast.overrideAttrs (oldAttrs: rec {
+      prePatch = ''
+        substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./../../../dots/icons/crop.512.png}'
+      '';
+    });
   in ''
     exec-once=dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 
@@ -162,9 +166,9 @@
     bind = ,XF86AudioLowerVolume, exec, ${dunstify-sound-bin} --dec
     bind = ,XF86AudioRaiseVolume, exec, ${dunstify-sound-bin} --inc
 
-    bind = ,Print, exec, ${grimblast}/bin/grimblast --notify copy screen
-    bind = $mainMod, Print, exec, ${grimblast}/bin/grimblast --notify copy active
-    bind = SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze --notify copy area
+    bind = ,Print, exec, ${grimblast-mod}/bin/grimblast --notify copy screen
+    bind = $mainMod, Print, exec, ${grimblast-mod}/bin/grimblast --notify copy active
+    bind = SUPER_SHIFT, Print, exec, ${grimblast-mod}/bin/grimblast --freeze --notify copy area
 
     bind = ,XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec
     bind = ,XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc
