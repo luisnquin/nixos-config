@@ -10,16 +10,4 @@
       enableNvidiaPatches = true;
     };
   };
-
-  # services.xserver.displayManager = {
-  #   defaultSession = "hyprland";
-
-  #   session = [
-  #     {
-  #       manage = "desktop";
-  #       name = "hyprland";
-  #       start = ''exec $HOME/.xsession'';
-  #     }
-  #   ];
-  # };
 }

@@ -10,6 +10,7 @@
     ./environment.nix
     ./clipboard.nix
     ./security.nix
+    ./battery.nix
     ./torrent.nix
     ./docker.nix
     ./thunar.nix
