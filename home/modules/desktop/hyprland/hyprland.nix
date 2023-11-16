@@ -18,7 +18,7 @@
     # TODO => use systemd for this and only enable it when using window managers
     battery-notifier-bin = "${battery-notifier}/bin/battery-notifier";
 
-    grimblast-mod = grimblast.overrideAttrs (oldAttrs: rec {
+    grimblast-mod = grimblast.overrideAttrs (_oldAttrs: rec {
       prePatch = ''
         substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./../../../dots/icons/crop.512.png}'
       '';
