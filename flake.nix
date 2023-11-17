@@ -50,8 +50,7 @@
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
-        inherit system;
-
+        overlays = import ./overlays/nixpkgs.nix;
         config = {
           permittedInsecurePackages = [
             "electron-19.1.9"
@@ -59,6 +58,8 @@
           allowBroken = false;
           allowUnfree = true;
         };
+
+        inherit system;
       };
 
       specialArgs = let
