@@ -1,0 +1,5 @@
+{
+  imports = [
+    ./battery-notifier.nix
+  ];
+}

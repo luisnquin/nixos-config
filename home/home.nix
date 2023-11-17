@@ -4,6 +4,7 @@
   ...
 }: {
   require = [
+    ./services
     ./modules
   ];
 

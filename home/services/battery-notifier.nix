@@ -4,12 +4,13 @@
   lib,
   ...
 }: {
-  systemd.services = lib.mkIf (builtins.elem host.desktop ["hyprland" "i3"]) {
+  systemd.user.services = lib.mkIf (builtins.elem host.desktop ["hyprland" "i3"]) {
     battery-notifier = {
-      enable = true;
-      description = "A very useful battery notifier for window managers";
+      Unit = {
+        Description = "A very useful battery notifier for window managers";
+      };
 
-      serviceConfig = {
+      Service = {
         Type = "simple";
         ExecStart = "${battery-notifier}/bin/battery-notifier";
         Restart = "always";
