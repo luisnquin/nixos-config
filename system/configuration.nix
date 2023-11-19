@@ -42,18 +42,17 @@
 
   location.provider = "geoclue2";
 
-  # Chinese
-  i18n = {
-    defaultLocale = host.i18nLocale;
-    inputMethod = {
-      enabled = "ibus";
-      ibus = {
-        engines = with pkgs.ibus-engines; [
-          libpinyin
-        ];
-      };
-    };
-  };
+  i18n.defaultLocale = host.i18nLocale;
+
+  #   inputMethod = {
+  #     enabled = "ibus";
+  #     ibus = {
+  #       engines = with pkgs.ibus-engines; [
+  #         libpinyin
+  #       ];
+  #     };
+  #   };
+  # };
   # zh-CN
 
   services.thermald.enable = true;
