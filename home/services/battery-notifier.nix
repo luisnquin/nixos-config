@@ -13,10 +13,12 @@
       Service = {
         Type = "simple";
         ExecStart = "${battery-notifier}/bin/battery-notifier";
-        Restart = "always";
+        Restart = "on-failure";
       };
 
-      # wantedBy = ["graphical-session.target"];
+      Install = {
+        WantedBy = ["default.target"];
+      };
     };
   };
 }
