@@ -114,6 +114,7 @@
             "warning" = 30;
             "critical" = 15;
           };
+          "interval" = 3;
           "format" = "{icon} {capacity}%";
           "format-charging" = "󰂄 {capacity}%";
           "format-plugged" = "󱟠 {capacity}%";
