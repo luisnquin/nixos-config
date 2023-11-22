@@ -8,6 +8,7 @@
     ./obs-studio.nix
     ./gsimplecal.nix
     ./mime-apps.nix
+    ./playerctl.nix
     ./macchina.nix
     ./browser.nix
     ./zathura.nix
