@@ -64,24 +64,27 @@
 
       specialArgs = let
         getDefault = pkg: pkg.defaultPackage.${system};
+
+        args =
+          {
+            rofi-network-manager = getDefault rofi-network-manager;
+            fallout-grub-theme = getDefault fallout-grub-theme;
+            nix-search = getDefault nix-search;
+            tomato-c = getDefault tomato-c;
+            senv = getDefault senv;
+            nao = getDefault nao;
+
+            libx = import ./lib {inherit (pkgs) lib;};
+            pkgsx = import ./pkgs {inherit pkgs;};
+
+            inherit (hyprland.packages.${system}) hyprland;
+            inherit spicetify-nix;
+          }
+          // hyprland-contrib.packages.${system}
+          // scripts.packages.${system}
+          // setup;
       in
-        {
-          rofi-network-manager = getDefault rofi-network-manager;
-          fallout-grub-theme = getDefault fallout-grub-theme;
-          nix-search = getDefault nix-search;
-          tomato-c = getDefault tomato-c;
-          senv = getDefault senv;
-          nao = getDefault nao;
-
-          libx = import ./lib {inherit (pkgs) lib;};
-          pkgsx = import ./pkgs {inherit pkgs;};
-
-          inherit (hyprland.packages.${system}) hyprland;
-          inherit spicetify-nix;
-        }
-        // hyprland-contrib.packages.${system}
-        // scripts.packages.${system}
-        // setup;
+        args // import ./overlays/special-args.nix args;
 
       mkNixos = config:
         nixpkgs.lib.nixosSystem {
