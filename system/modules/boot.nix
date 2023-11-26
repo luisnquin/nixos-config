@@ -2,6 +2,7 @@
   fallout-grub-theme,
   host,
   pkgs,
+  lib,
   ...
 }: {
   boot = with pkgs; {
@@ -28,7 +29,10 @@
       };
     };
 
-    kernelParams = ["i8042.reset=1"];
+    kernelParams = [
+      "nvidia_drm.modeset=1"
+      "i8042.reset=1"
+    ];
     kernelPackages = linuxPackages_latest;
     extraModprobeConfig = ''
       options snd-intel-dspcfg dsp_driver=1

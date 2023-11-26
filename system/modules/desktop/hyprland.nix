@@ -1,9 +1,9 @@
 {hyprland, ...}: {
   environment.pathsToLink = ["/libexec"];
 
-  programs.xwayland.enable = true;
-
   programs = {
+    xwayland.enable = true;
+
     hyprland = {
       enable = true;
       package = hyprland;
