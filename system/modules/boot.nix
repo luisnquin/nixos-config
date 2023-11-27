@@ -2,7 +2,6 @@
   fallout-grub-theme,
   host,
   pkgs,
-  lib,
   ...
 }: {
   boot = with pkgs; {
