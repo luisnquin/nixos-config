@@ -28,10 +28,7 @@
       };
     };
 
-    kernelParams = [
-      "nvidia_drm.modeset=1"
-      "i8042.reset=1"
-    ];
+    kernelParams = ["i8042.reset=1"];
     kernelPackages = linuxPackages_latest;
     extraModprobeConfig = ''
       options snd-intel-dspcfg dsp_driver=1
