@@ -4,6 +4,7 @@
   cliphist-rofi,
   spotify-dbus,
   grimblast,
+  pkgsx,
   pkgs,
   ...
 }: {
@@ -13,6 +14,8 @@
   xdg.configFile."hypr/hyprland.conf".text = let
     dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
     spotify-dbus-bin = "${spotify-dbus}/bin/spotify-dbus";
+
+    rofi-plugin-call = name: program-to-exec: ''${pkgs.rofi}/bin/rofi -modi "${name}:${program-to-exec}" -show ${name}'';
   in ''
     exec-once=dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 
@@ -167,7 +170,8 @@
 
     bind = SUPER_SHIFT, R, exec, ${pkgs.hyprland}/bin/hyprctl reload
 
-    bind = SUPER_SHIFT, C, exec, ${pkgs.rofi}/bin/rofi -modi "clipboard:${cliphist-rofi}/bin/cliphist-rofi" -show clipboard
+    bind = SUPER_SHIFT, C, exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}
+    bind = SUPER_SHIFT, X, exec, ${rofi-plugin-call "TODO" "${pkgsx.rofi-todo}/bin/rofi-todo"}
     bind = SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window
     bind = $mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun
 
