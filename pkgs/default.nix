@@ -3,7 +3,6 @@ with pkgs.lib; let
   packages = {
     coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
-    rofi-todo = ./rofi-todo.nix;
     pg-ping = ./pg-ping.nix;
     minecraft = ./minecraft;
     pp = ./panicparse.nix;

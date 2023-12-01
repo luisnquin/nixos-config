@@ -10,6 +10,8 @@
 }: {
   home.packages = [pkgs.xdg-desktop-portal-hyprland];
 
+  # bind = SUPER_SHIFT, X, exec, ${rofi-plugin-call "TODO" "${pkgsx.rofi-todo}/bin/rofi-todo"}
+
   # More keysyms here: https://github.com/xkbcommon/libxkbcommon/blob/master/include/xkbcommon/xkbcommon-keysyms.h
   xdg.configFile."hypr/hyprland.conf".text = let
     dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
@@ -171,7 +173,6 @@
     bind = SUPER_SHIFT, R, exec, ${pkgs.hyprland}/bin/hyprctl reload
 
     bind = SUPER_SHIFT, C, exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}
-    bind = SUPER_SHIFT, X, exec, ${rofi-plugin-call "TODO" "${pkgsx.rofi-todo}/bin/rofi-todo"}
     bind = SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window
     bind = $mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun
 

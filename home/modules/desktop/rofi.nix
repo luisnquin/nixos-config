@@ -13,7 +13,6 @@
 
   home.packages = [
     rofi-network-manager
-    pkgsx.rofi-todo
   ];
 
   xdg.configFile = {
