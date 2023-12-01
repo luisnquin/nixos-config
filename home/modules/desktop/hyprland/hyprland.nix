@@ -4,7 +4,6 @@
   cliphist-rofi,
   spotify-dbus,
   grimblast,
-  pkgsx,
   pkgs,
   ...
 }: {
