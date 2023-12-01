@@ -1,6 +1,5 @@
 {
   rofi-network-manager,
-  pkgsx,
   pkgs,
   ...
 }: {
