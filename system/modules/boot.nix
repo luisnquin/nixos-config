@@ -6,7 +6,10 @@
 }: {
   boot = with pkgs; {
     loader = {
-      efi.canTouchEfiVariables = true;
+      efi = {
+	canTouchEfiVariables = true;
+	efiSysMountPoint = "/boot/efi";
+      };
       timeout = 15;
 
       grub = {
