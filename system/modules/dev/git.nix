@@ -8,22 +8,24 @@
 
     lfs.enable = true;
     config = {
+      init.defaultBranch = "main";
+      apply.whitespace = "fix";
+      branch.sort = "object";
+      color.ui = "auto";
+
+      rebase.autoStash = true;
+      pull.rebase = true;
+      fetch.prune = true;
+
       user = {
         name = user.fullName;
         email = user.gitEmail;
         ${user.alias} = user.alias;
       };
 
-      init = {
-        defaultBranch = "main";
-      };
-
       core = {
         editor = "nano -w";
-      };
-
-      color = {
-        ui = "auto";
+        whitespace = "trailing-space,space-before-tab";
       };
 
       url = {
@@ -34,22 +36,10 @@
         "ssh://git@gitlab.com/" = {
           insteadOf = "https://gitlab.com/";
         };
-      };
 
-      branch = {
-        sort = "object";
-      };
-
-      pull = {
-        rebase = true;
-      };
-
-      rebase = {
-        autoStash = true;
-      };
-
-      fetch = {
-        prune = true;
+        "ssh://git@gitlab.wiserskills.net/" = {
+          insteadOf = "https://gitlab.wiserskills.net/";
+        };
       };
 
       alias = {
