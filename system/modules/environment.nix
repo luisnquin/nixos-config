@@ -20,7 +20,7 @@
         clap = [
           translate-shell # Translate anything from shell
           tealdeer # Alternative to tdlr client and man
-          pkgsx.minecraft
+          # pkgsx.minecraft
           pkgsx.no
           tree
 

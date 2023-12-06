@@ -4,7 +4,7 @@ with pkgs.lib; let
     coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
     pg-ping = ./pg-ping.nix;
-    minecraft = ./minecraft;
+    # minecraft = ./minecraft;
     pp = ./panicparse.nix;
     npkill = ./npkill.nix;
     no = ./no.nix;
