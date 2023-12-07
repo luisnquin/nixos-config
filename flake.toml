@@ -7,15 +7,17 @@ fullName = "Luis Quiñones"
 email = "lpaandres2020@gmail.com"
 gitEmail = "lpaandres2020@gmail.com"
 
+
 [hosts.luisnquin]
 name = "nyx"
+browser = "brave"
+desktop = "hyprland"
 timeZone = "America/Lima"
 i18nLocale = "en_US.UTF-8"
 keyboardLayout = "latam"
 resolution = "1920x1080"
 batteryThreshold = 60
-browser = "brave"
-desktop = "hyprland"
+
 
 [nix]
 stateVersion = "23.11"
