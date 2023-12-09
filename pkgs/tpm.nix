@@ -1,10 +1,7 @@
 {
   fetchFromGitHub,
-  makeWrapper,
   stdenvNoCC,
   coreutils,
-  tmux,
-  lib,
 }:
 stdenvNoCC.mkDerivation rec {
   pname = "tpm";
