@@ -1,6 +1,10 @@
 {
   fetchFromGitHub,
+  makeWrapper,
   stdenvNoCC,
+  coreutils,
+  tmux,
+  lib,
 }:
 stdenvNoCC.mkDerivation rec {
   pname = "tpm";
@@ -14,7 +18,10 @@ stdenvNoCC.mkDerivation rec {
   };
 
   preConfigure = ''
-    substituteInPlace {./tpm,./bindings/*,./scripts/*.sh} \
+    substituteInPlace ./scripts/helpers/utility.sh \
+      --replace 'mkdir' '${coreutils}/bin/mkdir'
+
+    substituteInPlace {./tpm,./bin/*,./bindings/*,./scripts/*.sh} \
       --replace 'CURRENT_DIR=' 'CURRENT_DIR="${placeholder "out"}/share" # '
 
     substituteInPlace {./bin/*,./bindings/*} \
