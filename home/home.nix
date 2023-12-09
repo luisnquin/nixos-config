@@ -18,7 +18,8 @@
     file.".face".source = ./dots/.face;
   };
 
-  # I'm not using standard paths
+  # disabledModules = ["misc/news.nix"];
+
   news.display = "silent";
 
   xdg = {
