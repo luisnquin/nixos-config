@@ -94,6 +94,9 @@
                             "i3"
                         ]
                     },
+                    "bluetooth": {
+                        "type": "boolean"
+                    },
                     "i18nLocale": {
                         "type": "string"
                     },

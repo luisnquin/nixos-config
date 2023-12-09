@@ -19,11 +19,6 @@
   hardware = {
     enableRedistributableFirmware = true;
     cpu.intel.updateMicrocode = true;
-
-    bluetooth = {
-      enable = false;
-      powerOnBoot = false;
-    };
   };
 
   # manage realtime priorities
