@@ -1,5 +1,6 @@
 {
   host,
+  user,
   nix,
   ...
 }: {
@@ -39,20 +40,12 @@
     hardwareClockInLocalTime = true;
   };
 
-  location.provider = "geoclue2";
+  environment.variables = {
+    "DOTFILES_PATH" = "/home/${user.alias}/.dotfiles";
+  };
 
   i18n.defaultLocale = host.i18nLocale;
-
-  #   inputMethod = {
-  #     enabled = "ibus";
-  #     ibus = {
-  #       engines = with pkgs.ibus-engines; [
-  #         libpinyin
-  #       ];
-  #     };
-  #   };
-  # };
-  # zh-CN
+  location.provider = "geoclue2";
 
   services.thermald.enable = true;
   services.udisks2.enable = true;

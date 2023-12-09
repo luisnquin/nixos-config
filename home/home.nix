@@ -21,10 +21,6 @@
   # I'm not using standard paths
   news.display = "silent";
 
-  home.sessionVariables = {
-    "DOTFILES_PATH" = "/home/${user.alias}/.dotfiles";
-  };
-
   xdg = {
     enable = true;
     configFile = {
