@@ -14,6 +14,7 @@
     ./picom.nix
     ./i3.nix
 
+    ./../cursor.nix
     ./../dunst.nix
     ./../rofi.nix
   ];
