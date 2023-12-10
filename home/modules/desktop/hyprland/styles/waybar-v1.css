@@ -159,3 +159,22 @@
      padding-right: 8px;
      padding-left: 10px;
  }
+
+ #bluetooth {
+     color: rgba(119, 119, 119, 0.69);
+     background-color: rgba(139, 205, 201, 0.1);
+     padding: 0 15px;
+ }
+
+ #bluetooth.connected {
+     color: #8d19e6;
+ }
+
+ /* #bluetooth
+#bluetooth.disabled
+#bluetooth.off
+#bluetooth.on
+#bluetooth.connected
+#bluetooth.discoverable
+#bluetooth.discovering
+#bluetooth.pairable */

@@ -34,6 +34,7 @@
           # "pulseaudio"
           # "backlight"
           "custom/mullvad"
+          "bluetooth"
           "memory"
           "cpu"
           "battery"
@@ -67,6 +68,17 @@
           "on-click-middle" = "exec default_wall";
           "on-click-right" = "exec wallpaper_random";
           "tooltip" = false;
+        };
+
+        "bluetooth" = {
+          # "controller": "controller1"; # specify the alias of the controller if there are more than 1 on the system
+          "format" = "";
+          "format-disabled" = ""; # an empty format will hide the module
+          "format-connected" = " {num_connections}";
+          "tooltip-format" = "{controller_alias}\t{controller_address}";
+          "tooltip-format-connected" = "{controller_alias}\t{controller_address}\n\n{device_enumerate}";
+          "tooltip-format-enumerate-connected" = "{device_alias}\t{device_address}";
+          "on-click" = "${pkgs.blueman}/bin/blueman-manager";
         };
 
         "pulseaudio" = {
