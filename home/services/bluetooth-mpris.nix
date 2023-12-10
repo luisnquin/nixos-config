@@ -17,7 +17,7 @@
       };
 
       Install = {
-        After = ["network.target" "sound.target"];
+        # After = ["network.target" "sound.target"];
         WantedBy = ["default.target"];
       };
     };

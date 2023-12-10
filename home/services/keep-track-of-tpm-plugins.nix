@@ -14,7 +14,7 @@
       Service = let
         tpmScript = name: "${pkgsx.tpm}/bin/${name}";
       in {
-        Type = "simple";
+        Type = "oneshot";
         ExecStart = "${pkgs.bash}/bin/bash -c '${tpmScript "tpm_install_plugins"} && ${tpmScript "tpm_update_plugins"} all'";
         Restart = "on-abnormal";
       };
