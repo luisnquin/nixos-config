@@ -75,6 +75,7 @@
           "format" = "";
           "format-disabled" = ""; # an empty format will hide the module
           "format-connected" = " {num_connections}";
+          "format-connected-battery" = " {num_connections} [{device_battery_percentage}%]";
           "tooltip-format" = "{controller_alias}\t{controller_address}";
           "tooltip-format-connected" = "{controller_alias}\t{controller_address}\n\n{device_enumerate}";
           "tooltip-format-enumerate-connected" = "{device_alias}\t{device_address}";
