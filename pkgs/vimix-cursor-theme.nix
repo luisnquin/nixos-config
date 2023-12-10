@@ -2,7 +2,6 @@
 {
   fetchFromGitHub,
   stdenvNoCC,
-  lib,
 }:
 stdenvNoCC.mkDerivation rec {
   pname = "vimix-cursor-theme";
