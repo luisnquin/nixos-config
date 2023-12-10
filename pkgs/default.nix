@@ -7,7 +7,6 @@ with pkgs.lib; let
     pg-ping = ./pg-ping.nix;
     # minecraft = ./minecraft;
     npkill = ./npkill.nix;
-    pp = ./panicparse.nix;
     tpm = ./tpm.nix;
     no = ./no.nix;
   };
