@@ -7,7 +7,8 @@
     nodePackages.firebase-tools
     nodePackages_latest.cspell
     license-generator
-    onlyoffice-bin
+    # onlyoffice-bin
+    gnumeric
 
     pkgsx.pg-ping
     hyperfine # benchmarking
