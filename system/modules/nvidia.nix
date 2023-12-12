@@ -12,27 +12,19 @@
   '';
 in {
   # https://nixos.wiki/wiki/Nvidia"
-  environment = {
-    systemPackages = [
-      nvidia-offload
-      pkgs.nvtop
-    ];
-
-    sessionVariables = {
-      NIXOS_OZONE_WL = "1";
-      WLR_NO_HARDWARE_CURSORS = "1";
-      LIBVA_DRIVER_NAME = "nvidia";
-      GBM_BACKEND = "nvidia-drm";
-      __GLX_VENDOR_LIBRARY_NAME = "nvidia";
-    };
-  };
-
+  environment.systemPackages = [nvidia-offload];
   services.xserver.videoDrivers = ["nvidia"];
 
   # boot.blacklistedKernelModules = ["nouveau"];
   # boot.initrd.kernelModules = ["nvidia" "nvidia_modeset" "nvidia-uvm" "nvidia_drm" "kvm-intel"];
 
   hardware = {
+    opengl = {
+      enable = true;
+      driSupport = true;
+      driSupport32Bit = true;
+    };
+
     nvidia = {
       modesetting.enable = true;
       # open source (nouveau)
@@ -58,12 +50,6 @@ in {
       };
 
       package = config.boot.kernelPackages.nvidiaPackages.beta;
-    };
-
-    opengl = {
-      enable = true;
-      driSupport = true;
-      driSupport32Bit = true;
     };
   };
 }
