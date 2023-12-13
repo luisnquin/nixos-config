@@ -12,6 +12,7 @@
     ./clipboard.nix
     ./security.nix
     ./torrent.nix
+    ./network.nix
     ./docker.nix
     ./thunar.nix
     ./nvidia.nix

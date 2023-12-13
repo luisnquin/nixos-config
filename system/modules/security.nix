@@ -13,7 +13,6 @@
       '';
     };
 
-    # we don't care about if we're using DE or WM
     polkit.enable = true;
   };
 
@@ -22,37 +21,25 @@
     # mutableUsers = false;
     motd = ''Confront [hi]story'';
 
-    users = {
-      ${user.alias} = {
-        isNormalUser = true;
-        home = ''/home/${user.alias}/'';
-        # Used by desktop manager
-        description = ''${user.alias} 🍂'';
-        shell = pkgs.zsh;
-        hashedPassword = null;
-        # ❄️
+    users.${user.alias} = {
+      description = ''${user.alias} 🍂'';
 
-        extraGroups = [
-          "networkmanager"
-          "docker"
-          "wheel"
-        ];
-      };
+      home = ''/home/${user.alias}/'';
+      hashedPassword = null;
+      isNormalUser = true;
+
+      extraGroups = [
+        "networkmanager"
+        "docker"
+        "wheel"
+      ];
+
+      shell = pkgs.zsh;
     };
 
     extraGroups = {
-      vboxusers.members = ["${user.alias}"];
+      vboxusers.members = [user.alias];
     };
-  };
-
-  networking = {
-    firewall = {
-      enable = true;
-      allowedTCPPorts = [20 80 443 8088];
-      allowPing = false;
-    };
-
-    wireguard.enable = true;
   };
 
   programs.gnupg.agent = {
@@ -67,21 +54,21 @@
       enable = true;
       banner = "plz let me in";
 
+      # https://github.com/NixOS/nixpkgs/issues/234683
       settings = {
-        # Everything in pascal case: https://github.com/NixOS/nixpkgs/issues/234683
         PasswordAuthentication = true;
-      };
-
-      knownHosts = let
-        primaryPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJcSOpun+OjJng87LUXArDX3y2LLts7pOpfyCC1Mygew luisnquin@rat";
-      in {
-        "https://github.com" = {
-          publicKey = primaryPublicKey;
-        };
-        "https://gitlab.com" = {
-          publicKey = primaryPublicKey;
-        };
       };
     };
   };
 }
+#
+# knownHosts = let
+#   primaryPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJcSOpun+OjJng87LUXArDX3y2LLts7pOpfyCC1Mygew luisnquin@rat";
+# in {
+#   "https://github.com" = {
+#     publicKey = primaryPublicKey;
+#   };
+#   "https://gitlab.com" = {
+#     publicKey = primaryPublicKey;
+#   };
+# };
