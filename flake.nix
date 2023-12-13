@@ -74,7 +74,10 @@
             senv = getDefault senv;
             nao = getDefault nao;
 
-            libx = import ./lib {inherit (pkgs) lib;};
+            libx = import ./lib {
+              inherit (pkgs) lib;
+              inherit pkgs;
+            };
             pkgsx = import ./pkgs {inherit pkgs;};
 
             inherit (hyprland.packages.${system}) hyprland;

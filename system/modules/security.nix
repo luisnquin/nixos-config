@@ -1,6 +1,7 @@
 {
   user,
   pkgs,
+  libx,
   ...
 }: {
   security = {
@@ -17,9 +18,8 @@
   };
 
   users = {
+    motd = libx.decodeBase64 "Q29uZnJvbnQgW2hpXXN0b3J5";
     defaultUserShell = pkgs.zsh;
-    # mutableUsers = false;
-    motd = ''Confront [hi]story'';
 
     users.${user.alias} = {
       description = ''${user.alias} 🍂'';
@@ -72,3 +72,4 @@
 #     publicKey = primaryPublicKey;
 #   };
 # };
+

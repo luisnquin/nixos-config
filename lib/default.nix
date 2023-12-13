@@ -1,4 +1,7 @@
-{lib}: {
+{
+  pkgs,
+  lib,
+}: {
   # Retrieves a list of file paths within the specified directory path.
   #
   # Arguments:
@@ -23,4 +26,9 @@
         else inputError "value is not a path";
     in
       map (p: folderPath + ("/" + p)) fileNames;
+
+  decodeBase64 = encodedStr: let
+    outFile = pkgs.runCommand "decode-base64" {} "echo '${encodedStr}' | base64 --decode > $out";
+  in
+    builtins.readFile outFile;
 }
