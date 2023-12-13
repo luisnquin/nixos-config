@@ -52,7 +52,7 @@
 
     openssh = {
       enable = true;
-      banner = "plz let me in";
+      banner = libx.decodeBase64 "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
 
       # https://github.com/NixOS/nixpkgs/issues/234683
       settings = {
