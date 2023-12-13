@@ -4,7 +4,7 @@
   lib,
   ...
 }: let
-  isWayland = builtins.elem host.desktop ["hyprland"]; # TODO: improve
+  isWayland = builtins.elem host.desktop ["hyprland"] && false; # TODO: improve
 in {
   systemd.user.services = lib.mkIf isWayland {
     xwaylandvideobridge = {
