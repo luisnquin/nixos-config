@@ -15,7 +15,7 @@
         tpmScript = name: "${pkgsx.tpm}/bin/${name}";
       in {
         Type = "oneshot";
-        ExecStart = "${pkgs.bash}/bin/bash -c '${tpmScript "tpm_install_plugins"} && ${tpmScript "tpm_update_plugins"} all'";
+        ExecStart = ''${pkgs.bash}/bin/bash -c "${tpmScript "tpm_install_plugins"}; ${tpmScript "tpm_update_plugins"} all"'';
         Restart = "on-abnormal";
       };
 

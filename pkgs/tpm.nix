@@ -2,6 +2,7 @@
   fetchFromGitHub,
   stdenvNoCC,
   coreutils,
+  tmux,
 }:
 stdenvNoCC.mkDerivation rec {
   pname = "tpm";
@@ -17,6 +18,12 @@ stdenvNoCC.mkDerivation rec {
   preConfigure = ''
     substituteInPlace ./scripts/helpers/utility.sh \
       --replace 'mkdir' '${coreutils}/bin/mkdir'
+
+    substituteInPlace {./bin/*} \
+      --replace 'tmux' '${tmux}/bin/tmux'
+
+    substituteInPlace {./bin/*} \
+      --replace 'cut' '${coreutils}/bin/cut'
 
     substituteInPlace {./tpm,./bin/*,./bindings/*,./scripts/*.sh} \
       --replace 'CURRENT_DIR=' 'CURRENT_DIR="${placeholder "out"}/share" # '
@@ -45,5 +52,9 @@ stdenvNoCC.mkDerivation rec {
     chmod +x $out/bin/*
 
     runHook postInstall
+  '';
+
+  shellHook = ''
+    TMUX_PLUGIN_MANAGER_PATH=$XDG_CONFIG_HOME/tpm/plugins/
   '';
 }
