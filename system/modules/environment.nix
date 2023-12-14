@@ -39,6 +39,7 @@
           gparted
           cmake
           btop
+          lsof
           nmap
           wget
           dig
