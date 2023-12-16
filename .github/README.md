@@ -23,7 +23,7 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 
 ### Hyprland
 
-![image](https://github.com/luisnquin/nixos-config/assets/86449787/ff921198-44b6-404a-8243-28eff5a0f6f7)
+![image](https://github.com/luisnquin/nixos-config/assets/86449787/12a9ec9a-ffed-4b51-8a89-f906d5944f47)
 
 ## Some configurations comes here thanks to
 
