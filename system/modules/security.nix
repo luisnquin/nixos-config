@@ -1,7 +1,7 @@
 {
   user,
-  pkgs,
   libx,
+  pkgs,
   ...
 }: {
   security = {
@@ -22,7 +22,7 @@
     defaultUserShell = pkgs.zsh;
 
     users.${user.alias} = {
-      description = ''${user.alias} 🍂'';
+      description = libx.decodeBase64 "dGFuZ28gaXMt";
 
       home = ''/home/${user.alias}/'';
       hashedPassword = null;
