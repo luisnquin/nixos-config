@@ -117,8 +117,8 @@
           "interval" = 1;
           "format" = "󰻠 {percentage}%";
           "states" = {
-            "warning" = 30;
-            "critical" = 15;
+            "warning" = 80;
+            "critical" = 95;
           };
           "on-click" = runBtopWithAlacritty;
         };
