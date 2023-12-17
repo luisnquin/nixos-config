@@ -66,8 +66,6 @@
       gb = "git branch";
       gbx = "git branch --show-current | xclip";
 
-      gopen = "git-open >/dev/null";
-
       gc = "git commit -v";
       gca = "git commit --amend";
       gcm = "git commit --message";
