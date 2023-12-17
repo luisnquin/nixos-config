@@ -13,7 +13,7 @@
     # Nix store
     optimise = {
       automatic = true;
-      dates = ["13:00"];
+      dates = ["13:00"]; # I normally lunch at this hour
     };
 
     # https://nixos.org/manual/nix/stable/command-ref/conf-file.html
