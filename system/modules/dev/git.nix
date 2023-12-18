@@ -95,8 +95,11 @@
       # Push current branch
       ggpush = "git push origin $(git branch --show-current)";
       ggpulsh = "ggpull && ggpush";
+
       # Git reset but it doesn't output anything
       gr = "git reset -q";
+      grv = "git revert";
+
       # Lists the authors of a directory/file.
       gauthors = "git shortlog -n -s -- ";
       gss = "git status -s";
