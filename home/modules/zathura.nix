@@ -6,7 +6,7 @@
         name = "zathura";
         type = "Application";
         comment = "A minimalistic PDF viewer";
-        exec = "zathura %f";
+        exec = "zathura --fork %f";
         terminal = false;
         categories = ["Office" "Viewer"];
         mimeType = ["application/pdf"];
