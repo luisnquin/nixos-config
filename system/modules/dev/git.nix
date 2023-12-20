@@ -64,7 +64,7 @@
       gaa = "git add --all";
 
       gb = "git branch";
-      gbx = "git branch --show-current | xclip";
+      gbc = "git branch --show-current | xclip";
 
       gc = "git commit -v";
       gca = "git commit --amend";
@@ -94,7 +94,6 @@
       gmpush = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} push; fi'";
       # Push current branch
       ggpush = "git push origin $(git branch --show-current)";
-      ggpulsh = "ggpull && ggpush";
 
       # Git reset but it doesn't output anything
       gr = "git reset -q";
@@ -106,21 +105,13 @@
       grb = "git rebase";
 
       gs = "git stash";
-      # "git stash --interactive(?)"
-      gsi = "git stash --patch";
       gsiu = "git stash --include-untracked";
       gsp = "git stash pop";
-
       gt = "git tag";
       gtd = "git tag --delete";
       # Lists last 5 tags
       gts = "g tag --sort=v:refname | tac | head -n 5";
-
       gcl = "git clone";
-      # Shallow clone
-      gcls = "git clone --depth 1";
-
-      ghd = "gh-dash";
       lg = "lazygit";
     };
   };
