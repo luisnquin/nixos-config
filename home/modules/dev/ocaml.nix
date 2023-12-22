@@ -27,6 +27,7 @@
     in
       lib.hm.dag.entryAfter ["writeBoundary"] ''
         ${opam}/bin/opam init --no-setup --reinit
+        ${opam}/bin/opam install ocaml-lsp-server
       '';
   };
 
