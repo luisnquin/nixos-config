@@ -7,8 +7,6 @@
   pkgs,
   ...
 }: {
-  home.packages = [pkgs.xdg-desktop-portal-hyprland];
-
   # bind = SUPER_SHIFT, X, exec, ${rofi-plugin-call "TODO" "${pkgsx.rofi-todo}/bin/rofi-todo"}
 
   # More keysyms here: https://github.com/xkbcommon/libxkbcommon/blob/master/include/xkbcommon/xkbcommon-keysyms.h

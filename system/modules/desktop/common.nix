@@ -1,4 +1,8 @@
-{host, ...}: {
+{
+  host,
+  pkgs,
+  ...
+}: {
   programs.dconf.enable = true;
 
   services.xserver = {
@@ -22,4 +26,6 @@
 
     desktopManager.xterm.enable = true;
   };
+
+  xdg.portal.extraPortals = [pkgs.xdg-desktop-portal-gtk];
 }
