@@ -1,4 +1,4 @@
-_: {
+{
   environment.shellAliases = {
     # Instant tp to some directories
     dot = "cd ~/.dotfiles/";
