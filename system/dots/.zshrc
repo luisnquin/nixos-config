@@ -19,6 +19,4 @@ zle -N delete_until_not_alphanumerics
 
 bindkey '\e^?' delete_until_not_alphanumerics
 
-[[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null
-
 if test -f /home/"$USER"/Work/.bashrc; then source /home/"$USER"/Work/.bashrc; fi
