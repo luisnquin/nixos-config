@@ -4,6 +4,11 @@
     dune-release
     ocamlformat
     ocaml
-    opam
   ];
+
+  programs.opam = {
+    enable = true;
+    package = pkgs.opam;
+    enableZshIntegration = true;
+  };
 }
