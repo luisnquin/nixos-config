@@ -24,10 +24,14 @@
             + wrapperLine;
         }
       );
+
+      packagesToInstall = lib.strings.concatMapStrings (p: p + " ") [
+        "ocaml-lsp-server"
+      ];
     in
       lib.hm.dag.entryAfter ["writeBoundary"] ''
         ${opam}/bin/opam init --no-setup --reinit
-        ${opam}/bin/opam install ocaml-lsp-server
+        ${opam}/bin/opam install ${packagesToInstall}
       '';
   };
 
