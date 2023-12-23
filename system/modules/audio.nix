@@ -1,6 +1,4 @@
 {
-  sound.enable = true;
-
   # pulseaudio doesn't give a good support for some programs
   services.pipewire = {
     enable = true;
@@ -9,4 +7,7 @@
     pulse.enable = true;
     jack.enable = true;
   };
+
+  programs.noisetorch.enable = true;
+  sound.enable = true;
 }
