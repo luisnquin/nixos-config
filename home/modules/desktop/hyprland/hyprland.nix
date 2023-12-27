@@ -3,6 +3,7 @@
   dunstify-sound,
   cliphist-rofi,
   spotify-dbus,
+  rofi-radio,
   grimblast,
   pkgs,
   ...
@@ -172,6 +173,8 @@
     bind = SUPER_SHIFT, C, exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}
     bind = SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window
     bind = $mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun
+
+    bind = SUPER_SHIFT, Z, exec, ${rofi-radio}/bin/rofi-radio
 
     # Move focus with mainMod + arrow keys
     bind = $mainMod, left, movefocus, l

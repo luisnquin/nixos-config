@@ -609,11 +609,11 @@
         "systems": "systems_8"
       },
       "locked": {
-        "lastModified": 1700527886,
-        "narHash": "sha256-a45Lb8OPJ32xs2f6wqdDHajr9xqJ+X06U1efh5HjRXk=",
+        "lastModified": 1703650478,
+        "narHash": "sha256-aA5rwvwO1iWxHDprsXXqbit3rC4TauT7jmooy/nA0Ys=",
         "owner": "luisnquin",
         "repo": "scripts",
-        "rev": "4de9c8dd0b9a807df3b0d05e7d703ddc1e509d62",
+        "rev": "4ec7511271f83d3cbfc8edb8c917d237b68eaae4",
         "type": "github"
       },
       "original": {
