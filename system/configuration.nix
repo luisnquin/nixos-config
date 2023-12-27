@@ -21,9 +21,6 @@
     cpu.intel.updateMicrocode = true;
   };
 
-  # manage realtime priorities
-  security.rtkit.enable = true;
-
   networking = {
     networkmanager.enable = true;
     hostName = host.name;
