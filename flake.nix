@@ -99,7 +99,10 @@
         home-manager.lib.homeManagerConfiguration {
           inherit pkgs;
           extraSpecialArgs = specialArgs;
-          modules = [config];
+          modules = [
+            scripts.homeManagerModules.default
+            config
+          ];
         };
     in {
       nixosConfigurations."${setup.host.name}" = mkNixos ./system/configuration.nix;
