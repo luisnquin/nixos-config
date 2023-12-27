@@ -13,7 +13,7 @@
     pkgsx.pg-ping
     hyperfine # benchmarking
     asciinema
-    redoc-cli
+    # redoc-cli
     gnumake
     argocd
     rclone # cloud storages
