@@ -19,7 +19,7 @@ in
     ldflags = ["-X main.version=${version}"];
     buildTarget = "./";
 
-    vendorSha256 = "sha256-8/6pJtJ1h1miV1SxMP9l9+ckWrCl8QjrK6M8lUx06KY=";
+    vendorHash = "sha256-8/6pJtJ1h1miV1SxMP9l9+ckWrCl8QjrK6M8lUx06KY=";
     doCheck = false;
 
     meta = with lib; {
