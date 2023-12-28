@@ -22,10 +22,6 @@
       ;
   };
 
-  exec = [
-    "pkill waybar & sleep 0.1 && waybar"
-  ];
-
   exec-once = [
     "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
   ];
