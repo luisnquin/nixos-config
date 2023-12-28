@@ -33,18 +33,29 @@
           shuffle = true;
         }
         {
-          name = "Night City Radio";
-          url = "https://youtube.com/playlist?list=PLUh-lR3snT_rcET-QS9tUJaCzEcjuXyyD";
+          name = "98.7 Body Heat Radio";
+          url = "https://youtube.com/playlist?list=PLs1H9tARINqdQMb8RGnSlBS5MqoEyyihF";
           shuffle = true;
         }
         {
           name = "Radio Vexelstrom";
-          url = "https://www.youtube.com/playlist?list=PLZd11OjQTkPWBASMzCtr0OUl1BsHAsYyD";
+          url = "https://youtube.com/playlist?list=PLZd11OjQTkPWBASMzCtr0OUl1BsHAsYyD";
           shuffle = true;
         }
         {
-          name = "Box Lofi";
-          url = "http://stream.zeno.fm/f3wvbbqmdg8uv";
+          name = "MGSV: TPP Original Soundtrack \"Music Tape 1\"";
+          url = "https://youtube.com/playlist?list=PLk-QnEBGoZdJiUE1iB9g_qmQzgA5uPQFj";
+          shuffle = true;
+        }
+        {
+          name = "MGSV: TPP Original Soundtrack \"Music Tape 2\"";
+          url = "https://youtube.com/playlist?list=PLixuIKbcCRz3Jkifv71CHquoMAmIH7d1m";
+          shuffle = true;
+        }
+        {
+          name = "MGSV: TPP Original Soundtrack \"The Lost Tapes\"";
+          url = "https://youtube.com/playlist?list=PLJCznWvkR1xlDHez8Ph3HTrzpJtssH4ml";
+          shuffle = true;
         }
       ];
     };
