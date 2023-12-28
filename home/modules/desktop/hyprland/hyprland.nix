@@ -145,6 +145,8 @@ in {
     # See https://wiki.hyprland.org/Configuring/Keywords/ for more
     $mainMod = SUPER
 
+    ${listToPrefixedLines "exec = " exec}
+
     ${listToPrefixedLines "bind = " binds.bind}
     ${listToPrefixedLines "bindm = " binds.bindm}
   '';
