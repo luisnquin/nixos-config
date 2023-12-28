@@ -1,5 +1,4 @@
-{host, ...}: let
-in {
+{host, ...}: {
   imports = [
     {
       "plasma" = ./plasma;
