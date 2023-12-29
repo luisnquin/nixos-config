@@ -22,8 +22,8 @@
 
     ",XF86AudioMicMute, exec, ${dunstify-sound}/bin/dunstify-sound --toggle-mic"
     ",XF86AudioMute, exec, ${dunstify-sound}/bin/dunstify-sound --toggle-vol"
-    ",XF86AudioMute, exec, ${dunstify-sound}/bin/dunstify-sound --dec"
-    ",XF86AudioMute, exec, ${dunstify-sound}/bin/dunstify-sound --inc"
+    ",XF86AudioLowerVolume, exec, ${dunstify-sound}/bin/dunstify-sound --dec"
+    ",XF86AudioRaiseVolume, exec, ${dunstify-sound}/bin/dunstify-sound --inc"
 
     "SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze --notify copy area"
     "$mainMod, Print, exec, ${grimblast}/bin/grimblast --notify copy active"
