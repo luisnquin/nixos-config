@@ -5,6 +5,7 @@
   spotify-dbus,
   rofi-radio,
   grimblast,
+  hyprland,
   pkgs,
   lib,
   ...
@@ -18,6 +19,7 @@
       spotify-dbus
       rofi-radio
       grimblast
+      hyprland
       pkgs
       ;
   };

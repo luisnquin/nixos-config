@@ -5,6 +5,7 @@
   spotify-dbus,
   rofi-radio,
   grimblast,
+  hyprland,
   pkgs,
   ...
 }: {
@@ -41,7 +42,7 @@
     "SUPER_SHIFT, braceleft, exec, ${spotify-dbus}/bin/spotify-dbus --prev"
     "$mainMod,Pause, exec, ${spotify-dbus}/bin/spotify-dbus --toggle"
 
-    "SUPER_SHIFT, R, exec, ${pkgs.hyprland}/bin/hyprctl reload"
+    "SUPER_SHIFT, R, exec, ${hyprland}/bin/hyprctl reload"
 
     "$mainMod, left, movefocus, l"
     "$mainMod, right, movefocus, r"

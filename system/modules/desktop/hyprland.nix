@@ -8,7 +8,7 @@
   programs = {
     hyprland = {
       enable = true;
-      package = pkgs.hyprland;
+      package = hyprland;
       # enableNvidiaPatches = true;
       portalPackage = pkgs.xdg-desktop-portal-hyprland;
     };
