@@ -80,7 +80,7 @@
               inherit pkgs;
             };
 
-            inherit (hyprland.packages.${system}) hyprland;
+            inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             inherit spicetify-nix;
           }
           // hyprland-contrib.packages.${system}
