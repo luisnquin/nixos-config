@@ -1,7 +1,6 @@
 {
   xdg-desktop-portal-hyprland,
   hyprland,
-  pkgs,
   ...
 }: {
   environment.pathsToLink = ["/libexec"];
