@@ -1,6 +1,5 @@
 {
   host,
-  pkgs,
   ...
 }: {
   programs.dconf.enable = true;
