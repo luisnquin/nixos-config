@@ -1,4 +1,5 @@
 {
+  pstore,
   pkgs,
   user,
   ...
@@ -46,6 +47,7 @@
       alejandra
       rnix-lsp
       deadnix
+      pstore
       statix
       nurl
 
