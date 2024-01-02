@@ -1,7 +1,6 @@
 {
   isWayland,
   pkgs,
-  host,
   lib,
   ...
 }: {

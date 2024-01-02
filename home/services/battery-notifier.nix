@@ -1,7 +1,6 @@
 {
   battery-notifier,
   isTiling,
-  host,
   lib,
   ...
 }: {
