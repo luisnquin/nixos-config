@@ -17,7 +17,7 @@
     du = "du --human-readable";
     xclip = "xclip -selection c";
     ls = "exa --icons";
-    sls = "exa --icons -T";
+    sls = "exa --icons -Ta -I=.git";
     ll = "exa -l";
     la = "exa -a";
     cat = "bat -p";
