@@ -1,10 +1,11 @@
 {
   battery-notifier,
+  isTiling,
   host,
   lib,
   ...
 }: {
-  systemd.user.services = lib.mkIf (builtins.elem host.desktop ["hyprland" "i3"]) {
+  systemd.user.services = lib.mkIf isTiling {
     battery-notifier = {
       Unit = {
         Description = "A very useful battery notifier for window managers";

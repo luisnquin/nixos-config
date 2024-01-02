@@ -1,11 +1,10 @@
 {
+  isWayland,
   pkgs,
   host,
   lib,
   ...
-}: let
-  isWayland = builtins.elem host.desktop ["hyprland"] && false; # TODO: improve
-in {
+}: {
   systemd.user.services = lib.mkIf isWayland {
     xwaylandvideobridge = {
       Unit = {

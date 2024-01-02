@@ -1,4 +1,5 @@
 {
+  isTiling,
   host,
   lib,
   ...
@@ -8,5 +9,5 @@
     powerOnBoot = true;
   };
 
-  services.blueman.enable = host.bluetooth && builtins.elem host.desktop ["hyprland" "i3"];
+  services.blueman.enable = host.bluetooth && isTiling;
 }

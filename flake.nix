@@ -65,7 +65,9 @@
       specialArgs = let
         getDefault = pkg: pkg.defaultPackage.${system};
 
-        args =
+        args = let
+          desktopIncluded = list: builtins.elem setup.host.desktop list;
+        in
           {
             rofi-network-manager = getDefault rofi-network-manager;
             fallout-grub-theme = getDefault fallout-grub-theme;
@@ -79,6 +81,9 @@
               inherit (pkgs) lib;
               inherit pkgs;
             };
+
+            isWayland = desktopIncluded ["hyprland" "sway"];
+            isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             inherit spicetify-nix;
