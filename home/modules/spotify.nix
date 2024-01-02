@@ -12,8 +12,8 @@ in {
     enable = true;
     # theme = themes."Comfy";
 
-    theme = themes.Ziro;
-    colorScheme = "ylx-ui";
+    theme = themes.text;
+    # colorScheme = "ylx-ui";
 
     enabledExtensions = with extensions; [
       historyShortcut
