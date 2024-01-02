@@ -15,7 +15,6 @@
   environment = {
     systemPackages = with pkgs; [
       docker
-      docker-compose
       lazydocker
 
       # hadolint # Dockerfile linter
