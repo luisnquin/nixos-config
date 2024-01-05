@@ -37,6 +37,7 @@
     "SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window"
     "$mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun"
     "SUPER_SHIFT, Z, exec, ${rofi-radio}/bin/rofi-radio"
+    "SUPER_SHIFT, E, exec, ${pkgs.bemoji}/bin/bemoji"
 
     "SUPER_SHIFT, braceright, exec, ${spotify-dbus}/bin/spotify-dbus --next"
     "SUPER_SHIFT, braceleft, exec, ${spotify-dbus}/bin/spotify-dbus --prev"
