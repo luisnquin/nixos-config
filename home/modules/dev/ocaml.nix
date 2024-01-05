@@ -43,6 +43,8 @@
 
         packagesToInstall = lib.strings.concatMapStrings (p: p + " ") [
           "ocaml-lsp-server"
+          "base"
+          "core"
         ];
 
         opam-init = pkgs.writeShellScriptBin "opam-init" ''
