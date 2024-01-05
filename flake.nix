@@ -20,33 +20,6 @@
 
   outputs = inputs:
     with inputs; let
-      setup = let
-        metadata = builtins.fromTOML (builtins.readFile ./flake.toml);
-        flakeTomlError = message: builtins.throw "error in flake.toml: ${message}";
-
-        notEmptyString = x: x != null && x != "";
-
-        selected =
-          if notEmptyString metadata.use
-          then metadata.use
-          else flakeTomlError "missing 'use'";
-      in {
-        user =
-          if builtins.hasAttr "${selected}" metadata.users
-          then metadata.users.${selected} // {alias = selected;}
-          else flakeTomlError "missing '${selected}' owner in users collection";
-
-        host =
-          if builtins.hasAttr "${selected}" metadata.hosts
-          then metadata.hosts.${selected}
-          else flakeTomlError "missing '${selected}' owner in hosts collection";
-
-        nix =
-          if notEmptyString metadata.nix.stateVersion && notEmptyString metadata.nix.channel
-          then metadata.nix
-          else flakeTomlError "missing one or more attributes of 'nix'";
-      };
-
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
@@ -67,11 +40,13 @@
         inherit pkgs;
       };
 
+      metadata = libx.mkMetadata ./flake.toml;
+
       specialArgs = let
         getDefault = pkg: pkg.defaultPackage.${system};
 
         args = let
-          desktopIncluded = list: builtins.elem setup.host.desktop list;
+          desktopIncluded = list: builtins.elem metadata.host.desktop list;
         in
           {
             rofi-network-manager = getDefault rofi-network-manager;
@@ -97,7 +72,7 @@
         // import ./overlays/special-args.nix args;
     in
       libx.mkSetup {
-        inherit (setup) user host nix;
+        inherit (metadata) user host nix;
         inherit specialArgs pkgs;
 
         sources = {
