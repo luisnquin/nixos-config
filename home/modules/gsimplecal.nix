@@ -1,4 +1,4 @@
-{
+{host, ...}: {
   # https://github.com/dmedvinsky/gsimplecal/blob/master/src/Config.cpp
   xdg.configFile."gsimplecal/config".text = ''
     show_calendar = 1
@@ -17,7 +17,6 @@
     mainwindow_xoffset = 250
     mainwindow_yoffset = 12
     clock_label = .                    …
-    clock_tz = :America/El_Salvador
-
+    clock_tz = :${host.timeZone}
   '';
 }
