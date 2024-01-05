@@ -95,24 +95,66 @@
         args
         // import ./overlays/special-args.nix args;
 
-      mkNixos = config:
+      mkNixos = {
+        nixosModules,
+        hmConfig,
+      }: let
+        extraSpecialArgs =
+          specialArgs
+          // {
+            inherit hmConfig;
+          };
+      in
         nixpkgs.lib.nixosSystem {
-          inherit specialArgs system pkgs;
-          modules = [config];
+          inherit system pkgs;
+
+          specialArgs = extraSpecialArgs;
+          modules = nixosModules;
         };
 
-      mkHome = config:
+      mkHome = {
+        nixosConfig,
+        homeModules,
+      }: let
+        extraSpecialArgs =
+          specialArgs
+          // {
+            inherit nixosConfig;
+          };
+      in
         home-manager.lib.homeManagerConfiguration {
-          inherit pkgs;
-          extraSpecialArgs = specialArgs;
-          modules = [
-            scripts.homeManagerModules.default
-            config
-          ];
-        };
-    in {
-      nixosConfigurations."${setup.host.name}" = mkNixos ./system/configuration.nix;
+          inherit pkgs extraSpecialArgs;
 
-      homeConfigurations."${setup.user.alias}" = mkHome ./home/home.nix;
-    };
+          modules = homeModules;
+        };
+
+      mkSetup = {
+        host,
+        user,
+        homeModules,
+        nixosModules,
+      }: rec {
+        nixosConfigurations."${host.name}" = mkNixos {
+          inherit nixosModules;
+          hmConfig = homeConfigurations."${user.alias}".config;
+        };
+
+        homeConfigurations."${user.alias}" = mkHome {
+          inherit homeModules;
+          nixosConfig = nixosConfigurations."${host.name}".config;
+        };
+      };
+    in
+      mkSetup {
+        inherit (setup) user host;
+
+        nixosModules = [
+          ./system/configuration.nix
+        ];
+
+        homeModules = [
+          scripts.homeManagerModules.default
+          ./home/home.nix
+        ];
+      };
 }
