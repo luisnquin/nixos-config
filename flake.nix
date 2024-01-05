@@ -43,7 +43,6 @@
       metadata = libx.mkMetadata ./flake.toml;
 
       specialArgs = let
-        getDefault = pkg: pkg.defaultPackage.${system};
 
         args = let
           desktopIncluded = list: builtins.elem metadata.host.desktop list;
@@ -58,7 +57,7 @@
             inherit spicetify-nix;
             inherit libx;
           }
-          // builtins.mapAttrs (n: p: p.defaultPackage.${system}) {
+          // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager fallout-grub-theme nix-search tomato-c senv nao;
           }
           // hyprland-contrib.packages.${system}

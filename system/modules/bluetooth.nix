@@ -1,8 +1,6 @@
 {
   isTiling,
   config,
-  host,
-  lib,
   ...
 }: {
   hardware.bluetooth = {
