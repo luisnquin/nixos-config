@@ -1,7 +1,8 @@
 {
   pkgs,
   lib,
-}: {
+}:
+{
   # Retrieves a list of file paths within the specified directory path.
   #
   # Arguments:
@@ -32,3 +33,4 @@
   in
     builtins.readFile outFile;
 }
+// import ./machine.nix

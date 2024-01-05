@@ -62,6 +62,11 @@
         inherit system;
       };
 
+      libx = import ./lib {
+        inherit (pkgs) lib;
+        inherit pkgs;
+      };
+
       specialArgs = let
         getDefault = pkg: pkg.defaultPackage.${system};
 
@@ -77,76 +82,27 @@
             nao = getDefault nao;
 
             pkgsx = import ./pkgs {inherit pkgs;};
-            libx = import ./lib {
-              inherit (pkgs) lib;
-              inherit pkgs;
-            };
 
             isWayland = desktopIncluded ["hyprland" "sway"];
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit spicetify-nix;
+            inherit spicetify-nix anyrun;
+            inherit libx;
           }
           // hyprland-contrib.packages.${system}
-          // scripts.packages.${system}
-          // setup;
+          // scripts.packages.${system};
       in
         args
         // import ./overlays/special-args.nix args;
-
-      mkNixos = {
-        nixosModules,
-        hmConfig,
-      }: let
-        extraSpecialArgs =
-          specialArgs
-          // {
-            inherit hmConfig;
-          };
-      in
-        nixpkgs.lib.nixosSystem {
-          inherit system pkgs;
-
-          specialArgs = extraSpecialArgs;
-          modules = nixosModules;
-        };
-
-      mkHome = {
-        nixosConfig,
-        homeModules,
-      }: let
-        extraSpecialArgs =
-          specialArgs
-          // {
-            inherit nixosConfig;
-          };
-      in
-        home-manager.lib.homeManagerConfiguration {
-          inherit pkgs extraSpecialArgs;
-
-          modules = homeModules;
-        };
-
-      mkSetup = {
-        host,
-        user,
-        homeModules,
-        nixosModules,
-      }: rec {
-        nixosConfigurations."${host.name}" = mkNixos {
-          inherit nixosModules;
-          hmConfig = homeConfigurations."${user.alias}".config;
-        };
-
-        homeConfigurations."${user.alias}" = mkHome {
-          inherit homeModules;
-          nixosConfig = nixosConfigurations."${host.name}".config;
-        };
-      };
     in
-      mkSetup {
-        inherit (setup) user host;
+      libx.mkSetup {
+        inherit (setup) user host nix;
+        inherit specialArgs pkgs;
+
+        sources = {
+          inherit nixpkgs home-manager;
+        };
 
         nixosModules = [
           ./system/configuration.nix
