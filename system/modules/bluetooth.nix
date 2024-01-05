@@ -1,13 +1,14 @@
 {
   isTiling,
+  config,
   host,
   lib,
   ...
 }: {
-  hardware.bluetooth = lib.mkIf host.bluetooth {
+  hardware.bluetooth = {
     enable = true;
     powerOnBoot = true;
   };
 
-  services.blueman.enable = host.bluetooth && isTiling;
+  services.blueman.enable = config.hardware.bluetooth.enable && isTiling;
 }

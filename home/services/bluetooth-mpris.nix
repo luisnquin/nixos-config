@@ -1,10 +1,10 @@
 {
+  nixosConfig,
   pkgs,
-  host,
   lib,
   ...
 }: {
-  systemd.user.services = lib.mkIf host.bluetooth {
+  systemd.user.services = lib.mkIf nixosConfig.hardware.bluetooth.enable {
     bluetooth-mpris-proxy = {
       Unit = {
         Description = "Bluetooth mpris proxy";
