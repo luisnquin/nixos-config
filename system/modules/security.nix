@@ -18,7 +18,7 @@
   };
 
   users = {
-    motd = libx.decodeBase64 "Q29uZnJvbnQgW2hpXXN0b3J5";
+    motd = libx.base64.decode "Q29uZnJvbnQgW2hpXXN0b3J5";
     defaultUserShell = pkgs.zsh;
 
     users.${user.alias} = {
@@ -52,7 +52,7 @@
 
     openssh = {
       enable = true;
-      banner = libx.decodeBase64 "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
+      banner = libx.base64.decode "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
 
       # https://github.com/NixOS/nixpkgs/issues/234683
       settings = {
