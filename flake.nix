@@ -87,7 +87,7 @@
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit spicetify-nix anyrun;
+            inherit spicetify-nix;
             inherit libx;
           }
           // hyprland-contrib.packages.${system}
