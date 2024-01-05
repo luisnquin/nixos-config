@@ -11,6 +11,7 @@
     ./mime-apps.nix
     ./playerctl.nix
     ./macchina.nix
+    ./discord.nix
     ./browser.nix
     ./zathura.nix
     ./editors.nix
