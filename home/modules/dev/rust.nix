@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   ...
 }: {
   home.file.".cargo/config.toml".source = (pkgs.formats.toml {}).generate "cargo-config" {
