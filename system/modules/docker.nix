@@ -15,9 +15,6 @@
   environment = {
     systemPackages = with pkgs; [
       docker
-      lazydocker
-
-      # hadolint # Dockerfile linter
     ];
 
     shellAliases = {

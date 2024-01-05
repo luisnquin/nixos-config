@@ -78,6 +78,7 @@
 
         homeModules = [
           scripts.homeManagerModules.default
+          ./home/options
           ./home/home.nix
         ];
       };
