@@ -49,13 +49,6 @@
           desktopIncluded = list: builtins.elem metadata.host.desktop list;
         in
           {
-            rofi-network-manager = getDefault rofi-network-manager;
-            fallout-grub-theme = getDefault fallout-grub-theme;
-            nix-search = getDefault nix-search;
-            tomato-c = getDefault tomato-c;
-            senv = getDefault senv;
-            nao = getDefault nao;
-
             pkgsx = import ./pkgs {inherit pkgs;};
 
             isWayland = desktopIncluded ["hyprland" "sway"];
@@ -64,6 +57,9 @@
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             inherit spicetify-nix;
             inherit libx;
+          }
+          // builtins.mapAttrs (n: p: p.defaultPackage.${system}) {
+            inherit rofi-network-manager fallout-grub-theme nix-search tomato-c senv nao;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};
