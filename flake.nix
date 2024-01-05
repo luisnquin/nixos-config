@@ -7,7 +7,6 @@
 
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
-    nix-search.url = "github:luisnquin/nix-search";
     scripts.url = "github:luisnquin/scripts";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
@@ -43,7 +42,6 @@
       metadata = libx.mkMetadata ./flake.toml;
 
       specialArgs = let
-
         args = let
           desktopIncluded = list: builtins.elem metadata.host.desktop list;
         in
@@ -58,7 +56,7 @@
             inherit libx;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager fallout-grub-theme nix-search tomato-c senv nao;
+            inherit rofi-network-manager fallout-grub-theme tomato-c senv nao;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};
