@@ -92,7 +92,8 @@
           // scripts.packages.${system}
           // setup;
       in
-        args // import ./overlays/special-args.nix args;
+        args
+        // import ./overlays/special-args.nix args;
 
       mkNixos = config:
         nixpkgs.lib.nixosSystem {
