@@ -37,3 +37,4 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 - [Th0rgal](https://github.com/Th0rgal/horus-nix-home)
 - [abxh](https://github.com/abxh/dotfiles)
 - [HeinzDev](https://github.com/HeinzDev/Hyprland-dotfiles)
+- [NotAShelf](https://github.com/NotAShelf/nyx)
