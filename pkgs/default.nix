@@ -5,6 +5,7 @@ with pkgs.lib; let
     coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
     pg-ping = ./pg-ping.nix;
+    netflix = ./netflix.nix;
     # minecraft = ./minecraft;
     npkill = ./npkill.nix;
     tpm = ./tpm.nix;

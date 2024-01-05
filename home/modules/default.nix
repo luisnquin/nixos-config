@@ -4,6 +4,7 @@
     ./desktop
     ./dev
 
+    ./entertainment.nix
     ./file-manager.nix
     ./obs-studio.nix
     ./gsimplecal.nix
