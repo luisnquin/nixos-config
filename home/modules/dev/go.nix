@@ -1,14 +1,10 @@
-{
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   home = {
     packages = with pkgs; [
       air # hot reload
       delve # debugger
       errcheck # to check not handled errors
       gcc # to link C code
-      go_1_21 # compiler
       go-protobuf
       gofumpt # gofmt but better
       golangci-lint # linter
@@ -24,11 +20,35 @@
 
     sessionVariables = {
       PATH = "$PATH:$GORROT:$GOPATH/bin";
-      GOPATH = "/home/$USER/go";
     };
   };
 
-  programs.zsh.shellAliases = {
-    gest = "go clean -testcache && richgo test -v";
+  programs = {
+    go = {
+      enable = true;
+      package = pkgs.go_1_21;
+      # I don't get the point of these packages because it adds
+      # them to mod $GOPATH/src instead of $GOPATH/pkg/mod
+      #
+      # packages = {
+      #   "github.com/goccy/go-json" = builtins.fetchGit {
+      #     url = "https://github.com/goccy/go-json";
+      #     name = "go-package";
+      #     rev = "df897aec9dc4228e585e8127b4db026d506d2b3c";
+      #   };
+      #   "github.com/samber/lo" = builtins.fetchGit {
+      #     url = "https://github.com/samber/lo";
+      #     name = "go-package";
+      #     rev = "df897aec9dc4228e585e8127b4db026d506d2b3c";
+      #   };
+      # };
+
+      goBin = "go/bin";
+      goPath = "go";
+    };
+
+    zsh.shellAliases = {
+      gest = "go clean -testcache && richgo test -v";
+    };
   };
 }
