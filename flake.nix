@@ -6,7 +6,7 @@
     home-manager.url = "github:nix-community/home-manager";
 
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
-    fallout-grub-theme.url = "github:luisnquin/fallout-grub-theme";
+    grub-themes.url = "github:luisnquin/grub-themes";
     scripts.url = "github:luisnquin/scripts";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
@@ -56,9 +56,10 @@
             inherit libx;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager fallout-grub-theme tomato-c senv nao;
+            inherit rofi-network-manager tomato-c senv nao;
           }
           // hyprland-contrib.packages.${system}
+          // grub-themes.packages.${system}
           // scripts.packages.${system};
       in
         args

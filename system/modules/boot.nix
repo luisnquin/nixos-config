@@ -1,5 +1,5 @@
 {
-  fallout-grub-theme,
+  fallout-gt,
   host,
   pkgs,
   ...
@@ -7,8 +7,8 @@
   boot = with pkgs; {
     loader = {
       efi = {
-	canTouchEfiVariables = true;
-	efiSysMountPoint = "/boot/efi";
+        canTouchEfiVariables = true;
+        efiSysMountPoint = "/boot/efi";
       };
       timeout = 15;
 
@@ -27,7 +27,7 @@
         gfxmodeEfi = host.resolution;
 
         splashImage = ./../dots/boot/grub/splash-image.png;
-        theme = fallout-grub-theme;
+        theme = fallout-gt;
       };
     };
 
