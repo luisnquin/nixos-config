@@ -9,7 +9,7 @@
     hyprland = {
       enable = true;
       package = hyprland;
-      # enableNvidiaPatches = true;
+      enableNvidiaPatches = true;
       portalPackage = xdg-desktop-portal-hyprland;
     };
 
