@@ -19,7 +19,7 @@
   (self: super: {
     xwaylandvideobridge =
       super.xwaylandvideobridge.overrideAttrs
-      (old: {
+      (_old: {
         version = "unstable";
         src = self.fetchFromGitHub {
           owner = "KDE";
