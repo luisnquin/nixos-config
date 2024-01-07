@@ -51,6 +51,8 @@
             isWayland = desktopIncluded ["hyprland" "sway"];
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
+            grub-pkgs = grub-themes.packages.${system};
+
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             inherit spicetify-nix;
             inherit libx;
@@ -59,7 +61,6 @@
             inherit rofi-network-manager tomato-c senv nao;
           }
           // hyprland-contrib.packages.${system}
-          // grub-themes.packages.${system}
           // scripts.packages.${system};
       in
         args
