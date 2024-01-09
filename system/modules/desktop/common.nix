@@ -1,7 +1,4 @@
-{
-  host,
-  ...
-}: {
+{host, ...}: {
   programs.dconf.enable = true;
 
   services.xserver = {
@@ -21,6 +18,7 @@
     displayManager.gdm = {
       enable = true;
       autoSuspend = false;
+      wayland = true;
     };
 
     desktopManager.xterm.enable = true;
