@@ -27,7 +27,7 @@
         gfxmodeEfi = host.resolution;
 
         splashImage = ./../dots/boot/grub/splash-image.png;
-        theme = grub-pkgs.steins-gate;
+        theme = grub-pkgs.fallout;
       };
     };
 
