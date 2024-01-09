@@ -1,7 +1,7 @@
 {
   imports = [
     ./keep-track-of-tpm-plugins.nix
-    ./xwaylandvideobridge.nix
+    # ./xwaylandvideobridge.nix
     ./battery-notifier.nix
     ./bluetooth-mpris.nix
   ];
