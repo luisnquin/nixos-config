@@ -17,11 +17,13 @@ main() {
     update)
         case "$2" in
         system | home | all | "")
+            shift 1
             update_computer "$@"
             ;;
         -h | --h | -help | --help) ;;
         *)
-            help_and_exit_1 "$2"
+            shift 1
+            help_and_exit_1 "$@"
             ;;
         esac
         ;;
@@ -51,9 +53,9 @@ main() {
 update_computer() {
     body_message=""
 
-    case "$2" in
+    case "$1" in
     system)
-        shift 2
+        shift 1
         update_system "$@"
         body_message="Your system workspace have been updated."
         ;;
@@ -62,10 +64,13 @@ update_computer() {
         body_message="Your home workspace have been updated."
         ;;
     all | "")
-        shift 2
         update_system "$@"
         update_home
         body_message="Your system and home workspace have been updated."
+        ;;
+    *)
+        echo "Unknown argument for 'update' command"
+        exit 1
         ;;
     esac
 
@@ -178,7 +183,7 @@ save_hyprland_cache_dir() {
     HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
     HYPR_CACHE_DIR="/tmp/hypr"
 
-    printf "\n\033[38;2;82;53;230m%s\033[0m" "Saving Hyprland cache files...\n"
+    printf "\n\033[38;2;82;53;230m%s\033[0m\n" "Saving Hyprland cache files..."
     mkdir -p "$HYPR_SWAP_CACHE_DIR"
     rm -rf "${HYPR_SWAP_CACHE_DIR:?}/*"
     cp -rf "$HYPR_CACHE_DIR" "$HYPR_SWAP_CACHE_DIR"
@@ -188,13 +193,13 @@ restore_hyprland_cache_dir() {
     HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
     HYPR_CACHE_DIR="/tmp/hypr"
 
-    printf "\n\033[38;2;82;53;230m%s\033[0m" "Restoring Hyprland cache files...\n"
+    printf "\n\033[38;2;82;53;230m%s\033[0m\n" "Restoring Hyprland cache files..."
     cp -rf "$HYPR_SWAP_CACHE_DIR" "$HYPR_CACHE_DIR"
     rm -rf "$HYPR_SWAP_CACHE_DIR"
 }
 
 update_home() {
-    printf "\033[38;2;240;89;104mUpdating home...\033[0m\n"
+    printf "\n\033[38;2;240;89;104mUpdating home...\033[0m\n"
 
     (
         cd "$DOTFILES_PATH"
