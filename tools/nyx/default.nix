@@ -24,14 +24,10 @@ in
 
     propagatedBuildInputs = runtimePackages;
 
-    postPatch = let
-      usesHyprlandExpr = "USES_HYPRLAND=\"${lib.boolToString hyprlandSupport}\"";
-    in ''
+    postPatch = ''
       substituteInPlace ./main.bash \
-        --replace '/path/to/nix-logo.png' '${notificationIcon}'
-
-      substituteInPlace ./main.bash \
-        --replace 'USES_HYPRLAND="false"' '${usesHyprlandExpr}}'
+        --replace '/path/to/nix-logo.png' '${notificationIcon}' \
+        --replace 'USES_HYPRLAND=false' 'USES_HYPRLAND=${lib.boolToString hyprlandSupport}'
     '';
 
     installPhase = ''

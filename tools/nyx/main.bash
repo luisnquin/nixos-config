@@ -161,7 +161,7 @@ save_hyprland_cache_dir() {
     HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
     HYPR_CACHE_DIR="/tmp/hypr"
 
-    printf "\n\033[38;2;82;53;230m%s\033[0m" "Saving Hyprland cache files..."
+    printf "\n\033[38;2;82;53;230m%s\033[0m" "Saving Hyprland cache files...\n"
     mkdir -p "$HYPR_SWAP_CACHE_DIR"
     rm -rf "${HYPR_SWAP_CACHE_DIR:?}/*"
     cp -rf "$HYPR_CACHE_DIR" "$HYPR_SWAP_CACHE_DIR"
@@ -171,7 +171,7 @@ restore_hyprland_cache_dir() {
     HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
     HYPR_CACHE_DIR="/tmp/hypr"
 
-    printf "\n\033[38;2;82;53;230m%s\033[0m" "Restoring Hyprland cache files..."
+    printf "\n\033[38;2;82;53;230m%s\033[0m" "Restoring Hyprland cache files...\n"
     cp -rf "$HYPR_SWAP_CACHE_DIR" "$HYPR_CACHE_DIR"
     rm -rf "$HYPR_SWAP_CACHE_DIR"
 }
