@@ -74,6 +74,7 @@
         };
 
         nixosModules = [
+          ./tools/nixos-options
           ./system/configuration.nix
         ];
 
