@@ -20,7 +20,7 @@
         "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer - Technology profiler
         "dnhpnfgdlenaccegplpojghhmaamnnfp" # Augmented Steam
         "anlikcnbgdeidpacdbdljnabclhahhmd" # Enhanced GitHub
-        "bggfcpfjbdkhfhfmkjpbhnkhnpjjeomc" # Material Icons for GitHub
+        "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
       ];
     in
       builtins.map (id: {inherit id;}) ids;
