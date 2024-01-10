@@ -49,8 +49,6 @@ main() {
 }
 
 update_computer() {
-    greet
-
     body_message=""
 
     case "$2" in
@@ -77,8 +75,6 @@ update_computer() {
 }
 
 clean_computer() {
-    greet
-
     nb_of_removed_gens=$(($(nix-env --list-generations | wc -l) - 1))
     version=$(nixos-version)
 
@@ -227,10 +223,6 @@ require_sudo() {
 
 log_command_to_execute() {
     printf "\n\e[38;2;112;112;112m(%s)\033[0;32m %s\033[0m %s\n" "$(basename "$DOTFILES_PATH")" "$1" "$2"
-}
-
-greet() {
-    printf "Welcome, \033[1;34m%s\033[0m! ❄️❄️❄️\n" "$USER"
 }
 
 ensure_symlinks() {
