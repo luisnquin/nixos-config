@@ -29,7 +29,7 @@
         };
       });
   })
-  (self: super: {
+  (_self: super: {
     brave = super.brave.overrideAttrs (_old: rec {
       version = "1.61.114";
 
