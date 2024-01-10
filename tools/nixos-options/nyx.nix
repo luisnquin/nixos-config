@@ -13,7 +13,7 @@ in {
 
       hyprlandSupport = mkOption {
         type = types.bool;
-        default = config.programs.hyprland.enable ? false;
+        default = false;
       };
 
       notificationIcon = mkOption {
@@ -23,18 +23,22 @@ in {
 
       dotfilesDir = mkOption {
         type = types.nullOr types.str;
-        default = null;
+        default = "$HOME/.dotfiles";
       };
     };
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = let
-      nyx = pkgs.callPackage ./../nyx (
-        lib.filterAttrs (n: v: n != "enable" && v != null) cfg
-      );
-    in [nyx];
+    environment = {
+      systemPackages = let
+        nyx = pkgs.callPackage ./../nyx (
+          lib.filterAttrs (n: v: !(lib.elem n ["enable" "dotfilesDir"]) && v != null) cfg
+        );
+      in [nyx];
+
+      variables = {
+        "DOTFILES_PATH" = cfg.dotfilesDir;
+      };
+    };
   };
 }
-# builtins.removeAttrs cfg [ "enable" ]
-
