@@ -3,7 +3,7 @@
   nix,
   ...
 }: {
-  require = [
+  imports = [
     ./services
     ./modules
   ];

@@ -5,15 +5,11 @@
   ...
 }: {
   imports = [
-    ./hardware-configuration.nix
-  ];
-
-  # 🐙
-  require = [
     ./../tools
-
     ./services
     ./modules
+
+    ./hardware-configuration.nix
   ];
 
   hardware = {
