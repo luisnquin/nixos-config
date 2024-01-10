@@ -36,10 +36,6 @@
         "ssh://git@gitlab.com/" = {
           insteadOf = "https://gitlab.com/";
         };
-
-        "ssh://git@gitlab.wiserskills.net/" = {
-          insteadOf = "https://gitlab.wiserskills.net/";
-        };
       };
 
       alias = {
