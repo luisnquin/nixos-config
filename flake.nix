@@ -12,7 +12,6 @@
     nao.url = "github:luisnquin/nao";
 
     spicetify-nix.url = "github:the-argus/spicetify-nix";
-    tomato-c.url = "github:gabrielzschmitz/Tomato.C";
     hyprland-contrib.url = "github:hyprwm/contrib";
     hyprland.url = "github:hyprwm/Hyprland";
   };
@@ -58,7 +57,7 @@
             inherit libx;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager tomato-c senv nao;
+            inherit rofi-network-manager senv nao;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};

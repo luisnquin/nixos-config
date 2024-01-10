@@ -1,5 +1,4 @@
 {
-  tomato-c,
   pkgsx,
   pkgs,
   senv,
@@ -64,7 +63,6 @@
     in
       nixpkgs
       ++ [
-        tomato-c
         senv
       ];
 
