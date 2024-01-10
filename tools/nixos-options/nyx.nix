@@ -20,23 +20,21 @@ in {
         type = types.nullOr types.bool;
         default = null;
       };
+
+      dotfilesDir = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+      };
     };
   };
 
   config = mkIf cfg.enable {
     environment.systemPackages = let
       nyx = pkgs.callPackage ./../nyx (
-        {
-          inherit (cfg) hyprlandSupport;
-        }
-        // (
-          if cfg.notificationIcon != null
-          then {
-            inherit (cfg) notificationIcon;
-          }
-          else {}
-        )
+        lib.filterAttrs (n: v: n != "enable" && v != null) cfg
       );
     in [nyx];
   };
 }
+# builtins.removeAttrs cfg [ "enable" ]
+

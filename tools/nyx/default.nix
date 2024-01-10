@@ -1,10 +1,12 @@
 {
   pkgs ? import <nixpkgs> {},
-  hyprlandSupport ? false,
   notificationIcon ? ./assets/nix-logo.png,
+  dotfilesDir ? "$HOME/.dotfiles",
+  hyprlandSupport ? false,
 }:
 assert builtins.isPath notificationIcon;
-assert builtins.isBool hyprlandSupport; let
+assert builtins.isBool hyprlandSupport;
+assert builtins.isString dotfilesDir; let
   runtimePackages = with pkgs; [
     libnotify
     alejandra
@@ -47,6 +49,7 @@ in
 
     postInstall = ''
       wrapProgram ${placeholder "out"}/bin/nyx \
-        --prefix PATH : ${pkgs.lib.makeBinPath runtimePackages}
+        --prefix PATH : ${lib.makeBinPath runtimePackages} \
+        --prefix DOTFILES_PATH : ${dotfilesDir}
     '';
   }

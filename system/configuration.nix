@@ -1,6 +1,5 @@
 {
   host,
-  user,
   nix,
   ...
 }: {
@@ -30,10 +29,6 @@
     inherit (host) timeZone;
     # Without this option, the machine will have a UTC time
     hardwareClockInLocalTime = true;
-  };
-
-  environment.variables = {
-    "DOTFILES_PATH" = "/home/${user.alias}/.dotfiles";
   };
 
   i18n.defaultLocale = host.i18nLocale;
