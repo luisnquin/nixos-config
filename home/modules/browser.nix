@@ -18,6 +18,9 @@
         "nhdogjmejiglipccpnnnanhbledajbpd" # Vue.js devtools
         "fdpohaocaechififmbbbbbknoalclacl" # GoFullPage - Full Page Screen Capture
         "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer - Technology profiler
+        "dnhpnfgdlenaccegplpojghhmaamnnfp" # Augmented Steam
+        "anlikcnbgdeidpacdbdljnabclhahhmd" # Enhanced GitHub
+        "bggfcpfjbdkhfhfmkjpbhnkhnpjjeomc" # Material Icons for GitHub
       ];
     in
       builtins.map (id: {inherit id;}) ids;
