@@ -17,7 +17,7 @@ main() {
     update)
         case "$2" in
         system | home | all | "")
-            update_computer "$2"
+            update_computer "$@"
             ;;
         -h | --h | -help | --help) ;;
         *)
@@ -50,25 +50,13 @@ main() {
 
 update_computer() {
     greet
-    require_sudo
-
-    printf "\n\033[0;95mChecking syntax errors\033[0m\n"
-
-    check_nix_files_format || {
-        printf "\n\033[0;91mSyntax errors detected or files are not correctly formatted!\033[0m\n"
-        exit 1
-    }
-
-    printf "\n\033[0;95mEnsuring symlinks\033[0m\n"
-    ensure_symlinks
-
-    printf "\n\033[0;92mStarting update process...\033[0m\n\n"
 
     body_message=""
 
-    case "$1" in
+    case "$2" in
     system)
-        update_system
+        shift 2
+        update_system "$@"
         body_message="Your system workspace have been updated."
         ;;
     home)
@@ -76,8 +64,8 @@ update_computer() {
         body_message="Your home workspace have been updated."
         ;;
     all | "")
-        update_system
-        echo
+        shift 2
+        update_system "$@"
         update_home
         body_message="Your system and home workspace have been updated."
         ;;
@@ -140,21 +128,54 @@ inspect_files() {
 }
 
 update_system() {
-    printf "\033[38;2;240;89;104mUpdating system...\033[0m\n"
+    pre_update() {
+        require_sudo
+        printf "\n\033[0;95mChecking syntax errors\033[0m\n"
 
-    if $USES_HYPRLAND; then
-        save_hyprland_cache_dir
-    fi
+        check_nix_files_format || {
+            printf "\n\033[0;91mSyntax errors detected or files are not correctly formatted!\033[0m\n"
+            exit 1
+        }
 
-    (
-        cd "$DOTFILES_PATH"
-        log_command_to_execute "sudo nixos-rebuild" "switch --upgrade --flake ."
-        sudo nixos-rebuild switch --upgrade --flake .
-    )
+        printf "\n\033[0;95mEnsuring symlinks\033[0m\n"
+        ensure_symlinks
 
-    if $USES_HYPRLAND; then
-        restore_hyprland_cache_dir
-    fi
+        printf "\n\033[0;92mStarting update process...\033[0m\n\n"
+        printf "\033[38;2;240;89;104mUpdating system...\033[0m\n"
+    }
+
+    case "$1" in
+    "" | --switch) # no argument
+        pre_update
+
+        if $USES_HYPRLAND; then
+            save_hyprland_cache_dir
+        fi
+
+        (
+            cd "$DOTFILES_PATH"
+            log_command_to_execute "sudo nixos-rebuild" "switch --upgrade --flake ."
+            sudo nixos-rebuild switch --upgrade --flake .
+        )
+
+        if $USES_HYPRLAND; then
+            restore_hyprland_cache_dir
+        fi
+        ;;
+    --boot)
+        pre_update
+
+        (
+            cd "$DOTFILES_PATH"
+            log_command_to_execute "sudo nixos-rebuild" "boot --upgrade --flake ."
+            sudo nixos-rebuild boot --upgrade --flake .
+        )
+        ;;
+    *)
+        echo "The -help usage wasn't developed yet but still, you can optionally add the '--boot' flag"
+        exit 1
+        ;;
+    esac
 }
 
 save_hyprland_cache_dir() {
