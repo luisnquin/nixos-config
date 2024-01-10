@@ -19,7 +19,6 @@
     ./docker.nix
     ./btop.nix
     ./nao.nix
-    ./k8s.nix
     ./bat.nix
   ];
 }

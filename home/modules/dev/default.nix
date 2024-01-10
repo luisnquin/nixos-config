@@ -1,6 +1,7 @@
 {
   imports = [
     ./git
+    ./k8s
 
     ./editors.nix
     ./python.nix
