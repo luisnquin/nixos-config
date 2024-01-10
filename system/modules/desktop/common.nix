@@ -1,4 +1,11 @@
-{host, ...}: {
+{
+  isTiling,
+  config,
+  pkgs,
+  host,
+  lib,
+  ...
+}: {
   programs.dconf.enable = true;
 
   services.xserver = {
@@ -24,5 +31,9 @@
     desktopManager.xterm.enable = true;
   };
 
-  # xdg.portal.extraPortals = [pkgs.xdg-desktop-portal-gtk];
+  programs.kdeconnect.enable = true;
+
+  xdg.portal.extraPortals = lib.mkIf (isTiling && config.programs.kdeconnect.enable) [
+    pkgs.libsForQt5.xdg-desktop-portal-kde
+  ];
 }
