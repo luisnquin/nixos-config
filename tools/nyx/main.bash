@@ -1,12 +1,14 @@
 #!/usr/bin/bash
 
+NIX_LOGO_PATH="/path/to/nix-logo.png"
+USES_HYPRLAND=false
+
+PROGRAM_NAME="nyx"
+
 if [ -z "$DOTFILES_PATH" ]; then
     echo "unable to read DOTFILES_PATH variable..."
     exit 1
 fi
-
-NIX_LOGO_PATH="/path/to/nix-logo.png"
-PROGRAM_NAME="nyx"
 
 main() {
     set -e
@@ -51,6 +53,7 @@ update_computer() {
     require_sudo
 
     printf "\n\033[0;95mChecking syntax errors\033[0m\n"
+
     check_nix_files_format || {
         printf "\n\033[0;91mSyntax errors detected or files are not correctly formatted!\033[0m\n"
         exit 1
@@ -80,7 +83,7 @@ update_computer() {
         ;;
     esac
 
-    notify-send "NixOS update" "$body_message" --icon="$NIX_LOGO_PATH" --app-name="nyx"
+    notify-send "NixOS update ($PROGRAM_NAME)" "$body_message" --icon="$NIX_LOGO_PATH" --app-name="$PROGRAM_NAME"
 
     printf "\n\033[1;34mSuccessfully updated! ❄️❄️❄️\033[0m\n"
 }
@@ -139,11 +142,38 @@ inspect_files() {
 update_system() {
     printf "\033[38;2;240;89;104mUpdating system...\033[0m\n"
 
+    if $USES_HYPRLAND; then
+        save_hyprland_cache_dir
+    fi
+
     (
         cd "$DOTFILES_PATH"
         log_command_to_execute "sudo nixos-rebuild" "switch --upgrade --flake ."
         sudo nixos-rebuild switch --upgrade --flake .
     )
+
+    if $USES_HYPRLAND; then
+        restore_hyprland_cache_dir
+    fi
+}
+
+save_hyprland_cache_dir() {
+    HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
+    HYPR_CACHE_DIR="/tmp/hypr"
+
+    printf "\n\033[38;2;82;53;230m%s\033[0m" "Saving Hyprland cache files..."
+    mkdir -p "$HYPR_SWAP_CACHE_DIR"
+    rm -rf "${HYPR_SWAP_CACHE_DIR:?}/*"
+    cp -rf "$HYPR_CACHE_DIR" "$HYPR_SWAP_CACHE_DIR"
+}
+
+restore_hyprland_cache_dir() {
+    HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
+    HYPR_CACHE_DIR="/tmp/hypr"
+
+    printf "\n\033[38;2;82;53;230m%s\033[0m" "Restoring Hyprland cache files..."
+    cp -rf "$HYPR_SWAP_CACHE_DIR" "$HYPR_CACHE_DIR"
+    rm -rf "$HYPR_SWAP_CACHE_DIR"
 }
 
 update_home() {

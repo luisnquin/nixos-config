@@ -1,5 +1,17 @@
-{pkgs ? import <nixpkgs> {}}: let
-  owner = "luisnquin";
+{
+  pkgs ? import <nixpkgs> {},
+  hyprlandSupport ? false,
+  notificationIcon ? ./assets/nix-logo.png,
+}:
+assert builtins.isPath notificationIcon;
+assert builtins.isBool hyprlandSupport; let
+  runtimePackages = with pkgs; [
+    libnotify
+    alejandra
+    eza
+  ];
+
+  inherit (pkgs) lib;
 in
   pkgs.stdenv.mkDerivation rec {
     name = "nyx";
@@ -8,47 +20,33 @@ in
       path = ./.;
     };
 
-    nativeBuildInputs = with pkgs; [
-      makeWrapper
-    ];
+    nativeBuildInputs = [pkgs.makeWrapper];
 
-    propagatedBuildInputs = with pkgs; [
-      alejandra
-      eza
-    ];
+    propagatedBuildInputs = runtimePackages;
 
-    postPatch = ''
+    postPatch = let
+      usesHyprlandExpr = "USES_HYPRLAND=\"${lib.boolToString hyprlandSupport}\"";
+    in ''
       substituteInPlace ./main.bash \
-        --replace '/path/to/nix-logo.png' '${placeholder "out"}/assets/nix-logo.png'
+        --replace '/path/to/nix-logo.png' '${notificationIcon}'
+
+      substituteInPlace ./main.bash \
+        --replace 'USES_HYPRLAND="false"' '${usesHyprlandExpr}}'
     '';
 
     installPhase = ''
       runHook preInstall
 
-      mkdir -p $out/
+      mkdir -p $out/bin
 
-      mkdir -p $out/bin/
       cp ./main.bash $out/bin/nyx
       chmod +x $out/bin/nyx
-
-      mkdir -p $/out/assets/
-      cp -r $src/assets/ $out/assets/
 
       runHook postInstall
     '';
 
     postInstall = ''
       wrapProgram ${placeholder "out"}/bin/nyx \
-        --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [eza alejandra])}
+        --prefix PATH : ${pkgs.lib.makeBinPath runtimePackages}
     '';
-
-    # substituteInPlace ${placeholder "out"}/bin/nyx \
-    #   --replace '/path/to/nix-logo.png' '${placeholder "out"}/assets/nix-logo.png'
-
-    meta = with pkgs.lib; {
-      description = "A script to manage my NixOS computer";
-      homepage = "https://github.com/${owner}/nixos-config";
-      license = licenses.unlicense;
-      maintainers = with maintainers; [luisnquin];
-    };
   }
