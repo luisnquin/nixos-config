@@ -102,7 +102,7 @@ clean_computer() {
     fi
 
     printf "\nGenerations:\n"
-    nix-env --list-generations | head
+    nix-env --list-generations | sort -r | head
 
     if [ "$nb_of_removed_gens" != 0 ]; then
         printf "\n%s generations has been removed\n" "$nb_of_removed_gens"
