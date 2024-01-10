@@ -29,4 +29,14 @@
         };
       });
   })
+  (self: super: {
+    brave = super.brave.overrideAttrs (_old: rec {
+      version = "1.61.114";
+
+      src = super.fetchurl {
+        url = "https://github.com/brave/brave-browser/releases/download/v${version}/brave-browser_${version}_amd64.deb";
+        hash = "sha256-AVL08Npg1nuvFJrd3rC2rCZeoLnPuQsgpvf2R623c6Y=";
+      };
+    });
+  })
 ]
