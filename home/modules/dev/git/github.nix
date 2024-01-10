@@ -1,0 +1,3 @@
+{
+  programs.act.enable = true;
+}

@@ -21,6 +21,5 @@
     ./nao.nix
     ./k8s.nix
     ./bat.nix
-    ./git.nix
   ];
 }

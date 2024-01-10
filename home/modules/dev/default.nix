@@ -1,5 +1,7 @@
 {
   imports = [
+    ./git
+
     ./editors.nix
     ./python.nix
     ./audit.nix
