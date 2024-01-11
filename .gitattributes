@@ -1,2 +1,1 @@
-*.go linguist-vendored
-*.py linguist-vendored
+./home/dots/project-templates/** linguist-vendored
