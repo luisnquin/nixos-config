@@ -116,3 +116,7 @@ batlimit() {
 
     printf '\033[38;2;92;94;93mOld: \033[0m%s  \033[38;2;39;219;129mNew: \033[0m%s\n' "$current_limit" "$new_limit"
 }
+
+cheat() {
+    curl "cheat.sh/$1"
+}
