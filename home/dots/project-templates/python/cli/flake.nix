@@ -5,8 +5,7 @@
     systems.url = "github:nix-systems/default-linux";
   };
 
-  outputs = inputs @ {
-    self,
+  outputs = {
     poetry2nix,
     systems,
     nixpkgs,
