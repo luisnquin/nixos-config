@@ -1,0 +1,9 @@
+
+clean:
+    rm -rf ./_build
+
+build:
+    @dune build
+
+run: build
+    @./_build/install/default/bin/cli_app

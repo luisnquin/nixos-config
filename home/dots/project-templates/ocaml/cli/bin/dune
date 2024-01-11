@@ -1,0 +1,4 @@
+(executable
+ (public_name cli_app)
+ (name main)
+ (libraries cli_app))

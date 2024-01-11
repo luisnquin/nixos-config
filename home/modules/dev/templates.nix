@@ -14,13 +14,19 @@
       };
       "python" = {
         "cli" = builtins.path {
-          name = "python-template";
+          name = "python-cli-template";
           path = ../../dots/project-templates/python/cli;
         };
       };
       "rust" = builtins.path {
         name = "rust-template";
         path = ../../dots/project-templates/rust;
+      };
+      "ocaml" = {
+        "cli" = builtins.path {
+          name = "ocaml-cli-template";
+          path = ../../dots/project-templates/ocaml/cli;
+        };
       };
     };
   };
