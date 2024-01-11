@@ -12,9 +12,11 @@
           path = ../../dots/project-templates/go/cli;
         };
       };
-      "python" = builtins.path {
-        name = "python-template";
-        path = ../../dots/project-templates/python;
+      "python" = {
+        "cli" = builtins.path {
+          name = "python-template";
+          path = ../../dots/project-templates/python/cli;
+        };
       };
       "rust" = builtins.path {
         name = "rust-template";
