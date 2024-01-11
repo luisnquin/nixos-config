@@ -9,6 +9,7 @@
     ./ocaml.nix
     ./rust.nix
     ./node.nix
+    ./tplr.nix
     ./etc.nix
     ./go.nix
   ];
