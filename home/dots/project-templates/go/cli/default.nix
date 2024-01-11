@@ -8,7 +8,7 @@ pkgs.buildGoModule rec {
     path = ./.;
   };
   
-  vendorHash = "sha256-bGDhws+Ye/VDqIAcfBTIkjfp3IWkEx9a/Xwri0wl265=";
+  vendorHash = null;
 
   ldflags = ["-X main.version=${version}"];
   buildTarget = ".";
