@@ -31,7 +31,7 @@ in {
   config = mkIf cfg.enable {
     environment = {
       systemPackages = let
-        nyx = pkgs.callPackage ./../nyx (
+        nyx = pkgs.callPackage ../../nyx (
           lib.filterAttrs (n: v: !(lib.elem n ["enable" "dotfilesDir"]) && v != null) cfg
         );
       in [nyx];

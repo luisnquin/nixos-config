@@ -74,12 +74,13 @@
         };
 
         nixosModules = [
-          ./tools/nixos-options
+          ./tools/nix/nixos-options
           ./system/configuration.nix
         ];
 
         homeModules = [
           scripts.homeManagerModules.default
+          ./tools/nix/hm-options
           ./home/options
           ./home/home.nix
         ];
