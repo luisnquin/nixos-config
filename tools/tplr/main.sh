@@ -136,7 +136,10 @@ main() {
         src_dir="$result"
         dst_dir=""
 
+        apply_in_current_dir=false
+
         if yes_or_no "Do you want to apply the template in the current directory?"; then
+            apply_in_current_dir=true
             dst_dir="$(pwd)"
 
             if [ "$dst_dir" = "$HOME" ]; then
@@ -166,12 +169,14 @@ main() {
             dst_dir="$(pwd)/$project_name"
         fi
 
+        old_content_path=""
+
         if test -d "$dst_dir"; then
             old_content_path=$(mktemp -d --suffix="-tplr-$(basename "$dst_dir")-$(date +"%H_%M")")
 
             echo "Copying old content to '$old_content_path'..."
 
-            for x in "$dst_dir/*" "$$dst_dir/.[!.]*" "$$dst_dir/..?*"; do
+            for x in "$dst_dir/*" "$$dst_dir/.[!.]*" "$$dst_dir/..?*"; do # ! not working
                 if [ -e "$x" ]; then mv -- "$x" "$old_content_path/"; fi
             done
 
@@ -182,14 +187,30 @@ main() {
 
         # TODO: add a report here
 
-        mkdir -p "$dst_dir"
         echo "Applying template..."
-        cp -rfT "$src_dir" "$dst_dir"
+
+        if $apply_in_current_dir; then
+            cd /tmp
+        fi
+        mkdir -p "$dst_dir"
+        cp -rfT --no-preserve=mode,ownership,timestamps "$src_dir" "$dst_dir"
+        if $apply_in_current_dir; then
+            cd "$dst_dir"
+        fi
 
         if test -f "$dst_dir/go.mod"; then
             PROJECT_NAME=$(basename "$dst_dir")
 
             cat "$dst_dir/go.mod" | sed -i "s/go.dev/github.com\/$USER\/$PROJECT_NAME/g" "$dst_dir/go.mod"
+        fi
+
+        if [ ! "$old_content_path" = "" ]; then
+            echo "If you think that you made an error applying this template just execute:"
+            if $apply_in_current_dir; then
+                echo "cd .."
+            fi
+            echo "rm -rf $dst_dir"
+            echo "cp -r $old_content_path $dst_dir"
         fi
     fi
 }
