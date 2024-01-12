@@ -39,6 +39,11 @@ is_jq_array() {
 }
 
 get_jq_path() {
+    if [ $# -eq 0 ]; then
+        echo "."
+        return
+    fi
+
     jq_path=""
 
     for arg in "$@"; do
@@ -48,9 +53,32 @@ get_jq_path() {
     echo "$jq_path"
 }
 
+show_help_message() {
+    current_path="."
+
+    if [ ! -z "$1" ]; then
+        current_path="$1"
+    fi
+
+    keys=$(get_keys_from_jq_path "$current_path")
+
+    echo "Usage: tplr [path]..."
+    echo "   or: tplr --help"
+    echo "Generate project templates"
+    echo
+    echo "Available commands:"
+    for k in $keys; do
+        echo "    $k"
+    done
+    echo
+    echo "Options:"
+    echo "  -h, --help"
+}
+
 error_ambiguous_path() {
     current_path="$1"
 
+    show_help_message "$current_path"
     log_fatal "You need to specify a path to your template, options: " "$(get_keys_from_jq_path "$current_path")"
 }
 
@@ -89,6 +117,15 @@ main() {
     if [ -z "$1" ]; then
         error_ambiguous_path "."
     fi
+
+    for var in "$@"; do
+        case "$var" in
+        -h | --help)
+            show_help_message
+            exit 0
+            ;;
+        esac
+    done
 
     jq_path=$(get_jq_path "$@")
     result=$(cat <"$TPLR_FILE_PATH" | jq -r "$jq_path")
@@ -152,7 +189,7 @@ main() {
         if test -f "$dst_dir/go.mod"; then
             PROJECT_NAME=$(basename "$dst_dir")
 
-            cat "$dst_dir/go.mod" | sed -i "s/go.dev/github.com\/$USER\/$PROJECT_NAME/g" "$dst_dir/go.mod" 
+            cat "$dst_dir/go.mod" | sed -i "s/go.dev/github.com\/$USER\/$PROJECT_NAME/g" "$dst_dir/go.mod"
         fi
     fi
 }
