@@ -11,6 +11,7 @@
     ./rust.nix
     ./node.nix
     ./etc.nix
+    ./zig.nix
     ./go.nix
   ];
 }
