@@ -5,7 +5,8 @@ in {
     enable = true;
     templates = {
       "go" = {
-        "rest" = fetchFromGitHub {
+        "rest" = fetchFromGitHub rec {
+          name = repo;
           owner = "luisnquin";
           repo = "go-rest-template";
           rev = "v0.1.0";
