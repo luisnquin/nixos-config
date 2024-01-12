@@ -1,7 +1,7 @@
 {pkgs, ...}: let
   inherit (pkgs) fetchFromGitHub;
 in {
-  tools.tplr = {
+  programs.tplr = {
     enable = true;
     templates = {
       "go" = {

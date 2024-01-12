@@ -8,6 +8,7 @@
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     grub-themes.url = "github:luisnquin/grub-themes";
     scripts.url = "github:luisnquin/scripts";
+    tplr.url = "github:luisnquin/tplr";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
 
@@ -33,9 +34,10 @@
         inherit system;
       };
 
+      inherit (pkgs) lib;
+
       libx = import ./lib {
-        inherit (pkgs) lib;
-        inherit pkgs;
+        inherit pkgs lib;
       };
 
       metadata = libx.mkMetadata ./flake.toml;
@@ -80,7 +82,7 @@
 
         homeModules = [
           scripts.homeManagerModules.default
-          ./tools/nix/hm-options
+          tplr.homeManagerModules.default
           ./home/options
           ./home/home.nix
         ];

@@ -1,5 +1,3 @@
 {
-  imports = [
-    ./tplr.nix
-  ];
+  imports = [];
 }
