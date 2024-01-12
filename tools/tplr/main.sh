@@ -124,7 +124,13 @@ main() {
             show_help_message
             exit 0
             ;;
+        *)
+            if ! echo "$var" | grep -q '^[[:alnum:]]*$'; then
+                log_fatal "Path fragment '$var' is not either a valid alphanumeric or valid flag"
+            fi
+            ;;
         esac
+
     done
 
     jq_path=$(get_jq_path "$@")
