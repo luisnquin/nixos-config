@@ -24,6 +24,8 @@
       ;
   };
 
+  window = import ./window.nix;
+
   # https://wiki.hyprland.org/Configuring/Keywords/
   mainMod = "SUPER";
 
@@ -59,49 +61,8 @@
         }
     }
 
-    general {
-        layout = dwindle
-
-        gaps_in = 4
-        gaps_out = 20
-        border_size = 1
-
-        col.active_border = rgba(595959aa)
-        col.inactive_border = rgba(595959aa)
-    }
-
     misc {
         disable_hyprland_logo = true
-    }
-
-    decoration {
-        rounding = 4
-        blur {
-            enabled = true
-            size = 3
-            passes = 1
-        }
-
-        active_opacity = 0.9
-        inactive_opacity = 1.0
-        fullscreen_opacity = 1.0
-
-        drop_shadow = yes
-        shadow_range = 4
-        shadow_render_power = 3
-        col.shadow = rgba(1a1a1aee)
-    }
-
-    animations {
-        enabled = yes
-        bezier = myBezier, 0.05, 0.9, 0.1, 1.05
-
-        animation = windows, 1, 7, myBezier
-        animation = windowsOut, 1, 7, default, popin 80%
-        animation = border, 1, 10, default
-        animation = borderangle, 1, 8, default
-        animation = fade, 1, 7, default
-        animation = workspaces, 1, 6, default
     }
 
     dwindle {
@@ -122,12 +83,6 @@
     device:epic-mouse-v1 {
         sensitivity = -0.5
     }
-
-    # Example windowrule v1
-    # windowrule = float, ^(kitty)$
-    # Example windowrule v2
-    # windowrulev2 = float,class:^(kitty)$,title:^(kitty)$
-    # See https://wiki.hyprland.org/Configuring/Window-Rules/ for more
   '';
 
   listToPrefixedLines = prefix: list: lib.strings.concatMapStrings (b: prefix + b + "\n") list;
@@ -138,6 +93,20 @@ in {
 
     ${rules}
     $mainMod = ${mainMod}
+
+    general {
+      ${window.general}
+    }
+
+    decoration {
+      ${window.decoration}
+    }
+
+    animations {
+      ${window.animations}
+    }
+
+    ${listToPrefixedLines "windowrulev2 = " window.rulesv2}
 
     ${listToPrefixedLines "exec = " exec}
     ${listToPrefixedLines "bind = " binds.bind}
