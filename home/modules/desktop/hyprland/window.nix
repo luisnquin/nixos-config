@@ -53,6 +53,6 @@ in {
     "pin"
     "move 0 0"
     "size 100% 100%"
-    "opacity 0.3"
+    "opacity 0.1"
   ];
 }
