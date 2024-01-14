@@ -44,7 +44,7 @@
     "$mainMod,Pause, exec, ${spotify-dbus}/bin/spotify-dbus --toggle"
 
     "SUPER_SHIFT, R, exec, ${hyprland}/bin/hyprctl reload"
-    "SUPER_SHIFT, S, ${pkgs.toybox}/bin/pkill glava || ${pkgs.glava}/bin/glava -d"
+    "SUPER_SHIFT, S, execS, ${pkgs.toybox}/bin/pkill glava || ${pkgs.glava}/bin/glava -d"
 
     "$mainMod, left, movefocus, l"
     "$mainMod, right, movefocus, r"
