@@ -3,7 +3,7 @@
   dunstify-sound,
   cliphist-rofi,
   spotify-dbus,
-  rofi-radio,
+  # rofi-radio,
   grimblast,
   hyprland,
   pkgs,
@@ -17,7 +17,6 @@
       dunstify-sound
       cliphist-rofi
       spotify-dbus
-      rofi-radio
       grimblast
       hyprland
       pkgs

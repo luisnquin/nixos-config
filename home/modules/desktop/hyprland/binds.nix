@@ -3,7 +3,7 @@
   dunstify-sound,
   cliphist-rofi,
   spotify-dbus,
-  rofi-radio,
+  # rofi-radio,
   grimblast,
   hyprland,
   pkgs,
@@ -36,7 +36,7 @@
     "SUPER_SHIFT, C, exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}"
     "SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window"
     "$mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun"
-    "SUPER_SHIFT, Z, exec, ${rofi-radio}/bin/rofi-radio"
+    # "SUPER_SHIFT, Z, exec, ${rofi-radio}/bin/rofi-radio"
     "SUPER_SHIFT, E, exec, ${pkgs.bemoji}/bin/bemoji"
 
     "SUPER_SHIFT, braceright, exec, ${spotify-dbus}/bin/spotify-dbus --next"

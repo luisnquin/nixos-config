@@ -503,11 +503,11 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1704000595,
-        "narHash": "sha256-1dcnWpFxr287PmKwrVdTf/Ut0IQMK85XmzR922n3R2s=",
+        "lastModified": 1705282129,
+        "narHash": "sha256-kCsPQ3fyFXQeSCuKLZ31d7P6Jz5TAWR7hc/7SS00pCY=",
         "owner": "luisnquin",
         "repo": "scripts",
-        "rev": "b3d1f171f68110534a2e660026666b958663d123",
+        "rev": "942e314cb5d6ce44b6f379c5c8c0e56a6a7a2bff",
         "type": "github"
       },
       "original": {

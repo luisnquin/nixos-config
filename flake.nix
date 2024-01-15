@@ -81,7 +81,7 @@
         ];
 
         homeModules = [
-          scripts.homeManagerModules.default
+          # scripts.homeManagerModules.default
           tplr.homeManagerModules.default
           ./home/options
           ./home/home.nix
