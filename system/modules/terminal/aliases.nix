@@ -15,7 +15,6 @@
     # Overwriten program calls
     rm = "rm --interactive";
     du = "du --human-readable";
-    xclip = "xclip -selection c";
     ls = "exa --icons";
     sls = "exa --icons -Ta -I=.git";
     ll = "exa -l";

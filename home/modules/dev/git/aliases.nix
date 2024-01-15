@@ -8,7 +8,6 @@
     gaa = "git add --all";
 
     gb = "git branch";
-    gbc = "git branch --show-current | xclip";
 
     gc = "git commit -v";
     gca = "git commit --amend";
