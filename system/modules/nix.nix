@@ -44,7 +44,6 @@
       nix-output-monitor
       nix-prefetch-git
       cached-nix-shell
-      alejandra
       rnix-lsp
       deadnix
       pstore
@@ -53,7 +52,11 @@
 
       nixpkgs-review
       nixpkgs-lint
+
+      # Formatters
       nixpkgs-fmt
+      alejandra
+      nixfmt
     ];
 
     shellAliases = {
