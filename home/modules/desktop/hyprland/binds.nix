@@ -25,6 +25,7 @@
     ",XF86AudioMute, exec, ${dunstify-sound}/bin/dunstify-sound --toggle-vol"
     ",XF86AudioLowerVolume, exec, ${dunstify-sound}/bin/dunstify-sound --dec"
     ",XF86AudioRaiseVolume, exec, ${dunstify-sound}/bin/dunstify-sound --inc"
+    "SUPER, XF86AudioRaiseVolume, exec, ${dunstify-sound}/bin/dunstify-sound --inc --unleashed"
 
     "SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze --notify copy area"
     "$mainMod, Print, exec, ${grimblast}/bin/grimblast --notify copy active"
