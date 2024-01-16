@@ -1,5 +1,5 @@
 {
-  pstore,
+  nixgrep,
   pkgs,
   user,
   ...
@@ -46,7 +46,7 @@
       cached-nix-shell
       rnix-lsp
       deadnix
-      pstore
+      nixgrep
       statix
       nurl
 
