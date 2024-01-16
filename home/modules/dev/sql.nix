@@ -5,7 +5,8 @@
 }: {
   home.packages = with pkgs; [
     pkgsx.pg-ping
-    pgweb
+    sqlite-web # SQLite
+    pgweb # Postgres
     sqlc # Go code generator
   ];
 }
