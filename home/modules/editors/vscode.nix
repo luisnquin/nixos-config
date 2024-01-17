@@ -10,8 +10,4 @@
     # ];
     mutableExtensionsDir = true;
   };
-
-  xdg.configFile = {
-    "kibi/config.ini".text = builtins.readFile ../dots/kibi/config.ini;
-  };
 }

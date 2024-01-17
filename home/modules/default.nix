@@ -2,6 +2,7 @@
   imports = [
     ./terminal
     ./desktop
+    ./editors
     ./dev
 
     ./entertainment.nix
@@ -14,7 +15,6 @@
     ./discord.nix
     ./browser.nix
     ./zathura.nix
-    ./editors.nix
     ./spotify.nix
     ./docker.nix
     ./btop.nix
