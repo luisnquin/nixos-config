@@ -5,12 +5,12 @@
 
     ./processors.nix
     ./templates.nix
+    ./js-tools.nix
     ./editors.nix
     ./python.nix
     ./audit.nix
     ./ocaml.nix
     ./rust.nix
-    ./node.nix
     ./sql.nix
     ./etc.nix
     ./zig.nix
