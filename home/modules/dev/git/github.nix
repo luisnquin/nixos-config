@@ -1,3 +1,3 @@
 {
-  programs.act.enable = true;
+  programs.github.enable = true;
 }

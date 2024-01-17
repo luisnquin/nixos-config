@@ -9,6 +9,7 @@ with pkgs.lib; let
     # minecraft = ./minecraft;
     npkill = ./npkill.nix;
     tpm = ./tpm.nix;
+    ght = ./ght.nix;
     no = ./no.nix;
   };
 in

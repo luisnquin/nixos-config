@@ -2,7 +2,7 @@
   imports = [
     ./lazydocker.nix
     ./discord.nix
-    ./act.nix
+    ./github.nix
     ./zig.nix
   ];
 }
