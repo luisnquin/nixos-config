@@ -46,7 +46,7 @@
     }
   )
   (
-    self: super: {
+    _self: super: {
       github = super.github.overrideAttrs (_old: rec {
         postInstall = ''
           runHook postInstall
