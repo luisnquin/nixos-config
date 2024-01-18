@@ -45,18 +45,4 @@
       });
     }
   )
-  (
-    _self: super: {
-      github = super.github.overrideAttrs (_old: rec {
-        postInstall = ''
-          runHook postInstall
-
-          installShellCompletion --cmd gh \
-            --bash <($out/bin/gh completion -s bash) \
-            --fish <($out/bin/gh completion -s fish) \
-            --zsh <($out/bin/gh completion -s zsh)
-        '';
-      });
-    }
-  )
 ]
