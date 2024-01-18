@@ -1,3 +1,4 @@
+# https://wiki.hyprland.org/Configuring/Keywords/
 {
   dunstify-brightness,
   dunstify-sound,
@@ -9,76 +10,146 @@
   pkgs,
   ...
 }: {
-  bind = let
-    rofi-plugin-call = name: program-to-exec: ''${pkgs.rofi}/bin/rofi -modi "${name}:${program-to-exec}" -show ${name}'';
-  in [
-    "$mainMod, RETURN, exec, ${pkgs.alacritty}/bin/alacritty"
+  mainMod = "SUPER";
 
-    "$mainMod, SPACE, togglefloating,"
-    "$mainMod, MINUS, togglesplit,"
-    "SUPER_SHIFT, W, killactive,"
-    "SUPER_SHIFT, MINUS, pseudo,"
-    "$mainMod, F, fullscreen"
-    "$mainMod, M, exit,"
+  binds = let
+    window = [
+      "$mainMod, left, movefocus, l"
+      "$mainMod, right, movefocus, r"
+      "$mainMod, up, movefocus, u"
+      "$mainMod, down, movefocus, d"
+    ];
 
-    ",XF86AudioMicMute, exec, ${dunstify-sound}/bin/dunstify-sound --toggle-mic"
-    ",XF86AudioMute, exec, ${dunstify-sound}/bin/dunstify-sound --toggle-vol"
-    ",XF86AudioLowerVolume, exec, ${dunstify-sound}/bin/dunstify-sound --dec"
-    ",XF86AudioRaiseVolume, exec, ${dunstify-sound}/bin/dunstify-sound --inc"
-    "SUPER, XF86AudioRaiseVolume, exec, ${dunstify-sound}/bin/dunstify-sound --inc --unleashed"
+    workspaces = [
+      # Go-to
+      "$mainMod, 1, workspace, 1"
+      "$mainMod, 2, workspace, 2"
+      "$mainMod, 3, workspace, 3"
+      "$mainMod, 4, workspace, 4"
+      "$mainMod, 5, workspace, 5"
+      "$mainMod, 6, workspace, 6"
+      "$mainMod, 7, workspace, 7"
+      "$mainMod, 8, workspace, 8"
+      "$mainMod, 9, workspace, 9"
+      "$mainMod, 0, workspace, 10"
 
-    "SUPER_SHIFT, Print, exec, ${grimblast}/bin/grimblast --freeze --notify copy area"
-    "$mainMod, Print, exec, ${grimblast}/bin/grimblast --notify copy active"
-    ",Print, exec, ${grimblast}/bin/grimblast --notify copy screen"
+      # Move window
+      "$mainMod SHIFT, 1, movetoworkspace, 1"
+      "$mainMod SHIFT, 2, movetoworkspace, 2"
+      "$mainMod SHIFT, 3, movetoworkspace, 3"
+      "$mainMod SHIFT, 4, movetoworkspace, 4"
+      "$mainMod SHIFT, 5, movetoworkspace, 5"
+      "$mainMod SHIFT, 6, movetoworkspace, 6"
+      "$mainMod SHIFT, 7, movetoworkspace, 7"
+      "$mainMod SHIFT, 8, movetoworkspace, 8"
+      "$mainMod SHIFT, 9, movetoworkspace, 9"
+      "$mainMod SHIFT, 0, movetoworkspace, 10"
 
-    ",XF86MonBrightnessDown, exec, ${dunstify-brightness}/bin/dunstify-brightness --dec"
-    ",XF86MonBrightnessUp, exec, ${dunstify-brightness}/bin/dunstify-brightness --inc"
+      # Scroll
+      "$mainMod, mouse_down, workspace, e+1"
+      "$mainMod, mouse_up, workspace, e-1"
 
-    "SUPER_SHIFT, C, exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}"
-    "SUPER_SHIFT, Q, exec, ${pkgs.rofi}/bin/rofi -show window"
-    "$mainMod, Q, exec, ${pkgs.rofi}/bin/rofi -show drun"
-    # "SUPER_SHIFT, Z, exec, ${rofi-radio}/bin/rofi-radio"
-    "SUPER_SHIFT, E, exec, ${pkgs.bemoji}/bin/bemoji"
+      # Other actions
+      "$mainMod, SPACE, togglefloating"
+      "$mainMod, MINUS, togglesplit"
+      "SUPER_SHIFT, W, killactive"
+      "SUPER_SHIFT, MINUS, pseudo"
+      "$mainMod, F, fullscreen"
+      "$mainMod, M, exit"
+    ];
 
-    "SUPER_SHIFT, braceright, exec, ${spotify-dbus}/bin/spotify-dbus --next"
-    "SUPER_SHIFT, braceleft, exec, ${spotify-dbus}/bin/spotify-dbus --prev"
-    "$mainMod,Pause, exec, ${spotify-dbus}/bin/spotify-dbus --toggle"
+    custom = let
+      rofi-plugin-call = name: program-to-exec: ''${pkgs.rofi}/bin/rofi -modi "${name}:${program-to-exec}" -show ${name}'';
+    in [
+      {
+        "mod+key" = "$mainMod, RETURN";
+        "dispatcher" = "exec, ${pkgs.alacritty}/bin/alacritty";
+      }
+      {
+        "mod+key" = ",XF86AudioMicMute";
+        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --toggle-mic";
+      }
+      {
+        "mod+key" = ",XF86AudioMute";
+        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --toggle-vol";
+      }
+      {
+        "mod+key" = ",XF86AudioLowerVolume";
+        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --dec";
+      }
+      {
+        "mod+key" = ",XF86AudioRaiseVolume";
+        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --inc";
+      }
+      {
+        "mod+key" = "SUPER, XF86AudioRaiseVolume";
+        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --inc --unleashed";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, Print";
+        "dispatcher" = "exec, ${grimblast}/bin/grimblast --freeze --notify copy area";
+      }
+      {
+        "mod+key" = "$mainMod, Print";
+        "dispatcher" = "exec, ${grimblast}/bin/grimblast --notify copy active";
+      }
+      {
+        "mod+key" = ",Print";
+        "dispatcher" = "exec, ${grimblast}/bin/grimblast --notify copy screen";
+      }
+      {
+        "mod+key" = ",XF86MonBrightnessDown";
+        "dispatcher" = "exec, ${dunstify-brightness}/bin/dunstify-brightness --dec";
+      }
+      {
+        "mod+key" = ",XF86MonBrightnessUp";
+        "dispatcher" = "exec, ${dunstify-brightness}/bin/dunstify-brightness --inc";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, C";
+        "dispatcher" = "exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, Q";
+        "dispatcher" = "exec, ${pkgs.rofi}/bin/rofi -show window";
+      }
+      {
+        "mod+key" = "$mainMod, Q";
+        "dispatcher" = "exec, ${pkgs.rofi}/bin/rofi -show drun";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, E";
+        "dispatcher" = "exec, ${pkgs.bemoji}/bin/bemoji";
+      }
+      # {
+      #   "mod+key" = "SUPER_SHIFT, Z";
+      #   "dispatcher" = "exec, ${rofi-radio}/bin/rofi-radio";
+      # }
+      {
+        "mod+key" = "SUPER_SHIFT, braceright";
+        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --next";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, braceleft";
+        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --prev";
+      }
+      {
+        "mod+key" = "$mainMod, Pause";
+        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --toggle";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, R";
+        "dispatcher" = "exec, ${hyprland}/bin/hyprctl reload";
+      }
+      {
+        "mod+key" = "SUPER_SHIFT, S";
+        "dispatcher" = "exec, ${pkgs.toybox}/bin/pkill glava || ${pkgs.glava}/bin/glava -d";
+      }
+    ];
+  in
+    window ++ workspaces ++ builtins.map (b: b."mod+key" + ", " + b.dispatcher) custom;
 
-    "SUPER_SHIFT, R, exec, ${hyprland}/bin/hyprctl reload"
-    "SUPER_SHIFT, S, exec, ${pkgs.toybox}/bin/pkill glava || ${pkgs.glava}/bin/glava -d"
-
-    "$mainMod, left, movefocus, l"
-    "$mainMod, right, movefocus, r"
-    "$mainMod, up, movefocus, u"
-    "$mainMod, down, movefocus, d"
-
-    "$mainMod, 1, workspace, 1"
-    "$mainMod, 2, workspace, 2"
-    "$mainMod, 3, workspace, 3"
-    "$mainMod, 4, workspace, 4"
-    "$mainMod, 5, workspace, 5"
-    "$mainMod, 6, workspace, 6"
-    "$mainMod, 7, workspace, 7"
-    "$mainMod, 8, workspace, 8"
-    "$mainMod, 9, workspace, 9"
-    "$mainMod, 0, workspace, 10"
-
-    "$mainMod SHIFT, 1, movetoworkspace, 1"
-    "$mainMod SHIFT, 2, movetoworkspace, 2"
-    "$mainMod SHIFT, 3, movetoworkspace, 3"
-    "$mainMod SHIFT, 4, movetoworkspace, 4"
-    "$mainMod SHIFT, 5, movetoworkspace, 5"
-    "$mainMod SHIFT, 6, movetoworkspace, 6"
-    "$mainMod SHIFT, 7, movetoworkspace, 7"
-    "$mainMod SHIFT, 8, movetoworkspace, 8"
-    "$mainMod SHIFT, 9, movetoworkspace, 9"
-    "$mainMod SHIFT, 0, movetoworkspace, 10"
-
-    "$mainMod, mouse_down, workspace, e+1"
-    "$mainMod, mouse_up, workspace, e-1"
-  ];
-
-  bindm = [
+  mouseBinds = [
     # Move/resize windows with mainMod + LMB/RMB and dragging
     "$mainMod, mouse:272, movewindow"
     "$mainMod, mouse:273, resizewindow"

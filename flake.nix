@@ -56,7 +56,7 @@
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             inherit spicetify-nix;
-            inherit libx;
+            inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv nao;
