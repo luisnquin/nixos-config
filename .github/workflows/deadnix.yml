@@ -19,4 +19,4 @@ jobs:
         with:
           author: ${{env.committer_name}} <${{env.committer_email}}>
           committer: ${{env.committer_name}} <${{env.committer_email}}>
-          commit_message: "chore(deadnix): removed dead code"
+          commit_message: "deadnix: removed dead code"
