@@ -1,9 +1,9 @@
 {host, ...}: {
   imports = [
     {
-      "plasma" = ./plasma;
-      "hyprland" = ./hyprland;
-      "i3" = ./i3;
+      "hyprland" = ./wayland/hyprland;
+      "plasma" = ./x11/plasma;
+      "i3" = ./x11/i3;
     }
     .${host.desktop}
   ];

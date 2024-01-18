@@ -129,7 +129,7 @@
         };
 
       startup = let
-        background-image = ./../../../dots/background.gif;
+        background-image = ../../../../dots/background.gif;
       in [
         {
           command = "${pkgs.dex}/bin/dex --autostart --environment i3";
