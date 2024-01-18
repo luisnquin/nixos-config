@@ -1,0 +1,68 @@
+live_config_reload = true
+
+[cursor]
+blink_interval = 550
+blink_timeout = 0
+thickness = 0.2
+
+[cursor.style]
+blinking = "Always"
+shape = "Beam"
+
+[env]
+TERM = "alacritty"
+
+[font]
+builtin_box_drawing = true
+size = 10.5
+
+[font.bold]
+family = "Cascadia Code"
+style = "Bold"
+
+[font.bold_italic]
+family = "Cascadia Code"
+style = "Bold Italic"
+
+[font.italic]
+family = "Cascadia Code"
+style = "Italic"
+
+[font.normal]
+family = "Cascadia Code"
+style = "Regular"
+
+[font.offset]
+x = 0
+y = 1
+
+[[keyboard.bindings]]
+action = "ToggleFullscreen"
+key = "F11"
+
+[selection]
+save_to_clipboard = true
+semantic_escape_chars = ",│`|:\"' ()[]{}<>\t"
+
+[window]
+decorations = "full"
+dynamic_title = true
+opacity = 0.7
+startup_mode = "Windowed"
+title = "Dev shell 🫐⛄"
+
+[window.class]
+general = "Alacritty"
+instance = "Alacritty"
+
+[window.dimensions]
+columns = 132
+lines = 37
+
+[window.padding]
+x = 15
+y = 1
+
+[window.position]
+x = 550
+y = 250
