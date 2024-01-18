@@ -1,8 +1,9 @@
 {
   imports = [
     ./hyprland.nix
-    ./waybar.nix
-    ./swww.nix
+
+    ../components/swww.nix
+    ../components/waybar
 
     ../../cursor.nix
     ../../dunst.nix
