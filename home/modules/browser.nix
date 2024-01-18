@@ -23,6 +23,7 @@
         "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
         "dmghijelimhndkbmpgbldicpogfkceaj" # "Dark mode"
         "nigigpmchbpkjjgncmpiggfnikllldlh" # Forever pinned
+        "emjjmkkcdllendgbldliiphlbpnomnjk" # target="_blank"-toggler
       ];
     in
       builtins.map (id: {inherit id;}) ids;
