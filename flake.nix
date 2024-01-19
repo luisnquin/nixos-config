@@ -52,10 +52,10 @@
             isWayland = desktopIncluded ["hyprland" "sway"];
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
+            spicetify = spicetify-nix.packages.${pkgs.system}.default;
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit spicetify-nix;
             inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
@@ -82,6 +82,7 @@
 
         homeModules = [
           # scripts.homeManagerModules.default
+          spicetify-nix.homeManagerModule
           tplr.homeManagerModules.default
           ./home/options
           ./home/home.nix

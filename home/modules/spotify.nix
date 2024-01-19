@@ -1,19 +1,12 @@
 {
-  spicetify-nix,
+  spicetify,
   pkgs,
   ...
 }
-: let
-  spicePkgs = spicetify-nix.packages.${pkgs.system}.default;
-in {
-  imports = [spicetify-nix.homeManagerModule];
-
-  programs.spicetify = with spicePkgs; {
+: {
+  programs.spicetify = with spicetify; {
     enable = true;
-    # theme = themes."Comfy";
-
     theme = themes.text;
-    # colorScheme = "ylx-ui";
 
     enabledExtensions = with extensions; [
       historyShortcut
