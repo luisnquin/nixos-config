@@ -1,6 +1,5 @@
 {
   spicetify,
-  pkgs,
   ...
 }
 : {
