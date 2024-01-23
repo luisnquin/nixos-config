@@ -27,6 +27,7 @@
         "idgpnmonknjnojddfkpgkljpfnnfcklj" # ModHeader - Modify HTTP headers
         "nhdogjmejiglipccpnnnanhbledajbpd" # Vue.js devtools
         "fmkadmapgofadopljbjfkapdkoienihi" # React Developer Tools
+        "pfefekfhnmbfcofpjojnpmhdakcadeil" # AstroSpect
       ];
     in
       builtins.map (id: {inherit id;}) ids;
