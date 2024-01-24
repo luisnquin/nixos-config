@@ -23,6 +23,7 @@
         "dnhpnfgdlenaccegplpojghhmaamnnfp" # Augmented Steam
         "anlikcnbgdeidpacdbdljnabclhahhmd" # Enhanced GitHub
         "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
+        "obnjfbgikjcdfnbnmdamffacjfpankih" # Excalisave
 
         "idgpnmonknjnojddfkpgkljpfnnfcklj" # ModHeader - Modify HTTP headers
         "nhdogjmejiglipccpnnnanhbledajbpd" # Vue.js devtools
