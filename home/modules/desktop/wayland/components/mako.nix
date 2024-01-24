@@ -17,10 +17,11 @@
     borderRadius = 3;
     borderSize = 2;
 
+    defaultTimeout = 3000;
+    progressColor = "over #2e1545";
     maxIconSize = 25;
     icons = true;
     sort = "-time";
-    defaultTimeout = 3000;
 
     extraConfig = ''
       [urgency=low]
