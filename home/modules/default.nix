@@ -7,6 +7,7 @@
 
     ./entertainment.nix
     ./file-manager.nix
+    ./color-picker.nix
     ./obs-studio.nix
     ./gsimplecal.nix
     ./mime-apps.nix
