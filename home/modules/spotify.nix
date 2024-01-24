@@ -1,8 +1,4 @@
-{
-  spicetify,
-  ...
-}
-: {
+{spicetify, ...}: {
   programs.spicetify = with spicetify; {
     enable = true;
     theme = themes.text;
