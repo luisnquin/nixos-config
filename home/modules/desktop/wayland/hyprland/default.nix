@@ -3,10 +3,10 @@
     ./hyprland.nix
 
     ../components/swww.nix
+    ../components/mako.nix
     ../components/waybar
 
     ../../cursor.nix
-    ../../dunst.nix
     ../../rofi.nix
     ../../gtk.nix
   ];
