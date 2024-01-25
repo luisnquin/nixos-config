@@ -17,7 +17,7 @@
     borderRadius = 3;
     borderSize = 2;
 
-    defaultTimeout = 3000;
+    defaultTimeout = 6000;
     progressColor = "over #2e1545";
     maxIconSize = 25;
     icons = true;
