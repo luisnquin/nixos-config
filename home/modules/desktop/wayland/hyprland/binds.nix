@@ -45,6 +45,12 @@
       "$mainMod SHIFT, 9, movetoworkspace, 9"
       "$mainMod SHIFT, 0, movetoworkspace, 10"
 
+      # Resize window
+      "$mainMod SHIFT, h, resizeactive, -40 0"
+      "$mainMod SHIFT, l, resizeactive, 40 0"
+      "$mainMod SHIFT, k, resizeactive, 0 -40"
+      "$mainMod SHIFT, j, resizeactive, 0 40"
+
       # Scroll
       "$mainMod, mouse_down, workspace, e+1"
       "$mainMod, mouse_up, workspace, e-1"
