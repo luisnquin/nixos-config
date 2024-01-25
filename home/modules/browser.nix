@@ -18,6 +18,7 @@
         "nigigpmchbpkjjgncmpiggfnikllldlh" # Forever pinned
         "emjjmkkcdllendgbldliiphlbpnomnjk" # target="_blank"-toggler
         "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer - Technology profiler
+        "nikomkkhhpfoeamojhhgpfkpkdlfhfii" # TabsPlus
         # "fdpohaocaechififmbbbbbknoalclacl" # GoFullPage - Full Page Screen Capture
 
         "dnhpnfgdlenaccegplpojghhmaamnnfp" # Augmented Steam
