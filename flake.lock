@@ -512,8 +512,8 @@
         "nao": "nao",
         "nixpkgs": "nixpkgs_6",
         "rofi-network-manager": "rofi-network-manager",
-        "scripts": "scripts",
         "senv": "senv",
+        "scripts": "scripts",
         "spicetify-nix": "spicetify-nix",
         "tplr": "tplr"
       }
@@ -525,11 +525,11 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1705387711,
-        "narHash": "sha256-HKzro9IOQONFlAfMLRt050FX5v7zp7KIHR+QEd7QSxk=",
+        "lastModified": 1706296742,
+        "narHash": "sha256-dqUhXZHLWPVDomgG/MDPkzRRwzsZg646vvlUJlIkiuk=",
         "owner": "luisnquin",
         "repo": "scripts",
-        "rev": "ce46472889bd1056a129c6d46081f950394052eb",
+        "rev": "01d95f840cca6c908d2924dddee098f35d25b6a4",
         "type": "github"
       },
       "original": {
