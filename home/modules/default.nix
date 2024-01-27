@@ -13,6 +13,7 @@
     ./mime-apps.nix
     ./playerctl.nix
     ./macchina.nix
+    ./battery.nix
     ./discord.nix
     ./browser.nix
     ./zathura.nix

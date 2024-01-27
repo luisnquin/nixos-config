@@ -6,6 +6,7 @@
     home-manager.url = "github:nix-community/home-manager";
 
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
+    battery-notifier.url = "github:luisnquin/battery-notifier";
     grub-themes.url = "github:luisnquin/grub-themes";
     scripts.url = "github:luisnquin/scripts";
     tplr.url = "github:luisnquin/tplr";
@@ -82,6 +83,7 @@
 
         homeModules = [
           # scripts.homeManagerModules.default
+          battery-notifier.homeManagerModule.default
           spicetify-nix.homeManagerModule
           tplr.homeManagerModules.default
           ./home/options
