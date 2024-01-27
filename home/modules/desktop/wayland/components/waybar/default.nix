@@ -139,9 +139,9 @@
 
         "network" = {
           "format-disconnected" = "󰯡 Disconnected";
-          "format-ethernet" = "󰒢 Connected!";
+          "format-ethernet" = "󰒢 Connected";
           "format-linked" = "󰖪  {essid} (No IP)";
-          "format-wifi" = "󰖩  {ipaddr}";
+          "format-wifi" = "󰖩  {ipaddr}/{cidr}";
           "interval" = 5;
           "tooltip" = true;
           "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
