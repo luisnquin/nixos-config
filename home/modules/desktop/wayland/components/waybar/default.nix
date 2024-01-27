@@ -139,7 +139,7 @@
         };
 
         "network" = {
-          "format-disconnected" = "󰯡 Disconnected";
+          "format-disconnected" = "󰯡 Lost";
           "format-ethernet" = "󰒢 Connected";
           "format-linked" = "󰖪  {essid} (No IP)";
           "format-wifi" = "󰖩  {ipaddr}/{cidr}";
