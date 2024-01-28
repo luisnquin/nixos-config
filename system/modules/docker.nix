@@ -1,14 +1,17 @@
 {pkgs, ...}: {
   networking.firewall.trustedInterfaces = ["docker0"];
 
-  virtualisation.docker = {
-    enable = true;
-    enableNvidia = true;
-    extraOptions = "--default-runtime=nvidia";
-
-    autoPrune = {
+  virtualisation = {
+    docker = {
       enable = true;
-      dates = "daily";
+      enableNvidia = true;
+      # I need to fix the nvidia driver setup ASAP :)
+      # extraOptions = "--default-runtime=nvidia";
+
+      autoPrune = {
+        enable = true;
+        dates = "daily";
+      };
     };
   };
 
