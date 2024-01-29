@@ -10,4 +10,9 @@
     nodejs_21
     bun
   ];
+
+  programs.nest-cli = {
+    enable = true;
+    enableZshIntegration = true;
+  };
 }
