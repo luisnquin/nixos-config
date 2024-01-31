@@ -1,9 +1,10 @@
 {
   pkgs,
   host,
+  lib,
   ...
 }: {
-  systemd.services.battery-charge-threshold = {
+  systemd.services.battery-charge-threshold = lib.mkIf host.isLaptop {
     enable = true;
     description = "Set the battery charge threshold";
     serviceConfig = let
