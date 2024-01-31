@@ -65,7 +65,7 @@
                     "i18nLocale",
                     "keyboardLayout",
                     "browser",
-                    "batteryThreshold",
+                    "isLaptop",
                     "resolution",
                     "timeZone"
                 ],
