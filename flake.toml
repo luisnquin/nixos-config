@@ -1,5 +1,6 @@
 #:schema ./.schema
 
+fallback = "luisnquin"
 use = "luisnquin"
 
 [users.luisnquin]
