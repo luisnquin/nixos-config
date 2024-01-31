@@ -41,7 +41,7 @@
         inherit pkgs lib;
       };
 
-      metadata = libx.mkMetadata ./flake.toml;
+      metadata = libx.mkMetadata ./flake.toml ./use.conf;
 
       specialArgs = let
         args = let

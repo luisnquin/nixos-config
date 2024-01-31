@@ -1,24 +1,35 @@
-{
-  mkMetadata = p: let
-    metadata = builtins.fromTOML (builtins.readFile p);
-    metadataFileError = message: builtins.throw "metadata file error: ${message}";
+{lib, ...}: {
+  mkMetadata = flakeToml: useConf: let
+    metadataFileError = message: builtins.throw "flake.toml file error: ${message}";
+    metadata = builtins.fromTOML (builtins.readFile flakeToml);
+
+    useFileError = message: builtins.throw "use.conf file error: ${message}";
+    use = let
+      raw = builtins.readFile useConf;
+      fragments = lib.strings.splitString "@" raw;
+    in
+      if builtins.length fragments == 2
+      then {
+        user = builtins.elemAt fragments 0;
+        host = builtins.elemAt fragments 1;
+      }
+      else useFileError "format must be <user>@<host> (e.g.: max@myhost)";
 
     notEmptyString = x: x != null && x != "";
-
-    selected =
-      if notEmptyString metadata.use
-      then metadata.use
-      else metadataFileError "missing 'use'";
   in {
-    user =
-      if builtins.hasAttr "${selected}" metadata.users
-      then metadata.users.${selected} // {alias = selected;}
-      else metadataFileError "missing '${selected}' owner in users collection";
+    user = let
+      id = use.user;
+    in
+      if builtins.hasAttr id metadata.users
+      then metadata.users."${id}" // {alias = "${id}";}
+      else metadataFileError "missing user '${id}' in users collection";
 
-    host =
-      if builtins.hasAttr "${selected}" metadata.hosts
-      then metadata.hosts.${selected}
-      else metadataFileError "missing '${selected}' owner in hosts collection";
+    host = let
+      id = use.host;
+    in
+      if builtins.hasAttr id metadata.hosts
+      then metadata.hosts."${id}" // {name = "${id}";}
+      else metadataFileError "missing host '${id}' in hosts collection";
 
     nix =
       if notEmptyString metadata.nix.stateVersion && notEmptyString metadata.nix.channel
