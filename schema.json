@@ -1,30 +1,18 @@
 {
     "$schema": "http://json-schema.org/schema",
     "type": "object",
-    "required": [
-        "use",
-        "users",
-        "hosts",
-        "nix"
-    ],
+    "required": ["use", "users", "hosts", "nix"],
     "properties": {
         "use": {
             "type": "string"
         },
         "nix": {
             "type": "object",
-            "required": [
-                "stateVersion",
-                "channel"
-            ],
+            "required": ["stateVersion", "channel"],
             "properties": {
                 "stateVersion": {
                     "type": "string",
-                    "enum": [
-                        "22.11",
-                        "23.05",
-                        "23.11"
-                    ]
+                    "enum": ["22.11", "23.05", "23.11"]
                 },
                 "channel": {
                     "type": "string",
@@ -47,11 +35,7 @@
             "minProperties": 1,
             "additionalProperties": {
                 "type": "object",
-                "required": [
-                    "fullName",
-                    "email",
-                    "gitEmail"
-                ],
+                "required": ["fullName", "email", "gitEmail"],
                 "properties": {
                     "fullName": {
                         "type": "string"
@@ -88,11 +72,7 @@
                     },
                     "desktop": {
                         "type": "string",
-                        "enum": [
-                            "hyprland",
-                            "plasma",
-                            "i3"
-                        ]
+                        "enum": ["hyprland", "plasma", "i3"]
                     },
                     "bluetooth": {
                         "type": "boolean"
@@ -113,13 +93,10 @@
                     },
                     "resolution": {
                         "type": "string",
-                        "enum": [
-                            "1280x720",
-                            "1920x1080",
-                            "2560x1440",
-                            "3840x2160",
-                            "7680x4320"
-                        ]
+                        "enum": ["1280x720", "1920x1080", "2560x1440", "3840x2160", "7680x4320"]
+                    },
+                    "isLaptop": {
+                        "type": "boolean"
                     },
                     "timeZone": {
                         "type": "string",

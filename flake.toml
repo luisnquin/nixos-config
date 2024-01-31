@@ -7,6 +7,10 @@ fullName = "Luis Quiñones"
 email = "lpaandres2020@gmail.com"
 gitEmail = "lpaandres2020@gmail.com"
 
+[users.workstation]
+fullName = "Luis Quiñones"
+email = "lpaandres2020@gmail.com"
+gitEmail = "lpaandres2020@gmail.com"
 
 [hosts.luisnquin]
 name = "nyx"
@@ -17,7 +21,17 @@ i18nLocale = "en_US.UTF-8"
 keyboardLayout = "latam"
 resolution = "1920x1080"
 batteryThreshold = 60
+isLaptop = true
 
+[hosts.workstation]
+name = "relic"
+browser = "brave"
+desktop = "sway"
+timeZone = "America/Lima"
+i18nLocale = "en_US.UTF-8"
+keyboardLayout = "latam"
+resolution = "1920x1080"
+isLaptop = false
 
 [nix]
 stateVersion = "23.11"
