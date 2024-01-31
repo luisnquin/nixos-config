@@ -35,5 +35,5 @@ resolution = "1920x1080"
 isLaptop = false
 
 [nix]
-stateVersion = "23.11"
+stateVersion = "24.05"
 channel = "nixos-unstable"
