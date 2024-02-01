@@ -6,11 +6,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1706673931,
-        "narHash": "sha256-MLZHjT9cPyRm+D83Mly+yBcg5kEe7Dms0crRBlHZwMw=",
+        "lastModified": 1706759768,
+        "narHash": "sha256-3nghBqZKNHD6qfpxYHKba5IjqsMmEnlWV/KKJhsI6PM=",
         "owner": "luisnquin",
         "repo": "battery-notifier",
-        "rev": "2bc80502fa931b63ebae586e3d1f44077d19eddf",
+        "rev": "6532d55469db14044258e6690939587179d759e6",
         "type": "github"
       },
       "original": {
