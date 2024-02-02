@@ -1,6 +1,6 @@
-{
+{host, ...}: {
   programs.battery-notifier = {
-    enable = true;
+    enable = host.isLaptop;
     settings = {
       interval_ms = 700;
       reminder.threshold = 30;

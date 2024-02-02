@@ -34,7 +34,6 @@
   i18n.defaultLocale = host.i18nLocale;
   location.provider = "geoclue2";
 
-  services.thermald.enable = true;
   services.udisks2.enable = true;
 
   system = {
