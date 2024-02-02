@@ -7,7 +7,7 @@ pkgs.buildGoModule rec {
     name = pname;
     path = ./.;
   };
-  
+
   vendorHash = null;
 
   ldflags = ["-X main.version=${version}"];

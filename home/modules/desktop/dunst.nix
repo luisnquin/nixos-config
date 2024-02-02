@@ -10,7 +10,6 @@
     };
 
     settings = let
-
       v2 = {
         global = {
           font = "Cascadia Code 9";

@@ -85,7 +85,6 @@
       ];
 
       keybindings = with pkgs; let
-
         dunstify-brightness-bin = "${dunstify-brightness}/bin/dunstify-brightness";
         dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
         screen-capture-bin = "${screen-capture}/bin/screen-capture";
