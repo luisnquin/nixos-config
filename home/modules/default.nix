@@ -16,6 +16,7 @@
     ./battery.nix
     ./discord.nix
     ./browser.nix
+    ./torrent.nix
     ./zathura.nix
     ./spotify.nix
     ./docker.nix

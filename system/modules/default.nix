@@ -11,7 +11,6 @@
     ./bluetooth.nix
     ./clipboard.nix
     ./security.nix
-    ./torrent.nix
     ./battery.nix
     ./network.nix
     ./docker.nix
