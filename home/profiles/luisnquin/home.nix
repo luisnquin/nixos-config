@@ -4,8 +4,8 @@
   ...
 }: {
   imports = [
-    ./services
-    ./modules
+    ../../services
+    ../../modules
   ];
 
   home = {
@@ -15,19 +15,13 @@
     homeDirectory = "/home/${user.alias}";
     username = "${user.alias}";
 
-    file.".face".source = ./dots/.face;
+    file.".face".source = ./.face;
   };
 
   # disabledModules = ["misc/news.nix"];
 
   news.display = "silent";
-
-  xdg = {
-    enable = true;
-    configFile = {
-      "go/env".text = builtins.readFile ./dots/go/env;
-    };
-  };
+  xdg.enable = true;
 
   programs.home-manager.enable = true;
 }

@@ -68,7 +68,7 @@
         args
         // import ./overlays/special-args.nix args;
     in
-      libx.mkSetup {
+      libx.mkSetup rec {
         inherit (metadata) user host nix;
         inherit specialArgs pkgs;
 
@@ -87,7 +87,7 @@
           spicetify-nix.homeManagerModule
           tplr.homeManagerModules.default
           ./home/options
-          ./home/home.nix
+          (./home/profiles + "/${user.alias}")
         ];
       };
 }

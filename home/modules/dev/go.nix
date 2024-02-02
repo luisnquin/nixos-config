@@ -23,6 +23,10 @@
     };
   };
 
+  xdg.configFile = {
+    "go/env".text = builtins.readFile ../../dots/go/env;
+  };
+
   programs = {
     go = {
       enable = true;
