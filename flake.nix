@@ -78,7 +78,7 @@
 
         nixosModules = [
           ./tools/nix/nixos-options
-          ./system/configuration.nix
+          (./system/hosts + "/${host.name}")
         ];
 
         homeModules = [

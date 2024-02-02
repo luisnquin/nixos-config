@@ -4,8 +4,8 @@
   ...
 }: {
   imports = [
-    ./services
-    ./modules
+    ../../services
+    ../../modules
 
     ./hardware-configuration.nix
   ];
