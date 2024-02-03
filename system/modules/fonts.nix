@@ -11,6 +11,7 @@
       cascadia-code
       roboto-mono
       inconsolata
+      fira-code
       roboto
     ];
 
