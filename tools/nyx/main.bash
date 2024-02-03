@@ -1,4 +1,5 @@
-#!/usr/bin/bash
+#! /usr/bin/env nix-shell
+#! nix-shell -i bash -p bash
 
 NIX_LOGO_PATH="/path/to/nix-logo.png"
 USES_HYPRLAND=false
