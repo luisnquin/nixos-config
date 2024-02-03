@@ -60,7 +60,7 @@
             inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv nao;
+            inherit rofi-network-manager senv;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};
@@ -86,6 +86,7 @@
           battery-notifier.homeManagerModule.default
           spicetify-nix.homeManagerModule
           tplr.homeManagerModules.default
+          nao.homeManagerModules.default
           ./home/options
           (./home/profiles + "/${user.alias}")
         ];

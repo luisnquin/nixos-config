@@ -1,7 +1,10 @@
-{nao, ...}: {
-  home.packages = [nao];
-
-  xdg.configFile = {
-    "nao/config.yml".text = builtins.readFile ../dots/nao/config.yml;
+{
+  programs.nao = {
+    enable = true;
+    config = {
+      editor.name = "nano";
+      theme = "rose-pine";
+      readOnlyOnConflict = false;
+    };
   };
 }

@@ -1,7 +1,0 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/luisnquin/nao/main/docs/config.schema
-
-editor:
-  name: nano
-  extraArgs: []
-theme: rose-pine
-readOnlyOnConflict: false
