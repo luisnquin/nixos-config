@@ -9,6 +9,7 @@
     ./python.nix
     ./audit.nix
     ./ocaml.nix
+    ./rest.nix
     ./rust.nix
     ./sql.nix
     ./etc.nix
