@@ -75,7 +75,9 @@ update_computer() {
         ;;
     esac
 
-    notify-send "NixOS update ($PROGRAM_NAME)" "$body_message" --icon="$NIX_LOGO_PATH" --app-name="$PROGRAM_NAME"
+    if [ "$(command -v notify-send)" ]; then
+        notify-send "NixOS update ($PROGRAM_NAME)" "$body_message" --icon="$NIX_LOGO_PATH" --app-name="$PROGRAM_NAME"
+    fi
 
     printf "\n\033[1;34mSuccessfully updated! ❄️❄️❄️\033[0m\n"
 }
