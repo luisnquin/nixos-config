@@ -30,7 +30,7 @@
   programs = {
     go = {
       enable = true;
-      package = pkgs.go_1_22;
+      package = pkgs.go_1_21;
       # I don't get the point of these packages because it adds
       # them to mod $GOPATH/src instead of $GOPATH/pkg/mod
       #
