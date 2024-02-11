@@ -3,7 +3,6 @@
     # Instant tp to some directories
     dot = "cd ~/.dotfiles/";
     down = "cd ~/Downloads/";
-    etc = "cd ~/.etc/";
     pr = "cd ~/Projects/";
 
     tmp = "cd /tmp/";
