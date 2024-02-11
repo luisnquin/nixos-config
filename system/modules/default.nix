@@ -2,7 +2,6 @@
   imports = [
     ./terminal
     ./desktop
-    ./dev
 
     # https://github.com/NixOS/nixpkgs/pull/249369
     # https://github.com/NixOS/nixpkgs/issues/249138
