@@ -6,6 +6,7 @@ with pkgs.lib; let
     transg-tui = ./transg-tui.nix;
     pg-ping = ./pg-ping.nix;
     netflix = ./netflix.nix;
+    yaak = ./yaak.nix;
     # minecraft = ./minecraft;
     npkill = ./npkill.nix;
     tpm = ./tpm.nix;

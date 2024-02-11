@@ -1,3 +1,3 @@
-{pkgs, ...}: {
-  home.packages = [pkgs.insomnia];
+{pkgsx, ...}: {
+  home.packages = [pkgsx.yaak]; # REST client
 }
