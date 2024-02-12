@@ -63,9 +63,9 @@
       nix_shell = {
         symbol = " ";
         style = "#c07bed";
-        impure_msg = "impure";
-        pure_msg = "pure";
-        format = "with [$symbol$state( \($name\))]($style) ";
+        impure_msg = "dev shell";
+        pure_msg = "pure dev shell";
+        format = " with [$symbol$state]($style) ";
       };
 
       nodejs = {
