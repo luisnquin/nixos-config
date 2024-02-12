@@ -6,10 +6,10 @@
   ...
 }:
 with lib; let
-  cfg = config.programs.github;
+  cfg = config.programs.github-tools;
 in {
   options = {
-    programs.github = {
+    programs.github-tools = {
       enable = mkEnableOption "github";
 
       act = mkOption {
