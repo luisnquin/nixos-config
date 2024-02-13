@@ -289,6 +289,21 @@
         "type": "indirect"
       }
     },
+    "nixpkgs-latest": {
+      "locked": {
+        "lastModified": 1707689078,
+        "narHash": "sha256-UUGmRa84ZJHpGZ1WZEBEUOzaPOWG8LZ0yPg1pdDF/yM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f9d39fb9aff0efee4a3d5f4a6d7c17701d38a1d8",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixos-unstable",
+        "type": "indirect"
+      }
+    },
     "nixpkgs_10": {
       "locked": {
         "lastModified": 1699838902,
@@ -528,6 +543,7 @@
         "hyprland-contrib": "hyprland-contrib",
         "nao": "nao",
         "nixpkgs": "nixpkgs_7",
+        "nixpkgs-latest": "nixpkgs-latest",
         "rofi-network-manager": "rofi-network-manager",
         "scripts": "scripts",
         "senv": "senv",

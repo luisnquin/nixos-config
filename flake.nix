@@ -1,9 +1,13 @@
 {
   description = "Infrastructure for NixOS, Flakes and home manager ❄️";
 
+  # https://github.com/NixOS/nix/issues/3966
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-unstable"; # https://github.com/NixOS/nix/issues/3966
     home-manager.url = "github:nix-community/home-manager";
+    # `nixpkgs.url` but even more unstable, use this source when we need to use some specific
+    # packages in their latest version to have a feature and/or hotfix ASAP
+    nixpkgs-latest.url = "nixpkgs/nixos-unstable";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
 
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
@@ -22,18 +26,22 @@
     with inputs; let
       system = "x86_64-linux";
 
-      pkgs = import nixpkgs {
-        overlays = import ./overlays/nixpkgs.nix;
-        config = {
-          permittedInsecurePackages = [
-            "electron-19.1.9"
-          ];
-          allowBroken = false;
-          allowUnfree = true;
+      mkPkgs = source:
+        import source {
+          overlays = import ./overlays/nixpkgs.nix;
+          config = {
+            permittedInsecurePackages = [
+              "electron-19.1.9"
+            ];
+            allowBroken = false;
+            allowUnfree = true;
+          };
+
+          inherit system;
         };
 
-        inherit system;
-      };
+      pkgs-latest = mkPkgs nixpkgs-latest;
+      pkgs = mkPkgs nixpkgs;
 
       inherit (pkgs) lib;
 
@@ -57,7 +65,7 @@
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit libx pkgs;
+            inherit libx pkgs pkgs-latest;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv;
