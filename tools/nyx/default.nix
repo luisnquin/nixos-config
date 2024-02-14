@@ -27,7 +27,8 @@ in
     postPatch = ''
       substituteInPlace ./main.bash \
         --replace '/path/to/nix-logo.png' '${notificationIcon}' \
-        --replace 'USES_HYPRLAND=false' 'USES_HYPRLAND=${lib.boolToString hyprlandSupport}'
+        --replace 'USES_HYPRLAND=false' 'USES_HYPRLAND=${lib.boolToString hyprlandSupport}' \
+        --replace '#! /usr/bin/env nix-shell\n#! nix-shell -i bash -p bash alejandra home-manager git' '#! /usr/bin/env bash'
     '';
 
     installPhase = ''
