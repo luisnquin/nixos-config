@@ -1,7 +1,6 @@
 {
   pkgs,
   host,
-  lib,
   ...
 }: {
   services.thermald.enable = host.isLaptop;
