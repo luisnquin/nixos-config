@@ -1,11 +1,11 @@
 {host, ...}: {
   programs.battery-notifier = {
     enable = host.isLaptop;
-    settings = {
+    settings = rec {
       interval_ms = 700;
-      reminder.threshold = 30;
-      threat.threshold = 5;
-      warn.threshold = 15;
+      reminder.threshold = host.batteryThreshold / 2;
+      warn.threshold = reminder.threshold / 2;
+      threat.threshold = warn.threshold / 3;
     };
   };
 }
