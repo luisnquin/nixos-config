@@ -38,3 +38,4 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 - [abxh](https://github.com/abxh/dotfiles)
 - [HeinzDev](https://github.com/HeinzDev/Hyprland-dotfiles)
 - [NotAShelf](https://github.com/NotAShelf/nyx)
+- [nmasur](https://github.com/nmasur/dotfiles)
