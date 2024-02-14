@@ -15,7 +15,7 @@
             "properties": {
                 "stateVersion": {
                     "type": "string",
-                    "enum": ["22.11", "23.05", "23.11"]
+                    "enum": ["22.11", "23.05", "23.11", "24.05", "24.11"]
                 },
                 "channel": {
                     "type": "string",
