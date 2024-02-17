@@ -22,17 +22,4 @@
       genre
     ];
   };
-
-  # services.spotifyd = {
-  #   enable = true;
-  #   package = pkgs.spotifyd;
-
-  #   settings = {
-  #     global = {
-  #       username = libx.base64.decode "eWVzZWxvbnk="; # :)
-  #       password = libx.base64.decode "X1dob0lzQWZyYWlkT2ZDaGFuZ2U5OTg=";
-  #       device_name = host.name;
-  #     };
-  #   };
-  # };
 }
