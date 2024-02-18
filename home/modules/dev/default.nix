@@ -2,6 +2,7 @@
   imports = [
     ./git
     ./k8s
+    ./go
 
     ./processors.nix
     ./templates.nix
@@ -14,6 +15,5 @@
     ./sql.nix
     ./etc.nix
     ./zig.nix
-    ./go.nix
   ];
 }
