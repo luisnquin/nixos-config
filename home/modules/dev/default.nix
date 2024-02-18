@@ -1,12 +1,12 @@
 {
   imports = [
+    ./node
     ./git
     ./k8s
     ./go
 
     ./processors.nix
     ./templates.nix
-    ./js-tools.nix
     ./python.nix
     ./audit.nix
     ./ocaml.nix
