@@ -3,6 +3,11 @@
   host,
   ...
 }: {
+  environment.interactiveShellInit = builtins.readFile (builtins.path {
+    name = "${host.name}-system-battery-shrc";
+    path = ./shell.sh;
+  });
+
   services.thermald.enable = host.isLaptop;
 
   systemd.services.battery-charge-threshold = {

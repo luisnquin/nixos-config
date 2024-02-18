@@ -3,6 +3,7 @@
     ./terminal
     ./desktop
     ./network
+    ./battery
 
     # https://github.com/NixOS/nixpkgs/pull/249369
     # https://github.com/NixOS/nixpkgs/issues/249138
@@ -11,7 +12,6 @@
     ./bluetooth.nix
     ./clipboard.nix
     ./security.nix
-    ./battery.nix
     ./docker.nix
     ./thunar.nix
     ./nvidia.nix
