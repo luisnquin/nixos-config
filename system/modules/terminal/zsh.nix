@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   environment.systemPackages = [
     pkgs.zsh-completions
   ];
@@ -29,6 +33,9 @@
       fi
     '';
 
-    interactiveShellInit = builtins.readFile ../../dots/.zshrc;
+    interactiveShellInit = builtins.readFile (builtins.path {
+      name = "${host.name}-system-zshrc-script";
+      path = ./dots/.zshrc;
+    });
   };
 }

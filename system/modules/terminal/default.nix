@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   imports = [
     ./starship.nix
     ./aliases.nix
@@ -11,7 +15,10 @@
   };
 
   environment = {
-    interactiveShellInit = builtins.readFile ../../dots/.shrc;
+    interactiveShellInit = builtins.readFile (builtins.path {
+      name = "${host.name}-system-shrc-script";
+      path = ./dots/.shrc;
+    });
 
     variables.EDITOR = "nano";
 
