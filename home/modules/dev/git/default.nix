@@ -1,5 +1,6 @@
 {
   imports = [
+    ./terminal.nix
     ./lazygit.nix
     ./aliases.nix
     ./github.nix
