@@ -10,6 +10,12 @@
       save = 10000 * 2;
     };
 
+    # historySubstringSearch = {
+    #   enable = true;
+    #   searchUpKey = "^[[A";
+    #   searchDownKey = "^[[B";
+    # };
+
     plugins = with pkgs; [
       {
         name = "nix-shell";
