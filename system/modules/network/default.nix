@@ -8,4 +8,9 @@
 
     wireguard.enable = true;
   };
+
+  environment.interactiveShellInit = builtins.readFile (builtins.path {
+    name = "network-module-sh-script";
+    path = ./shell.sh;
+  });
 }

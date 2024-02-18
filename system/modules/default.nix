@@ -2,6 +2,7 @@
   imports = [
     ./terminal
     ./desktop
+    ./network
 
     # https://github.com/NixOS/nixpkgs/pull/249369
     # https://github.com/NixOS/nixpkgs/issues/249138
@@ -11,7 +12,6 @@
     ./clipboard.nix
     ./security.nix
     ./battery.nix
-    ./network.nix
     ./docker.nix
     ./thunar.nix
     ./nvidia.nix
