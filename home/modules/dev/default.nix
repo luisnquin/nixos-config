@@ -15,5 +15,6 @@
     ./sql.nix
     ./etc.nix
     ./zig.nix
+    ./aws.nix
   ];
 }

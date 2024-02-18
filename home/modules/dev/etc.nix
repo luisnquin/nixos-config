@@ -10,7 +10,6 @@
     asciinema
     argocd
     rclone # cloud storages
-    awscli
     ngrok
 
     # Command runners
