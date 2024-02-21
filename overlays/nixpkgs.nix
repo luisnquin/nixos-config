@@ -45,4 +45,13 @@
       });
     }
   )
+  (
+    self: super: {
+      panicparse = super.panicparse.overrideAttrs (_old: {
+        postInstall = ''
+          mv $out/bin/panicparse $out/bin/pp
+        '';
+      });
+    }
+  )
 ]
