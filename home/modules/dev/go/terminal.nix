@@ -1,9 +1,13 @@
-{config, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   home.sessionPath = ["$GORROT" "$GOPATH/bin"];
 
   programs.zsh = {
     shellAliases = {
-      gest = "go clean -testcache && richgo test -v";
+      gest = "go clean -testcache && ${pkgs.richgo}/bin/richgo test -v";
     };
 
     initExtra = builtins.readFile (builtins.path {
