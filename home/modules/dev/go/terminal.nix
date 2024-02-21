@@ -1,7 +1,5 @@
-{
-  home.sessionVariables = {
-    PATH = "$PATH:$GORROT:$GOPATH/bin";
-  };
+{config, ...}: {
+  home.sessionPath = ["$GORROT" "$GOPATH/bin"];
 
   programs.zsh = {
     shellAliases = {
