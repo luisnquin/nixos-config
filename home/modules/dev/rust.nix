@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   home = {
     packages = with pkgs; [
       rust-analyzer
@@ -8,6 +12,8 @@
       cargo
       rustc
     ];
+
+    sessionPath = ["$HOME/.cargo/bin"];
 
     file.".cargo/config.toml".source = (pkgs.formats.toml {}).generate "cargo-config" {
       net = {
