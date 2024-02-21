@@ -7,6 +7,7 @@ with pkgs.lib; let
     pg-ping = ./pg-ping.nix;
     netflix = ./netflix.nix;
     yaak = ./yaak.nix;
+    stu = ./stu.nix;
     # minecraft = ./minecraft;
     npkill = ./npkill.nix;
     tpm = ./tpm.nix;
