@@ -7,13 +7,29 @@
       command_timeout = 400;
       scan_timeout = 30;
 
+      aws = {
+        format = "on [$symbol($profile )(\($region\) )]($style)";
+        style = "bold blue";
+        symbol = " ";
+
+        # region_aliases = {
+        #   ap-southeast-2 = "au";
+        #   us-east-1 = "va";
+        # };
+
+        profile_aliases = {
+          CompanyGroupFrobozzOnCallAccess = "Frobozz";
+          luisnquin-invio = "luisnquin";
+        };
+      };
+
       character = {
         success_symbol = "[](bold green)";
         error_symbol = "[](bold red)";
       };
 
       format = ''
-        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics''${custom.environment_name}$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
+        $directory$hostname''${custom.git_remote}$aws$git_branch$git_state$git_metrics''${custom.environment_name}$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
         $character
       '';
 
