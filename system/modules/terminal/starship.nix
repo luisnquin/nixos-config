@@ -148,7 +148,7 @@
           description = "Displays the current NixOS version";
           shell = ["bash" "--noprofile" "--norc"];
           format = "using [$symbol($output )]($style)";
-          command = ''NIXOS_VERSION=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+'); NIX_VERSION=$(nix --version | grep -oP '\d+\.\d+'); echo "$NIXOS_VERSION 󰕣 $NIX_VERSION"'';
+          command = ''NIXOS_VERSION=$(nixos-version | grep -o -E '^[0-9]+\.[0-9]+'); echo "$NIXOS_VERSION"'';
           when = "pwd | grep -q '.dotfiles'";
           style = "#8fcff2";
           symbol = " ";
