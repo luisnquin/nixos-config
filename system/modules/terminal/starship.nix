@@ -8,7 +8,7 @@
       scan_timeout = 30;
 
       aws = {
-        format = "on [$symbol($profile )(\($region\) )]($style)";
+        format = "\\[[$symbol($profile )(\($region\))]($style)\\] ";
         style = "bold blue";
         symbol = " ";
 
@@ -29,7 +29,7 @@
       };
 
       format = ''
-        $directory$hostname''${custom.git_remote}$aws$git_branch$git_state$git_metrics''${custom.environment_name}$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes
+        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics''${custom.environment_name}$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes$aws
         $character
       '';
 
