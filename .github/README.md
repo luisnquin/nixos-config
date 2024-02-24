@@ -27,6 +27,11 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 
 ## Some configurations comes here thanks to
 
+
+
+<details>
+<summary>It's a long list, sorry fellas</summary>
+
 - [angristan](https://github.com/angristan/nixos-config)
 - [kmein](https://github.com/kmein/niveum)
 - [mogria](https://github.com/mogria/nixpkgs-config)
@@ -39,3 +44,5 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 - [HeinzDev](https://github.com/HeinzDev/Hyprland-dotfiles)
 - [NotAShelf](https://github.com/NotAShelf/nyx)
 - [nmasur](https://github.com/nmasur/dotfiles)
+
+</details>
