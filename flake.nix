@@ -26,8 +26,6 @@
     with inputs; let
       system = "x86_64-linux";
 
-      debug = "variable";
-
       mkPkgs = source:
         import source {
           overlays = import ./overlays/nixpkgs.nix;
