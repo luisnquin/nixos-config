@@ -101,6 +101,10 @@
                     "isLaptop": {
                         "type": "boolean"
                     },
+                    "gui": {
+                        "type": "boolean",
+                        "default": true
+                    },
                     "timeZone": {
                         "type": "string",
                         "enum": [

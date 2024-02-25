@@ -14,6 +14,7 @@ keyboardLayout = "latam"
 resolution = "1920x1080"
 batteryThreshold = 60
 isLaptop = true
+gui = true
 
 [hosts.workstation]
 browser = "brave"
@@ -23,6 +24,7 @@ i18nLocale = "en_US.UTF-8"
 keyboardLayout = "latam"
 resolution = "1920x1080"
 isLaptop = false
+gui = true
 
 [nix]
 stateVersion = "24.05"
