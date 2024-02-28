@@ -1,7 +1,6 @@
 {
   fetchFromGitHub,
   buildGoModule,
-  lib,
 }:
 buildGoModule rec {
   pname = "ecsview";
