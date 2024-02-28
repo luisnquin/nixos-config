@@ -5,6 +5,7 @@ with pkgs.lib; let
     coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
     emoji-fzf = ./emoji-fzf.nix;
+    ecsview = ./ecsview.nix;
     pg-ping = ./pg-ping.nix;
     netflix = ./netflix.nix;
     yaak = ./yaak.nix;

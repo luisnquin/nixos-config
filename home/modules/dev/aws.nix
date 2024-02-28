@@ -6,6 +6,7 @@
   home = {
     packages = with pkgs; [
       aws-lambda-rie
+      pkgsx.ecsview
       pkgsx.stu
       awscli2
     ];
