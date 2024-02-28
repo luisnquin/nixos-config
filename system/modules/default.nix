@@ -4,6 +4,7 @@
     ./desktop
     ./network
     ./battery
+    ./boot
 
     # https://github.com/NixOS/nixpkgs/pull/249369
     # https://github.com/NixOS/nixpkgs/issues/249138
@@ -17,7 +18,6 @@
     ./nvidia.nix
     ./fonts.nix
     ./audio.nix
-    ./boot.nix
     ./vpn.nix
     ./nix.nix
   ];
