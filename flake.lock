@@ -239,11 +239,11 @@
         "systems": "systems_4"
       },
       "locked": {
-        "lastModified": 1706976263,
-        "narHash": "sha256-OCtckJTARIpI5rBhi+uX/nv6EZEgelyR7hCIJSLZ9uY=",
+        "lastModified": 1709116105,
+        "narHash": "sha256-5dnrfKo1ZhQiR74Uj8pJqrbiFHXxnhTspBnsCawEjYs=",
         "owner": "luisnquin",
         "repo": "nao",
-        "rev": "eeea943ca8262460ca5fee439fdb3f9b81e99b1f",
+        "rev": "dd7593fb4fdba941d0855d20baa1e460c5a1196d",
         "type": "github"
       },
       "original": {
