@@ -36,7 +36,7 @@
   (
     self: super: {
       brave = super.brave.overrideAttrs (_old: rec {
-        version = "1.61.114";
+        version = "1.63.162";
 
         src = self.fetchurl {
           url = "https://github.com/brave/brave-browser/releases/download/v${version}/brave-browser_${version}_amd64.deb";
