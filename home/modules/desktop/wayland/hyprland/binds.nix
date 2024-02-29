@@ -61,7 +61,7 @@
       "SUPER_SHIFT, W, killactive"
       "SUPER_SHIFT, MINUS, pseudo"
       "$mainMod, F, fullscreen"
-      "$mainMod, M, exit"
+      # "$mainMod, M, exit"
     ];
 
     custom = let
