@@ -40,7 +40,7 @@
 
         src = self.fetchurl {
           url = "https://github.com/brave/brave-browser/releases/download/v${version}/brave-browser_${version}_amd64.deb";
-          hash = "sha256-AVL08Npg1nuvFJrd3rC2rCZeoLnPuQsgpvf2R623c6Y=";
+          hash = "sha256-kRIYdSBAjBVX3EZQv0OWifD+XIpGAqAVTcrdxGAifEI=M";
         };
       });
     }
