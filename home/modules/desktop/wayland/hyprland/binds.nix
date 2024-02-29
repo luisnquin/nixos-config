@@ -4,9 +4,9 @@
   dunstify-sound,
   cliphist-rofi,
   spotify-dbus,
-  # rofi-radio,
   grimblast,
   hyprland,
+  hyprstfu,
   pkgs,
   ...
 }: {
@@ -61,7 +61,6 @@
       "SUPER_SHIFT, W, killactive"
       "SUPER_SHIFT, MINUS, pseudo"
       "$mainMod, F, fullscreen"
-      # "$mainMod, M, exit"
     ];
 
     custom = let
@@ -150,6 +149,10 @@
       {
         "mod+key" = "SUPER_SHIFT, S";
         "dispatcher" = "exec, ${pkgs.toybox}/bin/pkill glava || ${pkgs.glava}/bin/glava -d";
+      }
+      {
+        "mod+key" = "$mainMod, M";
+        "dispatcher" = "exec, ${hyprstfu}/bin/hyprstfu";
       }
     ];
   in

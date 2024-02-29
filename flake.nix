@@ -12,6 +12,7 @@
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
     grub-themes.url = "github:luisnquin/grub-themes";
+    hyprstfu.url = "github:luisnquin/hyprstfu";
     scripts.url = "github:luisnquin/scripts";
     tplr.url = "github:luisnquin/tplr";
     senv.url = "github:luisnquin/senv";
@@ -68,7 +69,7 @@
             inherit libx pkgs pkgs-latest;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv;
+            inherit rofi-network-manager senv hyprstfu;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};
