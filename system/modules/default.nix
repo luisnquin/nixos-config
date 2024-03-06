@@ -1,5 +1,6 @@
 {
   imports = [
+    ./databases
     ./terminal
     ./desktop
     ./network

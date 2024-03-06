@@ -21,6 +21,8 @@
     spicetify-nix.url = "github:the-argus/spicetify-nix";
     hyprland-contrib.url = "github:hyprwm/contrib";
     hyprland.url = "github:hyprwm/Hyprland";
+
+    nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
   };
 
   outputs = inputs:
@@ -63,6 +65,7 @@
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
             spicetify = spicetify-nix.packages.${pkgs.system}.default;
+            mysql_57 = (mkPkgs nixpkgs_mysql_57).mysql57;
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
