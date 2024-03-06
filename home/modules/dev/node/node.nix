@@ -1,8 +1,18 @@
 # It includes Node.js runtimes and package managers
-{pkgs, ...}: {
-  home.packages = with pkgs; [
-    nodePackages.pnpm
-    nodejs_21
-    bun
-  ];
+{
+  config,
+  pkgs,
+  ...
+}: {
+  home = {
+    packages = with pkgs; [
+      nodePackages.pnpm
+      nodejs_21
+      bun
+    ];
+
+    file.".npmrc".text = ''
+      prefix=${config.home.homeDirectory}/.npm-global
+    '';
+  };
 }
