@@ -11,6 +11,8 @@
       bun
     ];
 
+    sessionPath = ["$HOME/.npm-global/bin"];
+
     file.".npmrc".text = ''
       prefix=${config.home.homeDirectory}/.npm-global
     '';
