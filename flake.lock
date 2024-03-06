@@ -545,6 +545,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_mysql_57": {
+      "locked": {
+        "lastModified": 1664005870,
+        "narHash": "sha256-bA4felV2o8y1TYb5NOf4NekKFUs5OFHRad3Q6nihif8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "06c9198cbf48559191bf6c9b76c0f370f96b8c33",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "06c9198cbf48559191bf6c9b76c0f370f96b8c33",
+        "type": "github"
+      }
+    },
     "poetry2nix": {
       "inputs": {
         "flake-utils": "flake-utils_4",
@@ -597,6 +613,7 @@
         "nao": "nao",
         "nixpkgs": "nixpkgs_8",
         "nixpkgs-latest": "nixpkgs-latest",
+        "nixpkgs_mysql_57": "nixpkgs_mysql_57",
         "rofi-network-manager": "rofi-network-manager",
         "scripts": "scripts",
         "senv": "senv",
