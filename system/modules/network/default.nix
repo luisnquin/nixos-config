@@ -1,4 +1,4 @@
-{
+{pkgsx, ...}: {
   networking = {
     firewall = {
       enable = true;
@@ -9,8 +9,12 @@
     wireguard.enable = true;
   };
 
-  environment.interactiveShellInit = builtins.readFile (builtins.path {
-    name = "network-module-sh-script";
-    path = ./shell.sh;
-  });
+  environment = {
+    systemPackages = [pkgsx.netscanner];
+
+    interactiveShellInit = builtins.readFile (builtins.path {
+      name = "network-module-sh-script";
+      path = ./shell.sh;
+    });
+  };
 }

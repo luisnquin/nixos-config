@@ -4,6 +4,7 @@ with pkgs.lib; let
     vimix-cursor-theme = ./vimix-cursor-theme.nix;
     coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
+    netscanner = ./netscanner.nix;
     emoji-fzf = ./emoji-fzf.nix;
     ecsview = ./ecsview.nix;
     pg-ping = ./pg-ping.nix;
