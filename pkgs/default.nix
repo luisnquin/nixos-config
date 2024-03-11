@@ -6,6 +6,7 @@ with pkgs.lib; let
     transg-tui = ./transg-tui.nix;
     netscanner = ./netscanner.nix;
     emoji-fzf = ./emoji-fzf.nix;
+    dbeaver = ./dbeaver.nix;
     ecsview = ./ecsview.nix;
     pg-ping = ./pg-ping.nix;
     netflix = ./netflix.nix;

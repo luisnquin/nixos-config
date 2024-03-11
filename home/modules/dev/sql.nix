@@ -5,12 +5,11 @@
 }: {
   home.packages = with pkgs; [
     pkgsx.pg-ping
+    pkgsx.dbeaver
 
     # Builder
     sqlc
-
     sqlite-web # SQLite
-    dbeaver
     pgweb # Postgres
   ];
 }
