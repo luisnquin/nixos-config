@@ -29,9 +29,7 @@ stdenvNoCC.mkDerivation rec {
     makeWrapper
   ];
 
-  installPhase = let
-    productTargetPath = "product/community/target/products/org.jkiss.dbeaver.core.product";
-  in ''
+  installPhase = ''
     mkdir -p $out/{dbeaver,bin}
     cp -r ./* $out/dbeaver/
 
