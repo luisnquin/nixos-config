@@ -1,3 +1,6 @@
 {pkgsx, ...}: {
-  home.packages = [pkgsx.yaak]; # REST client
+  home.packages = [
+    pkgsx.openapi-tui
+    pkgsx.yaak # REST client
+  ];
 }

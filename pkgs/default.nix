@@ -2,6 +2,7 @@
 with pkgs.lib; let
   packages = {
     vimix-cursor-theme = ./vimix-cursor-theme.nix;
+    openapi-tui = ./openapi-tui.nix;
     coders-crux = ./coders-crux.nix;
     transg-tui = ./transg-tui.nix;
     netscanner = ./netscanner.nix;
