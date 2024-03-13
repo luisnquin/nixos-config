@@ -24,6 +24,15 @@
       "**/result-*"
     ];
 
+    includes = [
+      (let
+        folder = "~/Projects/github.com/INVERSIONESIO";
+      in {
+        condition = "gitdir:${folder}/";
+        path = "${folder}/.gitconfig_include";
+      })
+    ];
+
     extraConfig = {
       core = {
         editor = "nano -w";
