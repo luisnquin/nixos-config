@@ -8,6 +8,7 @@ with pkgs.lib; let
     netscanner = ./netscanner.nix;
     emoji-fzf = ./emoji-fzf.nix;
     dbeaver = ./dbeaver.nix;
+    lazysql = ./lazysql.nix;
     ecsview = ./ecsview.nix;
     pg-ping = ./pg-ping.nix;
     netflix = ./netflix.nix;
