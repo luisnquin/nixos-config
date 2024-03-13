@@ -1,12 +1,11 @@
 {lib, ...}: {
-  mkMetadata = flakeToml: useConf: let
+  mkMetadata = flakeToml: usagePredicate: let
     metadataFileError = message: builtins.throw "flake.toml file error: ${message}";
     metadata = builtins.fromTOML (builtins.readFile flakeToml);
 
     useFileError = message: builtins.throw "use.conf file error: ${message}";
     use = let
-      raw = builtins.readFile useConf;
-      fragments = lib.strings.splitString "@" raw;
+      fragments = lib.strings.splitString "@" usagePredicate;
     in
       if builtins.length fragments == 2
       then {
