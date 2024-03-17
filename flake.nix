@@ -12,6 +12,7 @@
     nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
+    neovim-flake.url = "github:jordanisaacs/neovim-flake";
     spicetify-nix.url = "github:the-argus/spicetify-nix";
     grub-themes.url = "github:luisnquin/grub-themes";
     hyprland-contrib.url = "github:hyprwm/contrib";
@@ -67,7 +68,7 @@
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit libx pkgs pkgs-latest;
+            inherit neovim-flake libx pkgs pkgs-latest;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv hyprstfu;
