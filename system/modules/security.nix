@@ -22,7 +22,7 @@
     defaultUserShell = pkgs.zsh;
 
     users.${user.alias} = {
-      description = ''${user.alias} 🍂'';
+      description = ''Dorian 🍂'';
 
       home = ''/home/${user.alias}/'';
       hashedPassword = null;
