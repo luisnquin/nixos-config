@@ -6,7 +6,7 @@
   programs.tmux = {
     enable = true;
     package = pkgs.tmux;
-    extraConfig = builtins.readFile ../../dots/.tmux.conf;
+    extraConfig = builtins.readFile ./dots/.tmux.conf;
   };
 
   home.packages = [
@@ -15,6 +15,6 @@
   ];
 
   xdg.configFile = {
-    ".gitmux.conf".text = builtins.readFile ../../dots/.gitmux.conf;
+    ".gitmux.conf".text = builtins.readFile ./dots/.gitmux.conf;
   };
 }
