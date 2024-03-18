@@ -35,7 +35,7 @@
           # "pulseaudio"
           # "backlight"
           "custom/mullvad"
-          "bluetooth"
+          # "bluetooth"
           "memory"
           "cpu"
           "battery"
