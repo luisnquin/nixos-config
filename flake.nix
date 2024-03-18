@@ -16,6 +16,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
     nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
@@ -75,7 +76,7 @@
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit neovim-flake libx pkgs pkgs-latest;
+            inherit nixtheplanet neovim-flake libx pkgs pkgs-latest;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv hyprstfu;
@@ -95,6 +96,7 @@
         };
 
         nixosModules = [
+          nixtheplanet.nixosModules.macos-ventura
           ./tools/nix/nixos-options
           (./system/hosts + "/${host.name}")
         ];
