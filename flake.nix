@@ -8,6 +8,10 @@
     # packages in their latest version to have a feature and/or hotfix ASAP
     nixpkgs-latest.url = "nixpkgs/nixos-unstable";
     nixpkgs.url = "nixpkgs/nixos-unstable";
+    nixpkgs-extra = {
+      url = "github:luisnquin/nixpkgs-extra";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
@@ -58,7 +62,7 @@
           desktopIncluded = list: builtins.elem metadata.host.desktop list;
         in
           {
-            pkgsx = import ./pkgs {inherit pkgs;};
+            pkgsx = import ./pkgs {inherit pkgs;} // nixpkgs-extra.packages.${system};
 
             isWayland = desktopIncluded ["hyprland" "sway"];
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
