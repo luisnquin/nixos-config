@@ -3,11 +3,14 @@
 
   # https://github.com/NixOS/nix/issues/3966
   inputs = {
-    home-manager.url = "github:nix-community/home-manager";
     # `nixpkgs.url` but even more unstable, use this source when we need to use some specific
     # packages in their latest version to have a feature and/or hotfix ASAP
     nixpkgs-latest.url = "nixpkgs/nixos-unstable";
     nixpkgs.url = "nixpkgs/nixos-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixpkgs-extra = {
       url = "github:luisnquin/nixpkgs-extra";
       inputs.nixpkgs.follows = "nixpkgs";
