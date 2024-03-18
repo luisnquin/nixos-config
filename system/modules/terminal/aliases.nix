@@ -35,7 +35,6 @@
     ale = "alejandra --quiet";
     dud = "du --human-readable --summarize";
     man = "tldr";
-    transg = "transgression-tui";
     py = "python3";
     share = "ngrok http";
     top = "btop";
