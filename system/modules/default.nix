@@ -10,7 +10,6 @@
 
     # https://github.com/NixOS/nixpkgs/pull/249369
     # https://github.com/NixOS/nixpkgs/issues/249138
-    ./virtual-machine.nix
     ./environment.nix
     ./bluetooth.nix
     ./clipboard.nix
