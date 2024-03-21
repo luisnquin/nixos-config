@@ -2014,11 +2014,11 @@
         "nixpkgs": "nixpkgs_15"
       },
       "locked": {
-        "lastModified": 1708776999,
-        "narHash": "sha256-W0RXQ1FD7mXTZ5VAMyM0m8QHlAvdniD/+X6vSfCI1Zw=",
+        "lastModified": 1711056752,
+        "narHash": "sha256-c2NuR/NE6CusmliVL00urKKkrOvlHxSATz+gjLW7DCs=",
         "owner": "luisnquin",
         "repo": "senv",
-        "rev": "202fba8e224974e4add7e3c398d8a499ff4d3078",
+        "rev": "3fa3945eb736c20dbd30bd11dc19cd5210326a2d",
         "type": "github"
       },
       "original": {
