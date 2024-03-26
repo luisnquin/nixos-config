@@ -6,6 +6,7 @@
     ./go
 
     ./processors.nix
+    ./terraform.nix
     ./templates.nix
     ./python.nix
     ./audit.nix
