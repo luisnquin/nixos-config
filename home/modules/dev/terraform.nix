@@ -2,12 +2,10 @@
   pkgs,
   lib,
   ...
-}: let
-  inherit (pkgs) terraform;
-in {
-  home.packages = [terraform];
+}: {
+  home.packages = with pkgs; [terraform terraformer];
 
   programs.zsh.completionInit = ''
-    complete -C ${lib.getExe terraform} terraform
+    complete -C ${lib.getExe pkgs.terraform} terraform
   '';
 }
