@@ -13,6 +13,6 @@
     grpc-tools
     panicparse # to help to debug panic errors
     tinygo
-    unconvert # linter to check unnecessary type conversions
+    # unconvert # linter to check unnecessary type conversions
   ];
 }
