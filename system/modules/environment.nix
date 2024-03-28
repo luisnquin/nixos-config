@@ -10,7 +10,6 @@
         apps = [
           element-desktop
           discord
-          etcher
           slack # https://stackoverflow.com/questions/70867064/signing-into-slack-desktop-not-working-on-4-23-0-64-bit-ubuntu
           gimp
         ];
