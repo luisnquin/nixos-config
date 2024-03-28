@@ -15,10 +15,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
     nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
+    nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
     neovim-flake.url = "github:jordanisaacs/neovim-flake";
     spicetify-nix.url = "github:the-argus/spicetify-nix";
     grub-themes.url = "github:luisnquin/grub-themes";
@@ -67,7 +67,7 @@
             isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
             spicetify = spicetify-nix.packages.${pkgs.system}.default;
-            mysql_57 = (mkPkgs nixpkgs_mysql_57).mysql57;
+            mysql_57 = (import nixpkgs_mysql_57 {inherit system;}).mysql57;
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
