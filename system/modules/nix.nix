@@ -44,11 +44,11 @@
       nix-output-monitor
       nix-prefetch-git
       cached-nix-shell
-      rnix-lsp
       deadnix
       nixgrep
       statix
       nurl
+      nil # lsp
 
       nixpkgs-review
       nixpkgs-lint
