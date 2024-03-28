@@ -11,7 +11,7 @@
   services.xserver = {
     enable = true;
     autorun = true;
-    layout = host.keyboardLayout;
+    xkb.layout = host.keyboardLayout;
     libinput = {
       enable = true;
 
