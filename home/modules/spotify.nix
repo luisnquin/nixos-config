@@ -1,13 +1,13 @@
 {
-  pkgs-latest,
   spicetify,
+  pkgs,
   ...
 }: {
   programs.spicetify = with spicetify; {
     enable = true;
     theme = themes.text;
 
-    spotifyPackage = pkgs-latest.spotify;
+    spotifyPackage = pkgs.spotify;
 
     enabledExtensions = with extensions; [
       historyShortcut

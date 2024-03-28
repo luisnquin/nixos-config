@@ -1,14 +1,10 @@
-{
-  pkgs-latest,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   programs.vscode = {
     enable = true;
     enableExtensionUpdateCheck = true;
     mutableExtensionsDir = true;
     enableUpdateCheck = true;
-    package = pkgs-latest.vscode;
+    package = pkgs.vscode;
 
     extensions = with pkgs.vscode-extensions; [
       # Go

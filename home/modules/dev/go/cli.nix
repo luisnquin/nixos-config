@@ -1,7 +1,7 @@
-{pkgs-latest, ...}: {
+{pkgs, ...}: {
   programs.go = {
     enable = true;
-    package = pkgs-latest.go_1_22;
+    package = pkgs.go_1_22;
 
     goBin = "go/bin";
     goPath = "go";

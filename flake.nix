@@ -5,7 +5,6 @@
   inputs = {
     # `nixpkgs.url` but even more unstable, use this source when we need to use some specific
     # packages in their latest version to have a feature and/or hotfix ASAP
-    nixpkgs-latest.url = "nixpkgs/nixos-unstable";
     nixpkgs.url = "nixpkgs/nixos-unstable";
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -36,22 +35,18 @@
     with inputs; let
       system = "x86_64-linux";
 
-      mkPkgs = source:
-        import source {
-          overlays = import ./overlays/nixpkgs.nix;
-          config = {
-            permittedInsecurePackages = [
-              "electron-19.1.9"
-            ];
-            allowBroken = false;
-            allowUnfree = true;
-          };
-
-          inherit system;
+      pkgs = import nixpkgs {
+        overlays = import ./overlays/nixpkgs.nix;
+        config = {
+          permittedInsecurePackages = [
+            "electron-19.1.9"
+          ];
+          allowBroken = false;
+          allowUnfree = true;
         };
 
-      pkgs-latest = mkPkgs nixpkgs-latest;
-      pkgs = mkPkgs nixpkgs;
+        inherit system;
+      };
 
       inherit (pkgs) lib;
 
@@ -76,7 +71,7 @@
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit nixtheplanet neovim-flake libx pkgs pkgs-latest;
+            inherit nixtheplanet neovim-flake libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv hyprstfu;
