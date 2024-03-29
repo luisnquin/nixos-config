@@ -9,11 +9,10 @@
     ./file-manager.nix
     ./color-picker.nix
     ./obs-studio.nix
+    ./monitoring.nix
     ./gsimplecal.nix
     ./mime-apps.nix
-    ./playerctl.nix
     ./macchina.nix
-    ./battery.nix
     ./discord.nix
     ./browser.nix
     ./torrent.nix

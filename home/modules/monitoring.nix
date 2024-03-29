@@ -8,4 +8,15 @@
       threat.threshold = warn.threshold / 3;
     };
   };
+
+  services = {
+    playerctld.enable = true;
+
+    udiskie = {
+      enable = true;
+      automount = true;
+      notify = true;
+      tray = "auto";
+    };
+  };
 }
