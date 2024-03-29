@@ -95,6 +95,7 @@
 
         nixosModules = [
           nixtheplanet.nixosModules.macos-ventura
+          ./system/options
           ./tools/nix/nixos-options
         ];
 

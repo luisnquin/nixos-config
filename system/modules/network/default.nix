@@ -4,15 +4,14 @@
   host,
   ...
 }: {
+  imports = [
+    ./services
+    ./firewall.nix
+  ];
+
   networking = {
     networkmanager.enable = true;
     hostName = host.name;
-
-    firewall = {
-      enable = true;
-      allowedTCPPorts = [20 80 443 8088];
-      allowPing = true;
-    };
 
     wireguard.enable = true;
   };
