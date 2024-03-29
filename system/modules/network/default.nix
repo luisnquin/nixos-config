@@ -1,9 +1,13 @@
 {
   pkgsx,
   pkgs,
+  host,
   ...
 }: {
   networking = {
+    networkmanager.enable = true;
+    hostName = host.name;
+
     firewall = {
       enable = true;
       allowedTCPPorts = [20 80 443 8088];

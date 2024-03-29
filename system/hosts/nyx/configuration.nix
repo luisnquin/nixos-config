@@ -15,11 +15,6 @@
     cpu.intel.updateMicrocode = true;
   };
 
-  networking = {
-    networkmanager.enable = true;
-    hostName = host.name;
-  };
-
   time = {
     inherit (host) timeZone;
     # Without this option, the machine will have a UTC time
