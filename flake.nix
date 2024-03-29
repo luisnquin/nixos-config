@@ -14,6 +14,7 @@
       url = "github:luisnquin/nixpkgs-extra";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix-nostd.url = "github:chessai/nix-std";
 
     nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
@@ -50,9 +51,11 @@
 
       inherit (pkgs) lib;
 
-      libx = import ./lib {
-        inherit pkgs lib;
-      };
+      libx =
+        (nix-nostd.lib)
+        // import ./lib {
+          inherit pkgs lib;
+        };
 
       metadata = libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
