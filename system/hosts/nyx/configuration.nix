@@ -10,11 +10,6 @@
     ./hardware-configuration.nix
   ];
 
-  tools.nyx = {
-    enable = true;
-    hyprlandSupport = host.desktop == "hyprland";
-  };
-
   hardware = {
     enableRedistributableFirmware = true;
     cpu.intel.updateMicrocode = true;

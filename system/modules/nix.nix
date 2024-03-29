@@ -2,6 +2,7 @@
   nixgrep,
   pkgs,
   user,
+  host,
   ...
 }: {
   nix = {
@@ -37,6 +38,11 @@
       trusted-substituters = ["https://cache.nixos.org"];
       substituters = ["https://cache.nixos.org"];
     };
+  };
+
+  tools.nyx = {
+    enable = true;
+    hyprlandSupport = host.desktop == "hyprland";
   };
 
   environment = {
