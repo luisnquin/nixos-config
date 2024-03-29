@@ -29,8 +29,6 @@
   i18n.defaultLocale = host.i18nLocale;
   location.provider = "geoclue2";
 
-  services.udisks2.enable = true;
-
   system = {
     inherit (nix) stateVersion;
     autoUpgrade = {
