@@ -82,28 +82,25 @@
         args
         // import ./overlays/special-args.nix args;
     in
-      libx.mkSetup rec {
+      libx.mkSetup {
         inherit (metadata) user host nix;
-        inherit specialArgs pkgs;
+        inherit pkgs specialArgs;
 
-        sources = {
-          inherit nixpkgs home-manager;
-        };
+        flakes = {inherit nixpkgs home-manager;};
+        profilesPath = ./home/profiles;
+        hostsPath = ./system/hosts;
 
         nixosModules = [
           nixtheplanet.nixosModules.macos-ventura
           ./tools/nix/nixos-options
-          (./system/hosts + "/${host.name}")
         ];
 
         homeModules = [
-          # scripts.homeManagerModules.default
           battery-notifier.homeManagerModule.default
           spicetify-nix.homeManagerModule
           tplr.homeManagerModules.default
           nao.homeManagerModules.default
           ./home/options
-          (./home/profiles + "/${user.alias}")
         ];
       };
 }

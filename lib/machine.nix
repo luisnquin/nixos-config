@@ -40,9 +40,11 @@ let
 in {
   mkSetup = {
     nixosModules,
+    profilesPath,
     homeModules,
     specialArgs,
-    sources,
+    hostsPath,
+    flakes,
     host,
     user,
     nix,
@@ -52,15 +54,27 @@ in {
   in rec
   {
     nixosConfigurations."${host.name}" = mkNixos {
-      inherit nixosModules configArgs pkgs;
-      inherit (sources) nixpkgs;
+      inherit configArgs pkgs;
+      inherit (flakes) nixpkgs;
+
+      nixosModules =
+        nixosModules
+        ++ [
+          (hostsPath + "/${host.name}")
+        ];
 
       hmConfig = homeConfigurations."${user.alias}".config;
     };
 
     homeConfigurations."${user.alias}" = mkHome {
-      inherit homeModules configArgs pkgs;
-      inherit (sources) home-manager;
+      inherit configArgs pkgs;
+      inherit (flakes) home-manager;
+
+      homeModules =
+        homeModules
+        ++ [
+          (profilesPath + "/${user.alias}")
+        ];
 
       nixosConfig = nixosConfigurations."${host.name}".config;
     };
