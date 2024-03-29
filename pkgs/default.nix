@@ -3,7 +3,6 @@ with pkgs.lib; let
   packages = {
     dbeaver = ./dbeaver.nix;
     pg-ping = ./pg-ping.nix;
-    netflix = ./netflix.nix;
     tpm = ./tpm.nix;
   };
 in

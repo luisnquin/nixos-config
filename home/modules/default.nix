@@ -5,7 +5,6 @@
     ./editors
     ./dev
 
-    ./entertainment.nix
     ./file-manager.nix
     ./color-picker.nix
     ./obs-studio.nix
