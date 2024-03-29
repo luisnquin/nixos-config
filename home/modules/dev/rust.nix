@@ -1,16 +1,19 @@
-{
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   home = {
-    packages = with pkgs; [
-      rust-analyzer
-      rustfmt
-      # rustup
-      clippy
-      cargo
-      rustc
-    ];
+    packages = with pkgs; let
+      cargo-plugins = [
+        cargo-sweep
+      ];
+    in
+      [
+        rust-analyzer
+        rustfmt
+        clippy
+
+        cargo
+        rustc
+      ]
+      ++ cargo-plugins;
 
     sessionPath = ["$HOME/.cargo/bin"];
 
