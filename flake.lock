@@ -471,11 +471,11 @@
         "nixpkgs": "nixpkgs_7"
       },
       "locked": {
-        "lastModified": 1711806456,
-        "narHash": "sha256-4L658xBajG7tFWv5Y+1/84XacgkN+Sv9nnQAua6H7io=",
+        "lastModified": 1711820058,
+        "narHash": "sha256-CdDLOKO4bx31cUAj9ayzDEZOf/Y7JnmTaPAcHhv/bF0=",
         "owner": "luisnquin",
         "repo": "inner-static",
-        "rev": "2ce0b1ee98814b1f6d73eef83b0051140a200797",
+        "rev": "d3c053977ef5674752cbeb25bb2bc5eb987a78f8",
         "type": "github"
       },
       "original": {
