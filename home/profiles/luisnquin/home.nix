@@ -21,7 +21,6 @@
   # disabledModules = ["misc/news.nix"];
 
   news.display = "silent";
-  xdg.enable = true;
 
   programs.home-manager.enable = true;
 }

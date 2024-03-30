@@ -10,7 +10,6 @@
     ./obs-studio.nix
     ./monitoring.nix
     ./gsimplecal.nix
-    ./mime-apps.nix
     ./macchina.nix
     ./discord.nix
     ./browser.nix
@@ -21,5 +20,6 @@
     ./btop.nix
     ./nao.nix
     ./bat.nix
+    ./xdg.nix
   ];
 }
