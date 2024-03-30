@@ -22,6 +22,7 @@
     nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
     neovim-flake.url = "github:jordanisaacs/neovim-flake";
     spicetify-nix.url = "github:the-argus/spicetify-nix";
+    inner-static.url = "github:luisnquin/inner-static";
     grub-themes.url = "github:luisnquin/grub-themes";
     hyprland-contrib.url = "github:hyprwm/contrib";
     hyprstfu.url = "github:luisnquin/hyprstfu";
@@ -78,7 +79,7 @@
             inherit nixtheplanet neovim-flake libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv hyprstfu;
+            inherit rofi-network-manager senv hyprstfu inner-static;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};
