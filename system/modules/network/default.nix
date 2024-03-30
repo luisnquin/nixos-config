@@ -6,7 +6,9 @@
 }: {
   imports = [
     ./services
+    ./acme.nix
     ./firewall.nix
+    ./nginx.nix
   ];
 
   networking = {
