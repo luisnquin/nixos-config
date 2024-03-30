@@ -12,11 +12,6 @@
         style = "bold blue";
         symbol = " ";
 
-        # region_aliases = {
-        #   ap-southeast-2 = "au";
-        #   us-east-1 = "va";
-        # };
-
         profile_aliases = {
           CompanyGroupFrobozzOnCallAccess = "Frobozz";
           luisnquin-invio = "luisnquin";
