@@ -22,6 +22,8 @@
         "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
         "obnjfbgikjcdfnbnmdamffacjfpankih" # Excalisave
 
+        "oldceeleldhonbafppcapldpdifcinji" # TLDR: Grammar checker
+        "aeblfdkhhhdcdjpifhhbdiojplfjncoa" # 1Password
         "fihnjjcciajhdojfnbdddfaoknhalnja" # I don't care about cookies
         "njdfdhgcmkocbgbhcioffdbicglldapd" # LocalCDN
         # The precursors of "privacy" are assholes but still, I have personal reasons to use this
