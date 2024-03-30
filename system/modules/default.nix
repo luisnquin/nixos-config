@@ -19,7 +19,6 @@
     ./nvidia.nix
     ./fonts.nix
     ./audio.nix
-    ./vpn.nix
     ./nix.nix
   ];
 }
