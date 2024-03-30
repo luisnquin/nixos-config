@@ -22,6 +22,10 @@
         "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
         "obnjfbgikjcdfnbnmdamffacjfpankih" # Excalisave
 
+        "fihnjjcciajhdojfnbdddfaoknhalnja" # I don't care about cookies
+        "njdfdhgcmkocbgbhcioffdbicglldapd" # LocalCDN
+        # The precursors of "privacy" are assholes but still, I have personal reasons to use this
+
         "nhdogjmejiglipccpnnnanhbledajbpd" # Vue.js devtools
         "fmkadmapgofadopljbjfkapdkoienihi" # React Developer Tools
         "pfefekfhnmbfcofpjojnpmhdakcadeil" # AstroSpect
