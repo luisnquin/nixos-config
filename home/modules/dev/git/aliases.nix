@@ -1,23 +1,23 @@
 {
-  home.shellAliases = {
+  home.shellAliases = rec {
     g = "git";
     ga = "git add";
     # Add file fragments
-    gap = "git add --patch";
+    gap = "${ga} --patch";
     ginit = "git init && touch .gitignore";
-    gaa = "git add --all";
+    gaa = "${ga} --all";
 
     gb = "git branch";
 
     gc = "git commit -v";
-    gca = "git commit --amend";
-    gcm = "git commit --message";
+    gca = "${gc} --amend";
+    gcm = "${gc} --message";
 
     gd = "git diff";
-    gds = "git diff --staged";
+    gds = "${gd} --staged";
 
     gl = "git log --oneline";
-    gls = "git log --oneline | head -n 10";
+    gls = "${gl} | head -n 10";
     gl1 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
     gl2 = "git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n'' %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all";
     glhd = ''A=$(git log -1 --format=%s) && echo "$A" | xargs'';
@@ -26,7 +26,7 @@
     ggc = "git gc --aggressive";
 
     gf = "git fetch";
-    gfa = "git fetch --all";
+    gfa = "${gf} --all";
 
     # Git garbage collector over all subdirectories, skipping non-directories and non-git repositories
     gmgc = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} gc --aggressive; fi'";
@@ -51,13 +51,15 @@
     grb = "git rebase";
 
     gs = "git stash";
-    gsiu = "git stash --include-untracked";
-    gsp = "git stash pop";
+    gsiu = "${gs} --include-untracked";
+    gsp = "${gs} pop";
+
     gt = "git tag";
-    gtd = "git tag --delete";
+    gtd = "${gt} --delete";
     # Lists last 5 tags
-    gts = "g tag --sort=v:refname | tac | head -n 5";
+    gts = "${gt} --sort=v:refname | tac | head -n 5";
     gcl = "git clone";
+
     lg = "lazygit";
   };
 }
