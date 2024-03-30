@@ -8,7 +8,7 @@
       };
 
       server = {
-        address = "127.0.0.1:8000";
+        address = "0.0.0.0:7987";
         #url = "https://rustypaste.shuttleapp.rs"
         #workers=4
         max_content_length = "10MB";
@@ -28,8 +28,7 @@
       };
 
       landing_page = {
-        text = builtins.readFile ./dots/landing.txt;
-        #file = "index.txt"
+        file = ./dots/landing.txt;
         content_type = "text/plain; charset=utf-8";
       };
 
@@ -78,7 +77,8 @@
           "application/java-vm"
         ];
         duplicate_files = true;
-        # default_expiry = "1h"
+        default_expiry = "1h";
+
         delete_expired_files = {
           enabled = true;
           interval = "1h";
