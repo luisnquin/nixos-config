@@ -9,6 +9,7 @@
     ./acme.nix
     ./firewall.nix
     ./nginx.nix
+    ./vpn.nix
   ];
 
   networking = {
