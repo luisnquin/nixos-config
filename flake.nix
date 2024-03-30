@@ -27,6 +27,7 @@
     hyprstfu.url = "github:luisnquin/hyprstfu";
     scripts.url = "github:luisnquin/scripts";
     hyprland.url = "github:hyprwm/Hyprland";
+    agenix.url = "github:ryantm/agenix";
     tplr.url = "github:luisnquin/tplr";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
@@ -94,7 +95,9 @@
         hostsPath = ./system/hosts;
 
         nixosModules = [
+          (import ./secrets {inherit system agenix;})
           nixtheplanet.nixosModules.macos-ventura
+          agenix.nixosModules.default
           ./system/options
           ./tools/nix/nixos-options
         ];
