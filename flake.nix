@@ -28,7 +28,10 @@
     hyprstfu.url = "github:luisnquin/hyprstfu";
     scripts.url = "github:luisnquin/scripts";
     hyprland.url = "github:hyprwm/Hyprland";
-    agenix.url = "github:ryantm/agenix";
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     tplr.url = "github:luisnquin/tplr";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
