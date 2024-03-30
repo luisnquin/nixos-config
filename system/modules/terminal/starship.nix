@@ -1,4 +1,4 @@
-{
+{lib, ...}: {
   programs.starship = {
     enable = true;
 
@@ -28,10 +28,28 @@
         error_symbol = "[](bold red)";
       };
 
-      format = ''
-        $directory$hostname''${custom.git_remote}$git_branch$git_state$git_metrics''${custom.environment_name}$c''${custom.go}''${custom.go_is_updated}$nodejs$python$rust$ocaml$nix_shell''${custom.dotfiles_workspace}''${custom.current_client}$kubernetes$aws
-        $character
-      '';
+      format = lib.concatStrings [
+        "$directory"
+        "$hostname"
+        "\${custom.git_remote}"
+        "$git_branch"
+        "$git_state"
+        "$git_metrics"
+        "\${custom.environment_name}"
+        "$c"
+        "\${custom.go}"
+        "\${custom.go_is_updated}"
+        "$nodejs"
+        "$python"
+        "$rust"
+        "$ocaml"
+        "$nix_shell"
+        "\${custom.dotfiles_workspace}"
+        "\${custom.current_client}"
+        "$kubernetes"
+        "$aws"
+        "\n$character"
+      ];
 
       cmd_duration = {
         min_time = 200;
