@@ -44,5 +44,6 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 - [HeinzDev](https://github.com/HeinzDev/Hyprland-dotfiles)
 - [NotAShelf](https://github.com/NotAShelf/nyx)
 - [nmasur](https://github.com/nmasur/dotfiles)
+- [lovesegfault](https://github.com/lovesegfault/nix-config)
 
 </details>
