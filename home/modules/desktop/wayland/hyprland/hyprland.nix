@@ -47,7 +47,8 @@ self: let
         workspace_swipe = off
     }
 
-    device:epic-mouse-v1 {
+    device {
+        name = epic-mouse-v1
         sensitivity = -0.5
     }
   '';
