@@ -19,7 +19,7 @@
     };
 
     # https://nixos.org/manual/nix/stable/command-ref/conf-file.html
-    settings = {
+    settings = rec {
       # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
       auto-optimise-store = true;
       keep-outputs = true;
@@ -28,6 +28,7 @@
       experimental-features = ["nix-command" "flakes"];
       # Required by cachix
       trusted-users = ["root" "${user.alias}"];
+      allowed-users = trusted-users;
       # Defines the maximum number of jobs that Nix will try to build in parallel.
       max-jobs = 6;
       # When free disk space in /nix/store drops below min-free during a build, Nix performs a garbage-collection.
