@@ -20,7 +20,10 @@
   };
 
   environment = {
-    systemPackages = [pkgsx.netscanner pkgs.netcat];
+    systemPackages = [
+      # pkgsx.netscanner
+      pkgs.netcat
+    ];
 
     interactiveShellInit = builtins.readFile (builtins.path {
       name = "network-module-sh-script";
