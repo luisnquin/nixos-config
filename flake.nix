@@ -44,9 +44,6 @@
       pkgs = import nixpkgs {
         overlays = import ./overlays/nixpkgs.nix;
         config = {
-          permittedInsecurePackages = [
-            "electron-19.1.9"
-          ];
           allowBroken = false;
           allowUnfree = true;
         };
