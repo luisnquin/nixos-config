@@ -1,7 +1,4 @@
-{
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   home.sessionPath = ["$GORROT" "$GOPATH/bin"];
 
   programs.zsh = {
