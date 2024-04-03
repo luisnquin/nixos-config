@@ -1,7 +1,7 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
-  dunstify-brightness,
-  dunstify-sound,
+  sys-brightness,
+  sys-sound,
   cliphist-rofi,
   spotify-dbus,
   grimblast,
@@ -72,23 +72,23 @@
       }
       {
         "mod+key" = ",XF86AudioMicMute";
-        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --toggle-mic";
+        "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --toggle-mic";
       }
       {
         "mod+key" = ",XF86AudioMute";
-        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --toggle-vol";
+        "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --toggle-vol";
       }
       {
         "mod+key" = ",XF86AudioLowerVolume";
-        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --dec";
+        "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --dec";
       }
       {
         "mod+key" = ",XF86AudioRaiseVolume";
-        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --inc";
+        "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --inc";
       }
       {
         "mod+key" = "SUPER, XF86AudioRaiseVolume";
-        "dispatcher" = "exec, ${dunstify-sound}/bin/dunstify-sound --inc --unleashed";
+        "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --inc --unleashed";
       }
       {
         "mod+key" = "SUPER_SHIFT, Print";
@@ -104,11 +104,11 @@
       }
       {
         "mod+key" = ",XF86MonBrightnessDown";
-        "dispatcher" = "exec, ${dunstify-brightness}/bin/dunstify-brightness --dec";
+        "dispatcher" = "exec, ${sys-brightness}/bin/sys-brightness --dec";
       }
       {
         "mod+key" = ",XF86MonBrightnessUp";
-        "dispatcher" = "exec, ${dunstify-brightness}/bin/dunstify-brightness --inc";
+        "dispatcher" = "exec, ${sys-brightness}/bin/sys-brightness --inc";
       }
       {
         "mod+key" = "SUPER_SHIFT, C";

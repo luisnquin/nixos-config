@@ -1,6 +1,6 @@
 {
-  dunstify-brightness,
-  dunstify-sound,
+  sys-brightness,
+  sys-sound,
   screen-capture,
   pkgs,
   ...
@@ -85,8 +85,8 @@
       ];
 
       keybindings = with pkgs; let
-        dunstify-brightness-bin = "${dunstify-brightness}/bin/dunstify-brightness";
-        dunstify-sound-bin = "${dunstify-sound}/bin/dunstify-sound";
+        sys-brightness-bin = "${sys-brightness}/bin/sys-brightness";
+        sys-sound-bin = "${sys-sound}/bin/sys-sound";
         screen-capture-bin = "${screen-capture}/bin/screen-capture";
         spotify-dbus-bin = "${spotify-dbus-bin}/bin/spotify-dbus";
         rofi-bin = "${rofi}/bin/rofi";
@@ -94,13 +94,13 @@
         exec-nid = "exec --no-startup-id";
       in
         lib.mkOptionDefault {
-          "XF86AudioMicMute" = "${exec-nid} ${dunstify-sound-bin} --toggle-mic";
-          "XF86AudioMute" = "${exec-nid} ${dunstify-sound-bin} --toggle-vol";
-          "XF86AudioLowerVolume" = "${exec-nid} ${dunstify-sound-bin} --dec";
-          "XF86AudioRaiseVolume" = "${exec-nid} ${dunstify-sound-bin} --inc";
+          "XF86AudioMicMute" = "${exec-nid} ${sys-sound-bin} --toggle-mic";
+          "XF86AudioMute" = "${exec-nid} ${sys-sound-bin} --toggle-vol";
+          "XF86AudioLowerVolume" = "${exec-nid} ${sys-sound-bin} --dec";
+          "XF86AudioRaiseVolume" = "${exec-nid} ${sys-sound-bin} --inc";
 
-          "XF86MonBrightnessDown" = "${exec-nid} ${dunstify-brightness-bin} --dec";
-          "XF86MonBrightnessUp" = "${exec-nid} ${dunstify-brightness-bin} --inc";
+          "XF86MonBrightnessDown" = "${exec-nid} ${sys-brightness-bin} --dec";
+          "XF86MonBrightnessUp" = "${exec-nid} ${sys-brightness-bin} --inc";
 
           "${modifier}+Shift+braceright" = "${exec-nid} ${spotify-dbus-bin} --next";
           "${modifier}+Shift+braceleft" = "${exec-nid} ${spotify-dbus-bin} --prev";

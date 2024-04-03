@@ -24,7 +24,10 @@
     grub-themes.url = "github:luisnquin/grub-themes";
     hyprland-contrib.url = "github:hyprwm/contrib";
     hyprstfu.url = "github:luisnquin/hyprstfu";
-    scripts.url = "github:luisnquin/scripts";
+    scripts = {
+      url = "github:luisnquin/scripts";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     hyprland.url = "github:hyprwm/Hyprland";
     agenix = {
       url = "github:ryantm/agenix";
