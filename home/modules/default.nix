@@ -10,6 +10,7 @@
     ./obs-studio.nix
     ./monitoring.nix
     ./gsimplecal.nix
+    ./management.nix
     ./macchina.nix
     ./discord.nix
     ./browser.nix
