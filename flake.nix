@@ -62,21 +62,27 @@
       metadata = libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
       specialArgs = let
-        args = let
-          desktopIncluded = list: builtins.elem metadata.host.desktop list;
-        in
+        eval = let
+          inherit (metadata.host) desktop;
+        in {
+          isTiling = builtins.elem desktop ["hyprland" "i3"];
+          isWayland = desktop == "hyprland";
+        };
+
+        flakes = {
+          inherit nixtheplanet neovim-flake;
+        };
+
+        packages =
           {
             pkgsx = import ./pkgs {inherit pkgs;} // nixpkgs-extra.packages.${system};
-
-            isWayland = desktopIncluded ["hyprland" "sway"];
-            isTiling = desktopIncluded ["hyprland" "sway" "i3"];
 
             spicetify = spicetify-nix.packages.${pkgs.system}.default;
             mysql_57 = (import nixpkgs_mysql_57 {inherit system;}).mysql57;
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit nixtheplanet neovim-flake libx pkgs;
+            inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv hyprstfu inner-static;
@@ -84,8 +90,10 @@
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};
       in
-        args
-        // import ./overlays/special-args.nix args;
+        packages
+        // flakes
+        // eval
+        // import ./overlays/special-args.nix packages;
     in
       libx.mkSetup {
         inherit (metadata) user host nix;
