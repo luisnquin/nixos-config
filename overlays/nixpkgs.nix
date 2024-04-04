@@ -34,7 +34,7 @@
     }
   )
   (
-    self: super: {
+    _self: super: {
       logkeys = super.logkeys.overrideAttrs (prev: {
         postPatch =
           prev.postPatch
