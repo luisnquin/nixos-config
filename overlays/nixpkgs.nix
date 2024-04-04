@@ -35,6 +35,18 @@
   )
   (
     self: super: {
+      logkeys = super.logkeys.overrideAttrs (prev: {
+        postPatch =
+          prev.postPatch
+          + ''
+            mkdir -p $out/etc/logkeys/keymaps
+            cp $src/keymaps/es_ES.map $out/etc/logkeys/keymaps
+          '';
+      });
+    }
+  )
+  (
+    self: super: {
       brave = super.brave.overrideAttrs (_old: rec {
         version = "1.63.162";
 
