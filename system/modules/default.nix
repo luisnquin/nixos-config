@@ -2,6 +2,7 @@
   imports = [
     ./databases
     ./terminal
+    ./security
     ./desktop
     ./network
     ./battery
@@ -13,7 +14,6 @@
     ./environment.nix
     ./bluetooth.nix
     ./clipboard.nix
-    ./security.nix
     ./docker.nix
     ./thunar.nix
     ./nvidia.nix
