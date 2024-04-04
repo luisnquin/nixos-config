@@ -41,6 +41,9 @@
           + ''
             mkdir -p $out/etc/logkeys/keymaps
             cp $src/keymaps/es_ES.map $out/etc/logkeys/keymaps
+
+            substituteInPlace scripts/logkeys-start.sh \
+              --replace 'logkeys --start' 'logkeys --keymap $out/etc/logkeys/keymaps/es_ES.map --start'
           '';
       });
     }
