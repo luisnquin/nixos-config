@@ -29,11 +29,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1708793732,
-        "narHash": "sha256-KtqjVyqnFZuJRG2EOEZwQh9Pbj03zLHEpfr359QTQWs=",
+        "lastModified": 1712252985,
+        "narHash": "sha256-eS56ETH4Qp87CqjLw3RikhvY27FFGUq/PxNBGQpQsGM=",
         "owner": "luisnquin",
         "repo": "battery-notifier",
-        "rev": "6b50dab73eb3a088fe39c7f374db45f1a582e575",
+        "rev": "e1ce0d0fc83e901a4eca4ac8c320e684edbec1e5",
         "type": "github"
       },
       "original": {
