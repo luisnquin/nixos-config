@@ -4,6 +4,7 @@
     ./groups.nix
     ./user.nix
     ./sudo.nix
+    ./tools
   ];
 
   services.gnome.gnome-keyring.enable = true;
