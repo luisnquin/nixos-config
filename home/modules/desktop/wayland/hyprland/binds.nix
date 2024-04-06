@@ -126,10 +126,6 @@
         "mod+key" = "SUPER_SHIFT, E";
         "dispatcher" = "exec, ${pkgs.bemoji}/bin/bemoji";
       }
-      # {
-      #   "mod+key" = "SUPER_SHIFT, Z";
-      #   "dispatcher" = "exec, ${rofi-radio}/bin/rofi-radio";
-      # }
       {
         "mod+key" = "SUPER_SHIFT, braceright";
         "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --next";
