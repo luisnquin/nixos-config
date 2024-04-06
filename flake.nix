@@ -18,24 +18,36 @@
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
     nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
-    neovim-flake.url = "github:jordanisaacs/neovim-flake";
-    spicetify-nix.url = "github:the-argus/spicetify-nix";
     inner-static.url = "github:luisnquin/inner-static";
     grub-themes.url = "github:luisnquin/grub-themes";
-    hyprland-contrib.url = "github:hyprwm/contrib";
     hyprstfu.url = "github:luisnquin/hyprstfu";
-    scripts = {
-      url = "github:luisnquin/scripts";
+    tplr.url = "github:luisnquin/tplr";
+    senv.url = "github:luisnquin/senv";
+    nao.url = "github:luisnquin/nao";
+    neovim-flake = {
+      url = "github:jordanisaacs/neovim-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    hyprland.url = "github:hyprwm/Hyprland";
+    spicetify-nix = {
+      url = "github:the-argus/spicetify-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    hyprland-contrib = {
+      url = "github:hyprwm/contrib";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    hyprland = {
+      url = "github:hyprwm/Hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    tplr.url = "github:luisnquin/tplr";
-    senv.url = "github:luisnquin/senv";
-    nao.url = "github:luisnquin/nao";
+    scripts = {
+      url = "github:luisnquin/scripts";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
