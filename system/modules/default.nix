@@ -5,7 +5,6 @@
     ./security
     ./desktop
     ./network
-    ./battery
     ./boot
     ./vm
 
@@ -14,6 +13,7 @@
     ./environment.nix
     ./bluetooth.nix
     ./clipboard.nix
+    ./battery.nix
     ./docker.nix
     ./thunar.nix
     ./nvidia.nix
