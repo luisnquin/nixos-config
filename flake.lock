@@ -29,11 +29,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1712252985,
-        "narHash": "sha256-eS56ETH4Qp87CqjLw3RikhvY27FFGUq/PxNBGQpQsGM=",
+        "lastModified": 1712425540,
+        "narHash": "sha256-D8dKXt25Wdy5STBpkoW8D6TJ3YDojAcYXR+GI7g5Pb0=",
         "owner": "luisnquin",
         "repo": "battery-notifier",
-        "rev": "e1ce0d0fc83e901a4eca4ac8c320e684edbec1e5",
+        "rev": "2cf83efd66b6eac09536959d1e3396e9391d7421",
         "type": "github"
       },
       "original": {
@@ -733,11 +733,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1706191920,
-        "narHash": "sha256-eLihrZAPZX0R6RyM5fYAWeKVNuQPYjAkCUBr+JNvtdE=",
+        "lastModified": 1712163089,
+        "narHash": "sha256-Um+8kTIrC19vD4/lUCN9/cU9kcOsD1O1m+axJqQPyMM=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ae5c332cbb5827f6b1f02572496b141021de335f",
+        "rev": "fd281bd6b7d3e32ddfa399853946f782553163b5",
         "type": "github"
       },
       "original": {
