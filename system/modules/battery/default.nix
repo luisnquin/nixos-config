@@ -1,12 +1,27 @@
 {
+  batlimit,
   pkgs,
   host,
+  user,
   ...
-}: {
-  environment.interactiveShellInit = builtins.readFile (builtins.path {
-    name = "${host.name}-system-battery-shrc";
-    path = ./shell.sh;
-  });
+}: let
+  powerSupplyBatteryPath = "/sys/class/power_supply/BAT1";
+in {
+  environment.systemPackages = [
+    (batlimit.override {inherit powerSupplyBatteryPath;})
+  ];
+
+  security.sudo.extraRules = [
+    {
+      users = [user.alias];
+      commands = [
+        {
+          command = "/run/current-system/sw/bin/batlimit";
+          options = ["NOPASSWD"];
+        }
+      ];
+    }
+  ];
 
   services.thermald.enable = host.isLaptop;
 
@@ -17,7 +32,7 @@
       offset = 1;
 
       batteryThreshold = builtins.toString (host.batteryThreshold + offset);
-      batteryChargeThresholdPath = "/sys/class/power_supply/BAT1/charge_control_end_threshold";
+      batteryChargeThresholdPath = "${powerSupplyBatteryPath}/charge_control_end_threshold";
     in {
       Type = "oneshot";
       ExecStart = ''${pkgs.bash}/bin/bash -c "echo ${batteryThreshold} > ${batteryChargeThresholdPath}"'';
