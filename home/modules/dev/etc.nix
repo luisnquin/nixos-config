@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  pkgsx,
+  pkgs,
+  ...
+}: {
   home.packages = with pkgs; [
     nodePackages.firebase-tools
     nodePackages_latest.cspell
@@ -6,6 +10,7 @@
     # onlyoffice-bin
     gnumeric
 
+    pkgsx.passgen
     hyperfine # benchmarking
     asciinema
     argocd
