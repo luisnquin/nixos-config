@@ -29,6 +29,7 @@
     spotify-player = {
       enable = true;
       package = pkgs.spotify-player;
+      alias = "spt";
     };
   };
 }
