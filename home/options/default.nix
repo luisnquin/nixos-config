@@ -1,5 +1,6 @@
 {
   imports = [
+    ./spotify-player.nix
     ./lazydocker.nix
     ./emoji-fzf.nix
     ./nest-cli.nix
