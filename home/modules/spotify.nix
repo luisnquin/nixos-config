@@ -1,5 +1,8 @@
 {
+  nixosConfig,
   spicetify,
+  libx,
+  host,
   pkgs,
   ...
 }: {
@@ -30,6 +33,33 @@
       enable = true;
       package = pkgs.spotify-player;
       alias = "spt";
+    };
+  };
+
+  services.spotifyd = {
+    enable = true;
+    settings.global = rec {
+      username = libx.base64.decode "eWVzZWxvbnk=";
+      password_cmd = "cat ${nixosConfig.age.secrets.spotify-access-secret.path}";
+      use_keyring = false;
+      use_mpris = true;
+      dbus_type = "session";
+      backend = "pulseaudio";
+      device = "pipewire";
+      control = device;
+      audio_format = "S16";
+      mixer = "PCM";
+      volume_controller = "none";
+      device_name = "${host.name}-systemd";
+      bitrate = 160;
+      # cache_path = "/etc/spotifyd";
+      # max_cache_size = let GB = 1000000000; in GB;
+      no_audio_cache = true;
+      initial_volume = "90";
+      autoplay = true;
+      volume_normalisation = true;
+      normalisation_pregain = -10;
+      device_type = "computer";
     };
   };
 }

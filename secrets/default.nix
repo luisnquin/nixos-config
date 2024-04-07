@@ -9,6 +9,10 @@
       owner = "nginx";
       group = "nginx";
     };
+
+    spotify-access-secret = {
+      file = ./spotify-access-secret.age;
+    };
   };
 
   environment.systemPackages = [agenix.packages.${system}.default];
