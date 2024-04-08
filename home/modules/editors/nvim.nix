@@ -7,6 +7,10 @@
     build = {
       viAlias = true;
       vimAlias = true;
+
+      rawPlugins = with pkgs.vimPlugins; {
+        vim-astro.src = vim-astro;
+      };
     };
 
     # https://github.com/jordanisaacs/neovim-flake/tree/main/modules
