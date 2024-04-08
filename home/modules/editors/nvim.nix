@@ -60,6 +60,30 @@
         markdown.enable = true;
         python.enable = true;
       };
+
+      filetree.nvimTreeLua = {
+        enable = true;
+        treeSide = "left";
+        treeWidth = 12;
+        hideFiles = [".git" "node_modules" ".cache"];
+        hideIgnoredGitFiles = false;
+      };
+
+      statusline.lualine = {
+        enable = true;
+        icons = true;
+        theme = "nightfly";
+      };
+
+      git = {
+        enable = true;
+        gitsigns.enable = true;
+      };
+
+      visuals.nvimWebDevicons.enable = true;
+      tabline.nvimBufferline.enable = true;
+      treesitter.context.enable = true;
+      snippets.vsnip.enable = true;
     };
   };
 in {
