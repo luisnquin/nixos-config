@@ -21,6 +21,19 @@
         style = "moon";
       };
 
+      telescope = {
+        enable = true;
+        fileBrowser = {
+          enable = true;
+          hijackNetRW = true;
+        };
+
+        liveGrepArgs = {
+          enable = true;
+          autoQuoting = true;
+        };
+      };
+
       languages = {
         enableLSP = true;
 
