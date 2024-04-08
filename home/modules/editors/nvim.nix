@@ -19,10 +19,18 @@
       };
 
       languages = {
+        enableLSP = true;
+
         nix.enable = true;
         rust.enable = true;
-        sql.enable = true;
+        sql = {
+          enable = true;
+          lsp.enable = false; # (sqls is deprecated, use sqlls instead.)
+        };
         markdown.enable = true;
+        ts.enable = true;
+        python.enable = true;
+        go.enable = true;
       };
     };
   };
