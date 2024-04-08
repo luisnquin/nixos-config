@@ -12,7 +12,11 @@
     # https://github.com/jordanisaacs/neovim-flake/tree/main/modules
     vim = {
       autoIndent = true;
-      disableArrows = true;
+      disableArrows = false;
+      lineNumberMode = "number";
+      cmdHeight = 1;
+      tabWidth = 4;
+
       autocomplete.enable = true;
 
       theme = {
