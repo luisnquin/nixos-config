@@ -9,8 +9,10 @@
       vimAlias = true;
     };
 
+    # https://github.com/jordanisaacs/neovim-flake/tree/main/modules
     vim = {
       autoIndent = true;
+      disableArrows = true;
       autocomplete.enable = true;
 
       theme = {
