@@ -40,6 +40,11 @@
         style = "night";
       };
 
+      keys = {
+        enable = true;
+        whichKey.enable = true;
+      };
+
       telescope = {
         enable = true;
         fileBrowser = {
@@ -61,7 +66,10 @@
         zig.enable = true;
         nix.enable = true;
         rust.enable = true;
-        go.enable = true;
+        go = {
+          lsp.enable = true;
+          treesitter.enable = true;
+        };
         ts.enable = true;
         sql = {
           enable = true;
