@@ -18,16 +18,26 @@
       tabWidth = 4;
 
       startPlugins = with pkgs.vimPlugins; [
+        transparent-nvim
         presence-nvim
         vim-astro
       ];
+
+      luaConfigRC.transparent-nvim-setup = neovim-flake.lib.nvim.dag.entryAnywhere ''
+        vim.g.transparent_groups = vim.list_extend(
+          vim.g.transparent_groups or {},
+          vim.tbl_map(function(v)
+            return v.hl_group
+          end, vim.tbl_values(require('bufferline.config').highlights))
+        )
+      '';
 
       autocomplete.enable = true;
 
       theme = {
         enable = true;
         name = "tokyonight";
-        style = "moon";
+        style = "night";
       };
 
       telescope = {
