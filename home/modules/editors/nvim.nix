@@ -7,10 +7,6 @@
     build = {
       viAlias = true;
       vimAlias = true;
-
-      rawPlugins = with pkgs.vimPlugins; {
-        vim-astro.src = vim-astro;
-      };
     };
 
     # https://github.com/jordanisaacs/neovim-flake/tree/main/modules
@@ -20,6 +16,11 @@
       lineNumberMode = "number";
       cmdHeight = 1;
       tabWidth = 4;
+
+      startPlugins = with pkgs.vimPlugins; [
+        presence-nvim
+        vim-astro
+      ];
 
       autocomplete.enable = true;
 
