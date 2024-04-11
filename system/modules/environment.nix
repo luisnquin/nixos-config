@@ -21,6 +21,7 @@
           pkgsx.no
           tree
 
+          pkgsx.daktilo
           macchina
           genact
         ];
