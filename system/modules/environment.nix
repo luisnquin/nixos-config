@@ -29,6 +29,7 @@
         essentials = [
           gnome.seahorse # Keyring
           stdenv_32bit
+          pkgsx.kmon
           coreutils
           libsecret
           binutils
