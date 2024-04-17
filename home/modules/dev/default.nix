@@ -8,6 +8,7 @@
     ./processors.nix
     ./terraform.nix
     ./templates.nix
+    ./mobile.nix
     ./devenv.nix
     ./python.nix
     ./audit.nix
