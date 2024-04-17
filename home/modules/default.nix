@@ -17,6 +17,7 @@
     ./torrent.nix
     ./zathura.nix
     ./spotify.nix
+    ./for-fun.nix
     ./docker.nix
     ./btop.nix
     ./nao.nix
