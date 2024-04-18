@@ -16,7 +16,6 @@
     ./ocaml.nix
     ./rest.nix
     ./rust.nix
-    ./sql.nix
     ./etc.nix
     ./zig.nix
     ./aws.nix
