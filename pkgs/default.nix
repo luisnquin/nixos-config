@@ -2,7 +2,6 @@
 with pkgs.lib; let
   packages = {
     dbeaver = ./dbeaver.nix;
-    pg-ping = ./pg-ping.nix;
     tpm = ./tpm.nix;
   };
 in

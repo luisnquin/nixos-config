@@ -4,7 +4,6 @@
   ...
 }: {
   home.packages = with pkgs; [
-    pkgsx.pg-ping
     pkgsx.dbeaver
     # pkgsx.lazysql
 
