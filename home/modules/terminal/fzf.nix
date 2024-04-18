@@ -16,8 +16,8 @@
       "--color=hl:#4eb0d0,hl+:#4eb8dc,info:#d2d286,marker:#782cce "
       "--color=prompt:#3d848b,spinner:#af5fff,pointer:#af5fff,header:#87afaf "
       "--color=border:#262626,label:#aeaeae,query:#d9d9d9 "
-      "--border=\"rounded\" --border-label=\"\" --preview-window=\"border-rounded\" --prompt=\"> \" "
-      "--marker=\">\" --pointer=\"◆\" --separator=\"─\" --scrollbar=\"│\"'"
+      "--border=\\\"rounded\\\" --border-label= \\\"\\\" --preview-window=\\\"border-rounded\\\" --prompt=\\\"> \\\" \\"
+      "--marker=\\\">\\\" --pointer=\\\"◆\\\" --separator=\\\"─\\\" --scrollbar=\\\"│\\\"'"
     ];
   };
 }
