@@ -1,6 +1,10 @@
-{inner-static, ...}: {
+{
+  enable ? true,
+  inner-static,
+  ...
+}: {
   services.static-web-server = {
-    enable = true;
+    inherit enable;
     listen = "[::]:8787";
 
     root = "${inner-static}/var/www/html/root";

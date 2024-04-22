@@ -1,6 +1,10 @@
-{user, ...}: {
+{
+  enable ? true,
+  user,
+  ...
+}: {
   services.rustypaste = {
-    enable = true;
+    inherit enable;
 
     settings = {
       config = {

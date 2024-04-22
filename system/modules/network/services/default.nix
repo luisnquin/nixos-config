@@ -1,6 +1,6 @@
-{
+self: {
   imports = [
-    ./static-web-server.nix
-    ./rustypaste.nix
+    (import ./static-web-server.nix self)
+    (import ./rustypaste.nix self)
   ];
 }

@@ -4,10 +4,9 @@
   ...
 }: {
   imports = [
-    ./services
-    ./acme.nix
     ./firewall.nix
     ./nginx.nix
+    ./acme.nix
     ./vpn.nix
   ];
 

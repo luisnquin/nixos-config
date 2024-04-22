@@ -1,11 +1,22 @@
 {
+  inner-static,
   config,
+  user,
   pkgs,
   lib,
   ...
-}: {
+}: let
+  enableAll = false;
+in {
+  imports = [
+    (import ./services {
+      enable = enableAll;
+      inherit inner-static user;
+    })
+  ];
+
   services.nginx = {
-    enable = true;
+    enable = enableAll;
     package = pkgs.nginxStable;
 
     defaultSSLListenPort = 443;
