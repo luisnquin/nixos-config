@@ -1,7 +1,7 @@
 {mysql_57, ...}: {
   # by default (user: root) + no password
   services.mysql = {
-    enable = true;
+    enable = false;
     package = mysql_57;
   };
 }
