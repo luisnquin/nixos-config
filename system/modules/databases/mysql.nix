@@ -4,4 +4,8 @@
     enable = false;
     package = mysql_57;
   };
+
+  environment.systemPackages = [
+    mysql_57
+  ];
 }
