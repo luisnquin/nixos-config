@@ -3,4 +3,5 @@ let
 in {
   "acme-env-luisquinones-me.age".publicKeys = [luisnquin];
   "spotify-access-secret.age".publicKeys = [luisnquin];
+  "acme-env-neticshard-com.age".publicKeys = [luisnquin];
 }

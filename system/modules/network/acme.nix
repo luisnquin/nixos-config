@@ -19,6 +19,11 @@
         extraDomainNames = ["*.localhost.luisquinones.me"];
       };
 
+      "neticshard.com" = {
+        dnsProvider = "cloudflare";
+        credentialsFile = config.age.secrets.acme-env-neticshard-com.path;
+      };
+
       "luisquinones.me" = {
         dnsProvider = "cloudflare";
         credentialsFile = config.age.secrets.acme-env-luisquinones-me.path;
