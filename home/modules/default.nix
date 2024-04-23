@@ -5,6 +5,7 @@
     ./editors
     ./dev
 
+    ./password-store.nix
     ./file-manager.nix
     ./color-picker.nix
     ./obs-studio.nix
