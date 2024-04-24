@@ -1,4 +1,5 @@
 {
+  isWayland,
   config,
   pkgs,
   lib,
@@ -6,7 +7,10 @@
 }: {
   programs.password-store = {
     enable = true;
-    package = pkgs.pass-wayland;
+    package =
+      if isWayland
+      then pkgs.pass-wayland
+      else pkgs.pass;
   };
 
   home.sessionVariables = {
