@@ -8,7 +8,6 @@
     systemPackages = with pkgs; let
       nixpkgs = builtins.concatLists (builtins.attrValues {
         apps = [
-          element-desktop
           discord
           slack # https://stackoverflow.com/questions/70867064/signing-into-slack-desktop-not-working-on-4-23-0-64-bit-ubuntu
           gimp
