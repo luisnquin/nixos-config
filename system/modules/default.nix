@@ -14,6 +14,7 @@
     ./bluetooth.nix
     ./clipboard.nix
     ./battery.nix
+    ./systemd.nix
     ./docker.nix
     ./thunar.nix
     ./nvidia.nix
