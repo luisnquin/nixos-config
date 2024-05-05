@@ -2,7 +2,7 @@
   programs.nao = {
     enable = true;
     config = {
-      editor.name = "nvim";
+      editor.name = "nano";
       theme = "rose-pine";
       readOnlyOnConflict = false;
     };
