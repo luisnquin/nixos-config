@@ -9,6 +9,8 @@
 
     gb = "git branch";
 
+    gcp = "git cherry-pick";
+
     gc = "git commit -v";
     gca = "${gc} --amend";
     gcm = "${gc} --message";
