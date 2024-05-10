@@ -12,6 +12,7 @@
     govulncheck # audit dependencies
     grpc-tools
     panicparse # to help to debug panic errors
+    templ
     tinygo
     # unconvert # linter to check unnecessary type conversions
   ];

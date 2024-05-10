@@ -48,6 +48,10 @@
       url = "github:luisnquin/scripts";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    templ = {
+      url = "github:a-h/templ";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
@@ -55,7 +59,11 @@
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
-        overlays = import ./overlays/nixpkgs.nix;
+        overlays =
+          import ./overlays/nixpkgs.nix
+          ++ [
+            templ.overlays.default
+          ];
         config = {
           allowBroken = false;
           allowUnfree = true;
