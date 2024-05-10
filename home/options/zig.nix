@@ -15,11 +15,23 @@ in {
         default = false;
         type = types.bool;
       };
+      lsp = mkOption {
+        default = true;
+        type = types.bool;
+      };
     };
   };
 
   config = mkIf cfg.enable {
-    home.packages = [cfg.package];
+    home.packages =
+      [
+        cfg.package
+      ]
+      ++ (
+        if cfg.lsp
+        then [pkgs.zls]
+        else []
+      );
 
     programs.zsh.plugins = mkIf cfg.enableZshIntegration [
       {
