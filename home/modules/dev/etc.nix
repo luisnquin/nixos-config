@@ -15,7 +15,6 @@
     asciinema
     argocd
     rclone # cloud storages
-    ngrok
 
     # Command runners
     gnumake
