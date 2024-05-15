@@ -61,9 +61,9 @@
       nixpkgs-lint
 
       # Formatters
+      nixfmt-classic
       nixpkgs-fmt
       alejandra
-      nixfmt
     ];
 
     shellAliases = {
