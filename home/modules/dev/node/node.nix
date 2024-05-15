@@ -7,7 +7,7 @@
   home = {
     packages = with pkgs; [
       nodePackages.pnpm
-      nodejs_21
+      nodejs
       bun
     ];
 
