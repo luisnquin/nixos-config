@@ -4,6 +4,7 @@
 {
   config,
   lib,
+  pkgs,
   modulesPath,
   ...
 }: {
@@ -17,7 +18,7 @@
   boot.extraModulePackages = [];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/70ac9c24-0ae2-494d-9985-b247c4ab33aa";
+    device = "/dev/disk/by-uuid/6ffe0f51-383e-4d20-8efa-0970b2c28eea";
     fsType = "ext4";
   };
 
