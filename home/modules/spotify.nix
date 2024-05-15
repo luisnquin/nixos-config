@@ -32,8 +32,13 @@
     spotify-player = {
       enable = true;
       package = pkgs.spotify-player;
-      alias = "spt";
     };
+  };
+
+  home.shellAliases = let
+    inherit (pkgs) lib;
+  in {
+    spt = lib.getExe pkgs.spotify-player;
   };
 
   services.spotifyd = {
