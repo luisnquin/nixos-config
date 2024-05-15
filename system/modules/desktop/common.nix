@@ -8,10 +8,21 @@
 }: {
   programs.dconf.enable = true;
 
-  services.xserver = {
-    enable = true;
-    autorun = true;
-    xkb.layout = host.keyboardLayout;
+  services = {
+    xserver = {
+      enable = true;
+      autorun = true;
+      xkb.layout = host.keyboardLayout;
+
+      displayManager.gdm = {
+        enable = true;
+        autoSuspend = false;
+        wayland = true;
+      };
+
+      desktopManager.xterm.enable = true;
+    };
+
     libinput = {
       enable = true;
 
@@ -21,14 +32,6 @@
         middleEmulation = true;
       };
     };
-
-    displayManager.gdm = {
-      enable = true;
-      autoSuspend = false;
-      wayland = true;
-    };
-
-    desktopManager.xterm.enable = true;
   };
 
   programs.kdeconnect.enable = true;
