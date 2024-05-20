@@ -127,6 +127,14 @@
         "dispatcher" = "exec, ${pkgs.bemoji}/bin/bemoji";
       }
       {
+        "mod+key" = "CTRL_SHIFT, braceleft";
+        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --push-back";
+      }
+      {
+        "mod+key" = "CTRL_SHIFT, braceright";
+        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --push-forward";
+      }
+      {
         "mod+key" = "SUPER_SHIFT, braceright";
         "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --next";
       }

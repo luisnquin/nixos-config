@@ -2163,11 +2163,11 @@
         "systems": "systems_14"
       },
       "locked": {
-        "lastModified": 1712431002,
-        "narHash": "sha256-QvGjpy6Ku5H5YiMpxa0Nw/avQHaZJek7yy3A9BIDkBk=",
+        "lastModified": 1716175648,
+        "narHash": "sha256-YTKXv14e5d4kqwFn4SPr/XSKuj9+3+7nc1Ex3CZUv9s=",
         "owner": "luisnquin",
         "repo": "scripts",
-        "rev": "3811920684fdfc3c19af5424e4447074f43e73ca",
+        "rev": "f1672a99dbac408ea4127c8553beefa2599bdeea",
         "type": "github"
       },
       "original": {
