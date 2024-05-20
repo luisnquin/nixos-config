@@ -20,6 +20,7 @@
     ./nvidia.nix
     ./fonts.nix
     ./audio.nix
+    ./dbus.nix
     ./nix.nix
   ];
 }
