@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   environment.systemPackages = with pkgs; [
-    dfeet
+    d-spy
   ];
 
   services.dbus = {
