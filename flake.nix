@@ -44,6 +44,10 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    spotify-dbus-control = {
+      url = "github:luisnquin/spotify-dbus-control";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     scripts = {
       url = "github:luisnquin/scripts";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -106,7 +110,7 @@
             inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv hyprstfu inner-static;
+            inherit rofi-network-manager senv hyprstfu inner-static spotify-dbus-control;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};

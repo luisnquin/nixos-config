@@ -88,7 +88,6 @@
         sys-brightness-bin = "${sys-brightness}/bin/sys-brightness";
         sys-sound-bin = "${sys-sound}/bin/sys-sound";
         screen-capture-bin = "${screen-capture}/bin/screen-capture";
-        spotify-dbus-bin = "${spotify-dbus-bin}/bin/spotify-dbus";
         rofi-bin = "${rofi}/bin/rofi";
 
         exec-nid = "exec --no-startup-id";
@@ -102,9 +101,9 @@
           "XF86MonBrightnessDown" = "${exec-nid} ${sys-brightness-bin} --dec";
           "XF86MonBrightnessUp" = "${exec-nid} ${sys-brightness-bin} --inc";
 
-          "${modifier}+Shift+braceright" = "${exec-nid} ${spotify-dbus-bin} --next";
-          "${modifier}+Shift+braceleft" = "${exec-nid} ${spotify-dbus-bin} --prev";
-          "${modifier}+Pause" = "${exec-nid} ${spotify-dbus-bin} --toggle";
+          "${modifier}+Shift+braceright" = "${exec-nid} ${lib.getExe spotify-dbus-control} --next";
+          "${modifier}+Shift+braceleft" = "${exec-nid} ${lib.getExe spotify-dbus-control} --prev";
+          "${modifier}+Pause" = "${exec-nid} ${lib.getExe spotify-dbus-control} --toggle";
 
           "Ctrl+Shift+e" = "${exec-nid} ${xdg-utils}/bin/xdg-open https://docs.google.com/spreadsheets/u/0/";
           "${modifier}+b" = "exec ${brave}/bin/brave";

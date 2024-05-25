@@ -1,9 +1,9 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
+  spotify-dbus-control,
   sys-brightness,
-  sys-sound,
   cliphist-rofi,
-  spotify-dbus,
+  sys-sound,
   grimblast,
   hyprland,
   hyprstfu,
@@ -65,6 +65,8 @@
 
     custom = let
       rofi-plugin-call = name: program-to-exec: ''${pkgs.rofi}/bin/rofi -modi "${name}:${program-to-exec}" -show ${name}'';
+
+      inherit (pkgs) lib;
     in [
       {
         "mod+key" = "$mainMod, RETURN";
@@ -128,23 +130,23 @@
       }
       {
         "mod+key" = "CTRL_SHIFT, braceleft";
-        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --push-back";
+        "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --push-back";
       }
       {
         "mod+key" = "CTRL_SHIFT, braceright";
-        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --push-forward";
+        "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --push-forward";
       }
       {
         "mod+key" = "SUPER_SHIFT, braceright";
-        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --next";
+        "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --next";
       }
       {
         "mod+key" = "SUPER_SHIFT, braceleft";
-        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --prev";
+        "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --prev";
       }
       {
         "mod+key" = "$mainMod, Pause";
-        "dispatcher" = "exec, ${spotify-dbus}/bin/spotify-dbus --toggle";
+        "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --toggle";
       }
       {
         "mod+key" = "SUPER_SHIFT, R";
