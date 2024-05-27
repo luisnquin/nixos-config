@@ -1,4 +1,5 @@
 {
+  pkgs,
   libx,
   user,
   ...
@@ -6,6 +7,16 @@
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;
+  };
+
+  environment = {
+    systemPackages = with pkgs; [
+      fast-ssh
+    ];
+
+    shellAliases = {
+      fssh = "fast-ssh";
+    };
   };
 
   services.openssh = {
