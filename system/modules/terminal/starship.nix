@@ -42,6 +42,7 @@
         "\${custom.dotfiles_workspace}"
         "\${custom.current_client}"
         "$kubernetes"
+        "$terraform"
         "$aws"
         "\n$character"
       ];
@@ -86,6 +87,14 @@
         symbol = "󱃾";
         format = "\\[[$symbol $context( \($namespace\))]($style)\\] ";
         style = "cyan bold";
+        disabled = false;
+      };
+
+      terraform = {
+        symbol = "󱁢";
+        format = "[$symbol $workspace]($style) ";
+        detect_extensions = ["tf" "tfplan" "tfstate"];
+        detect_folders = [".terraform"];
         disabled = false;
       };
 
