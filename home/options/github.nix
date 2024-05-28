@@ -30,21 +30,30 @@ in {
   };
 
   config = mkIf cfg.enable {
-    home.packages =
-      (
-        if cfg.act
-        then [pkgs.act]
-        else []
-      )
-      ++ (
-        if cfg.tui
-        then [pkgsx.ght]
-        else []
-      )
-      ++ (
-        if cfg.cli
-        then [pkgs.gh]
-        else []
-      );
+    home = {
+      packages =
+        [
+          pkgs.hub
+        ]
+        ++ (
+          if cfg.act
+          then [pkgs.act]
+          else []
+        )
+        ++ (
+          if cfg.tui
+          then [pkgsx.ght]
+          else []
+        )
+        ++ (
+          if cfg.cli
+          then [pkgs.gh]
+          else []
+        );
+
+      shellAliases = {
+        git = "hub";
+      };
+    };
   };
 }
