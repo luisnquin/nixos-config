@@ -17,15 +17,6 @@ hex2ansi() {
     fi
 }
 
-# Refresh the current terminal session(completions and source files)
-refresh() {
-    autoload -Uz compinit && compinit
-    source ~/.dotfiles/system/dots/.zshrc
-    source ~/.dotfiles/system/dots/.shrc
-}
-
-alias rrr=refresh
-
 cheat() {
     curl "cheat.sh/$1"
 }
