@@ -5,6 +5,7 @@
 }: {
   imports = [
     ./firewall.nix
+    ./hosts.nix
     ./nginx.nix
     ./acme.nix
     ./vpn.nix
