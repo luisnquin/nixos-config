@@ -14,13 +14,12 @@
       autorun = true;
       xkb.layout = host.keyboardLayout;
 
-      # displayManager.gdm = {
-      #   enable = true;
-      #   autoSuspend = false;
-      #   wayland = true;
-      # };
+      displayManager.gdm = {
+        enable = true;
+        autoSuspend = false;
+        wayland = true;
+      };
 
-      displayManager.startx.enable = true;
       desktopManager.xterm.enable = true;
     };
 
