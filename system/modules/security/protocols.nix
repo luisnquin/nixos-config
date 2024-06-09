@@ -22,6 +22,10 @@
   services.openssh = {
     enable = true;
     banner = libx.base64.decode "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
+    ports = [
+      357
+    ];
+    openFirewall = true;
 
     hostKeys = [
       {
