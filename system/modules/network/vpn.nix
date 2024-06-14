@@ -1,3 +1,3 @@
 {
-  services.mullvad-vpn.enable = false;
+  services.mullvad-vpn.enable = true;
 }
