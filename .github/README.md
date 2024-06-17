@@ -27,8 +27,6 @@ $ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstra
 
 ## Some configurations comes here thanks to
 
-
-
 <details>
 <summary>It's a long list, sorry fellas</summary>
 
