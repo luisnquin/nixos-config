@@ -7,13 +7,6 @@
 >
 > _Maybe_ this is a single user setup and is not intended to be anything else
 
-## Installation
-
-```bash
-# Nix environment setup + nyx computer manager
-$ curl -s https://raw.githubusercontent.com/luisnquin/nixos-config/main/bootstrap.sh | sh
-```
-
 ## Resources
 
 - [Used scripts](https://github.com/luisnquin/scripts)
