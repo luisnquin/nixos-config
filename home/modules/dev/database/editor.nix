@@ -4,7 +4,7 @@
   ...
 }: {
   home.packages = with pkgs; [
-    jetbrains.datagrip
+    # jetbrains.datagrip
     pkgsx.dbeaver
     sqlite-web
     pgweb
