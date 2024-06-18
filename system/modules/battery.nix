@@ -23,7 +23,10 @@ in {
     }
   ];
 
-  services.thermald.enable = host.isLaptop;
+  services = {
+    thermald.enable = host.isLaptop;
+    logind.lidSwitchExternalPower = "ignore"; # prevent lid switch from triggering a suspend
+  };
 
   systemd.services.battery-charge-threshold = {
     enable = host.isLaptop;
