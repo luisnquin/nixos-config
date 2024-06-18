@@ -11,12 +11,20 @@
 
 - [Used scripts](https://github.com/luisnquin/scripts)
 - [Full NixOS options](https://nmikhailov.github.io/nixpkgs/ch-options.html)
-  
+
 ## Environments
 
 ### Hyprland
 
 ![image](https://github.com/luisnquin/nixos-config/assets/86449787/12a9ec9a-ffed-4b51-8a89-f906d5944f47)
+
+## Throubleshooting
+
+1. NixOS and/or Home manager **rebuild** fails with error _"failed to open '/nix/store/\*-source'"_
+
+    ![nix rebuild source not found](./assets/nix-rebuild-source-not-found.png)
+
+    Go here [here](https://discourse.nixos.org/t/nix-flakes-nix-store-source-no-such-file-or-directory/17836/9)
 
 ## Some configurations comes here thanks to
 
