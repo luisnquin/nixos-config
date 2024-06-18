@@ -26,6 +26,9 @@
 
     Go here [here](https://discourse.nixos.org/t/nix-flakes-nix-store-source-no-such-file-or-directory/17836/9)
 
+2. [Wireless connection instantly fails on startup when just switched from Windows](https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#about_dual-boot_with_windows_and_fast-boot_enabled).
+3. **macOS VM fails to build.** Ensure to enable the virtualisation capacibilities for your CPU in your **BIOS**. You might find this option as "Intel (VMX) Virtualization Technology".
+
 ## Some configurations comes here thanks to
 
 <details>
