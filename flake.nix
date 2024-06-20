@@ -18,7 +18,6 @@
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
     nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
-    inner-static.url = "github:luisnquin/inner-static";
     grub-themes.url = "github:luisnquin/grub-themes";
     hyprstfu.url = "github:luisnquin/hyprstfu";
     tplr.url = "github:luisnquin/tplr";
@@ -110,7 +109,7 @@
             inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv hyprstfu inner-static spotify-dbus-control;
+            inherit rofi-network-manager senv hyprstfu spotify-dbus-control;
           }
           // hyprland-contrib.packages.${system}
           // scripts.packages.${system};

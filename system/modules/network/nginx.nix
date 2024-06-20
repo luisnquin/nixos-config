@@ -1,5 +1,4 @@
 {
-  inner-static,
   config,
   user,
   pkgs,
@@ -11,7 +10,7 @@ in {
   imports = [
     (import ./services {
       enable = enableAll;
-      inherit inner-static user;
+      inherit user;
     })
   ];
 
