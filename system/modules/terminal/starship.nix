@@ -4,7 +4,7 @@
 
     settings = {
       add_newline = true;
-      # command_timeout = 400;
+      command_timeout = 400;
       scan_timeout = 30;
 
       aws = {
@@ -30,16 +30,6 @@
         error_symbol = "[](bold red)";
       };
 
-      command_timeout = {
-        min_time = "2_000";
-        show_milliseconds = true;
-        format = "took [$duration]($style) ";
-        style = "bold yellow";
-        disabled = false;
-        show_notifications = true;
-        min_time_to_notify = "45_000";
-      };
-
       format = lib.concatStrings [
         "$sudo"
         "$directory"
@@ -63,7 +53,6 @@
         "$terraform"
         "$aws"
         "$azure"
-        "$command_timeout"
         "\n$character"
       ];
 
