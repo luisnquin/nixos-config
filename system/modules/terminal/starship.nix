@@ -31,6 +31,7 @@
       };
 
       format = lib.concatStrings [
+        "$sudo"
         "$directory"
         "$hostname"
         "\${custom.git_remote}"
@@ -154,6 +155,12 @@
         detect_files = ["dune" "dune-project" "jbuild" "jbuild-ignore" ".merlin"];
         detect_folders = ["_opam" "esy.lock"];
         style = "bold yellow";
+      };
+
+      sudo = {
+        style = "bold red";
+        disabled = false;
+        symbol = " ";
       };
 
       custom = {
