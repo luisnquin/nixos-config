@@ -18,6 +18,13 @@
         };
       };
 
+      azure = {
+        style = "blue bold";
+        symbol = "󰠅 ";
+        format = "on [$symbol($subscription)]($style) ";
+        disabled = false;
+      };
+
       character = {
         success_symbol = "[](bold green)";
         error_symbol = "[](bold red)";
@@ -44,6 +51,7 @@
         "$kubernetes"
         "$terraform"
         "$aws"
+        "$azure"
         "\n$character"
       ];
 
