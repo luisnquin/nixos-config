@@ -28,7 +28,7 @@
     enableCompletion = true;
 
     promptInit = ''
-      if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ]; then
+      if [ "$TMUX" = "" ] && [ "$TERM_PROGRAM" != "vscode" ] && [ ! "$USER" = "root" ]; then
           exec ${pkgs.tmux}/bin/tmux
       fi
     '';
