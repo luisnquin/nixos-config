@@ -161,7 +161,7 @@
         style = "bold red";
         disabled = false;
         format = "[$symbol]($style)";
-        symbol = " ";
+        symbol = "󰭩 ";
       };
 
       custom = {
