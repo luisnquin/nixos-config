@@ -10,11 +10,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1707830867,
-        "narHash": "sha256-PAdwm5QqdlwIqGrfzzvzZubM+FXtilekQ/FA0cI49/o=",
+        "lastModified": 1718371084,
+        "narHash": "sha256-abpBi61mg0g+lFFU0zY4C6oP6fBwPzbHPKBGw676xsA=",
         "owner": "ryantm",
         "repo": "agenix",
-        "rev": "8cb01a0e717311680e0cbca06a76cbceba6f3ed6",
+        "rev": "3a56735779db467538fb2e577eda28a9daacaca6",
         "type": "github"
       },
       "original": {
