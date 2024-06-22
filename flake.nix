@@ -36,8 +36,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     hyprland = {
-      url = "github:hyprwm/Hyprland";
+      url = "https://github.com/hyprwm/Hyprland";
       inputs.nixpkgs.follows = "nixpkgs";
+      type = "git";
+      submodules = true;
     };
     agenix = {
       url = "github:ryantm/agenix";
