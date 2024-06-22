@@ -13,11 +13,11 @@
     ./environment.nix
     ./bluetooth.nix
     ./clipboard.nix
+    ./graphics.nix
     ./battery.nix
     ./systemd.nix
     ./docker.nix
     ./thunar.nix
-    ./nvidia.nix
     ./fonts.nix
     ./audio.nix
     ./dbus.nix

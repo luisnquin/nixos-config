@@ -1,7 +1,7 @@
-diff --git a/system/modules/nvidia.nix b/system/modules/nvidia.nix
+diff --git a/system/modules/graphics.nix b/system/modules/graphics.nix
 index ee7409a..9ccc3ba 100644
---- a/system/modules/nvidia.nix
-+++ b/system/modules/nvidia.nix
+--- a/system/modules/graphics.nix
++++ b/system/modules/graphics.nix
 @@ -12,27 +12,19 @@
    '';
  in {
