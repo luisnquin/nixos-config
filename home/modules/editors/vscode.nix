@@ -25,7 +25,7 @@
 
       # Python
       ms-python.python
-      ms-python.vscode-pylance
+      # ms-python.vscode-pylance
       # ms-python.pylint
       # zeshuaro.vscode-python-poetry
 
