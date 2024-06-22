@@ -1,7 +1,6 @@
 #! /usr/bin/env bash
 
 NIX_LOGO_PATH="/path/to/nix-logo.png"
-USES_HYPRLAND=false
 
 PROGRAM_NAME="nyx"
 
@@ -151,19 +150,11 @@ update_system() {
     "" | --switch) # no argument
         pre_update
 
-        # if $USES_HYPRLAND; then
-        #   save_hyprland_cache_dir
-        # fi
-
         (
             cd "$DOTFILES_PATH"
             log_command_to_execute "sudo nixos-rebuild" "switch --upgrade --flake ."
             sudo nixos-rebuild switch --upgrade --flake .
         )
-
-        if $USES_HYPRLAND; then
-            restore_hyprland_cache_dir
-        fi
         ;;
     --boot)
         pre_update
@@ -179,25 +170,6 @@ update_system() {
         exit 1
         ;;
     esac
-}
-
-save_hyprland_cache_dir() {
-    HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
-    HYPR_CACHE_DIR="/tmp/hypr"
-
-    printf "\n\033[38;2;82;53;230m%s\033[0m\n" "Saving Hyprland cache files..."
-    mkdir -p "$HYPR_SWAP_CACHE_DIR"
-    rm -rf "${HYPR_SWAP_CACHE_DIR:?}/*"
-    cp -rf "$HYPR_CACHE_DIR" "$HYPR_SWAP_CACHE_DIR"
-}
-
-restore_hyprland_cache_dir() {
-    HYPR_SWAP_CACHE_DIR="$HOME/.cache/nyx/hypr"
-    HYPR_CACHE_DIR="/tmp/hypr"
-
-    printf "\n\033[38;2;82;53;230m%s\033[0m\n" "Restoring Hyprland cache files..."
-    cp -rf "$HYPR_SWAP_CACHE_DIR" "$HYPR_CACHE_DIR"
-    rm -rf "$HYPR_SWAP_CACHE_DIR"
 }
 
 update_home() {
