@@ -38,9 +38,9 @@ self: let
         preserve_split = yes
     }
 
+    # See https://wiki.hyprland.org/Configuring/Master-Layout/ for more
     master {
-        # See https://wiki.hyprland.org/Configuring/Master-Layout/ for more
-        new_is_master = true
+      new_status = master
     }
 
     gestures {
