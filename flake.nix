@@ -14,7 +14,6 @@
     };
     nix-nostd.url = "github:chessai/nix-std";
 
-    nixpkgs_mysql_57.url = "github:NixOS/nixpkgs?rev=06c9198cbf48559191bf6c9b76c0f370f96b8c33";
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
     nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
@@ -104,7 +103,6 @@
             pkgsx = import ./pkgs {inherit pkgs;} // nixpkgs-extra.packages.${system};
 
             spicetify = spicetify-nix.packages.${pkgs.system}.default;
-            mysql_57 = (import nixpkgs_mysql_57 {inherit system;}).mysql57;
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
