@@ -2,6 +2,8 @@
   imports = [
     ./vscode.nix
     ./nano.nix
-    ./nvim.nix
+
+    # error: nodePackages.pyright cannot be found in pkgs
+    # ./nvim.nix
   ];
 }
