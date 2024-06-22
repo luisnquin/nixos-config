@@ -151,9 +151,9 @@ update_system() {
     "" | --switch) # no argument
         pre_update
 
-        if $USES_HYPRLAND; then
-            save_hyprland_cache_dir
-        fi
+        # if $USES_HYPRLAND; then
+        #   save_hyprland_cache_dir
+        # fi
 
         (
             cd "$DOTFILES_PATH"
