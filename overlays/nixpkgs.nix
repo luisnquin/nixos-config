@@ -49,18 +49,6 @@
     }
   )
   (
-    self: super: {
-      brave = super.brave.overrideAttrs (_old: rec {
-        version = "1.63.162";
-
-        src = self.fetchurl {
-          url = "https://github.com/brave/brave-browser/releases/download/v${version}/brave-browser_${version}_amd64.deb";
-          hash = "sha256-kRIYdSBAjBVX3EZQv0OWifD+XIpGAqAVTcrdxGAifEI=M";
-        };
-      });
-    }
-  )
-  (
     _self: super: {
       panicparse = super.panicparse.overrideAttrs (_old: {
         postInstall = ''
