@@ -17,6 +17,7 @@
     ./browser.nix
     ./torrent.nix
     ./zathura.nix
+    ./ntfy-sh.nix
     ./spotify.nix
     ./for-fun.nix
     ./docker.nix
