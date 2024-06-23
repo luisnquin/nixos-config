@@ -38,6 +38,17 @@
         };
       }
       {
+        # Such a name, "Auto close and delete matching delimiters in zsh"
+        name = "hlissner/zsh-autopair";
+        file = "autopair.zsh";
+        src = fetchFromGitHub {
+          owner = "hlissner";
+          repo = "zsh-autopair";
+          rev = "376b586c9739b0a044192747b337f31339d548fd";
+          hash = "sha256-mtDrt4Q5kbddydq/pT554ph0hAd5DGk9jci9auHx0z0=";
+        };
+      }
+      {
         name = "extract";
         file = "extract.sh";
         src = fetchFromGitHub {
