@@ -32,6 +32,7 @@
 <details>
 <summary>It's a long list, sorry fellas</summary>
 
+- [the-argus](https://github.com/the-argus/nixsys)
 - [angristan](https://github.com/angristan/nixos-config)
 - [kmein](https://github.com/kmein/niveum)
 - [mogria](https://github.com/mogria/nixpkgs-config)
