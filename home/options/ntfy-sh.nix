@@ -36,6 +36,17 @@ in {
         Type = "simple";
         ExecStart = "${pkgs.ntfy-sh}/bin/ntfy sub --config ${clientConfig} --from-config";
         Restart = "on-failure";
+        # https://github.com/the-argus/nixsys/blob/521b733b31cf305a2b12cf2022e5079ad9f640d1/user/primary/ntfy.nix#L10
+        RestartForceExitStatus = 11;
+        RestartSec = 0;
+
+        # disallow writing to /usr, /bin, /sbin, ...
+        ProtectSystem = "yes";
+        # more paranoid security settings
+        NoNewPrivileges = "yes";
+        ProtectKernelTunables = "yes";
+        ProtectControlGroups = "yes";
+        RestrictNamespaces = "yes";
       };
 
       Install = {
