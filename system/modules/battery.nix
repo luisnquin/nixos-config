@@ -23,6 +23,12 @@ in {
     }
   ];
 
+  programs.zsh.interactiveShellInit = ''
+    batty() {
+      cat ${powerSupplyBatteryPath}/capacity
+    }
+  '';
+
   services = {
     thermald.enable = host.isLaptop;
     logind.lidSwitchExternalPower = "ignore"; # prevent lid switch from triggering a suspend
