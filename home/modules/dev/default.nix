@@ -19,5 +19,6 @@
     ./etc.nix
     ./zig.nix
     ./aws.nix
+    ./ops.nix
   ];
 }
