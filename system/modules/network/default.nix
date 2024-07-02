@@ -19,9 +19,10 @@
   };
 
   environment = {
-    systemPackages = [
+    systemPackages = with pkgs; [
       # pkgsx.netscanner
-      pkgs.netcat
+      iptables
+      netcat
     ];
 
     interactiveShellInit = builtins.readFile (builtins.path {
