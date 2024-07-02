@@ -10,6 +10,8 @@ in {
 
     col.active_border = rgba(595959aa)
     col.inactive_border = rgba(595959aa)
+
+    windowrulev2 = float,center,forceinput, class:(Rofi)$
   '';
 
   decoration = ''
