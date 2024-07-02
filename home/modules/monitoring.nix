@@ -1,4 +1,8 @@
-{host, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   services = {
     battery-notifier = {
       enable = host.isLaptop;
@@ -19,4 +23,8 @@
       tray = "auto";
     };
   };
+
+  home.packages = [
+    pkgs.libnotify
+  ];
 }
