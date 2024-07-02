@@ -23,6 +23,7 @@
       # pkgsx.netscanner
       iptables
       netcat
+      nload
     ];
 
     interactiveShellInit = builtins.readFile (builtins.path {
