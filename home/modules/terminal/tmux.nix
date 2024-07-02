@@ -1,8 +1,4 @@
-{
-  pkgsx,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   programs.tmux = {
     enable = true;
     package = pkgs.tmux;
@@ -11,7 +7,6 @@
 
   home.packages = [
     pkgs.gitmux
-    pkgsx.tpm
   ];
 
   xdg.configFile = {
