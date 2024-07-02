@@ -100,7 +100,7 @@
 
         packages =
           {
-            pkgsx = import ./pkgs {inherit pkgs;} // nixpkgs-extra.packages.${system};
+            pkgsx = nixpkgs-extra.packages.${system};
 
             spicetify = spicetify-nix.packages.${pkgs.system}.default;
             grub-pkgs = grub-themes.packages.${system};
