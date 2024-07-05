@@ -48,6 +48,9 @@
     # Push current branch
     ggpush = "git push origin $(git branch --show-current)";
 
+    # Show the last commit message before undoing
+    gundo = "git log --format=%B -n 1 HEAD | head -n 1 && git undo";
+
     # Git reset but it doesn't output anything
     gr = "git reset -q";
     grv = "git revert";
