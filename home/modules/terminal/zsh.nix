@@ -81,15 +81,15 @@
           sha256 = "0n9pd29rr7y6k5v4rzhpd94nsixsscdmhgvwisvbfz843pfikr5f";
         };
       }
-      {
-        name = "fast-syntax-highlighting"; # The reason why the shell startup is slow
-        src = fetchFromGitHub {
-          owner = "zdharma-continuum";
-          repo = "fast-syntax-highlighting";
-          rev = "cf318e06a9b7c9f2219d78f41b46fa6e06011fd9";
-          sha256 = "1bmrb724vphw7y2gwn63rfssz3i8lp75ndjvlk5ns1g35ijzsma5";
-        };
-      }
+      # {
+      #   name = "fast-syntax-highlighting"; # The reason why the shell startup is slow
+      #   src = fetchFromGitHub {
+      #     owner = "zdharma-continuum";
+      #     repo = "fast-syntax-highlighting";
+      #     rev = "cf318e06a9b7c9f2219d78f41b46fa6e06011fd9";
+      #     sha256 = "1bmrb724vphw7y2gwn63rfssz3i8lp75ndjvlk5ns1g35ijzsma5";
+      #   };
+      # }
     ];
   };
 }
