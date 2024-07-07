@@ -1,9 +1,11 @@
-# It includes Node.js runtimes and package managers
 {
   config,
   pkgs,
+  lib,
   ...
-}: {
+}: let
+  npmGlobalDir = "${config.home.homeDirectory}/.npm-global";
+in {
   home = {
     packages = with pkgs; [
       nodePackages.pnpm
@@ -11,10 +13,15 @@
       bun
     ];
 
-    sessionPath = ["$HOME/.npm-global/bin"];
+    sessionPath = ["${npmGlobalDir}/bin"];
 
     file.".npmrc".text = ''
-      prefix=${config.home.homeDirectory}/.npm-global
+      prefix=${npmGlobalDir}
     '';
   };
+
+  home.activation.init = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    mkdir -p ${npmGlobalDir}/bin \
+             ${npmGlobalDir}/lib
+  '';
 }
