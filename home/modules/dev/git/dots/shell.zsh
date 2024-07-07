@@ -50,3 +50,11 @@ gbh() {
         echo "$branch"
     done
 }
+
+ghinit() {
+    pwd | grep -E '[a-z\d\-\_]+\.[a-z]+(/[a-z\d\-\_]+){2}$' >/dev/null || (echo 'current pwd must be in the following format: */<domain>/<owner>/<repo>' && return 1)
+    test -d .git && echo 'current directory is already a git repository' && return 1
+
+    git init
+    gh repo create --private --remote origin -s .
+}
