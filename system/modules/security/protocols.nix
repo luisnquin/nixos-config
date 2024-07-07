@@ -25,7 +25,7 @@
     ports = [
       357
     ];
-    openFirewall = true;
+    openFirewall = false;
 
     hostKeys = [
       {
