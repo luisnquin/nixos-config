@@ -1,13 +1,11 @@
 {
   networking = {
-    firewall = {
+    firewall = let
+      ports = [5900];
+    in {
       enable = true;
-      allowedTCPPorts = [5900];
-      interfaces = {
-        "wlo1".allowedTCPPorts = [
-          5900
-        ];
-      };
+      allowedTCPPorts = ports;
+      interfaces."wlo1".allowedTCPPorts = ports;
     };
   };
 }
