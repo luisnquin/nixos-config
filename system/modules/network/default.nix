@@ -21,6 +21,7 @@
   environment = {
     systemPackages = with pkgs; [
       # pkgsx.netscanner
+      inetutils
       iptables
       netcat
       nload
