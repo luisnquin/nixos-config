@@ -16,8 +16,8 @@
       pictures = "${home}/Pictures";
       music = null;
       publicShare = null;
-      templates = null;
-      videos = null;
+      templates = "${home}/Experiments";
+      videos = "${home}/Videos";
       extraConfig = {
         XDG_PROJECTS_DIR = "${home}/Projects";
         XDG_WORK_DIR = "${home}/Work";
