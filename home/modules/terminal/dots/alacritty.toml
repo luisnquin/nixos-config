@@ -1,4 +1,4 @@
-live_config_reload = true
+live_config_reload = false
 
 [cursor]
 blink_interval = 550
