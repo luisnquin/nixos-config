@@ -10,6 +10,9 @@
       save = 10000 * 2;
     };
 
+    # (relative to $HOME)
+    dotDir = ".zsh";
+
     # historySubstringSearch = {
     #   enable = true;
     #   searchUpKey = "^[[A";
