@@ -10,11 +10,11 @@
     ./processors.nix
     ./terraform.nix
     ./templates.nix
+    ./clients.nix
     ./devenv.nix
     ./python.nix
     ./audit.nix
     ./ocaml.nix
-    ./rest.nix
     ./rust.nix
     ./etc.nix
     ./zig.nix
