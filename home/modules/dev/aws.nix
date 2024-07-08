@@ -7,6 +7,7 @@
   home = {
     packages = with pkgs; [
       aws-lambda-rie
+      pkgsx.s3-edit
       pkgsx.ecsview
       pkgsx.stu
       awscli2
