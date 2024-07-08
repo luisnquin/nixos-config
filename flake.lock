@@ -849,11 +849,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1714765449,
-        "narHash": "sha256-nPIHkXK08OG++PeP8SpQmHZgLdBfCAlcoHyYaybwqxM=",
+        "lastModified": 1720471965,
+        "narHash": "sha256-XEGo9yePJ6goq/gcUiP9hP5C+DsE8BzpNTF/ZitaEqU=",
         "owner": "luisnquin",
         "repo": "nixpkgs-extra",
-        "rev": "147099e3d54828762822865698cc155ad7e5c13f",
+        "rev": "a8bbb6becbdf0f9028ed5085716894201d91d6fa",
         "type": "github"
       },
       "original": {
