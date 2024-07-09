@@ -4,8 +4,8 @@
     ./mobile
     ./node
     ./git
-    ./k8s
     ./pwn
+    ./ops
     ./go
 
     ./processors.nix
@@ -14,12 +14,10 @@
     ./clients.nix
     ./devenv.nix
     ./python.nix
-    ./audit.nix
     ./ocaml.nix
     ./rust.nix
     ./etc.nix
     ./zig.nix
     ./aws.nix
-    ./ops.nix
   ];
 }

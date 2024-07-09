@@ -13,7 +13,6 @@
     pkgsx.passgen
     hyperfine # benchmarking
     asciinema
-    argocd
     rclone # cloud storages
 
     # Command runners
