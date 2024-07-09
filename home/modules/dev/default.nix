@@ -9,7 +9,6 @@
     ./go
 
     ./processors.nix
-    ./terraform.nix
     ./templates.nix
     ./clients.nix
     ./devenv.nix
@@ -18,6 +17,5 @@
     ./rust.nix
     ./etc.nix
     ./zig.nix
-    ./aws.nix
   ];
 }
