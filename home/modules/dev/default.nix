@@ -2,7 +2,6 @@
   imports = [
     ./database
     ./mobile
-    ./node
     ./git
     ./pwn
     ./ops
@@ -14,6 +13,7 @@
     ./devenv.nix
     ./python.nix
     ./ocaml.nix
+    ./node.nix
     ./rust.nix
     ./etc.nix
     ./zig.nix
