@@ -12,7 +12,7 @@
 
     pkgsx.passgen
     hyperfine # benchmarking
-    asciinema
+    # asciinema
     rclone # cloud storages
 
     # Command runners
