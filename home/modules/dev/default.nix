@@ -5,6 +5,7 @@
     ./node
     ./git
     ./k8s
+    ./pwn
     ./go
 
     ./processors.nix
