@@ -3,9 +3,9 @@
     enable = true;
     package = pkgs.dunst;
 
-    iconTheme = with pkgs; {
+    iconTheme = {
       name = "Adwaita";
-      package = gnome.adwaita-icon-theme;
+      package = pkgs.adwaita-icon-theme;
       size = "16x16";
     };
 

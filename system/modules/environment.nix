@@ -24,7 +24,7 @@
         ];
 
         essentials = [
-          gnome.seahorse # Keyring
+          seahorse # Keyring
           stdenv_32bit
           pkgsx.kmon
           coreutils

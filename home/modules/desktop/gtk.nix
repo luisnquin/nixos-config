@@ -1,14 +1,14 @@
 {pkgs, ...}: {
-  gtk = with pkgs; {
+  gtk = {
     enable = true;
     theme = {
       name = "WhiteSur";
-      package = whitesur-gtk-theme;
+      package = pkgs.whitesur-gtk-theme;
     };
 
     iconTheme = {
       name = "Adwaita";
-      package = gnome.adwaita-icon-theme;
+      package = pkgs.adwaita-icon-theme;
     };
   };
 }
