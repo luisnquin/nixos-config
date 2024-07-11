@@ -23,3 +23,5 @@ zle -N delete_until_not_alphanumerics
 bindkey '\e^?' delete_until_not_alphanumerics
 
 if test -f /home/"$USER"/Work/.bashrc; then source /home/"$USER"/Work/.bashrc; fi
+
+bindkey -s '^V' "cliphist list | fzf | awk '{printf \$1}' | cliphist decode | wl-copy\n"
