@@ -4,7 +4,9 @@
   pkgs,
   lib,
   ...
-}: {
+}: let
+  opamInitScriptPath = "/home/${user.alias}/.opam/opam-init/init.zsh";
+in {
   home.packages = with pkgs; [
     ocamlPackages.utop
     dune-release
@@ -20,7 +22,7 @@
     };
 
     zsh.initExtra = ''
-      [[ ! -r /home/"$USER"/.opam/opam-init/init.zsh ]] || source /home/"$USER"/.opam/opam-init/init.zsh >/dev/null 2>/dev/null
+      [[ ! -r ${opamInitScriptPath} ]] || source ${opamInitScriptPath} >/dev/null 2>/dev/null
     '';
   };
 
@@ -44,14 +46,19 @@
 
         packagesToInstall = lib.strings.concatMapStrings (p: p + " ") [
           "ocaml-lsp-server"
-          "dune"
           "base"
           "core"
         ];
 
         opam-init = pkgs.writeShellScriptBin "opam-init" ''
-          sudo -Hu ${user.alias} bash -c '${opam}/bin/opam init --no-setup --reinit'
-          sudo -Hu ${user.alias} bash -c '${opam}/bin/opam install ${packagesToInstall}'
+          if ! test -f ${opamInitScriptPath}; then
+            return
+          fi
+
+          eval $(${opam}/bin/opam env)
+          source ${opamInitScriptPath}
+
+          sudo -Hu ${user.alias} ${pkgs.bash}/bin/bash -c '${opam}/bin/opam install -y ${packagesToInstall}'
         '';
       in {
         Type = "oneshot";
