@@ -1,5 +1,6 @@
 {
   config,
+  user,
   pkgs,
   lib,
   ...
@@ -48,8 +49,8 @@
         ];
 
         opam-init = pkgs.writeShellScriptBin "opam-init" ''
-          ${opam}/bin/opam init --no-setup --reinit
-          ${opam}/bin/opam install ${packagesToInstall}
+          sudo -Hu ${user.alias} bash -c '${lib.getExe opam} init --no-setup --reinit'
+          sudo -Hu ${user.alias} bash -c '${lib.getExe opam} install ${packagesToInstall}'
         '';
       in {
         Type = "oneshot";
