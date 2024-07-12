@@ -44,6 +44,7 @@
 
         packagesToInstall = lib.strings.concatMapStrings (p: p + " ") [
           "ocaml-lsp-server"
+          "dune"
           "base"
           "core"
         ];
