@@ -95,7 +95,7 @@
         };
 
         "custom/mullvad" = {
-          "exec" = "${mullxBin} --waybar \"{{emoji}}  {{network-ip}}\"";
+          "exec" = "${mullxBin} --waybar \"{{emoji}}  {{server-id}}\"";
           "interval" = 2;
           "return-type" = "json";
           "on-click" = "${mullxBin} --toggle-connection";
