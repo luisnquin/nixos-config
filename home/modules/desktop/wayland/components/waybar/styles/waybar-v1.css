@@ -147,6 +147,7 @@
  }
 
  #custom-mullvad.disconnected {
+     font-weight: lighter;
      color: rgb(156, 152, 148);
  }
 
