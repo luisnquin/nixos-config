@@ -63,7 +63,7 @@ in {
       in {
         Type = "oneshot";
         ExecStart = "${opam-init}/bin/opam-init";
-        Restart = "on-failure";
+        Restart = "never";
       };
 
       Install = {
