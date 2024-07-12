@@ -50,8 +50,8 @@
         ];
 
         opam-init = pkgs.writeShellScriptBin "opam-init" ''
-          sudo -Hu ${user.alias} bash -c '${lib.getExe opam} init --no-setup --reinit'
-          sudo -Hu ${user.alias} bash -c '${lib.getExe opam} install ${packagesToInstall}'
+          sudo -Hu ${user.alias} bash -c '${opam}/bin/opam init --no-setup --reinit'
+          sudo -Hu ${user.alias} bash -c '${opam}/bin/opam install ${packagesToInstall}'
         '';
       in {
         Type = "oneshot";
