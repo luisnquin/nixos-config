@@ -1,6 +1,6 @@
 {
   rofi-network-manager,
-  mullx,
+  mullvad-status,
   pkgs,
   lib,
   ...
@@ -14,7 +14,6 @@
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
       runBtopWithAlacritty = "${pkgs.alacritty}/bin/alacritty -e ${pkgs.btop}/bin/btop";
-      mullxBin = "${mullx}/bin/mullx";
     in [
       {
         "position" = "top";
@@ -95,10 +94,10 @@
         };
 
         "custom/mullvad" = {
-          "exec" = "${mullxBin} --waybar \"{{emoji}}  {{server-id}}\"";
+          "exec" = "${lib.getExe mullvad-status} --waybar \"{{emoji}}  {{relay-id}}\"";
           "interval" = 2;
           "return-type" = "json";
-          "on-click" = "${mullxBin} --toggle-connection";
+          "on-click" = "${lib.getExe mullvad-status} --toggle-connection";
         };
 
         "custom/clock" = {
