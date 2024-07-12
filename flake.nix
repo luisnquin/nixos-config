@@ -48,8 +48,8 @@
       url = "github:luisnquin/spotify-dbus-control";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    scripts = {
-      url = "github:luisnquin/scripts";
+    nix-scripts = {
+      url = "github:luisnquin/nix-scripts";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     templ = {
@@ -112,7 +112,7 @@
             inherit rofi-network-manager senv hyprstfu spotify-dbus-control;
           }
           // hyprland-contrib.packages.${system}
-          // scripts.packages.${system};
+          // nix-scripts.packages.${system};
       in
         packages
         // flakes
