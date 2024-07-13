@@ -1,8 +1,6 @@
 {
-  config,
   user,
   pkgs,
-  lib,
   ...
 }: let
   opamInitScriptPath = "/home/${user.alias}/.opam/opam-init/init.zsh";
@@ -26,49 +24,49 @@ in {
     '';
   };
 
-  systemd.user.services = lib.mkIf config.programs.opam.enable {
-    opam-update = {
-      Unit.Description = "Automatically update and keep installed opam packages";
+  # systemd.user.services = lib.mkIf config.programs.opam.enable {
+  #   opam-update = {
+  #     Unit.Description = "Automatically update and keep installed opam packages";
 
-      Service = let
-        opam = pkgs.opam.overrideAttrs (
-          p: {
-            postInstall = let
-              wrapperLine = ''
-                wrapProgram ${placeholder "out"}/bin/opam \
-                  --prefix PATH : ${lib.makeBinPath (with pkgs; [gnupatch gnutar gnumake gzip gcc])}
-              '';
-            in
-              p.postInstall
-              + wrapperLine;
-          }
-        );
+  #     Service = let
+  #       opam = pkgs.opam.overrideAttrs (
+  #         p: {
+  #           postInstall = let
+  #             wrapperLine = ''
+  #               wrapProgram ${placeholder "out"}/bin/opam \
+  #                 --prefix PATH : ${lib.makeBinPath (with pkgs; [gnupatch gnutar gnumake gzip gcc])}
+  #             '';
+  #           in
+  #             p.postInstall
+  #             + wrapperLine;
+  #         }
+  #       );
 
-        packagesToInstall = lib.strings.concatMapStrings (p: p + " ") [
-          "ocaml-lsp-server"
-          "base"
-          "core"
-        ];
+  #       packagesToInstall = lib.strings.concatMapStrings (p: p + " ") [
+  #         "ocaml-lsp-server"
+  #         "base"
+  #         "core"
+  #       ];
 
-        opam-init = pkgs.writeShellScriptBin "opam-init" ''
-          if ! test -f ${opamInitScriptPath}; then
-            return
-          fi
+  #       opam-init = pkgs.writeShellScriptBin "opam-init" ''
+  #         if ! test -f ${opamInitScriptPath}; then
+  #           return
+  #         fi
 
-          eval $(${opam}/bin/opam env)
-          source ${opamInitScriptPath}
+  #         eval $(${opam}/bin/opam env)
+  #         source ${opamInitScriptPath}
 
-          sudo -Hu ${user.alias} ${pkgs.bash}/bin/bash -c '${opam}/bin/opam install -y ${packagesToInstall}'
-        '';
-      in {
-        Type = "oneshot";
-        ExecStart = "${opam-init}/bin/opam-init";
-        Restart = "never";
-      };
+  #         sudo -Hu ${user.alias} ${pkgs.bash}/bin/bash -c '${opam}/bin/opam install -y ${packagesToInstall}'
+  #       '';
+  #     in {
+  #       Type = "oneshot";
+  #       ExecStart = "${opam-init}/bin/opam-init";
+  #       Restart = "never";
+  #     };
 
-      Install = {
-        WantedBy = ["default.target"];
-      };
-    };
-  };
+  #     Install = {
+  #       WantedBy = ["default.target"];
+  #     };
+  #   };
+  # };
 }
