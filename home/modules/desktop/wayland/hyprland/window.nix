@@ -12,6 +12,8 @@ in {
     col.inactive_border = rgba(595959aa)
 
     windowrulev2 = float,center,forceinput, class:(Rofi)$
+    windowrulev2 = float, title:^(Android Emulator -)
+    windowrulev2 = float, title:^(Emulator)$
   '';
 
   decoration = ''
