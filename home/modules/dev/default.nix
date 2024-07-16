@@ -1,7 +1,6 @@
 {
   imports = [
     ./database
-    ./mobile
     ./git
     ./pwn
     ./ops
@@ -10,6 +9,7 @@
     ./processors.nix
     ./templates.nix
     ./clients.nix
+    ./mobile.nix
     ./devenv.nix
     ./python.nix
     ./ocaml.nix
