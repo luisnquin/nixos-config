@@ -871,11 +871,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1721256103,
-        "narHash": "sha256-9JjjBz2h/4moSq5gr9RBWWp8XB9cinkv2GuO/Sl8fOE=",
+        "lastModified": 1721421065,
+        "narHash": "sha256-963NA7v9R4vJYdr+UYoVJpHqJv8YZJGrO3fcmOJrUZU=",
         "owner": "luisnquin",
         "repo": "nixpkgs-extra",
-        "rev": "bb6369ab643e51b07814f6d50db9df9cb47e2e98",
+        "rev": "1ebfddebb2ab0e3487a0413331bdb3b84e5d3a6a",
         "type": "github"
       },
       "original": {
