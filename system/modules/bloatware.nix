@@ -1,0 +1,3 @@
+{
+  programs.java.enable = true;
+}
