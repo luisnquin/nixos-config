@@ -8,10 +8,10 @@
     ./password-store.nix
     ./file-manager.nix
     ./color-picker.nix
-    ./obs-studio.nix
     ./monitoring.nix
     ./gsimplecal.nix
     ./management.nix
+    ./recording.nix
     ./macchina.nix
     ./discord.nix
     ./browser.nix

@@ -1,4 +1,8 @@
 {pkgs, ...}: {
+  home.packages = with pkgs; [
+    shotcut
+  ];
+
   programs.obs-studio = {
     enable = true;
 
