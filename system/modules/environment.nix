@@ -38,7 +38,6 @@
           lsof
           nmap
           wget
-          dig
           eza # ls command replacement
           vlc
 
