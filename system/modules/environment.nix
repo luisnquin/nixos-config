@@ -39,7 +39,6 @@
           nmap
           wget
           eza # ls command replacement
-          vlc
 
           # NTFS
           ntfs3g
