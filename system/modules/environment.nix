@@ -7,11 +7,6 @@
   environment = {
     systemPackages = with pkgs; let
       nixpkgs = builtins.concatLists (builtins.attrValues {
-        apps = [
-          slack # Sucks by default on KDE https://stackoverflow.com/questions/70867064/signing-into-slack-desktop-not-working-on-4-23-0-64-bit-ubuntu
-          gimp # Image editor but I don't use it
-        ];
-
         clap = [
           translate-shell # Translate anything from shell
           tealdeer # Alternative to tdlr client and man

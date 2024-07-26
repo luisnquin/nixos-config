@@ -11,10 +11,10 @@
     ./monitoring.nix
     ./gsimplecal.nix
     ./management.nix
-    ./recording.nix
     ./macchina.nix
     ./discord.nix
     ./browser.nix
+    ./studio.nix
     ./torrent.nix
     ./zathura.nix
     ./ntfy-sh.nix
@@ -22,6 +22,7 @@
     ./for-fun.nix
     ./docker.nix
     ./btop.nix
+    ./work.nix
     ./nao.nix
     ./bat.nix
     ./xdg.nix
