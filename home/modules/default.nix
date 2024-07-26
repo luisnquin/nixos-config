@@ -5,26 +5,27 @@
     ./editors
     ./dev
 
-    ./password-store.nix
-    ./file-manager.nix
-    ./color-picker.nix
-    ./monitoring.nix
-    ./gsimplecal.nix
-    ./management.nix
-    ./macchina.nix
-    ./discord.nix
+    ./bat.nix
     ./browser.nix
+    ./btop.nix
+    ./color-picker.nix
+    ./discord.nix
+    ./docker.nix
+    ./etc.nix
+    ./file-manager.nix
+    ./for-fun.nix
+    ./gsimplecal.nix
+    ./macchina.nix
+    ./management.nix
+    ./monitoring.nix
+    ./nao.nix
+    ./ntfy-sh.nix
+    ./password-store.nix
+    ./spotify.nix
     ./studio.nix
     ./torrent.nix
-    ./zathura.nix
-    ./ntfy-sh.nix
-    ./spotify.nix
-    ./for-fun.nix
-    ./docker.nix
-    ./btop.nix
     ./work.nix
-    ./nao.nix
-    ./bat.nix
     ./xdg.nix
+    ./zathura.nix
   ];
 }
