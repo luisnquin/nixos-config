@@ -10,7 +10,7 @@
 
     # https://github.com/NixOS/nixpkgs/pull/249369
     # https://github.com/NixOS/nixpkgs/issues/249138
-    ./environment.nix
+    ./essentials.nix
     ./bloatware.nix
     ./bluetooth.nix
     ./clipboard.nix

@@ -1,5 +1,6 @@
 {
   pkgsx,
+  senv,
   pkgs,
   ...
 }: {
@@ -18,6 +19,8 @@
     # Command runners
     gnumake
     just
+
+    senv
 
     kondo # Clean up
 
