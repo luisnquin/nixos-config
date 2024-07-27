@@ -17,6 +17,7 @@
     ./graphics.nix
     ./battery.nix
     ./systemd.nix
+    ./kernel.nix
     ./docker.nix
     ./thunar.nix
     ./fonts.nix
