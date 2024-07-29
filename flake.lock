@@ -887,11 +887,11 @@
         "systems": "systems_10"
       },
       "locked": {
-        "lastModified": 1720805395,
-        "narHash": "sha256-G0bLyCfDaSqCKfREN/LXpfKZQaUS1VV1A9cMpbW/d5c=",
+        "lastModified": 1722276992,
+        "narHash": "sha256-W5P4BRkAiC4QaQl+o1I3uWH3V6qXGJlCnZmxaP07Eq4=",
         "owner": "luisnquin",
         "repo": "nix-scripts",
-        "rev": "d918f8f047fcf27c70f98f38238c30d43727c5ce",
+        "rev": "4f029b845d9e661dc7aea6ad5a2c1f30aa049c9d",
         "type": "github"
       },
       "original": {
