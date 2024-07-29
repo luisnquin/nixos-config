@@ -22,6 +22,10 @@
     tplr.url = "github:luisnquin/tplr";
     senv.url = "github:luisnquin/senv";
     nao.url = "github:luisnquin/nao";
+    passgen = {
+      url = "github:luisnquin/passgen";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     neovim-flake = {
       url = "github:jordanisaacs/neovim-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -109,7 +113,7 @@
             inherit libx pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv hyprstfu spotify-dbus-control;
+            inherit rofi-network-manager senv passgen hyprstfu spotify-dbus-control;
           }
           // hyprland-contrib.packages.${system}
           // nix-scripts.packages.${system};

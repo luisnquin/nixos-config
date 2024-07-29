@@ -1,5 +1,5 @@
 {
-  pkgsx,
+  passgen,
   senv,
   pkgs,
   ...
@@ -11,7 +11,7 @@
     # onlyoffice-bin
     gnumeric
 
-    pkgsx.passgen
+    passgen
     hyperfine # benchmarking
     # asciinema
     rclone # cloud storages
