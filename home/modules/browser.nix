@@ -4,7 +4,6 @@
   ...
 }: {
   home.packages = [
-    pkgs.mullvad-browser
     pkgs.vivaldi # Always available
   ];
 
