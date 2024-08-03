@@ -923,11 +923,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1721680619,
-        "narHash": "sha256-1IZNzz1DcH72Yj3ZHcxAVM4daPiu0S5juRtdn4ZFBW8=",
+        "lastModified": 1722724538,
+        "narHash": "sha256-ss9rQ3HBQk/Am71V3KM6OMac+mDvLjGpDDMnOMInASo=",
         "owner": "luisnquin",
         "repo": "nixpkgs-extra",
-        "rev": "f21831fb68a3ade649c55740e5d0ff144e0ad25d",
+        "rev": "c9cbafa1b78c88c942a0c8f9008eddedb2346f48",
         "type": "github"
       },
       "original": {
