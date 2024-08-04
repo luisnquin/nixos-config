@@ -21,6 +21,7 @@
   environment = {
     systemPackages = with pkgs; [
       # pkgsx.netscanner
+      wireshark
       inetutils
       iptables
       netcat
@@ -32,4 +33,6 @@
       path = ./shell.sh;
     });
   };
+
+  programs.wireshark.enable = true;
 }

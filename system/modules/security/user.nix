@@ -20,6 +20,7 @@
 
         extraGroups = [
           "networkmanager"
+          "wireshark"
           "docker"
           "wheel"
         ];
