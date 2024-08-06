@@ -137,15 +137,23 @@
           "format-icons" = ["󰁺" "󰁻" "󰁽" "󰁿" "󰂀" "󰂂"];
         };
 
+        # "network" = {
+        #   "format-disconnected" = "󰯡 Lost";
+        #   "format-ethernet" = "󰒢 Connected";
+        #   "format-linked" = "󰖪  {essid} (No IP)";
+        #   "format-wifi" = "󰖩  {ipaddr}/{cidr}";
+        #   "interval" = 5;
+        #   "on-click" = "${rofi-network-manager}/bin/rofi-network-manager";
+        # };
+
         "network" = {
-          "format-disconnected" = "󰯡 Lost";
-          "format-ethernet" = "󰒢 Connected";
-          "format-linked" = "󰖪  {essid} (No IP)";
-          "format-wifi" = "󰖩  {ipaddr}/{cidr}";
-          "interval" = 5;
-          "tooltip" = true;
+          "format-disconnected" = "󰯡 Disconnected";
+          "format-ethernet" = "↑ {bandwidthUpBytes} ↓ {bandwidthDownBytes} 󰀂  󰖩  {ifname} ({ipaddr})";
+          "format-linked" = "󰖪 {essid} (No IP)";
+          "format-wifi" = "↑ {bandwidthUpBytes} ↓ {bandwidthDownBytes}";
           "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
-          "on-click" = "${rofi-network-manager}/bin/rofi-network-manager";
+          "tooltip" = true;
+          "interval" = 1;
         };
 
         "custom/power" = {
