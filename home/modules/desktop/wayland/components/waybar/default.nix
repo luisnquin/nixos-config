@@ -154,6 +154,7 @@
           "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
           "tooltip" = true;
           "interval" = 1;
+          "on-click" = "${lib.getExe pkgs.alacritty} -e ${pkgs.networkmanager}/bin/nmtui connect";
         };
 
         "custom/power" = {
