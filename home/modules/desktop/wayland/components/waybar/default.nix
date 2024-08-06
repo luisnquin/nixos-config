@@ -1,5 +1,4 @@
 {
-  rofi-network-manager,
   mullvad-status,
   pkgs,
   lib,
