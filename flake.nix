@@ -31,7 +31,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     spicetify-nix = {
-      url = "github:the-argus/spicetify-nix";
+      url = "github:Gerg-L/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     hyprland-contrib = {
@@ -106,7 +106,7 @@
           {
             pkgsx = nixpkgs-extra.packages.${system};
 
-            spicetify = spicetify-nix.packages.${pkgs.system}.default;
+            spicetify = spicetify-nix.legacyPackages.${pkgs.system};
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
@@ -141,7 +141,7 @@
 
         homeModules = [
           battery-notifier.homeManagerModule.default
-          spicetify-nix.homeManagerModule
+          spicetify-nix.homeManagerModules.default
           tplr.homeManagerModules.default
           nao.homeManagerModules.default
           ./home/options
