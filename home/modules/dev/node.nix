@@ -21,13 +21,30 @@
 
     sessionPath = ["${npmGlobalDir}/bin"];
 
-    file.".npmrc".text = ''
-      prefix=${npmGlobalDir}
-    '';
-
     activation.init = lib.hm.dag.entryAfter ["writeBoundary"] ''
       mkdir -p ${npmGlobalDir}/bin \
                ${npmGlobalDir}/lib
     '';
+
+    file = {
+      ".npmrc".text = ''
+        prefix=${npmGlobalDir}
+      '';
+
+      ".bunfig.toml".text = ''
+        [runtime]
+        logLevel = "debug"
+        telemetry = false
+
+        [install]
+        optional = true
+        dev = true
+        peer = true
+        production = false
+        exact = true
+
+        auto = "fallback"
+      '';
+    };
   };
 }
