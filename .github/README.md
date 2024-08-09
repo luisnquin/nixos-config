@@ -18,19 +18,7 @@
 
 ![image](https://github.com/luisnquin/nixos-config/assets/86449787/12a9ec9a-ffed-4b51-8a89-f906d5944f47)
 
-## Throubleshooting
-
-1. [NixOS and/or Home manager **rebuild** fails with error _"failed to open '/nix/store/\*-source'"_](https://discourse.nixos.org/t/nix-flakes-nix-store-source-no-such-file-or-directory/17836/9)
-
-    ![nix rebuild source not found](./assets/nix-rebuild-source-not-found.png)
-
-2. [Wireless connection instantly fails on startup when just switched from Windows](https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#about_dual-boot_with_windows_and_fast-boot_enabled).
-3. **macOS VM fails to build.** Ensure to enable the virtualisation capacibilities for your CPU in your **BIOS**. You might find this option as "Intel (VMX) Virtualization Technology".
-
 ## Some configurations comes here thanks to
-
-<details>
-<summary>It's a long list, sorry fellas</summary>
 
 - [the-argus](https://github.com/the-argus/nixsys)
 - [angristan](https://github.com/angristan/nixos-config)
@@ -46,5 +34,3 @@
 - [NotAShelf](https://github.com/NotAShelf/nyx)
 - [nmasur](https://github.com/nmasur/dotfiles)
 - [lovesegfault](https://github.com/lovesegfault/nix-config)
-
-</details>
