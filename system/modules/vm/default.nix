@@ -1,6 +1,6 @@
 {
   imports = [
-    ./macos-ventura.nix
+    # ./macos-ventura.nix
     ./base.nix
     ./vnc.nix
   ];
