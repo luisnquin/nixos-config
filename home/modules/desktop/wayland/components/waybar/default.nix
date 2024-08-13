@@ -1,4 +1,5 @@
 {
+  nmcli-wifi-scan-waybar,
   mullvad-status,
   pkgs,
   lib,
@@ -101,14 +102,12 @@
         };
 
         "custom/network-scan" = {
-          "exec" = "echo '󱛄'";
-          "interval" = "once";
+          "exec" = "${lib.getExe nmcli-wifi-scan-waybar}";
+          "return-type" = "json";
           "tooltip" = true;
+          "interval" = 1;
           "tooltip-format" = "Scan wifi networks nearby";
-          "on-click" = let
-            nmcliBin = "${pkgs.networkmanager}/bin/nmcli";
-            awkBin = "${pkgs.gawk}/bin/awk";
-          in ''${nmcliBin} radio wifi on && ${nmcliBin} --fields SSID,SECURITY,BARS device wifi list ifname "$(${nmcliBin} device | ${awkBin} '$2 == "wifi" {print $1}')" --rescan yes'';
+          "on-click" = "${lib.getExe nmcli-wifi-scan-waybar} --scan";
         };
 
         "custom/clock" = {

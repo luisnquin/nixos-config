@@ -140,7 +140,11 @@
  #custom-network-scan {
      color: #795ee6;
      padding-right: 5px;
-     font-size: 20px;
+     font-size: 25px;
+ }
+
+ #custom-network-scan.scanning {
+     color: #f26411;
  }
 
  #custom-mullvad {
