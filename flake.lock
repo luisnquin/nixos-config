@@ -885,11 +885,11 @@
         "systems": "systems_10"
       },
       "locked": {
-        "lastModified": 1722276992,
-        "narHash": "sha256-W5P4BRkAiC4QaQl+o1I3uWH3V6qXGJlCnZmxaP07Eq4=",
+        "lastModified": 1723592586,
+        "narHash": "sha256-txNASV+3T1+PknggfePrB3GTGiGR29iD61CPu4epHf0=",
         "owner": "luisnquin",
         "repo": "nix-scripts",
-        "rev": "4f029b845d9e661dc7aea6ad5a2c1f30aa049c9d",
+        "rev": "e82060eb435cb2a37379c8054dfb991955f590dd",
         "type": "github"
       },
       "original": {
