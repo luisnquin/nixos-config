@@ -38,6 +38,7 @@
           "cpu"
           "battery"
           "network"
+          "custom/network-scan"
           "custom/power"
         ];
 
@@ -97,6 +98,17 @@
           "interval" = 2;
           "return-type" = "json";
           "on-click" = "${lib.getExe mullvad-status} --toggle-connection";
+        };
+
+        "custom/network-scan" = {
+          "exec" = "echo '󱛄'";
+          "interval" = "once";
+          "tooltip" = true;
+          "tooltip-format" = "Scan wifi networks nearby";
+          "on-click" = let
+            nmcliBin = "${pkgs.networkmanager}/bin/nmcli";
+            awkBin = "${pkgs.gawk}/bin/awk";
+          in ''${nmcliBin} radio wifi on && ${nmcliBin} --fields SSID,SECURITY,BARS device wifi list ifname "$(${nmcliBin} device | ${awkBin} '$2 == "wifi" {print $1}')" --rescan yes'';
         };
 
         "custom/clock" = {
