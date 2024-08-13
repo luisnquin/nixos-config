@@ -7,3 +7,7 @@ netscan() {
 netport() {
     sudo ss -lptn "sport = :$1"
 }
+
+myip() {
+    curl -s ifconfig.me && echo
+}
