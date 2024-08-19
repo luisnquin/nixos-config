@@ -9,8 +9,8 @@
       aws-lambda-rie
       pkgsx.s3-edit
       pkgsx.ecsview
-      pkgsx.stu
       awscli2
+      stu
     ];
 
     sessionVariables = rec {
