@@ -13,6 +13,8 @@
       kotlin-native
       kotlin
 
+      nodePackages."eas-cli"
+
       android-tools
     ];
 
