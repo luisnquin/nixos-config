@@ -4,16 +4,14 @@
   virtualisation = {
     docker = {
       enable = true;
-      enableNvidia = true;
-      # I need to fix the nvidia driver setup ASAP :)
-      # extraOptions = "--default-runtime=nvidia";
-
       autoPrune = {
         enable = true;
         dates = "daily";
       };
     };
   };
+
+  hardware.nvidia-container-toolkit.enable = true;
 
   environment = {
     systemPackages = with pkgs; [
