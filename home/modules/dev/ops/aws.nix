@@ -10,7 +10,7 @@
       pkgsx.s3-edit
       pkgsx.ecsview
       (awscli2.overrideAttrs
-        (old: {
+        (_old: {
           disabledTestPaths = [
             "tests/dependencies"
             "tests/unit/botocore"
