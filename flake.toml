@@ -26,5 +26,5 @@ isLaptop = false
 gui = true
 
 [nix]
-stateVersion = "24.05"
+stateVersion = "24.11"
 channel = "nixos-unstable"
