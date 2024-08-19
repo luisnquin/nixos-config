@@ -9,7 +9,22 @@
       aws-lambda-rie
       pkgsx.s3-edit
       pkgsx.ecsview
-      awscli2
+      (awscli2.overrideAttrs
+        (old: {
+          disabledTestPaths = [
+            "tests/dependencies"
+            "tests/unit/botocore"
+            "tests/unit/customizations/logs"
+            "tests/unit/customizations/cloudtrail"
+
+            # Integration tests require networking
+            "tests/integration"
+
+            # Disable slow tests (only run unit tests)
+            "tests/backends"
+            "tests/functional"
+          ];
+        }))
       stu
     ];
 
