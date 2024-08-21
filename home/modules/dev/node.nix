@@ -15,6 +15,7 @@
       pkgsx.npkill # remove node_modules from child directories
       nest-cli
       nodejs
+      husky
       biome
       bun
     ];
