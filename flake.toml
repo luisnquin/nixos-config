@@ -11,7 +11,7 @@ timeZone = "America/El_Salvador"
 i18nLocale = "en_US.UTF-8"
 keyboardLayout = "latam"
 resolution = "1920x1080"
-batteryThreshold = 60
+batteryThreshold = 70
 isLaptop = true
 gui = true
 
