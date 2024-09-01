@@ -13,6 +13,9 @@
       wget
       eza # ls command replacement
 
+      bison
+      flex
+
       # ntfs
       ntfs3g
       exfat
