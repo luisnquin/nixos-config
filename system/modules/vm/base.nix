@@ -15,7 +15,7 @@
     virtualbox.host.enable = true;
   };
 
-  users.${user.alias}.extraGroups = [
+  users.users.${user.alias}.extraGroups = [
     "kvm"
   ];
 
