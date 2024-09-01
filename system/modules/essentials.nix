@@ -16,6 +16,8 @@
       bison
       flex
 
+      steam-run
+
       # ntfs
       ntfs3g
       exfat
