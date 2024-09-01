@@ -56,6 +56,7 @@
       statix
       nurl
       nil # lsp
+      nvd # package diff
 
       nixpkgs-review
       nixpkgs-lint
