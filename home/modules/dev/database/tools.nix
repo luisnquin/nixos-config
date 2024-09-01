@@ -11,9 +11,19 @@
       }
     ]
   );
+
+  postgresql-client = (
+    pkgs.linkFarm "postgresql-client" [
+      {
+        name = "bin/psql";
+        path = "${pkgs.postgresql}/bin/psql";
+      }
+    ]
+  );
 in {
   home.packages = with pkgs; [
-    mysql-client # I prefer containers for server stuff
+    mysql-client # I prefer containers
+    postgresql-client # for server stuff
     litecli
     pgcli
     mycli
