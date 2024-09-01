@@ -2,8 +2,18 @@
   config,
   pkgs,
   ...
-}: {
+}: let
+  mysql-client = (
+    pkgs.linkFarm "mysql-client" [
+      {
+        name = "bin/mysql";
+        path = "${pkgs.mariadb}/bin/mysql";
+      }
+    ]
+  );
+in {
   home.packages = with pkgs; [
+    mysql-client # I prefer containers for server stuff
     litecli
     pgcli
     mycli
