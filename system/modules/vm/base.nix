@@ -1,8 +1,4 @@
-{
-  pkgs,
-  user,
-  ...
-}: {
+{pkgs, ...}: {
   virtualisation = {
     libvirtd = {
       enable = true;
@@ -14,10 +10,6 @@
 
     virtualbox.host.enable = true;
   };
-
-  users.users.${user.alias}.extraGroups = [
-    "kvm"
-  ];
 
   environment.systemPackages = with pkgs; [
     virt-manager
