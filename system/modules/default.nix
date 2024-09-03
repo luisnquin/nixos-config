@@ -16,6 +16,7 @@
     ./clipboard.nix
     ./graphics.nix
     ./battery.nix
+    ./android.nix
     ./systemd.nix
     ./kernel.nix
     ./docker.nix
