@@ -16,6 +16,8 @@
       nodePackages."eas-cli"
 
       android-tools
+
+      sdkmanager # for me, "Accept The License - The CLI"
     ];
 
     file."${ANDROID_HOME}/platform-tools" = {
