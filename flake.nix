@@ -71,6 +71,9 @@
           import ./overlays/nixpkgs.nix
           ++ [
             templ.overlays.default
+            (self: super: {
+              inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
+            })
           ];
         config = {
           allowBroken = false;
