@@ -71,7 +71,7 @@
           import ./overlays/nixpkgs.nix
           ++ [
             templ.overlays.default
-            (self: super: {
+            (_self: _super: {
               inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             })
           ];
