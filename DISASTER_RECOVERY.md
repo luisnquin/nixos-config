@@ -1,6 +1,9 @@
 
 # Disaster recovery
 
+> [!CAUTION]
+> This could require you more disks!
+
 1. [NixOS and/or Home manager **rebuild** fails with error _"failed to open '/nix/store/\*-source'"_](https://discourse.nixos.org/t/nix-flakes-nix-store-source-no-such-file-or-directory/17836/9)
 
     ![nix rebuild source not found](./.github/assets/nix-rebuild-source-not-found.png)
