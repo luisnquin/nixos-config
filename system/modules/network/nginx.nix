@@ -1,19 +1,11 @@
 {
   config,
-  user,
   pkgs,
   lib,
   ...
 }: let
   enableAll = false;
 in {
-  imports = [
-    (import ./services {
-      enable = enableAll;
-      inherit user;
-    })
-  ];
-
   services.nginx = {
     enable = enableAll;
     package = pkgs.nginxStable;
@@ -26,7 +18,6 @@ in {
 
     httpConfig = let
       rustypaste = {
-        inherit (config.services.rustypaste.settings.server) address;
         domain = "rp.localhost";
       };
 

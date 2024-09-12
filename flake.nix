@@ -138,7 +138,6 @@
           (import ./secrets {inherit system agenix;})
           nixtheplanet.nixosModules.macos-ventura
           agenix.nixosModules.default
-          ./system/options
           ./tools/nix/nixos-options
         ];
 
