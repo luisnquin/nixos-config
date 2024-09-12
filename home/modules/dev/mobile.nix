@@ -8,14 +8,15 @@
   in {
     packages = with pkgs; [
       android-studio
+      android-tools
+
+      maestro # Mobile UI Automation tool
 
       kotlin-language-server
       kotlin-native
       kotlin
 
       nodePackages."eas-cli"
-
-      android-tools
 
       sdkmanager # for me, "Accept The License - The CLI"
     ];
