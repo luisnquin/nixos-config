@@ -19,6 +19,7 @@ in {
   # boot.initrd.kernelModules = ["nvidia" "nvidia_modeset" "nvidia-uvm" "nvidia_drm" "kvm-intel"];
 
   hardware = {
+    # renamed from `hardware.opengl`
     graphics = {
       enable = true;
       enable32Bit = true;
@@ -42,13 +43,17 @@ in {
         nvidiaBusId = "PCI:1:0:0";
         intelBusId = "PCI:0:2:0";
 
+        # recommended by nvidia
         offload = {
           enable = true;
           enableOffloadCmd = true;
         };
       };
 
-      package = config.boot.kernelPackages.nvidiaPackages.beta;
+      package = let
+        inherit (config.boot.kernelPackages) nvidiaPackages;
+      in
+        nvidiaPackages.beta;
     };
   };
 }
