@@ -24,6 +24,7 @@ in {
   home.packages = with pkgs; [
     mysql-client # I prefer containers
     postgresql-client # for server stuff
+    mongosh
     litecli
     pgcli
     mycli
