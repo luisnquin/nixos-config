@@ -20,6 +20,8 @@
     gnumake
     just
 
+    ngrok
+
     senv
 
     kondo # Clean up
