@@ -20,10 +20,20 @@
       }
     ]
   );
+
+  redis-cli = (
+    pkgs.linkFarm "redis-cli" [
+      {
+        name = "bin/redis-cli";
+        path = "${pkgs.redis}/bin/redis-cli";
+      }
+    ]
+  );
 in {
   home.packages = with pkgs; [
     mysql-client # I prefer containers
     postgresql-client # for server stuff
+    redis-cli
     mongosh
     litecli
     pgcli
