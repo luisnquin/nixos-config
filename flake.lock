@@ -913,6 +913,21 @@
         "type": "indirect"
       }
     },
+    "nixpkgs-beta": {
+      "locked": {
+        "lastModified": 1726755586,
+        "narHash": "sha256-PmUr/2GQGvFTIJ6/Tvsins7Q43KTMvMFhvG6oaYK+Wk=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "c04d5652cfa9742b1d519688f65d1bbccea9eb7e",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixos-unstable",
+        "type": "indirect"
+      }
+    },
     "nixpkgs-extra": {
       "inputs": {
         "flake-utils": "flake-utils_5",
@@ -2197,6 +2212,7 @@
         "nix-nostd": "nix-nostd",
         "nix-scripts": "nix-scripts",
         "nixpkgs": "nixpkgs_6",
+        "nixpkgs-beta": "nixpkgs-beta",
         "nixpkgs-extra": "nixpkgs-extra",
         "nixtheplanet": "nixtheplanet",
         "passgen": "passgen",

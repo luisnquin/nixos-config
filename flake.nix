@@ -4,6 +4,8 @@
   # https://github.com/NixOS/nix/issues/3966
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
+    # it's only beta for my computer! :)
+    nixpkgs-beta.url = "nixpkgs/nixos-unstable";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -83,6 +85,11 @@
         inherit system;
       };
 
+      pkgs-beta = import nixpkgs-beta {
+        overlays = import ./overlays/nixpkgs-beta.nix;
+        inherit system;
+      };
+
       inherit (pkgs) lib;
 
       libx =
@@ -113,7 +120,7 @@
             grub-pkgs = grub-themes.packages.${system};
 
             inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            inherit libx pkgs;
+            inherit libx pkgs pkgs-beta;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv passgen hyprstfu spotify-dbus-control;

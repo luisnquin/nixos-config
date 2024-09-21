@@ -1,7 +1,11 @@
-{pkgs, ...}: {
+{
+  pkgs-beta,
+  pkgs,
+  ...
+}: {
   home.packages = with pkgs; [
+    pkgs-beta.ranger
     nautilus
-    ranger
   ];
 
   programs.xplr = {
