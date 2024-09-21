@@ -17,6 +17,7 @@
     ./gsimplecal.nix
     ./macchina.nix
     ./management.nix
+    ./media.nix
     ./monitoring.nix
     ./nao.nix
     ./ntfy-sh.nix

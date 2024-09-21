@@ -25,39 +25,52 @@
     };
 
     mimeApps = let
-      dolphinDesktop = "org.kde.dolphin.desktop";
-      vivaldiDesktop = "vivaldi-stable.desktop";
+      dolphin = ["org.kde.dolphin.desktop"];
+      vivaldi = ["vivaldi-stable.desktop"];
+      vlc = ["vlc.desktop"];
+      zathura = ["zathura.desktop"];
+      vscode = ["code.desktop"];
 
-      browserDesktop =
+      browser =
         # fail-fast, add other if needed
-        {
-          "brave" = "brave-browser.desktop";
-          "vivaldi-stable" = vivaldiDesktop;
-          "google-chrome" = "google-chrome.desktop";
-        }
-        ."${host.browser}";
+        [
+          {
+            "brave" = "brave-browser.desktop";
+            "vivaldi-stable" = vivaldi;
+            "google-chrome" = "google-chrome.desktop";
+          }
+          ."${host.browser}"
+        ];
+
+      associations = {
+        "inode/directory" = dolphin;
+        "x-scheme-handler/geo" = "wheelmap-geo-handler.desktop";
+        "x-scheme-handler/http" = browser;
+        "x-scheme-handler/https" = browser;
+        "x-scheme-handler/mailto" = vivaldi;
+        "x-scheme-handler/slack" = "slack.desktop";
+
+        "x-scheme-handler/unknown" = browser;
+        "x-scheme-handler/about" = browser;
+
+        "application/pdf" = zathura;
+        "application/json" = browser;
+
+        "image/*" = browser; # feh.desktop is not working :((
+        "video/*" = vlc; # not working as expected...
+        "video/x-matroska" = vlc;
+        "video/quicktime" = vlc;
+
+        "audio/*" = vlc;
+
+        "text/x-python" = vscode;
+        "text/plain" = browser;
+        "text/html" = browser;
+      };
     in {
       enable = true;
-
-      associations.added = {
-        "inode/directory" = dolphinDesktop;
-        "x-scheme-handler/geo" = "wheelmap-geo-handler.desktop";
-        "x-scheme-handler/http" = browserDesktop;
-        "x-scheme-handler/https" = browserDesktop;
-        "x-scheme-handler/mailto" = vivaldiDesktop;
-      };
-
-      defaultApplications = {
-        "x-scheme-handler/mailto" = vivaldiDesktop;
-        "x-scheme-handler/slack" = "slack.desktop";
-        "inode/directory" = dolphinDesktop;
-
-        "x-scheme-handler/unknown" = browserDesktop;
-        "x-scheme-handler/https" = browserDesktop;
-        "x-scheme-handler/about" = browserDesktop;
-        "x-scheme-handler/http" = browserDesktop;
-        "text/html" = browserDesktop;
-      };
+      associations.added = associations;
+      defaultApplications = associations;
     };
   };
 }
