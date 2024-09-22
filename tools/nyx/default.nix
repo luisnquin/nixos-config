@@ -1,10 +1,8 @@
 {
   pkgs ? import <nixpkgs> {},
   notificationIcon ? ./assets/nix-logo.png,
-  hyprlandSupport ? false,
 }:
-assert builtins.isPath notificationIcon;
-assert builtins.isBool hyprlandSupport; let
+assert builtins.isPath notificationIcon; let
   runtimePackages = with pkgs; [
     libnotify
     alejandra
@@ -27,7 +25,6 @@ in
     postPatch = ''
       substituteInPlace ./main.bash \
         --replace-fail '/path/to/nix-logo.png' '${notificationIcon}' \
-        --replace-fail 'USES_HYPRLAND=false' 'USES_HYPRLAND=${lib.boolToString hyprlandSupport}' \
         --replace-fail '#! /usr/bin/env nix-shell\n#! nix-shell -i bash -p bash alejandra home-manager git' '#! /usr/bin/env bash'
     '';
 
