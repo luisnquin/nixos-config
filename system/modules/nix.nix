@@ -41,10 +41,7 @@
     };
   };
 
-  tools.nyx = {
-    enable = true;
-    hyprlandSupport = host.desktop == "hyprland";
-  };
+  tools.nyx.enable = true;
 
   environment = {
     systemPackages = with pkgs; [

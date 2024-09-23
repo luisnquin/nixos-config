@@ -12,7 +12,6 @@
 
   tools.nyx = {
     enable = true;
-    hyprlandSupport = host.desktop == "hyprland";
   };
 
   hardware = {

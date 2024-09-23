@@ -11,11 +11,6 @@ in {
     tools.nyx = {
       enable = mkEnableOption "nyx";
 
-      hyprlandSupport = mkOption {
-        type = types.bool;
-        default = false;
-      };
-
       notificationIcon = mkOption {
         type = types.nullOr types.bool;
         default = null;
