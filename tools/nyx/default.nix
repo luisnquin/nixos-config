@@ -24,8 +24,7 @@ in
 
     postPatch = ''
       substituteInPlace ./main.bash \
-        --replace-fail '/path/to/nix-logo.png' '${notificationIcon}' \
-        --replace-fail '#! /usr/bin/env nix-shell\n#! nix-shell -i bash -p bash alejandra home-manager git' '#! /usr/bin/env bash'
+        --replace-fail '/path/to/nix-logo.png' '${notificationIcon}'
     '';
 
     installPhase = ''
