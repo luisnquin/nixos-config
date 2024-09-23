@@ -2,7 +2,6 @@
   nixgrep,
   pkgs,
   user,
-  host,
   ...
 }: {
   nix = {
