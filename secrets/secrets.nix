@@ -4,4 +4,5 @@ in {
   "acme-env-luisquinones-me.age".publicKeys = [luisnquin];
   "spotify-access-secret.age".publicKeys = [luisnquin];
   "acme-env-neticshard-com.age".publicKeys = [luisnquin];
+  "40a98b0e-fca3-42a4-8867-c453a33d45e6.age".publicKeys = [luisnquin];
 }

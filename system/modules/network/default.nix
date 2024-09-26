@@ -4,6 +4,7 @@
   ...
 }: {
   imports = [
+    ./cloudflared.nix
     ./firewall.nix
     ./hosts.nix
     ./nginx.nix
