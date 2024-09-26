@@ -5,7 +5,6 @@
   cliphist-rofi,
   sys-sound,
   grimblast,
-  hyprland,
   hyprstfu,
   pkgs,
   ...
@@ -150,7 +149,7 @@
       }
       {
         "mod+key" = "SUPER_SHIFT, R";
-        "dispatcher" = "exec, ${hyprland}/bin/hyprctl reload";
+        "dispatcher" = "exec, ${pkgs.hyprland}/bin/hyprctl reload";
       }
       {
         "mod+key" = "SUPER_SHIFT, S";
