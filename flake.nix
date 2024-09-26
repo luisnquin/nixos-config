@@ -119,7 +119,6 @@
             spicetify = spicetify-nix.legacyPackages.${pkgs.system};
             grub-pkgs = grub-themes.packages.${system};
 
-            inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             inherit libx pkgs pkgs-beta;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
