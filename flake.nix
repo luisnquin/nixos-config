@@ -18,7 +18,6 @@
 
     rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
     battery-notifier.url = "github:luisnquin/battery-notifier";
-    nixtheplanet.url = "github:matthewcroughan/nixtheplanet";
     grub-themes.url = "github:luisnquin/grub-themes";
     hyprstfu.url = "github:luisnquin/hyprstfu";
     tplr.url = "github:luisnquin/tplr";
@@ -109,9 +108,7 @@
           isWayland = desktop == "hyprland";
         };
 
-        flakes = {
-          inherit nixtheplanet neovim-flake;
-        };
+        flakes = {inherit neovim-flake;};
 
         packages =
           {
@@ -143,7 +140,6 @@
 
         nixosModules = [
           (import ./secrets {inherit system agenix;})
-          nixtheplanet.nixosModules.macos-ventura
           agenix.nixosModules.default
           ./tools/nix/nixos-options
         ];
