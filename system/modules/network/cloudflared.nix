@@ -4,11 +4,12 @@
   ...
 }: {
   environment.systemPackages = [
-    pkgs.cloudflared
+    pkgs.unstable-beta.cloudflared
   ];
 
   services.cloudflared = {
     enable = true;
+    package = pkgs.unstable-beta.cloudflared;
 
     # This doesn't seems to be reproducible at the current state.
     # A new tunnel and configurations will need to be issued by cloudflared's CLI.
