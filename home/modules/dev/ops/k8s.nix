@@ -1,8 +1,4 @@
-{
-  pkgs,
-  libx,
-  ...
-}: {
+{pkgs, ...}: {
   home = {
     shellAliases = rec {
       k9s = "k9s --crumbsless --logoless --refresh=2";
@@ -18,9 +14,11 @@
     ];
   };
 
-  programs.k9s = {
+  programs.k9s = let
+    inherit (pkgs.libx.formats) fromYAML;
+  in {
     enable = true;
-    skins.skin = libx.formats.fromYAML ../../../dots/k9s/skin.yml;
-    views = libx.formats.fromYAML ../../../dots/k9s/views.yml;
+    skins.skin = fromYAML ../../../dots/k9s/skin.yml;
+    views = fromYAML ../../../dots/k9s/views.yml;
   };
 }

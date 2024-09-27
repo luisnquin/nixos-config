@@ -1,12 +1,6 @@
-{
-  pkgs,
-  ...
-}: {
-  home.packages = [
-    # pkgsx.openapi-tui
-    pkgs.insomnia # another REST client
-    # pkgsx.yaak # REST client
-    # pkgsx.atac
-    pkgs.websocat
+{pkgs, ...}: {
+  home.packages = with pkgs; [
+    insomnia # another REST client
+    websocat
   ];
 }

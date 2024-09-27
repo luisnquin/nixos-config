@@ -1,10 +1,6 @@
-{
-  pkgs-beta,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   home.packages = with pkgs; [
-    pkgs-beta.ranger
+    pkgs.unstable-beta.ranger
     nautilus
   ];
 

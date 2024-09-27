@@ -1,13 +1,12 @@
 {
   swww-switcher,
   pkgs,
-  libx,
   ...
 }: {
   home.packages = [pkgs.swww];
 
   xdg.configFile = let
-    wallpaperFiles = libx.fs.getFilesInDirectory ../../../../dots/wallpapers;
+    wallpaperFiles = pkgs.libx.fs.getFilesInDirectory ../../../../dots/wallpapers;
     swww-switcher-bin = "${swww-switcher}/bin/cli";
   in {
     "hypr/hyprland.conf".text = ''

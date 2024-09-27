@@ -1,10 +1,6 @@
-{
-  pkgsx,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   home.packages = with pkgs; [
-    pkgsx.encore
+    pkgs.extra.encore
     argocd
     lego
   ];

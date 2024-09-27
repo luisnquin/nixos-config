@@ -2,12 +2,11 @@
   config,
   user,
   pkgs,
-  libx,
   lib,
   ...
 }: {
   users = {
-    motd = libx.base64.decode "Q29uZnJvbnQgW2hpXXN0b3J5";
+    motd = pkgs.libx.base64.decode "Q29uZnJvbnQgW2hpXXN0b3J5";
     defaultUserShell = pkgs.zsh;
 
     users = {

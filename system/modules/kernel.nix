@@ -1,8 +1,4 @@
-{
-  pkgsx,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   boot = {
     kernelParams = ["i8042.reset=1"];
     kernelPackages = pkgs.linuxPackages_latest;
@@ -12,6 +8,6 @@
   };
 
   environment.systemPackages = [
-    pkgsx.kmon
+    pkgs.extra.kmon
   ];
 }

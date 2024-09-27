@@ -1,12 +1,8 @@
-{
-  pkgsx,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   home.packages = with pkgs; [
     osv-scanner
     aircrack-ng
-    pkgsx.havn
+    pkgs.extra.havn
     semgrep
     nmap
   ];

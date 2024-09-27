@@ -1,14 +1,13 @@
 {
   config,
-  pkgsx,
   pkgs,
   ...
 }: {
   home = {
     packages = with pkgs; [
       aws-lambda-rie
-      pkgsx.s3-edit
-      pkgsx.ecsview
+      pkgs.extra.s3-edit
+      pkgs.extra.ecsview
       (awscli2.overrideAttrs
         (_old: {
           disabledTestPaths = [

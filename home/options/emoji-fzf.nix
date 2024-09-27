@@ -1,6 +1,5 @@
 {
   config,
-  pkgsx,
   pkgs,
   lib,
   ...
@@ -14,7 +13,7 @@ in
 
     config = mkIf cfg.enable {
       home.packages = [
-        pkgsx.emoji-fzf
+        pkgs.extra.emoji-fzf
       ];
 
       programs.zsh.plugins = [

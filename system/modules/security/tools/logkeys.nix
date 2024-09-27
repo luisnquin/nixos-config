@@ -1,9 +1,9 @@
 {
   config,
-  pkgsx,
+  pkgs,
   ...
 }: {
-  environment.systemPackages = [pkgsx.logkeys];
+  environment.systemPackages = [pkgs.extra.logkeys];
 
   security.sudo.extraRules = [
     {
@@ -16,9 +16,9 @@
           "/run/current-system/sw/bin/logkeys"
           "/run/current-system/sw/bin/llkk"
           "/run/current-system/sw/bin/llk"
-          "${pkgsx.logkeys}/bin/logkeys"
-          "${pkgsx.logkeys}/bin/llkk"
-          "${pkgsx.logkeys}/bin/llk"
+          "${pkgs.extra.logkeys}/bin/logkeys"
+          "${pkgs.extra.logkeys}/bin/llkk"
+          "${pkgs.extra.logkeys}/bin/llk"
         ];
     }
   ];

@@ -68,37 +68,45 @@
     with inputs; let
       system = "x86_64-linux";
 
-      pkgs = import nixpkgs {
-        overlays =
-          import ./overlays/nixpkgs.nix
-          ++ [
-            templ.overlays.default
-            (_self: _super: {
-              inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-            })
-          ];
-        config = {
-          allowBroken = false;
-          allowUnfree = true;
+      pkgs = let
+        default = import nixpkgs {
+          overlays =
+            import ./overlays/nixpkgs.nix
+            ++ [
+              templ.overlays.default
+              (_self: _super: {
+                inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
+              })
+            ];
+          config = {
+            allowBroken = false;
+            allowUnfree = true;
+          };
+
+          inherit system;
         };
 
-        inherit system;
-      };
+        unstable-beta = import nixpkgs-beta {
+          overlays = import ./overlays/nixpkgs-beta.nix;
+          inherit system;
+        };
 
-      pkgs-beta = import nixpkgs-beta {
-        overlays = import ./overlays/nixpkgs-beta.nix;
-        inherit system;
-      };
+        extra = nixpkgs-extra.packages.${system};
+
+        libx =
+          (nix-nostd.lib)
+          // import ./lib {
+            inherit pkgs lib;
+          };
+      in
+        default
+        // {
+          inherit extra libx unstable-beta;
+        };
 
       inherit (pkgs) lib;
 
-      libx =
-        (nix-nostd.lib)
-        // import ./lib {
-          inherit pkgs lib;
-        };
-
-      metadata = libx.mkMetadata ./flake.toml "luisnquin@nyx";
+      metadata = pkgs.libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
       specialArgs = let
         eval = let
@@ -112,12 +120,10 @@
 
         packages =
           {
-            pkgsx = nixpkgs-extra.packages.${system};
-
             spicetify = spicetify-nix.legacyPackages.${pkgs.system};
             grub-pkgs = grub-themes.packages.${system};
 
-            inherit libx pkgs pkgs-beta;
+            inherit pkgs;
           }
           // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
             inherit rofi-network-manager senv passgen hyprstfu spotify-dbus-control;
@@ -130,7 +136,7 @@
         // eval
         // import ./overlays/special-args.nix packages;
     in
-      libx.mkSetup {
+      pkgs.libx.mkSetup {
         inherit (metadata) user host nix;
         inherit pkgs specialArgs;
 

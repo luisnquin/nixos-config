@@ -1,7 +1,6 @@
 {
   nixosConfig,
   spicetify,
-  libx,
   host,
   pkgs,
   ...
@@ -46,7 +45,7 @@
   services.spotifyd = {
     enable = true;
     settings.global = rec {
-      username = libx.base64.decode "eWVzZWxvbnk=";
+      username = pkgs.libx.base64.decode "eWVzZWxvbnk=";
       password_cmd = "cat ${nixosConfig.age.secrets.spotify-access-secret.path}";
       use_keyring = false;
       use_mpris = true;
