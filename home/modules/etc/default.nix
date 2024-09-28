@@ -1,5 +1,6 @@
 {
   imports = [
+    ./bat.nix
     ./color-picker.nix
     ./translator.nix
     ./gsimplecal.nix
