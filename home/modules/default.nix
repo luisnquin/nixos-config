@@ -12,10 +12,10 @@
     ./docker.nix
     ./file-manager.nix
     ./media.nix
-    ./monitoring.nix
     ./nao.nix
     ./password-store.nix
     ./spotify.nix
+    ./systemless.nix
     ./work.nix
     ./xdg.nix
   ];
