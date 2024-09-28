@@ -17,7 +17,7 @@
     PASSWORD_STORE_DIR = lib.mkForce (
       let
         inherit (config.home) homeDirectory;
-      in "${homeDirectory}/.password-store"
+      in "${homeDirectory}/.password-store" # this could be your attach vector!
     );
   };
 }
