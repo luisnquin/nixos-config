@@ -14,6 +14,7 @@
       ];
     });
   in [
+    pkgs.vlc
     feh
   ];
 }

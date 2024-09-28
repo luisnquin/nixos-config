@@ -3,6 +3,7 @@
     ./terminal
     ./desktop
     ./editors
+    ./studio
     ./dev
     ./etc
 
@@ -11,13 +12,11 @@
     ./discord.nix
     ./docker.nix
     ./file-manager.nix
-    ./management.nix
     ./media.nix
     ./monitoring.nix
     ./nao.nix
     ./password-store.nix
     ./spotify.nix
-    ./studio.nix
     ./work.nix
     ./xdg.nix
   ];
