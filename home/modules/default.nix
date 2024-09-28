@@ -4,30 +4,23 @@
     ./desktop
     ./editors
     ./dev
+    ./etc
 
-    ./3d.nix
     ./bat.nix
     ./browser.nix
-    ./btop.nix
-    ./color-picker.nix
     ./discord.nix
     ./docker.nix
-    ./etc.nix
     ./file-manager.nix
     ./for-fun.nix
-    ./gsimplecal.nix
-    ./macchina.nix
     ./management.nix
     ./media.nix
     ./monitoring.nix
     ./nao.nix
-    ./ntfy-sh.nix
     ./password-store.nix
     ./spotify.nix
     ./studio.nix
     ./torrent.nix
     ./work.nix
     ./xdg.nix
-    ./zathura.nix
   ];
 }
