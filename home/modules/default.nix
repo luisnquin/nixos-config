@@ -5,6 +5,7 @@
     ./editors
     ./dev
 
+    ./3d.nix
     ./bat.nix
     ./browser.nix
     ./btop.nix
