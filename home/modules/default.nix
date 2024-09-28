@@ -11,7 +11,6 @@
     ./discord.nix
     ./docker.nix
     ./file-manager.nix
-    ./for-fun.nix
     ./management.nix
     ./media.nix
     ./monitoring.nix
