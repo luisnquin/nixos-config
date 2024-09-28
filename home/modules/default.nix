@@ -19,7 +19,6 @@
     ./password-store.nix
     ./spotify.nix
     ./studio.nix
-    ./torrent.nix
     ./work.nix
     ./xdg.nix
   ];
