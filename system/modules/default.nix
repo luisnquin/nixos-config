@@ -1,6 +1,5 @@
 {
   imports = [
-    ./databases
     ./terminal
     ./security
     ./desktop
