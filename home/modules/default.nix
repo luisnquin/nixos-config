@@ -7,7 +7,6 @@
     ./dev
     ./etc
 
-    ./bat.nix
     ./browser.nix
     ./discord.nix
     ./docker.nix
