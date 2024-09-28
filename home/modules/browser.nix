@@ -3,10 +3,6 @@
   host,
   ...
 }: {
-  home.packages = [
-    pkgs.vivaldi # Always available
-  ];
-
   programs.chromium = {
     enable = true;
     package = pkgs."${host.browser}";

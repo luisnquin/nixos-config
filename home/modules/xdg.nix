@@ -26,7 +26,6 @@
 
     mimeApps = let
       dolphin = ["org.kde.dolphin.desktop"];
-      vivaldi = ["vivaldi-stable.desktop"];
       vlc = ["vlc.desktop"];
       zathura = ["zathura.desktop"];
       vscode = ["code.desktop"];
@@ -36,7 +35,6 @@
         [
           {
             "brave" = "brave-browser.desktop";
-            "vivaldi-stable" = vivaldi;
             "google-chrome" = "google-chrome.desktop";
           }
           ."${host.browser}"
@@ -47,7 +45,7 @@
         "x-scheme-handler/geo" = "wheelmap-geo-handler.desktop";
         "x-scheme-handler/http" = browser;
         "x-scheme-handler/https" = browser;
-        "x-scheme-handler/mailto" = vivaldi;
+        "x-scheme-handler/mailto" = browser;
         "x-scheme-handler/slack" = "slack.desktop";
 
         "x-scheme-handler/unknown" = browser;
