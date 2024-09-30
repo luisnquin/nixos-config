@@ -24,6 +24,32 @@
   i18n.defaultLocale = host.i18nLocale;
   location.provider = "geoclue2";
 
+  system.activationScripts = {
+    banner.text = ''
+      echo '
+          .              +   .                .   . .     .  .
+                          .                    .       .     *
+          .       *                        . . . .  .   .  + .
+                    (You Are Here)            .   .  +  . . .
+        .                 |             .  .   .    .    . .
+                          |           .     .     . +.    +  .
+                          ↓            .       .   . .
+                . .       .         .    * . . .  .  +   .
+                  +                   .   .      +
+                                    .       . +  .+. .
+          .                      .     . + .  . .     .      .
+                  .      .    .     . .   . . .        ! /
+              *             .    . .  +    .  .       - O -  ←- (The sun)
+                  .     .    .  +   . .  *  .        . / |
+                      . + .  .  .  .. +  .
+        .      .  .  .  *   .  *  . +..  .            *
+        .      .   . .   .   .   . .  +   .    .            +
+      '
+
+      echo 'Remember to take all the blame!'
+    '';
+  };
+
   system = {
     inherit (nix) stateVersion;
     autoUpgrade = {
