@@ -63,10 +63,6 @@
       url = "github:luisnquin/nix-scripts";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    templ = {
-      url = "github:a-h/templ";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     zen-browser = {
       url = "github:MarceColl/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -82,7 +78,6 @@
           overlays =
             import ./overlays/nixpkgs.nix
             ++ [
-              templ.overlays.default
               (_self: _super: {
                 inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
               })

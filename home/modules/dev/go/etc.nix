@@ -12,7 +12,6 @@
     govulncheck # audit dependencies
     grpc-tools
     panicparse # to help to debug panic errors
-    templ
     # unconvert # linter to check unnecessary type conversions
   ];
 }
