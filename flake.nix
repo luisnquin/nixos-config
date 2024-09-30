@@ -67,6 +67,10 @@
       url = "github:a-h/templ";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    zen-browser = {
+      url = "github:MarceColl/zen-browser-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
@@ -127,6 +131,7 @@
           {
             spicetify = spicetify-nix.legacyPackages.${pkgs.system};
             grub-pkgs = grub-themes.packages.${system};
+            zen-browser = zen-browser.packages.${system}.default;
 
             inherit pkgs;
           }

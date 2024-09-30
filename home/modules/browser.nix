@@ -1,8 +1,13 @@
 {
+  zen-browser,
   pkgs,
   host,
   ...
 }: {
+  home.packages = [
+    zen-browser
+  ];
+
   programs.chromium = {
     enable = true;
     package = pkgs."${host.browser}";
