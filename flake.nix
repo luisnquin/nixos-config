@@ -190,6 +190,7 @@
       isTiling = builtins.elem desktop ["hyprland" "i3"];
       isWayland = desktop == "hyprland";
 
+      # Child modules should deal with the things they want to take from the inputs.
       inherit inputs pkgs system;
     };
   in
