@@ -81,13 +81,6 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    neovim-flake = {
-      url = "github:jordanisaacs/neovim-flake";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -198,7 +191,7 @@
           isWayland = desktop == "hyprland";
         };
 
-        flakes = {inherit neovim-flake;};
+        flakes = {};
 
         packages =
           {
