@@ -16,17 +16,45 @@
     };
     nix-nostd.url = "github:chessai/nix-std";
     systems.url = "github:nix-systems/default-linux";
+    flake-utils = {
+      url = "github:numtide/flake-utils"; # this may have the fault!!!
+      inputs.systems.follows = "systems";
+    };
 
-    rofi-network-manager.url = "github:luisnquin/rofi-network-manager";
-    battery-notifier.url = "github:luisnquin/battery-notifier";
-    grub-themes.url = "github:luisnquin/grub-themes";
-    hyprstfu.url = "github:luisnquin/hyprstfu";
-    tplr.url = "github:luisnquin/tplr";
-    senv.url = "github:luisnquin/senv";
-    nao.url = "github:luisnquin/nao";
+    rofi-network-manager = {
+      url = "github:luisnquin/rofi-network-manager";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
+    battery-notifier = {
+      url = "github:luisnquin/battery-notifier";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
+    grub-themes = {
+      url = "github:luisnquin/grub-themes";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
+    hyprstfu = {
+      url = "github:luisnquin/hyprstfu";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
+    tplr.url = "github:luisnquin/tplr"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
+    senv.url = "github:luisnquin/senv"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
+    nao.url = "github:luisnquin/nao"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
     passgen = {
       url = "github:luisnquin/passgen";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
     };
     neovim-flake = {
       url = "github:jordanisaacs/neovim-flake";
@@ -42,7 +70,10 @@
     };
     hyprland = {
       url = "https://github.com/hyprwm/Hyprland";
-      inputs.nixpkgs.follows = "nixpkgs"; # ! a new Hyprland release will need to follow nixpkgs-beta or to have an updated nixpkgs
+      inputs = {
+        nixpkgs.follows = "nixpkgs"; # ! a new Hyprland release will need to follow nixpkgs-beta or to have an updated nixpkgs
+        systems.follows = "systems";
+      };
       # That process was cancelled because current version is crashing and the logs are not obvious so I am... ashamed...?
       type = "git";
       submodules = true;
@@ -57,11 +88,17 @@
     };
     spotify-dbus-control = {
       url = "github:luisnquin/spotify-dbus-control";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
     };
     nix-scripts = {
       url = "github:luisnquin/nix-scripts";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
     };
     zen-browser = {
       url = "github:MarceColl/zen-browser-flake";
