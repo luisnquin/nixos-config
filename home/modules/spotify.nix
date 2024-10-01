@@ -1,8 +1,11 @@
 {
-  spicetify,
+  inputs,
+  system,
   pkgs,
   ...
-}: {
+}: let
+  spicetify = inputs.spicetify-nix.legacyPackages.${system};
+in {
   programs.spicetify = with spicetify; {
     enable = true;
     theme = themes.text;

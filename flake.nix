@@ -140,98 +140,95 @@
     };
   };
 
-  outputs = inputs:
-    with inputs; let
-      system = "x86_64-linux";
+  outputs = inputs: let
+    inherit (inputs) nixpkgs-extra nixpkgs-beta home-manager nix-nostd hyprland nixpkgs;
 
-      pkgs = let
-        default = import nixpkgs {
-          overlays =
-            import ./overlays/nixpkgs.nix
-            ++ [
-              (_self: _super: {
-                inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
-              })
-            ];
-          config = {
-            allowBroken = false;
-            allowUnfree = true;
-          };
+    system = "x86_64-linux";
 
-          inherit system;
+    pkgs = let
+      default = import nixpkgs {
+        overlays =
+          import ./overlays/nixpkgs.nix
+          ++ [
+            (_self: _super: {
+              inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
+            })
+          ];
+        config = {
+          allowBroken = false;
+          allowUnfree = true;
         };
 
-        unstable-beta = import nixpkgs-beta {
-          overlays = import ./overlays/nixpkgs-beta.nix;
-          inherit system;
-        };
-
-        extra = nixpkgs-extra.packages.${system};
-
-        libx =
-          (nix-nostd.lib)
-          // import ./lib {
-            inherit pkgs lib;
-          };
-      in
-        default
-        // {
-          inherit extra libx unstable-beta;
-        };
-
-      inherit (pkgs) lib;
-
-      metadata = pkgs.libx.mkMetadata ./flake.toml "luisnquin@nyx";
-
-      specialArgs = let
-        eval = let
-          inherit (metadata.host) desktop;
-        in {
-          isTiling = builtins.elem desktop ["hyprland" "i3"];
-          isWayland = desktop == "hyprland";
-        };
-
-        flakes = {};
-
-        packages =
-          {
-            spicetify = spicetify-nix.legacyPackages.${pkgs.system};
-            grub-pkgs = grub-themes.packages.${system};
-            zen-browser = zen-browser.packages.${system}.default;
-
-            inherit pkgs;
-          }
-          // builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-            inherit rofi-network-manager senv passgen hyprstfu spotify-dbus-control;
-          }
-          // hyprland-contrib.packages.${system}
-          // nix-scripts.packages.${system};
-      in
-        packages
-        // flakes
-        // eval
-        // import ./overlays/special-args.nix packages;
-    in
-      pkgs.libx.mkSetup {
-        inherit (metadata) user host nix;
-        inherit pkgs specialArgs;
-
-        flakes = {inherit nixpkgs home-manager;};
-        profilesPath = ./home/profiles;
-        hostsPath = ./system/hosts;
-
-        nixosModules = [
-          (import ./secrets {inherit system agenix;})
-          agenix.nixosModules.default
-          ./tools/nix/nixos-options
-        ];
-
-        homeModules = [
-          battery-notifier.homeManagerModule.default
-          spicetify-nix.homeManagerModules.default
-          tplr.homeManagerModules.default
-          nao.homeManagerModules.default
-          ./home/options
-        ];
+        inherit system;
       };
+
+      unstable-beta = import nixpkgs-beta {
+        overlays = import ./overlays/nixpkgs-beta.nix;
+        inherit system;
+      };
+
+      extra = nixpkgs-extra.packages.${system};
+
+      libx =
+        (nix-nostd.lib)
+        // import ./lib {
+          inherit pkgs lib;
+        };
+    in
+      default
+      // {
+        inherit extra libx unstable-beta;
+      };
+
+    inherit (pkgs) lib;
+
+    metadata = pkgs.libx.mkMetadata ./flake.toml "luisnquin@nyx";
+
+    specialArgs = let
+      eval = let
+        inherit (metadata.host) desktop;
+      in {
+        isTiling = builtins.elem desktop ["hyprland" "i3"];
+        isWayland = desktop == "hyprland";
+      };
+
+      packages =
+        builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
+          inherit (inputs) rofi-network-manager senv passgen hyprstfu spotify-dbus-control;
+        }
+        // inputs.hyprland-contrib.packages.${system}
+        // inputs.nix-scripts.packages.${system};
+    in
+      {
+        inherit inputs pkgs system;
+      }
+      // packages
+      // eval
+      // import ./overlays/special-args.nix packages;
+  in
+    pkgs.libx.mkSetup {
+      inherit (metadata) user host nix;
+      inherit pkgs specialArgs;
+
+      flakes = {inherit nixpkgs home-manager;};
+      profilesPath = ./home/profiles;
+      hostsPath = ./system/hosts;
+
+      nixosModules = [
+        (import ./secrets {
+          inherit (inputs) agenix;
+          inherit system;
+        })
+        inputs.agenix.nixosModules.default
+        ./tools/nix/nixos-options
+      ];
+
+      homeModules = [
+        inputs.battery-notifier.homeManagerModule.default
+        inputs.spicetify-nix.homeManagerModules.default
+        inputs.tplr.homeManagerModules.default
+        inputs.nao.homeManagerModules.default
+        ./home/options
+      ];
+    };
 }

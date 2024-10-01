@@ -1,5 +1,6 @@
 {
-  grub-pkgs,
+  inputs,
+  system,
   host,
   ...
 }: {
@@ -18,6 +19,9 @@
     gfxmodeEfi = host.resolution;
 
     splashImage = ./dots/splash-image.png;
-    theme = grub-pkgs.fallout;
+    theme = let
+      grub-pkgs = inputs.grub-themes.packages.${system};
+    in
+      grub-pkgs.fallout;
   };
 }
