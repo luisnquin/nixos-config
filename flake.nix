@@ -6,20 +6,24 @@
     nixpkgs.url = "nixpkgs/nixos-unstable";
     # it's only beta for my computer! :)
     nixpkgs-beta.url = "nixpkgs/nixos-unstable";
+    nixpkgs-extra = {
+      url = "github:luisnquin/nixpkgs-extra";
+      inputs = {
+        flake-utils.follows = "flake-utils";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixpkgs-extra = {
-      url = "github:luisnquin/nixpkgs-extra";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nix-nostd.url = "github:chessai/nix-std";
-    systems.url = "github:nix-systems/default-linux";
     flake-utils = {
-      url = "github:numtide/flake-utils"; # this may have the fault!!!
+      url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
+
+    systems.url = "github:nix-systems/default-linux";
+    nix-nostd.url = "github:chessai/nix-std";
 
     rofi-network-manager = {
       url = "github:luisnquin/rofi-network-manager";
@@ -49,16 +53,40 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    tplr.url = "github:luisnquin/tplr"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
-    senv.url = "github:luisnquin/senv"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
-    nao.url = "github:luisnquin/nao"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
+    tplr = {
+      url = "github:luisnquin/tplr";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
+    senv = {
+      url = "github:luisnquin/senv";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
+    nao = {
+      url = "github:luisnquin/nao";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
     passgen = {
       url = "github:luisnquin/passgen";
-      inputs.nixpkgs.follows = "nixpkgs"; # error: buildGoModule: Expect vendorHash instead of vendorSha256
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
     };
     neovim-flake = {
       url = "github:jordanisaacs/neovim-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
     };
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
@@ -93,9 +121,22 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    poetry2nix = {
+      url = "github:nix-community/poetry2nix";
+      inputs = {
+        treefmt-nix.follows = "treefmt-nix";
+        flake-utils.follows = "flake-utils";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
     nix-scripts = {
       url = "github:luisnquin/nix-scripts";
       inputs = {
+        poetry2nix.follows = "poetry2nix";
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
