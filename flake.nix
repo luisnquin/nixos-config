@@ -185,26 +185,13 @@
     metadata = pkgs.libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
     specialArgs = let
-      eval = let
-        inherit (metadata.host) desktop;
-      in {
-        isTiling = builtins.elem desktop ["hyprland" "i3"];
-        isWayland = desktop == "hyprland";
-      };
+      inherit (metadata.host) desktop;
+    in {
+      isTiling = builtins.elem desktop ["hyprland" "i3"];
+      isWayland = desktop == "hyprland";
 
-      packages =
-        builtins.mapAttrs (_n: p: p.defaultPackage.${system}) {
-          inherit (inputs) rofi-network-manager senv passgen hyprstfu spotify-dbus-control;
-        }
-        // inputs.hyprland-contrib.packages.${system}
-        // inputs.nix-scripts.packages.${system};
-    in
-      {
-        inherit inputs pkgs system;
-      }
-      // packages
-      // eval
-      // import ./overlays/special-args.nix packages;
+      inherit inputs pkgs system;
+    };
   in
     pkgs.libx.mkSetup {
       inherit (metadata) user host nix;

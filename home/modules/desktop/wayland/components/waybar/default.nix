@@ -1,6 +1,6 @@
 {
-  nmcli-wifi-scan-waybar,
-  mullvad-status,
+  inputs,
+  system,
   pkgs,
   lib,
   ...
@@ -94,14 +94,18 @@
           "tooltip" = false;
         };
 
-        "custom/mullvad" = {
+        "custom/mullvad" = let
+          inherit (inputs.nix-scripts.packages.${system}) mullvad-status;
+        in {
           "exec" = "${lib.getExe mullvad-status} --waybar \"{{emoji}}  {{relay-id}}\"";
           "interval" = 2;
           "return-type" = "json";
           "on-click" = "${lib.getExe mullvad-status} --toggle-connection";
         };
 
-        "custom/network-scan" = {
+        "custom/network-scan" = let
+          inherit (inputs.nix-scripts.packages.${system}) nmcli-wifi-scan-waybar;
+        in {
           "exec" = "${lib.getExe nmcli-wifi-scan-waybar}";
           "return-type" = "json";
           "tooltip" = true;

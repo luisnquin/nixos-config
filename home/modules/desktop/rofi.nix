@@ -1,5 +1,6 @@
 {
-  rofi-network-manager,
+  inputs,
+  system,
   pkgs,
   ...
 }: {
@@ -11,7 +12,7 @@
   };
 
   home.packages = [
-    rofi-network-manager
+    inputs.rofi-network-manager.defaultPackage.${system}
   ];
 
   xdg.configFile = {

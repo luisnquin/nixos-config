@@ -1,10 +1,4 @@
-{
-  sys-brightness,
-  sys-sound,
-  screen-capture,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   # https://i3wm.org/docs/userguide.html
   # https://mipmip.github.io/home-manager-option-search/?query=xsession.windowManager.i3.config
   xsession.windowManager.i3 = {
@@ -85,6 +79,8 @@
       ];
 
       keybindings = with pkgs; let
+        inherit (inputs.nix-scripts.packages.${system}) sys-brightness sys-sound screen-capture;
+
         sys-brightness-bin = "${sys-brightness}/bin/sys-brightness";
         sys-sound-bin = "${sys-sound}/bin/sys-sound";
         screen-capture-bin = "${screen-capture}/bin/screen-capture";

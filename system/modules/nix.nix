@@ -1,5 +1,5 @@
 {
-  nixgrep,
+  inputs,
   pkgs,
   user,
   ...
@@ -43,7 +43,9 @@
   tools.nyx.enable = true;
 
   environment = {
-    systemPackages = with pkgs; [
+    systemPackages = with pkgs; let
+      inherit (inputs.nix-scripts.packages.${system}) nixgrep;
+    in [
       nix-output-monitor
       nix-prefetch-git
       cached-nix-shell

@@ -1,11 +1,7 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
-  spotify-dbus-control,
-  sys-brightness,
-  cliphist-rofi,
-  sys-sound,
-  grimblast,
-  hyprstfu,
+  inputs,
+  system,
   pkgs,
   ...
 }: {
@@ -64,6 +60,17 @@
 
     custom = let
       rofi-plugin-call = name: program-to-exec: ''${pkgs.rofi}/bin/rofi -modi "${name}:${program-to-exec}" -show ${name}'';
+
+      spotify-dbus-control = inputs.spotify-dbus-control.defaultPackage.${system};
+      hyprstfu = inputs.hyprstfu.defaultPackage.${system};
+
+      inherit (inputs.nix-scripts.packages.${system}) sys-sound sys-brightness cliphist-rofi;
+
+      grimblast = inputs.hyprland-contrib.packages.${system}.grimblast.overrideAttrs (_oldAttrs: {
+        prePatch = ''
+          substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${../../../../dots/icons/crop.512.png}'
+        '';
+      });
 
       inherit (pkgs) lib;
     in [

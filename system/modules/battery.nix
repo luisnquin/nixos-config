@@ -1,5 +1,6 @@
 {
-  batlimit,
+  inputs,
+  system,
   pkgs,
   host,
   user,
@@ -7,7 +8,9 @@
 }: let
   powerSupplyBatteryPath = "/sys/class/power_supply/BAT1";
 in {
-  environment.systemPackages = [
+  environment.systemPackages = let
+    inherit (inputs.nix-scripts.packages.${system}) batlimit;
+  in [
     (batlimit.override {inherit powerSupplyBatteryPath;})
   ];
 
