@@ -25,13 +25,6 @@
     systems.url = "github:nix-systems/default-linux";
     nix-nostd.url = "github:chessai/nix-std";
 
-    rofi-network-manager = {
-      url = "github:luisnquin/rofi-network-manager";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     battery-notifier = {
       url = "github:luisnquin/battery-notifier";
       inputs = {

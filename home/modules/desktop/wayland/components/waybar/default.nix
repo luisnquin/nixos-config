@@ -151,15 +151,6 @@
           "format-icons" = ["󰁺" "󰁻" "󰁽" "󰁿" "󰂀" "󰂂"];
         };
 
-        # "network" = {
-        #   "format-disconnected" = "󰯡 Lost";
-        #   "format-ethernet" = "󰒢 Connected";
-        #   "format-linked" = "󰖪  {essid} (No IP)";
-        #   "format-wifi" = "󰖩  {ipaddr}/{cidr}";
-        #   "interval" = 5;
-        #   "on-click" = "${rofi-network-manager}/bin/rofi-network-manager";
-        # };
-
         "network" = {
           "format-disconnected" = "󰯡 Disconnected";
           "format-ethernet" = "↑ {bandwidthUpBytes} ↓ {bandwidthDownBytes} 󰀂  󰖩  {ifname} ({ipaddr})";
