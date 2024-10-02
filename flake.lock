@@ -604,7 +604,6 @@
         "spicetify-nix": "spicetify-nix",
         "spotify-dbus-control": "spotify-dbus-control",
         "systems": "systems_2",
-        "tplr": "tplr",
         "treefmt-nix": "treefmt-nix",
         "zen-browser": "zen-browser"
       }
@@ -702,29 +701,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default-linux",
-        "type": "github"
-      }
-    },
-    "tplr": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "systems": [
-          "systems"
-        ]
-      },
-      "locked": {
-        "lastModified": 1705100103,
-        "narHash": "sha256-NcnahxMlZZ3EFC0skalrqpYZi4fhYnsmwTSbACSuG6I=",
-        "owner": "luisnquin",
-        "repo": "tplr",
-        "rev": "06fff3af2ec979f3a1686084190dacb02cbacbc4",
-        "type": "github"
-      },
-      "original": {
-        "owner": "luisnquin",
-        "repo": "tplr",
         "type": "github"
       }
     },

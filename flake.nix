@@ -46,13 +46,6 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    tplr = {
-      url = "github:luisnquin/tplr";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
     senv = {
       url = "github:luisnquin/senv";
       inputs = {
@@ -212,7 +205,6 @@
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
-        inputs.tplr.homeManagerModules.default
         inputs.nao.homeManagerModules.default
         ./home/options
       ];

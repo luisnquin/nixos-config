@@ -7,7 +7,6 @@
     ./go
 
     ./processors.nix
-    ./templates.nix
     ./clients.nix
     ./mobile.nix
     ./devenv.nix

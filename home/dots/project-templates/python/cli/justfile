@@ -1,6 +1,0 @@
-
-run:
-    poetry run cli
-
-nix-build:
-    nix build
