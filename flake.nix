@@ -100,6 +100,11 @@
         systems.follows = "systems";
       };
     };
+    # You might love this flake, conrol your Spotify client(comp with dbus)
+    # from specific keybindings with actions like:
+    # play/pause(and toggle), next/previous song, jump forward/backward by 4s
+    #
+    # Can be used as a CLI but is not my use case
     spotify-dbus-control = {
       url = "github:luisnquin/spotify-dbus-control";
       inputs = {
