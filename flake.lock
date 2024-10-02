@@ -582,6 +582,29 @@
         "type": "github"
       }
     },
+    "rofi-network-manager": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1696826525,
+        "narHash": "sha256-0PZJTDRmCmKBJedOFZR0AR2D5uZzTVmGnnWzGsoVOi8=",
+        "owner": "luisnquin",
+        "repo": "rofi-network-manager",
+        "rev": "c959c8e3720ce94b540a7fc8cec2096e33933d48",
+        "type": "github"
+      },
+      "original": {
+        "owner": "luisnquin",
+        "repo": "rofi-network-manager",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "agenix": "agenix",
@@ -600,6 +623,7 @@
         "nixpkgs-extra": "nixpkgs-extra",
         "passgen": "passgen",
         "poetry2nix": "poetry2nix",
+        "rofi-network-manager": "rofi-network-manager",
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
         "spotify-dbus-control": "spotify-dbus-control",
