@@ -9,14 +9,15 @@
 
 ## Resources
 
-- [Used scripts](https://github.com/luisnquin/scripts)
-- [Full NixOS options](https://nmikhailov.github.io/nixpkgs/ch-options.html)
+- [Used scripts](https://github.com/luisnquin/nix-scripts)
+- [Additional pkgs](https://github.com/luisquin/nixpkgs-extra)
 
-## Environments
+##  How does it look like?
 
-### Hyprland
+![image](https://github.com/user-attachments/assets/a62aa234-73f8-4321-8458-c66eaa9a0c05)
 
-![image](https://github.com/luisnquin/nixos-config/assets/86449787/12a9ec9a-ffed-4b51-8a89-f906d5944f47)
+![image](https://github.com/user-attachments/assets/f57be36d-c955-4666-858a-de924912e431)
+
 
 ## Some configurations comes here thanks to
 
