@@ -147,7 +147,7 @@ keybinding:
     diffingMenu: W
     diffingMenu-alt: <c-e>
     edit: e
-    executeCustomCommand: ":"
+    executeShellCommand: ":"
     extrasMenu: "@"
     filteringMenu: <c-s>
     goInto: <enter>
