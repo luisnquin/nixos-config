@@ -8,6 +8,16 @@
         load_dotenv = true;
         warn_timeout = "5s";
       };
+
+      whitelist = {
+        prefix = [
+          "$HOME/Projects/github.com/Qompa-Fi"
+          "$HOME/Projects/github.com/luisnquin"
+          "$HOME/Projects/github.com/chanchitaapp"
+          "$HOME/Projects/github.com/0xc000022070"
+          "$HOME/.dotfiles"
+        ];
+      };
     };
 
     nix-direnv.enable = true;
