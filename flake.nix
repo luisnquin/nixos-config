@@ -4,8 +4,6 @@
   # https://github.com/NixOS/nix/issues/3966
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
-    # it's only beta for my computer! :)
-    nixpkgs-beta.url = "nixpkgs/nixos-unstable";
     nixpkgs-extra = {
       url = "github:luisnquin/nixpkgs-extra";
       inputs = {
@@ -132,7 +130,7 @@
   };
 
   outputs = inputs: let
-    inherit (inputs) nixpkgs-extra nixpkgs-beta home-manager nix-nostd hyprland nixpkgs;
+    inherit (inputs) nixpkgs-extra home-manager nix-nostd hyprland nixpkgs;
 
     system = "x86_64-linux";
 
@@ -153,11 +151,6 @@
         inherit system;
       };
 
-      unstable-beta = import nixpkgs-beta {
-        overlays = import ./overlays/nixpkgs-beta.nix;
-        inherit system;
-      };
-
       extra = nixpkgs-extra.packages.${system};
 
       libx =
@@ -168,7 +161,7 @@
     in
       default
       // {
-        inherit extra libx unstable-beta;
+        inherit extra libx;
       };
 
     inherit (pkgs) lib;

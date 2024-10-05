@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   home.packages = with pkgs; [
-    pkgs.unstable-beta.ranger
+    pkgs.ranger
     nautilus
   ];
 
