@@ -25,6 +25,7 @@
       vlc = ["vlc.desktop"];
       zathura = ["zathura.desktop"];
       vscode = ["code.desktop"];
+      zen = ["zen.desktop"];
 
       associations = {
         "inode/directory" = dolphin;
@@ -37,6 +38,11 @@
         "video/x-matroska" = vlc;
         "video/quicktime" = vlc;
 
+        "image/png" = zen;
+        "image/jpg" = zen;
+
+        "video/mp4" = vlc;
+        "audio/mpeg" = vlc;
         "audio/*" = vlc;
 
         "text/x-python" = vscode;
