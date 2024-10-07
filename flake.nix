@@ -58,13 +58,6 @@
         systems.follows = "systems";
       };
     };
-    passgen = {
-      url = "github:luisnquin/passgen";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -90,6 +83,17 @@
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
+    };
+    passgen = {
+      url = "github:luisnquin/passgen";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
+    "0xgen" = {
+      url = "github:0xc000022070/0xgen";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     # You might love this flake, control your Spotify client(comp with dbus)
     # configure your keybindings to trigger actions like:

@@ -5,9 +5,12 @@
   ...
 }: let
   passgen = inputs.passgen.defaultPackage.${system};
+
   senv = inputs.senv.defaultPackage.${system};
 in {
   home.packages = with pkgs; [
+    (inputs."0xgen".defaultPackage.${system})
+
     nodePackages.firebase-tools
     nodePackages_latest.cspell
     license-generator
