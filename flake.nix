@@ -5,7 +5,7 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     nixpkgs-extra = {
-      url = "github:luisnquin/nixpkgs-extra";
+      url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
         flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
