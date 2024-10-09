@@ -551,13 +551,13 @@
       "locked": {
         "lastModified": 1728418695,
         "narHash": "sha256-632lWKg0Ry/47x3e2at1f3tubINcR7pD+BRFVQjbQ9w=",
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
         "rev": "94a2ab046ee1972757e07df169c1ccf74e30ce8f",
         "type": "github"
       },
       "original": {
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
         "type": "github"
       }
