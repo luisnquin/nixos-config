@@ -69,10 +69,9 @@
     hyprland = {
       url = "https://github.com/hyprwm/Hyprland";
       inputs = {
-        nixpkgs.follows = "nixpkgs"; # ! a new Hyprland release will need to follow nixpkgs-beta or to have an updated nixpkgs
+        nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
-      # That process was cancelled because current version is crashing and the logs are not obvious so I am... ashamed...?
       type = "git";
       submodules = true;
     };
