@@ -47,16 +47,26 @@ in {
   '';
 
   # See https://wiki.hyprland.org/Configuring/Window-Rules/ for more
-  rulesv2 = rulesToWithIdentifier "class:^(GLava)$ title:^(GLava)$" [
-    "fullscreen"
-    "float"
-    "noblur"
-    "nofocus"
-    "noshadow"
-    "noborder"
-    "pin"
-    "move 0 0"
-    "size 100% 100%"
-    "opacity 0.1"
-  ];
+  rulesv2 =
+    (rulesToWithIdentifier "class:^(GLava)$ title:^(GLava)$" [
+      "fullscreen"
+      "float"
+      "noblur"
+      "nofocus"
+      "noshadow"
+      "noborder"
+      "pin"
+      "move 0 0"
+      "size 100% 100%"
+      "opacity 0.1"
+    ])
+    ++ (
+      rulesToWithIdentifier "class:^(xwaylandvideobridge)$" [
+        "opacity 0.0 override"
+        "noinitialfocus"
+        "maxsize 1 1"
+        "noanim"
+        "noblur"
+      ]
+    );
 }
