@@ -6,11 +6,11 @@
   services = {
     battery-notifier = {
       enable = host.isLaptop;
-      settings = rec {
+      settings = {
         interval_ms = 700;
         reminder.threshold = host.batteryThreshold / 2;
-        warn.threshold = reminder.threshold / 2;
-        threat.threshold = warn.threshold / 3;
+        warn.threshold = 15;
+        threat.threshold = 5;
       };
     };
 
