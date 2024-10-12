@@ -9,6 +9,7 @@
     ./processors.nix
     ./clients.nix
     ./mobile.nix
+    ./writer.nix
     ./devenv.nix
     ./python.nix
     ./ocaml.nix
