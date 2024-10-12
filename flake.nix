@@ -85,7 +85,7 @@
       };
     };
     passgen = {
-      url = "github:luisnquin/passgen";
+      url = "github:0xc000022070/passgen";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
@@ -101,7 +101,7 @@
     #
     # Can be used as a CLI too but is not my use case
     spotify-dbus-control = {
-      url = "github:luisnquin/spotify-dbus-control";
+      url = "github:0xc000022070/spotify-dbus-control";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
@@ -120,7 +120,7 @@
       };
     };
     nix-scripts = {
-      url = "github:luisnquin/nix-scripts";
+      url = "github:0xc000022070/nix-scripts";
       inputs = {
         poetry2nix.follows = "poetry2nix";
         nixpkgs.follows = "nixpkgs";

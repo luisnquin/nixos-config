@@ -525,13 +525,13 @@
       "locked": {
         "lastModified": 1724599590,
         "narHash": "sha256-QgF4qDMO8K6PWOPWnDJ9nOusPvVwPrxh72GoZd38MBI=",
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "nix-scripts",
         "rev": "bfc49e8d2623127fdb2502a338e849be72ae1df8",
         "type": "github"
       },
       "original": {
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "nix-scripts",
         "type": "github"
       }
@@ -602,13 +602,13 @@
       "locked": {
         "lastModified": 1722216704,
         "narHash": "sha256-kLk/c9X+4GRvBaPfeH602G7kwx8rVG+F8bQDpZ+WXq8=",
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "passgen",
         "rev": "b9ea90c3fd3a40b0c06b1b342b6746bfa76dc55c",
         "type": "github"
       },
       "original": {
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "passgen",
         "type": "github"
       }
@@ -745,15 +745,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1716668415,
-        "narHash": "sha256-mS+Bc9J+ZJg4AYxzzqqD4sbdX5IWtJmqq2kloRIPNXM=",
-        "owner": "luisnquin",
+        "lastModified": 1716669066,
+        "narHash": "sha256-HoLYIDKa5aG9Q1b8rQ3P0hcAJnjsjBJloNwTOseYQaY=",
+        "owner": "0xc000022070",
         "repo": "spotify-dbus-control",
-        "rev": "b8a12a1931c049561445323c0ce6ca1ebc162abe",
+        "rev": "c0bb2e714b4af1ea724f8d3f88c8b8b61bfe64df",
         "type": "github"
       },
       "original": {
-        "owner": "luisnquin",
+        "owner": "0xc000022070",
         "repo": "spotify-dbus-control",
         "type": "github"
       }
