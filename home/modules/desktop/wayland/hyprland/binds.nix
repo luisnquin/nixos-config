@@ -167,7 +167,7 @@
         "dispatcher" = "exec, ${hyprstfu}/bin/hyprstfu";
       }
       {
-        "mod+key" = "$mainMod, Delete";
+        "mod+key" = "$mainMod, K";
         "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop alacritty -i alacritty_hyprdrop";
       }
     ];
