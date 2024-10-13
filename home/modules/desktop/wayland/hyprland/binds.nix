@@ -166,6 +166,10 @@
         "mod+key" = "$mainMod, M";
         "dispatcher" = "exec, ${hyprstfu}/bin/hyprstfu";
       }
+      {
+        "mod+key" = "$mainMod, Delete";
+        "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop alacritty -i alacritty_hyprdrop";
+      }
     ];
   in
     window ++ workspaces ++ builtins.map (b: b."mod+key" + ", " + b.dispatcher) custom;

@@ -68,5 +68,12 @@ in {
         "noanim"
         "noblur"
       ]
+    )
+    ++ (
+      rulesToWithIdentifier "class:^(alacritty_hyprdrop)$" [
+        "float"
+        "center"
+        "size 1460 810"
+      ]
     );
 }
