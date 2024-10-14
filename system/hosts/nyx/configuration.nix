@@ -26,27 +26,30 @@
 
   system.activationScripts = {
     banner.text = ''
-      echo '
-          .              +   .                .   . .     .  .
-                          .                    .       .     *
-          .       *                        . . . .  .   .  + .
-                    (You Are Here)            .   .  +  . . .
-        .                 |             .  .   .    .    . .
-                          |           .     .     . +.    +  .
-                          ↓            .       .   . .
-                . .       .         .    * . . .  .  +   .
-                  +        ° <- (nyx)  *   .   .      +
-                                    .       . +  .+. .
-          .                      .     . + .  . .     .      .
-                  .      .    .     . .   . . .        ! /
-              *             .    . .  +    .  .       - O -  ←- (The sun)
-                  .     .    .  +   . .  *  .        . / |
-                      . + .  .  .  .. +  .
-        .      .  .  .  *   .  *  . +..  .            *
-        .      .   . .   .   .   . .  +   .    .            +
-      '
-
+      echo '    .              +   .                .   . .     .  .'
+      sleep 0.3
+      echo '                    .                    .       .     *'
+      echo '    .       *                        . . . .  .   .  + .'
+      sleep 0.2
+      echo '              (You Are Here)            .   .  +  . . .'
+      echo '  .                 |             .  .   .    .    . .'
+      echo '                    |           .     .     . +.    +  .'
+      sleep 0.5
+      echo '                    ↓            .       .   . .'
+      echo '          . .       .         .    * . . .  .  +   .'
+      echo '            +        ° <- (nyx)  *   .   .      +'
+      echo '                              .       . +  .+. .'
+      sleep 0.3
+      echo '    .                      .     . + .  . .     .      .'
+      echo '            .      .    .     . .   . . .        ! /'
+      echo '        *             .    . .  +    .  .       - O -  ←- (The sun)'
+      echo '            .     .    .  +   . .  *  .        . / |'
+      echo '                . + .  .  .  .. +  .'
+      echo '  .  +   .  .  .  *   .  *  . +..  .            *'
+      echo '  .      .   . .   .   .   . .  +   .    .            +'
+      echo
       echo 'Remember to take all the blame!'
+      sleep 0.8
     '';
   };
 
