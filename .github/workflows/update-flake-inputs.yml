@@ -27,10 +27,13 @@ jobs:
 
       - name: Update flake inputs
         env:
+          # each input must have a separated commit
           flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser"
         run: |
           .github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }}
 
+      # can be more interesting if a list of updated flake inputs is provided at body
+      # even with metadata about the old and new version
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
