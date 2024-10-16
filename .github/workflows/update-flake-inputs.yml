@@ -39,7 +39,7 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           title: "update-flake-inputs: latest changes"
-          commit-message: "update-flake-inputs: update flake inputs"
+          commit-message: "update-flake-inputs: I really need to repeat myself"
           branch: "update-flake-inputs"
           delete-branch: true
           labels: "dependencies"
