@@ -70,11 +70,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1712425540,
-        "narHash": "sha256-D8dKXt25Wdy5STBpkoW8D6TJ3YDojAcYXR+GI7g5Pb0=",
+        "lastModified": 1712460952,
+        "narHash": "sha256-ZtNNAyvnDA4BX4i/k5y8Aj9HEr9RsTS73OIIvQifMSw=",
         "owner": "luisnquin",
         "repo": "battery-notifier",
-        "rev": "2cf83efd66b6eac09536959d1e3396e9391d7421",
+        "rev": "98ea47cc9715cbe0e9539b53e748bab5a21b8fc6",
         "type": "github"
       },
       "original": {
