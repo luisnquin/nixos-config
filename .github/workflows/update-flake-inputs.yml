@@ -5,10 +5,6 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   update-flake-inputs:
     name: Update flake inputs
@@ -38,6 +34,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.PAT }}
           title: "update-flake-inputs: latest changes"
           commit-message: "update-flake-inputs: update flake inputs"
           branch: "update-flake-inputs"
