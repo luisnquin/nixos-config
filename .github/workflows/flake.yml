@@ -1,17 +1,22 @@
 name: Nix flake
 on: [push, pull_request]
+
 jobs:
   check-flake:
     name: Evaluate flake
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v4
+        uses: DeterminateSystems/nix-installer-action@main
+
       - name: Check Nixpkgs Inputs
-        uses: DeterminateSystems/flake-checker-action@v5
+        uses: DeterminateSystems/flake-checker-action@v9
+
       - name: Add Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v2
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
       - name: Check the flake
         run: nix flake check
