@@ -10,7 +10,7 @@ jobs:
     name: Update flake inputs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Code checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}

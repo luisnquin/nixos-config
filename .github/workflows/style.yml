@@ -6,7 +6,7 @@ jobs:
         name: Check formatting
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout repository
+            - name: Code checkout
               uses: actions/checkout@v4
 
             - name: Setup Alejandra CLI

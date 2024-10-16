@@ -6,7 +6,7 @@ jobs:
     name: Evaluate flake
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Code checkout
         uses: actions/checkout@v4
 
       - name: Install Nix
