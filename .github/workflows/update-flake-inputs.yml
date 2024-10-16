@@ -15,6 +15,11 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
 
+      - name: Setup Git user
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v4
 
