@@ -6,8 +6,11 @@ jobs:
         name: Check formatting
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v2
-            - uses: luisnquin/setup-alejandra@v1.0.0
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Alejandra CLI
+              uses: luisnquin/setup-alejandra@v1.0.0
 
             - name: Check formatting
               run: alejandra --check **/*.nix
