@@ -48,7 +48,12 @@
       echo '  .  +   .  .  .  *   .  *  . +..  .            *'
       echo '  .      .   . .   .   .   . .  +   .    .            +'
       echo
-      echo 'Remember to take all the blame!'
+	  i=0
+	  while [ $i -le 15 ]; do
+      	echo 'Remember to take all the blame!'
+		sleep 0.05
+	    i=$(( i + 1 ))
+	  done
       sleep 0.8
     '';
   };
