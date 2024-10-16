@@ -1,0 +1,45 @@
+name: Update flake inputs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-flake-inputs:
+    name: Update flake inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: .github/scripts/update-flake-inputs
+        run: bun install
+
+      - name: Update flake inputs
+        env:
+          flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser"
+        run: |
+          .github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: "update-flake-inputs: latest changes"
+          commit-message: "update-flake-inputs: update flake inputs"
+          branch: "update-flake-inputs"
+          delete-branch: true
+          labels: "dependencies"
