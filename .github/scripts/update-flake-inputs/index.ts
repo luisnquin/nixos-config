@@ -55,10 +55,32 @@ interface FlakeMetadata {
 	url: string;
 }
 
-const main = async () => {
-	const flake: FlakeMetadata = await $`nix flake metadata --json`.json();
+class Flake {
+	meta: FlakeMetadata;
 
-	const inputNames = Object.keys(flake.locks.nodes);
+	constructor(meta: FlakeMetadata) {
+		this.meta = meta;
+	}
+
+	static async getCurrentState(): Promise<FlakeMetadata> {
+		return await $`nix flake metadata --json`.json();
+	}
+
+	static async init(): Promise<Flake> {
+		const metadata = await Flake.getCurrentState();
+
+		return new Flake(metadata);
+	}
+
+	async refresh(): Promise<void> {
+		this.meta = await Flake.getCurrentState();
+	}
+}
+
+const main = async () => {
+	const flake = await Flake.init();
+
+	const inputNames = Object.keys(flake.meta.locks.nodes);
 
 	const inputsToUpdate = [...new Set(process.argv.slice(2))];
 	if (inputsToUpdate.length === 0) {
@@ -76,9 +98,36 @@ const main = async () => {
 		process.exit(1);
 	}
 
+	const epochToHumanReadableDate = (epoch: number) =>
+		new Date(epoch * 1000).toLocaleDateString("en-US", {
+			hour: "2-digit",
+			minute: "2-digit",
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		});
+
 	for (const input of inputsToUpdate) {
+		const inputMetadata = flake.meta.locks.nodes[input];
+
+		const oldLastMod = inputMetadata.locked.lastModified;
+
 		console.log(`$ nix flake lock --update-input ${input}`.yellow);
 		await $`nix flake lock --update-input ${input}`;
+
+		await flake.refresh();
+
+		const newLastMod = inputMetadata.locked.lastModified;
+
+		if (oldLastMod === newLastMod) {
+			const since = epochToHumanReadableDate(oldLastMod);
+			console.log(
+				`no new changes detected for input '${input}' since '${since}'`.magenta,
+			);
+		}
+
+		// await $`git add flake.lock`;
+		// await $`git commit -m "flake-update(${input}): automated change "`;
 	}
 };
 
