@@ -56,7 +56,7 @@ interface FlakeMetadata {
 }
 
 class Flake {
-	meta: FlakeMetadata;
+	public meta: FlakeMetadata;
 
 	constructor(meta: FlakeMetadata) {
 		this.meta = meta;
@@ -73,7 +73,8 @@ class Flake {
 	}
 
 	async refresh(): Promise<void> {
-		this.meta = await Flake.getCurrentState();
+		const meta = await Flake.getCurrentState();
+		this.meta = meta;
 	}
 }
 
@@ -108,26 +109,29 @@ const main = async () => {
 		});
 
 	for (const input of inputsToUpdate) {
-		const inputMetadata = flake.meta.locks.nodes[input];
-
-		const oldLastMod = inputMetadata.locked.lastModified;
+		const since = epochToHumanReadableDate(
+			flake.meta.locks.nodes[input].locked.lastModified,
+		);
 
 		console.log(`$ nix flake lock --update-input ${input}`.yellow);
 		await $`nix flake lock --update-input ${input}`;
 
 		await flake.refresh();
+		const until = epochToHumanReadableDate(
+			flake.meta.locks.nodes[input].locked.lastModified,
+		);
 
-		const newLastMod = inputMetadata.locked.lastModified;
-
-		if (oldLastMod === newLastMod) {
-			const since = epochToHumanReadableDate(oldLastMod);
+		if (since === until) {
 			console.log(
 				`no new changes detected for input '${input}' since '${since}'`.magenta,
 			);
+			continue;
 		}
 
-		// await $`git add flake.lock`;
-		// await $`git commit -m "flake-update(${input}): automated change "`;
+		console.log(`new changes were detected since '${since}'`.blue);
+
+		await $`git add flake.lock`;
+		await $`git commit -m "flake-update(${input}): automated change (${since} -> ${until})"`;
 	}
 };
 

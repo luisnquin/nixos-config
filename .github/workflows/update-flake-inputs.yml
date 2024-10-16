@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v4
@@ -39,7 +41,6 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
           title: "update-flake-inputs: latest changes"
-          commit-message: "update-flake-inputs: I really need to repeat myself"
           branch: "update-flake-inputs"
           delete-branch: true
           labels: "dependencies"
