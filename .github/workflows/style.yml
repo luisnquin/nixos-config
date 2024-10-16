@@ -1,10 +1,10 @@
 name: Check Nix formatting
-
 on: [push, pull_request]
 
 jobs:
     check-formatting:
-        runs-on: ubuntu-20.04
+        name: Check formatting
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
             - uses: luisnquin/setup-alejandra@v1.0.0
