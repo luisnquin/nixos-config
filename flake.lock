@@ -1,25 +1,5 @@
 {
   "nodes": {
-    "0xgen": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1728274512,
-        "narHash": "sha256-OKk4HSC/CDURzMijOcinCjQoU1nngxgcyC06SRK8Phc=",
-        "owner": "0xc000022070",
-        "repo": "0xgen",
-        "rev": "7f9b9b05dc3ac5733285a2c87da0ff9f33217edc",
-        "type": "github"
-      },
-      "original": {
-        "owner": "0xc000022070",
-        "repo": "0xgen",
-        "type": "github"
-      }
-    },
     "agenix": {
       "inputs": {
         "darwin": "darwin",
@@ -667,7 +647,6 @@
     },
     "root": {
       "inputs": {
-        "0xgen": "0xgen",
         "agenix": "agenix",
         "battery-notifier": "battery-notifier",
         "flake-utils": "flake-utils",
@@ -688,7 +667,8 @@
         "spotify-dbus-control": "spotify-dbus-control",
         "systems": "systems_2",
         "treefmt-nix": "treefmt-nix",
-        "zen-browser": "zen-browser"
+        "zen-browser": "zen-browser",
+        "zeroxgen": "zeroxgen"
       }
     },
     "senv": {
@@ -865,6 +845,26 @@
       "original": {
         "owner": "0xc000022070",
         "repo": "zen-browser-flake",
+        "type": "github"
+      }
+    },
+    "zeroxgen": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1728274512,
+        "narHash": "sha256-OKk4HSC/CDURzMijOcinCjQoU1nngxgcyC06SRK8Phc=",
+        "owner": "0xc000022070",
+        "repo": "0xgen",
+        "rev": "7f9b9b05dc3ac5733285a2c87da0ff9f33217edc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "0xc000022070",
+        "repo": "0xgen",
         "type": "github"
       }
     }

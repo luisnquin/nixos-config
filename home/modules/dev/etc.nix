@@ -9,7 +9,7 @@
   senv = inputs.senv.defaultPackage.${system};
 in {
   home.packages = with pkgs; [
-    (inputs."0xgen".defaultPackage.${system})
+    (inputs.zeroxgen.defaultPackage.${system})
 
     nodePackages.firebase-tools
     nodePackages_latest.cspell

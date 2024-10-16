@@ -90,7 +90,7 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    "0xgen" = {
+    zeroxgen = {
       url = "github:0xc000022070/0xgen";
       inputs.nixpkgs.follows = "nixpkgs";
     };
