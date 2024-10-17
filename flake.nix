@@ -94,11 +94,6 @@
       url = "github:0xc000022070/0xgen";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # You might love this flake, control your Spotify client(comp with dbus)
-    # configure your keybindings to trigger actions like:
-    # play/pause(and toggle), next/previous song, jump forward/backward by 4s
-    #
-    # Can be used as a CLI too but is not my use case
     spotify-dbus-control = {
       url = "github:0xc000022070/spotify-dbus-control";
       inputs = {
