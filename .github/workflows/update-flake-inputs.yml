@@ -36,7 +36,6 @@ jobs:
         env:
           flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser"
         run: |
-          git config --list
           .github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }}
 
       # can be more interesting if a list of updated flake inputs is provided at body
