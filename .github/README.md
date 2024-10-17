@@ -14,9 +14,9 @@
 
 ## How does it look like?
 
-![image](https://github.com/user-attachments/assets/a62aa234-73f8-4321-8458-c66eaa9a0c05)
+![first-son](https://github.com/user-attachments/assets/134496fb-cf33-46b0-a3ce-e024cdd1f032)
 
-![image](https://github.com/user-attachments/assets/f57be36d-c955-4666-858a-de924912e431)
+![second-son](https://github.com/user-attachments/assets/9e183389-ea38-4480-86b5-47595a6a7ddc)
 
 ## Some configurations comes here thanks to
 
