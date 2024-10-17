@@ -1,0 +1,48 @@
+name: Monthly update of nixpkgs and home-manager
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 1 * *"
+
+jobs:
+  update:
+    name: Update nixpkgs and home-manager
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      - name: Setup Git user
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v4
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: .github/scripts/update-flake-inputs
+        run: bun install
+
+      - name: Update flake inputs
+        env:
+          flake_inputs: "nixpkgs home-manager"
+        run: |
+          .github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.PAT }}
+          title: "Monthly update of nixpkgs and home-manager"
+          branch: "monthly-update-nixpkgs-home-manager"
+          delete-branch: true
+          labels: "dependencies"
