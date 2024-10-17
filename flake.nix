@@ -60,7 +60,24 @@
     };
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-compat.follows = "flake-compat";
+      };
+    };
+    flake-compat = {
+      type = "github";
+      owner = "edolstra";
+      repo = "flake-compat";
+      flake = false;
+    };
+    pre-commit-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        nixpkgs-stable.follows = "nixpkgs"; # this shouldn't have any negative effect
+        flake-compat.follows = "flake-compat";
+      };
     };
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
@@ -69,6 +86,7 @@
     hyprland = {
       url = "https://github.com/hyprwm/Hyprland";
       inputs = {
+        pre-commit-hooks.follows = "pre-commit-hooks";
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
