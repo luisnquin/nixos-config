@@ -34,7 +34,6 @@ jobs:
 
       - name: Update flake inputs
         env:
-          # each input must have a separated commit
           flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser"
         run: |
           git config --list
