@@ -12,12 +12,11 @@
 - [Used scripts](https://github.com/luisnquin/nix-scripts)
 - [Additional pkgs](https://github.com/luisquin/nixpkgs-extra)
 
-##  How does it look like?
+## How does it look like?
 
 ![image](https://github.com/user-attachments/assets/a62aa234-73f8-4321-8458-c66eaa9a0c05)
 
 ![image](https://github.com/user-attachments/assets/f57be36d-c955-4666-858a-de924912e431)
-
 
 ## Some configurations comes here thanks to
 
