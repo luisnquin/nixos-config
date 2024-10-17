@@ -8,9 +8,9 @@
 
    ![nix-rebuild-source-not-found](https://github.com/user-attachments/assets/546372ba-56e4-4fc8-8347-cd1d06e55483)
 
-3. [Wireless connection instantly fails on startup when just switched from Windows](https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#about_dual-boot_with_windows_and_fast-boot_enabled).
-4. **macOS VM fails to build.** Ensure to enable the virtualisation capacibilities for your CPU in your **BIOS**. You might find this option as "Intel (VMX) Virtualization Technology".
-5. In middle of a `nixos-rebuild` the screen may freeze and then the /boot partition will not mount correctly so when you restart the computer you will have the GRUB Rescue menu and nothing else.
+2. [Wireless connection instantly fails on startup when just switched from Windows](https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#about_dual-boot_with_windows_and_fast-boot_enabled).
+3. **macOS VM fails to build.** Ensure to enable the virtualisation capacibilities for your CPU in your **BIOS**. You might find this option as "Intel (VMX) Virtualization Technology".
+4. In middle of a `nixos-rebuild` the screen may freeze and then the /boot partition will not mount correctly so when you restart the computer you will have the GRUB Rescue menu and nothing else.
  Trying to fix that problem from there wont be easy so you might need a Live USB with NixOS as part of your contigency plan. Once you're in, execute the following commands:
 
     ```shell
@@ -19,4 +19,4 @@
     $ cd /home/luisnquin/.dotfiles; unset SUDO_USER && nixos-rebuild boot --flake .#nyx
     ```
 
-6. If the _/nix/store_ appears to be **corrupted**  you might want to just execute this `sudo nix-store --repair --verify --check-contents`.
+5. If the _/nix/store_ appears to be **corrupted**  you might want to just execute this `sudo nix-store --repair --verify --check-contents`.
