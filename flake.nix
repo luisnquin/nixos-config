@@ -139,6 +139,13 @@
         systems.follows = "systems";
       };
     };
+    flake-programs-sqlite = {
+      url = "github:wamserma/flake-programs-sqlite";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        utils.follows = "flake-utils";
+      };
+    };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -203,6 +210,7 @@
       hostsPath = ./system/hosts;
 
       nixosModules = [
+        inputs.flake-programs-sqlite.nixosModules.programs-sqlite
         (import ./secrets {
           inherit (inputs) agenix;
           inherit system;
