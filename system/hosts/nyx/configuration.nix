@@ -48,12 +48,19 @@
       echo '  .  +   .  .  .  *   .  *  . +..  .            *'
       echo '  .      .   . .   .   .   . .  +   .    .            +'
       echo
-	  i=0
-	  while [ $i -le 15 ]; do
-      	echo 'Remember to take all the blame!'
-		sleep 0.05
-	    i=$(( i + 1 ))
-	  done
+
+      random_bool=$(( RANDOM % 2 ))
+      i=0
+      while [ $i -le 15 ]; do
+        if [[ $random_bool -eq 0 ]]; then
+          echo 'Remember to take all the blame!'
+        else
+          echo 'Take all the blame!'
+        fi
+
+        sleep 0.05
+        i=$(( i + 1 ))
+      done
       sleep 0.8
     '';
   };
