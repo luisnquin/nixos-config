@@ -34,7 +34,7 @@ jobs:
 
       - name: Update flake inputs
         env:
-          flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser"
+          flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser flake-utils nix-nostd"
         run: |
           .github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }}
 
