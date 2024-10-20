@@ -46,4 +46,3 @@ jobs:
           branch: "monthly-update-nixpkgs-home-manager"
           delete-branch: true
           labels: "dependencies"
-          reviewers: "luisnquin"

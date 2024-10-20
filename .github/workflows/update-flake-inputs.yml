@@ -48,4 +48,3 @@ jobs:
           branch: "update-flake-inputs"
           delete-branch: true
           labels: "dependencies"
-          reviewers: "luisnquin"
