@@ -102,9 +102,8 @@ const main = async () => {
 	const epochToHumanReadableDate = (epoch: number) =>
 		new Date(epoch * 1000).toLocaleDateString("en-US", {
 			hour: "2-digit",
-			minute: "2-digit",
 			year: "numeric",
-			month: "long",
+			month: "short",
 			day: "numeric",
 		});
 
