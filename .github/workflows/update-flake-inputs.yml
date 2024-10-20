@@ -32,11 +32,13 @@ jobs:
         working-directory: .github/scripts/update-flake-inputs
         run: bun install
 
-      - name: Update flake inputs
+      - id: update-flake-inputs
+        name: Update flake inputs
         env:
           flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser flake-utils nix-nostd"
         run: |
-          .github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }}
+          pr_title="$(.github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }})"
+          echo "pr_title=$pr_title" >> "$GITHUB_OUTPUT"
 
       # can be more interesting if a list of updated flake inputs is provided at body
       # even with metadata about the old and new version
@@ -44,7 +46,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
-          title: "update-flake-inputs: latest changes"
+          title: ${{ steps.update-flake-inputs.outputs.pr_title }} # "Update: Hyprland, Spicetify, Flake utils and more...!"
           branch: "update-flake-inputs"
           delete-branch: true
           labels: "dependencies"

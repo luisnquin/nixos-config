@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { titleCase } from "title-case";
 import { $ } from "bun";
 import "colors";
 
@@ -78,6 +79,11 @@ class Flake {
 	}
 }
 
+const prettyJoin = (arr: string[]) =>
+	arr.length > 1
+		? `${arr.slice(0, arr.length - 1).join(", ")} and ${arr.at(-1)}`
+		: arr[0];
+
 const main = async () => {
 	const flake = await Flake.init();
 
@@ -107,13 +113,16 @@ const main = async () => {
 			day: "numeric",
 		});
 
+	const updatedInputs: Array<string> = [];
+	const { stderr } = process;
+
 	for (const input of inputsToUpdate) {
 		const since = epochToHumanReadableDate(
 			flake.meta.locks.nodes[input].locked.lastModified,
 		);
 
-		console.log(`$ nix flake lock --update-input ${input}`.yellow);
-		await $`nix flake lock --update-input ${input}`;
+		stderr.write(`$ nix flake lock --refresh --update-input ${input}\n`.yellow);
+		await $`nix flake lock --refresh --update-input ${input}`.quiet();
 
 		await flake.refresh();
 		const until = epochToHumanReadableDate(
@@ -121,16 +130,25 @@ const main = async () => {
 		);
 
 		if (since === until) {
-			console.log(
-				`no new changes detected for input '${input}' since '${since}'`.magenta,
+			stderr.write(
+				`no new changes detected for input '${input}' since ${since}\n`.magenta,
 			);
+
 			continue;
 		}
 
-		console.log(`new changes were detected since '${since}'`.blue);
+		stderr.write(`new changes were detected since '${since}'\n`.blue);
 
-		await $`git add flake.lock`;
-		await $`git commit -m "flake-update(${input}): automated change (${since} -> ${until})"`;
+		await $`git add flake.lock`.quiet();
+		await $`git commit -m "flake-update(${input}): automated change (${since} -> ${until})"`.quiet();
+
+		updatedInputs.push(titleCase(input));
+	}
+
+	if (updatedInputs.length > 0) {
+		console.log(
+			`Updated ${updatedInputs.length} input(s): ${prettyJoin(updatedInputs)}`,
+		);
 	}
 };
 

@@ -9,6 +9,7 @@
 		"typescript": "^5.0.0"
 	},
 	"dependencies": {
-		"colors": "^1.4.0"
+		"colors": "^1.4.0",
+		"title-case": "^4.3.2"
 	}
 }
