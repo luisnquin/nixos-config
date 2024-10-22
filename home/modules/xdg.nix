@@ -38,6 +38,7 @@
         "video/x-matroska" = vlc;
         "video/quicktime" = vlc;
 
+        "image/svg+xml" = zen;
         "image/png" = zen;
         "image/jpg" = zen;
 
