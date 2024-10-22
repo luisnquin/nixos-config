@@ -1,4 +1,5 @@
 {
+  config,
   inputs,
   system,
   pkgs,
@@ -139,8 +140,8 @@
 
         "battery" = {
           "states" = {
-            "warning" = 30;
-            "critical" = 15;
+            "warning" = config.services.battery-notifier.settings.warn.threshold;
+            "critical" = config.services.battery-notifier.settings.threat.threshold;
           };
           "interval" = 3;
           "format" = "{icon} {capacity}%";
