@@ -6,7 +6,7 @@ gitEmail = "lpaandres2020@gmail.com"
 
 [hosts.nyx]
 desktop = "hyprland"
-timeZone = "America/El_Salvador"
+timeZone = "America/Lima"
 i18nLocale = "en_US.UTF-8"
 keyboardLayout = "latam"
 resolution = "1920x1080"
