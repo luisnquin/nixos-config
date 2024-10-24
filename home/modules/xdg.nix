@@ -40,7 +40,7 @@
 
         "image/svg+xml" = zen;
         "image/png" = zen;
-        "image/jpg" = zen;
+        "image/jpeg" = zen;
 
         "video/mp4" = vlc;
         "audio/mpeg" = vlc;
