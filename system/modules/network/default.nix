@@ -13,7 +13,10 @@
   ];
 
   networking = {
-    networkmanager.enable = true;
+    networkmanager = {
+      enable = true;
+      unmanaged = ["wlp0s20f0u2"];
+    };
     hostName = host.name;
 
     wireguard.enable = true;
