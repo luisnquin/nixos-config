@@ -17,6 +17,14 @@
       enable = true;
       unmanaged = ["wlp0s20f0u2"];
     };
+    wlanInterfaces = {
+      wlp0s20f0u2 = {
+        device = "wlp0s20f0u2";
+        type = "monitor";
+        flags = "control";
+      };
+    };
+
     hostName = host.name;
 
     wireguard.enable = true;
