@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 
+import { formatDate } from "date-fns/format";
 import { titleCase } from "title-case";
 import { $ } from "bun";
+
 import "colors";
 
 interface FlakeMetadata {
@@ -106,12 +108,7 @@ const main = async () => {
 	}
 
 	const epochToHumanReadableDate = (epoch: number) =>
-		new Date(epoch * 1000).toLocaleDateString("en-US", {
-			hour: "2-digit",
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		});
+		formatDate(new Date(epoch * 1000), "yyyy-MM-dd");
 
 	const updatedInputs: Array<string> = [];
 	const { stderr } = process;
