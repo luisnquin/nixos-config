@@ -35,7 +35,7 @@ jobs:
       - id: update-flake-inputs
         name: Update flake inputs
         env:
-          flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser flake-utils nix-nostd"
+          flake_inputs: "agenix hyprland spicetify-nix nix-scripts zen-browser encore flake-utils nix-nostd"
         run: |
           pr_title="$(.github/scripts/update-flake-inputs/index.ts ${{ env.flake_inputs }})"
           echo "pr_title=$pr_title" >> "$GITHUB_OUTPUT"
