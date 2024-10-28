@@ -42,6 +42,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
+          commit-message: "chore: artifacts from monthly update of nixpkgs and home-manager"
           title: "Monthly update of nixpkgs and home-manager"
           branch: "monthly-update-nixpkgs-home-manager"
           delete-branch: true

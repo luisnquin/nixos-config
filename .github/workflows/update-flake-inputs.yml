@@ -46,6 +46,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
+          commit-message: "chore: artifacts created when updating flake inputs"
           title: ${{ steps.update-flake-inputs.outputs.pr_title }} # "Update: Hyprland, Spicetify, Flake utils and more...!"
           branch: "update-flake-inputs"
           delete-branch: true
