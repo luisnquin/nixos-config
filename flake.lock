@@ -105,6 +105,26 @@
         "type": "github"
       }
     },
+    "encore": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1730133467,
+        "narHash": "sha256-pE9S1wYIAIgYgUCKJlWK/O+mAtU3/U91bRLu8slZOzs=",
+        "owner": "encoredev",
+        "repo": "encore-flake",
+        "rev": "e3b04b3503fab83fcd23a0c1bad2a9bd8461aa9e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "encoredev",
+        "repo": "encore-flake",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -666,6 +686,7 @@
       "inputs": {
         "agenix": "agenix",
         "battery-notifier": "battery-notifier",
+        "encore": "encore",
         "flake-compat": "flake-compat",
         "flake-programs-sqlite": "flake-programs-sqlite",
         "flake-utils": "flake-utils",

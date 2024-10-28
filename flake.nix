@@ -93,6 +93,10 @@
       type = "git";
       submodules = true;
     };
+    encore = {
+      url = "github:encoredev/encore-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     agenix = {
       url = "github:ryantm/agenix";
       inputs = {
