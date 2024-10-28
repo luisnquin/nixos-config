@@ -5,6 +5,7 @@ email = "lpaandres2020@gmail.com"
 gitEmail = "lpaandres2020@gmail.com"
 
 [hosts.nyx]
+browser = "brave"
 desktop = "hyprland"
 timeZone = "America/Lima"
 i18nLocale = "en_US.UTF-8"
