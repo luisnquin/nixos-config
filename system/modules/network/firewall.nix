@@ -1,7 +1,7 @@
 {
   networking = {
     firewall = let
-      ports = [5900];
+      ports = [5900 8081];
     in {
       enable = true;
       allowedTCPPorts = ports;
