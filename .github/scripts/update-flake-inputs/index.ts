@@ -137,7 +137,7 @@ const main = async () => {
 		stderr.write(`new changes were detected since '${since}'\n`.blue);
 
 		await $`git add flake.lock`.quiet();
-		await $`git commit -m "flake-update(${input}): automated change (${since} -> ${until})"`.quiet();
+		await $`git commit -m "flake-update(${input}): automated change"`.quiet();
 
 		updatedInputs.push(titleCase(input));
 	}
