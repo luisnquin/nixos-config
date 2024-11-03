@@ -150,6 +150,15 @@
         utils.follows = "flake-utils";
       };
     };
+    nixpkgs-terraform = {
+      url = "github:stackbuilders/nixpkgs-terraform";
+      inputs = {
+        nixpkgs-1_0.follows = "nixpkgs";
+        nixpkgs-1_6.follows = "nixpkgs";
+        nixpkgs-1_9.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -168,6 +177,11 @@
           ++ [
             (_self: _super: {
               inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
+            })
+          ]
+          ++ [
+            (_self: _super: {
+              terraform = inputs.nixpkgs-terraform.packages.${system}."1.9";
             })
           ];
         config = {
