@@ -5,7 +5,7 @@
 
     goPrivate = [
       "github.com/chanchitaapp"
-      "github.com/x0xc000022070"
+      "github.com/0xc000022070"
     ];
 
     goBin = "go/bin";
