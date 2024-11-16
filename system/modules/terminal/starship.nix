@@ -38,6 +38,7 @@
         "$git_branch"
         "$git_state"
         "$git_metrics"
+        "\${custom.git_remote_diff}"
         "\${custom.environment_name}"
         "$c"
         "\${custom.go}"
@@ -171,6 +172,26 @@
           symbol = "🎉";
           format = " $symbol";
           when = ''test -e go.mod && [ "$(awk '/go/ {print $2; exit}' go.mod)" = "$(go version | awk '{sub(/^go/,"",$3); print $3}' | cut -d '.' -f 1,2)" ]'';
+        };
+
+        git_remote_diff = {
+          description = "Displays the number of commits ahead of the remote";
+          shell = ["bash" "--noprofile" "--norc"];
+          format = "[$symbol $output]($style) ";
+          symbol = "";
+          style = "#5941f2";
+          command = ''
+            branch=$(git rev-parse --abbrev-ref HEAD)
+
+            if git rev-parse --is-inside-work-tree > /dev/null; then
+              ahead=$(git rev-list --count origin/$branch..HEAD)
+
+              if [ "$ahead" -gt 0 ]; then
+                echo "$ahead?"
+              fi
+            fi
+          '';
+          when = ''git rev-parse --is-inside-work-tree > /dev/null && [ $(git rev-list --count origin/$(git rev-parse --abbrev-ref HEAD)..HEAD) -gt 0 ]'';
         };
 
         git_remote = {
