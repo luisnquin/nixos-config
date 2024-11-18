@@ -651,6 +651,21 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/a5d394176e64ab29c852d03346c1fc9b0b7d33eb.tar.gz"
       }
     },
+    "nixpkgs-reunstable": {
+      "locked": {
+        "lastModified": 1731676054,
+        "narHash": "sha256-OZiZ3m8SCMfh3B6bfGC/Bm4x3qc1m2SVEAlkV6iY7Yg=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "5e4fbfb6b3de1aa2872b76d49fafc942626e2add",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixos-unstable",
+        "type": "indirect"
+      }
+    },
     "nixpkgs-terraform": {
       "inputs": {
         "config": "config",
@@ -778,6 +793,7 @@
         "nix-scripts": "nix-scripts",
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
+        "nixpkgs-reunstable": "nixpkgs-reunstable",
         "nixpkgs-terraform": "nixpkgs-terraform",
         "passgen": "passgen",
         "poetry2nix": "poetry2nix",
