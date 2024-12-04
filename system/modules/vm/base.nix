@@ -13,7 +13,7 @@
 
   environment.systemPackages = with pkgs; [
     virt-manager
-    vagrant
+    # vagrant
     qemu
   ];
 }
