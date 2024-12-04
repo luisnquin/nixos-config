@@ -1,7 +1,8 @@
 {pkgs, ...}: {
   fonts = {
     packages = with pkgs; [
-      (nerdfonts.override {fonts = ["FiraCode" "CascadiaCode" "NerdFontsSymbolsOnly"];})
+      nerd-fonts.fira-code
+      nerd-fonts.symbols-only
       pkgs.extra.coders-crux
       jetbrains-mono
       cascadia-code
