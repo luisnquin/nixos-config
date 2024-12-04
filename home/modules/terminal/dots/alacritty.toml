@@ -1,5 +1,3 @@
-live_config_reload = false
-
 [cursor]
 blink_interval = 550
 blink_timeout = 0
@@ -50,6 +48,9 @@ dynamic_title = true
 opacity = 0.7
 startup_mode = "Windowed"
 title = "Dev shell 🫐⛄"
+
+[general]
+live_config_reload = false
 
 [window.class]
 general = "Alacritty"
