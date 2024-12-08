@@ -1,3 +1,6 @@
 {pkgs, ...}: {
-  home.packages = [pkgs.git-open];
+  home.packages = [
+    pkgs.git-cliff
+    pkgs.git-open
+  ];
 }
