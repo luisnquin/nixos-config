@@ -12,8 +12,8 @@
       nodePackages."@angular/cli"
       nodePackages.pnpm
       pkgs.extra.npkill # remove node_modules from child directories
+      nodejs_23
       nest-cli
-      nodejs
       husky
       biome
       bun
