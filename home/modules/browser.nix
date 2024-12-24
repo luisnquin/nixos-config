@@ -6,7 +6,7 @@
   ...
 }: {
   home.packages = let
-    zen-browser = inputs.zen-browser.packages.${system}.default;
+    zen-browser = inputs.zen-browser.packages.${system};
   in [
     zen-browser
   ];
