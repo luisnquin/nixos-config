@@ -4,10 +4,10 @@
   pkgs,
   host,
   ...
-}: {
-  home.packages = let
-    zen-browser = inputs.zen-browser.packages.${system};
-  in [
+}: let
+  zen-browser = inputs.zen-browser.packages.${system}.default;
+in {
+  home.packages = [
     zen-browser
   ];
 
