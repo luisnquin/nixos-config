@@ -19,6 +19,11 @@
       bun
     ];
 
+    sessionVariables = {
+      # https://github.com/npm/cli/issues/7857#issuecomment-2481331001
+      NODE_OPTIONS = "--disable-warning=ExperimentalWarning";
+    };
+
     sessionPath = ["${npmGlobalDir}/bin"];
 
     activation.init = lib.hm.dag.entryAfter ["writeBoundary"] ''
