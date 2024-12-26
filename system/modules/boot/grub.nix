@@ -14,7 +14,6 @@
     # For a better future: https://github.com/NixOS/nixpkgs/issues/23926
     configurationLimit = 42;
     efiSupport = true;
-    efiInstallAsRemovable = true;
 
     gfxmodeBios = host.resolution;
     gfxmodeEfi = host.resolution;

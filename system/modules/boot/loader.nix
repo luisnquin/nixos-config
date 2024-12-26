@@ -1,7 +1,7 @@
 {...}: {
   boot.loader = {
     efi = {
-      canTouchEfiVariables = false;
+      canTouchEfiVariables = true;
       efiSysMountPoint = "/boot/efi";
     };
     timeout = 15;
