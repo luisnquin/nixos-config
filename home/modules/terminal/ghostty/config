@@ -41,5 +41,5 @@ shell-integration = "zsh"
 
 desktop-notifications = "true"
 
-auto-update = "false"
+auto-update = "off"
 auto-update-channel = "tip"
