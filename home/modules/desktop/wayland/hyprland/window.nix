@@ -63,15 +63,6 @@ in {
       "opacity 0.1"
     ])
     ++ (
-      rulesToWithIdentifier "class:^(xwaylandvideobridge)$" [
-        "opacity 0.0 override"
-        "noinitialfocus"
-        "maxsize 1 1"
-        "noanim"
-        "noblur"
-      ]
-    )
-    ++ (
       rulesToWithIdentifier "class:^(alacritty_hyprdrop)$" [
         "float"
         "center"
