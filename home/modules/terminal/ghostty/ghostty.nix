@@ -1,10 +1,6 @@
-{
-  inputs,
-  system,
-  ...
-}: {
+{ghostty, ...}: {
   home.packages = [
-    inputs.ghostty.packages.${system}.default
+    ghostty
   ];
 
   xdg.configFile = {

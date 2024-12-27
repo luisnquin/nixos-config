@@ -1,4 +1,5 @@
 {
+  ghostty,
   config,
   inputs,
   system,
@@ -14,7 +15,7 @@
     };
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
-      runBtopWithAlacritty = "${pkgs.alacritty}/bin/alacritty -e ${pkgs.btop}/bin/btop";
+      runBtop = "${ghostty}/bin/ghostty -e ${pkgs.btop}/bin/btop";
     in [
       {
         "position" = "top";
@@ -81,7 +82,7 @@
           "tooltip-format" = "{controller_alias}\t{controller_address}";
           "tooltip-format-connected" = "{controller_alias}\t{controller_address}\n\n{device_enumerate}";
           "tooltip-format-enumerate-connected" = "{device_alias}\t{device_address}";
-          "on-click" = "${lib.getExe pkgs.alacritty} -e ${lib.getExe pkgs.bluetuith}";
+          "on-click" = "${lib.getExe ghostty} -e ${lib.getExe pkgs.bluetuith}";
         };
 
         "pulseaudio" = {
@@ -125,7 +126,7 @@
         "cpu" = {
           "interval" = 1;
           "format" = "󰍛 {usage}%";
-          "on-click" = runBtopWithAlacritty;
+          "on-click" = runBtop;
         };
 
         "memory" = {
@@ -135,7 +136,7 @@
             "warning" = 80;
             "critical" = 95;
           };
-          "on-click" = runBtopWithAlacritty;
+          "on-click" = runBtop;
         };
 
         "battery" = {
@@ -160,7 +161,7 @@
           "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
           "tooltip" = true;
           "interval" = 1;
-          "on-click" = "${lib.getExe pkgs.alacritty} -e ${pkgs.networkmanager}/bin/nmtui connect";
+          "on-click" = "${lib.getExe ghostty} -e ${pkgs.networkmanager}/bin/nmtui connect";
         };
 
         "custom/power" = {

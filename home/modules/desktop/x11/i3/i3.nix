@@ -23,7 +23,7 @@
         outer = 5;
       };
 
-      terminal = "alacritty";
+      terminal = "ghostty";
 
       inherit fonts;
 
@@ -110,7 +110,7 @@
 
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+minus" = "scratchpad show";
-          "${modifier}+Return" = "exec ${alacritty}/bin/alacritty";
+          "${modifier}+Return" = "exec ${pkgs.lib.getExe ghostty}";
           "${modifier}+Shift+x" = "exec systemctl suspend";
 
           # Closes the current window

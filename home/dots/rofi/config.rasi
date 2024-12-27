@@ -6,7 +6,7 @@ configuration {
   font: "Cascadia Code 10";
   show-icons: false;
   case-sensitive: false;
-  terminal: "alacritty";
+  terminal: "ghostty";
 
   clipboard {
     display-name: "󰅍";

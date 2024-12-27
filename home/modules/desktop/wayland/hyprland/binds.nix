@@ -1,5 +1,6 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
+  ghostty,
   inputs,
   system,
   pkgs,
@@ -76,7 +77,7 @@
     in [
       {
         "mod+key" = "$mainMod, RETURN";
-        "dispatcher" = "exec, ${pkgs.alacritty}/bin/alacritty";
+        "dispatcher" = "exec, ${pkgs.lib.getExe ghostty}";
       }
       {
         "mod+key" = ",XF86AudioMicMute";
@@ -168,7 +169,7 @@
       }
       {
         "mod+key" = "$mainMod, K";
-        "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop alacritty -i alacritty_hyprdrop";
+        "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop ghostty -i ghostty_hyprdrop";
       }
     ];
   in
