@@ -169,7 +169,7 @@
       }
       {
         "mod+key" = "$mainMod, K";
-        "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop ghostty -i ghostty_hyprdrop";
+        "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
       }
     ];
   in

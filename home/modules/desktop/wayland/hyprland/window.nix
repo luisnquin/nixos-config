@@ -63,7 +63,7 @@ in {
       "opacity 0.1"
     ])
     ++ (
-      rulesToWithIdentifier "class:^(ghostty_hyprdrop)$" [
+      rulesToWithIdentifier "class:^(ghostty.hyprdrop)$" [
         "float"
         "center"
         "size 1460 810"
