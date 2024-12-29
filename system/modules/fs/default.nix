@@ -1,4 +1,8 @@
 {
+  imports = [
+    ./incron.nix
+  ];
+
   boot = {
     supportedFilesystems = ["ntfs"];
     tmp.cleanOnBoot = true;

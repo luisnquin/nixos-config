@@ -5,6 +5,7 @@
     ./desktop
     ./network
     ./boot
+    ./fs
     ./vm
 
     # https://github.com/NixOS/nixpkgs/pull/249369
