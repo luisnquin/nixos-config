@@ -4,7 +4,7 @@
   ...
 }: {
   services.incron = {
-    enable = true;
+    enable = false;
 
     # Packages available to the system incrontab.
     extraPackages = [pkgs.coreutils];
