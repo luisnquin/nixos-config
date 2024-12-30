@@ -171,6 +171,7 @@
         nixpkgs-stable.follows = "nixpkgs";
       };
     };
+    ghostty-hm.url = "github:clo4/ghostty-hm-module";
   };
 
   outputs = inputs: let
@@ -261,6 +262,7 @@
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
         inputs.nao.homeManagerModules.default
+        inputs.ghostty-hm.homeModules.default
         ./home/options
       ];
     };
