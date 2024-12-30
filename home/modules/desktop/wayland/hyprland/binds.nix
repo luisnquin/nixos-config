@@ -1,6 +1,6 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
-  ghostty,
+  config,
   inputs,
   system,
   pkgs,
@@ -77,7 +77,7 @@
     in [
       {
         "mod+key" = "$mainMod, RETURN";
-        "dispatcher" = "exec, ${pkgs.lib.getExe ghostty}";
+        "dispatcher" = "exec, ${pkgs.lib.getExe config.programs.ghostty.package}";
       }
       {
         "mod+key" = ",XF86AudioMicMute";

@@ -1,7 +1,11 @@
-{ghostty, ...}: {
+{
+  inputs,
+  system,
+  ...
+}: {
   programs.ghostty = {
     enable = true;
-    package = ghostty;
+    package = inputs.ghostty.packages.${system}.default;
     shellIntegration.enable = true;
 
     settings = {

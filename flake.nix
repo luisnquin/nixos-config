@@ -234,8 +234,6 @@
       isTiling = builtins.elem desktop ["hyprland" "i3"];
       isWayland = desktop == "hyprland";
 
-      ghostty = inputs.ghostty.packages.${system}.default;
-
       # Child modules should deal with the things they want to take from the inputs.
       inherit inputs pkgs system;
     };

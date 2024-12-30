@@ -1,5 +1,4 @@
 {
-  ghostty,
   config,
   inputs,
   system,
@@ -15,7 +14,7 @@
     };
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
-      runBtop = "${ghostty}/bin/ghostty -e ${pkgs.btop}/bin/btop";
+      runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} -e ${pkgs.btop}/bin/btop";
     in [
       {
         "position" = "top";
@@ -82,7 +81,7 @@
           "tooltip-format" = "{controller_alias}\t{controller_address}";
           "tooltip-format-connected" = "{controller_alias}\t{controller_address}\n\n{device_enumerate}";
           "tooltip-format-enumerate-connected" = "{device_alias}\t{device_address}";
-          "on-click" = "${lib.getExe ghostty} -e ${lib.getExe pkgs.bluetuith}";
+          "on-click" = "${lib.getExe config.programs.ghostty.package} -e ${lib.getExe pkgs.bluetuith}";
         };
 
         "pulseaudio" = {
@@ -161,7 +160,7 @@
           "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
           "tooltip" = true;
           "interval" = 1;
-          "on-click" = "${lib.getExe ghostty} -e ${pkgs.networkmanager}/bin/nmtui connect";
+          "on-click" = "${lib.getExe config.programs.ghostty.package} -e ${pkgs.networkmanager}/bin/nmtui connect";
         };
 
         "custom/power" = {

@@ -110,7 +110,7 @@
 
           "${modifier}+Shift+minus" = "move scratchpad";
           "${modifier}+minus" = "scratchpad show";
-          "${modifier}+Return" = "exec ${pkgs.lib.getExe ghostty}";
+          "${modifier}+Return" = "exec ${pkgs.lib.getExe config.programs.ghostty.package}";
           "${modifier}+Shift+x" = "exec systemctl suspend";
 
           # Closes the current window
