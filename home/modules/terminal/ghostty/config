@@ -43,3 +43,6 @@ desktop-notifications = "true"
 
 auto-update = "off"
 auto-update-channel = "tip"
+
+# Saves screen in tpm file and opens it with the default app (in this case, Zen Browser)
+keybind = ctrl+f=write_screen_file:open
