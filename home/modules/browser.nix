@@ -14,7 +14,7 @@ in {
   xdg.mimeApps = let
     associations = builtins.listToAttrs (map (name: {
         inherit name;
-        value = "zen.desktop";
+        value = zen-browser.meta.desktopFile;
       }) [
         "x-scheme-handler/http"
         "x-scheme-handler/https"
