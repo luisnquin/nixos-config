@@ -40,7 +40,7 @@ in {
 
   programs.chromium = {
     enable = true;
-    package = pkgs."${host.browser}";
+    package = pkgs.brave;
     extensions = let
       ids = [
         "dmghijelimhndkbmpgbldicpogfkceaj" # "Dark mode"
