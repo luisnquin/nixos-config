@@ -2,7 +2,6 @@
   inputs,
   system,
   pkgs,
-  host,
   ...
 }: let
   zen-browser = inputs.zen-browser.packages.${system}.twilight;
