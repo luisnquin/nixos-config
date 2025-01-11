@@ -669,30 +669,6 @@
         "type": "github"
       }
     },
-    "nix-gaming": {
-      "inputs": {
-        "flake-parts": [
-          "flake-parts"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "umu": "umu"
-      },
-      "locked": {
-        "lastModified": 1736559635,
-        "narHash": "sha256-21vn8iCl/7XglyR1xLQZv7fvcC2izPyNZOLxP5ndw0M=",
-        "owner": "fufexan",
-        "repo": "nix-gaming",
-        "rev": "0e562d23a2df60788af3aeda21590032b416be7c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "fufexan",
-        "repo": "nix-gaming",
-        "type": "github"
-      }
-    },
     "nix-github-actions": {
       "inputs": {
         "nixpkgs": [
@@ -980,7 +956,6 @@
         "hyprland-contrib": "hyprland-contrib",
         "hyprstfu": "hyprstfu",
         "nao": "nao",
-        "nix-gaming": "nix-gaming",
         "nix-nostd": "nix-nostd",
         "nix-scripts": "nix-scripts",
         "nixpkgs": "nixpkgs",
@@ -1132,31 +1107,6 @@
         "type": "github"
       }
     },
-    "umu": {
-      "inputs": {
-        "nixpkgs": [
-          "nix-gaming",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "dir": "packaging/nix",
-        "lastModified": 1736534482,
-        "narHash": "sha256-aHDxVKA4GgohIPCDUX9zMF4UnLQR7U6Dj9mOmhZYSoc=",
-        "ref": "refs/heads/main",
-        "rev": "e9cb4d764013d4c8c3d1166f59581da8f56a3d83",
-        "revCount": 896,
-        "submodules": true,
-        "type": "git",
-        "url": "https://github.com/Open-Wine-Components/umu-launcher/?dir=packaging/nix"
-      },
-      "original": {
-        "dir": "packaging/nix",
-        "submodules": true,
-        "type": "git",
-        "url": "https://github.com/Open-Wine-Components/umu-launcher/?dir=packaging/nix"
-      }
-    },
     "xdph": {
       "inputs": {
         "hyprland-protocols": [
@@ -1205,11 +1155,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1735787641,
-        "narHash": "sha256-9ZrHUZarvzTZaN7DAAd0vtxEMmlt77UtC3bLp6nHKmk=",
+        "lastModified": 1736565714,
+        "narHash": "sha256-/OyRMWPzV7027/Zvi5Kwb7D8UM0mhRLqPkC0WRHre2I=",
         "owner": "0xc000022070",
         "repo": "zen-browser-flake",
-        "rev": "04058273f2f8c359a9495cf176f707d8c3e5c85f",
+        "rev": "48a7f03cdc23ca81c668d0f09ea4ab2278f61162",
         "type": "github"
       },
       "original": {
