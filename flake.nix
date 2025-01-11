@@ -20,6 +20,7 @@
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
+    flake-parts.url = "github:hercules-ci/flake-parts";
 
     systems.url = "github:nix-systems/default-linux";
     nix-nostd.url = "github:chessai/nix-std";

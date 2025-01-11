@@ -35,8 +35,16 @@
       # Number of seconds between checking free disk space.
       min-free-check-interval = 30;
       # https://nix.dev/recipes/faq#what-to-do-if-a-binary-cache-is-down-or-unreachable
-      trusted-substituters = ["https://cache.nixos.org"];
-      substituters = ["https://cache.nixos.org"];
+      trusted-public-keys = [
+        "nix-gaming.cachix.org-1:nbjlureqMbRAxR1gJ/f3hxemL9svXaZF/Ees8vCUUs4="
+      ];
+      trusted-substituters = [
+        "https://cache.nixos.org"
+      ];
+      substituters = [
+        "https://nix-gaming.cachix.org"
+        "https://cache.nixos.org"
+      ];
     };
   };
 

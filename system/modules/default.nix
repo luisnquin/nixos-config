@@ -20,6 +20,7 @@
     ./systemd.nix
     ./kernel.nix
     ./docker.nix
+    ./gaming.nix
     ./thunar.nix
     ./fonts.nix
     ./audio.nix
