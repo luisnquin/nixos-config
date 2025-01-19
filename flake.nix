@@ -4,7 +4,6 @@
   # welcome to the hell ;]
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
-    nixpkgs-reunstable.url = "nixpkgs/nixos-unstable";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
@@ -159,14 +158,14 @@
     ghostty = {
       url = "github:ghostty-org/ghostty";
       inputs = {
-        nixpkgs-unstable.follows = "nixpkgs-reunstable";
+        nixpkgs-unstable.follows = "nixpkgs";
         nixpkgs-stable.follows = "nixpkgs";
       };
     };
   };
 
   outputs = inputs: let
-    inherit (inputs) nixpkgs-extra home-manager nix-nostd hyprland nixpkgs nixpkgs-reunstable;
+    inherit (inputs) nixpkgs-extra home-manager nix-nostd hyprland nixpkgs;
 
     system = "x86_64-linux";
 
@@ -187,16 +186,6 @@
         inherit system;
       };
 
-      reunstable = import nixpkgs-reunstable {
-        config = {
-          allowUnfreePredicate = pkg:
-            builtins.elem (lib.getName pkg) [
-              "android-studio-stable"
-            ];
-        };
-        inherit system;
-      };
-
       extra = nixpkgs-extra.packages.${system};
 
       libx =
@@ -207,7 +196,7 @@
     in
       default
       // {
-        inherit reunstable extra libx;
+        inherit extra libx;
       };
 
     inherit (pkgs) lib;

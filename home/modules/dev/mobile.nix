@@ -6,7 +6,7 @@
   home = let
     ANDROID_HOME = "${config.home.homeDirectory}/.android";
   in {
-    packages = with pkgs.reunstable; [
+    packages = with pkgs; [
       android-studio
       android-tools
 
@@ -22,7 +22,7 @@
     ];
 
     file."${ANDROID_HOME}/platform-tools" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${pkgs.reunstable.android-tools}/bin";
+      source = config.lib.file.mkOutOfStoreSymlink "${pkgs.android-tools}/bin";
     };
 
     sessionPath = [

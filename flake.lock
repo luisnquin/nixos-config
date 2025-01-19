@@ -243,7 +243,7 @@
           "nixpkgs"
         ],
         "nixpkgs-unstable": [
-          "nixpkgs-reunstable"
+          "nixpkgs"
         ],
         "zig": "zig"
       },
@@ -753,21 +753,6 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/e9b51731911566bbf7e4895475a87fe06961de0b.tar.gz"
       }
     },
-    "nixpkgs-reunstable": {
-      "locked": {
-        "lastModified": 1731676054,
-        "narHash": "sha256-OZiZ3m8SCMfh3B6bfGC/Bm4x3qc1m2SVEAlkV6iY7Yg=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "5e4fbfb6b3de1aa2872b76d49fafc942626e2add",
-        "type": "github"
-      },
-      "original": {
-        "id": "nixpkgs",
-        "ref": "nixos-unstable",
-        "type": "indirect"
-      }
-    },
     "passgen": {
       "inputs": {
         "flake-utils": [
@@ -866,7 +851,6 @@
         "nix-scripts": "nix-scripts",
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
-        "nixpkgs-reunstable": "nixpkgs-reunstable",
         "passgen": "passgen",
         "poetry2nix": "poetry2nix",
         "pre-commit-hooks": "pre-commit-hooks",
