@@ -4,6 +4,7 @@
 {
   config,
   lib,
+  pkgs,
   modulesPath,
   ...
 }: {
@@ -17,12 +18,12 @@
   boot.extraModulePackages = [];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/904a9ba9-fc26-47e1-9ba0-413af1a4502e";
+    device = "/dev/disk/by-uuid/aff2e32d-1bf2-4294-a8cf-23949fc6ed2d";
     fsType = "ext4";
   };
 
-  fileSystems."/boot/efi" = {
-    device = "/dev/disk/by-uuid/54AC-20EE";
+  fileSystems."/boot" = {
+    device = "/dev/disk/by-uuid/66ED-4092";
     fsType = "vfat";
     options = ["fmask=0077" "dmask=0077"];
   };
