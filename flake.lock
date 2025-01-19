@@ -83,23 +83,6 @@
         "type": "github"
       }
     },
-    "config": {
-      "locked": {
-        "dir": "templates/config",
-        "lastModified": 1719931926,
-        "narHash": "sha256-B8j9lHX0LqWlZkm8JxZRN6919RQjJEu/1J1SR8pU/ww=",
-        "owner": "stackbuilders",
-        "repo": "nixpkgs-terraform",
-        "rev": "034287ee462c87dadc14a94d4b53a48ed66c7b3d",
-        "type": "github"
-      },
-      "original": {
-        "dir": "templates/config",
-        "owner": "stackbuilders",
-        "repo": "nixpkgs-terraform",
-        "type": "github"
-      }
-    },
     "darwin": {
       "inputs": {
         "nixpkgs": [
@@ -184,24 +167,6 @@
         "owner": "hercules-ci",
         "repo": "flake-parts",
         "rev": "b905f6fc23a9051a6e1b741e1438dbfc0634c6de",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "type": "github"
-      }
-    },
-    "flake-parts_2": {
-      "inputs": {
-        "nixpkgs-lib": "nixpkgs-lib_2"
-      },
-      "locked": {
-        "lastModified": 1722555600,
-        "narHash": "sha256-XOQkdLafnb/p9ij77byFQjDf5m5QYl9b2REiVClC+x4=",
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "rev": "8471fe90ad337a8074e957b69ca4d0089218391d",
         "type": "github"
       },
       "original": {
@@ -788,18 +753,6 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/e9b51731911566bbf7e4895475a87fe06961de0b.tar.gz"
       }
     },
-    "nixpkgs-lib_2": {
-      "locked": {
-        "lastModified": 1722555339,
-        "narHash": "sha256-uFf2QeW7eAHlYXuDktm9c25OxOyCoUOQmh5SZ9amE5Q=",
-        "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/a5d394176e64ab29c852d03346c1fc9b0b7d33eb.tar.gz"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/a5d394176e64ab29c852d03346c1fc9b0b7d33eb.tar.gz"
-      }
-    },
     "nixpkgs-reunstable": {
       "locked": {
         "lastModified": 1731676054,
@@ -813,37 +766,6 @@
         "id": "nixpkgs",
         "ref": "nixos-unstable",
         "type": "indirect"
-      }
-    },
-    "nixpkgs-terraform": {
-      "inputs": {
-        "config": "config",
-        "flake-parts": "flake-parts_2",
-        "nixpkgs-1_0": [
-          "nixpkgs"
-        ],
-        "nixpkgs-1_6": [
-          "nixpkgs"
-        ],
-        "nixpkgs-1_9": [
-          "nixpkgs"
-        ],
-        "systems": [
-          "systems"
-        ]
-      },
-      "locked": {
-        "lastModified": 1729156928,
-        "narHash": "sha256-+D0R2rH2pEhzJ3zZGc5Oj5KGtnkO43sCWYNbq0ptuao=",
-        "owner": "stackbuilders",
-        "repo": "nixpkgs-terraform",
-        "rev": "db8dc49e397acf87d5b542755717bae368d32f3c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "stackbuilders",
-        "repo": "nixpkgs-terraform",
-        "type": "github"
       }
     },
     "passgen": {
@@ -945,7 +867,6 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
         "nixpkgs-reunstable": "nixpkgs-reunstable",
-        "nixpkgs-terraform": "nixpkgs-terraform",
         "passgen": "passgen",
         "poetry2nix": "poetry2nix",
         "pre-commit-hooks": "pre-commit-hooks",
