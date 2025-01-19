@@ -6,7 +6,8 @@
   programs.ghostty = {
     enable = true;
     package = inputs.ghostty.packages.${system}.default;
-    shellIntegration.enable = true;
+    enableZshIntegration = true;
+    enableBashIntegration = true;
 
     settings = {
       font-synthetic-style = "bold";
