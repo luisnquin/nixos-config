@@ -5,13 +5,9 @@
     extraConfig = builtins.readFile ./dots/.tmux.conf;
   };
 
-  home = {
-    packages = [
-      pkgs.gitmux
-    ];
-
-    sessionPath = ["$HOME/.tmux/plugins/tpm"];
-  };
+  home.packages = [
+    pkgs.gitmux
+  ];
 
   xdg.configFile = {
     ".gitmux.conf".text = builtins.readFile ./dots/.gitmux.conf;
