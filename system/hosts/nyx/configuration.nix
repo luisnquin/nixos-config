@@ -1,5 +1,6 @@
 {
   host,
+  pkgs,
   nix,
   ...
 }: {
@@ -53,9 +54,9 @@
       i=0
       while [ $i -le 15 ]; do
         if [[ $random_bool -eq 0 ]]; then
-          echo 'Remember to take all the blame!'
+          echo "${pkgs.libx.base64.decode "RGVsdXNpb25zIHdvbid0IGNob2tlIHlvdX4gSW5kZXhPZj1lbnQlCg=="}"
         else
-          echo 'Take all the blame!'
+          echo '${pkgs.libx.base64.decode "VGFrZSBhbGwgdGhlIGJsYW1lIQo="}'
         fi
 
         sleep 0.05
