@@ -8,6 +8,7 @@
 
     ./processors.nix
     ./clients.nix
+    ./encore.nix
     ./mobile.nix
     ./writer.nix
     ./devenv.nix
