@@ -42,16 +42,7 @@ in {
     package = pkgs.brave;
     extensions = let
       ids = [
-        "dmghijelimhndkbmpgbldicpogfkceaj" # "Dark mode"
-        "gppongmhjkpfnbhagpmjfkannfbllamg" # Wappalyzer - Technology profiler
-
-        "dnhpnfgdlenaccegplpojghhmaamnnfp" # Augmented Steam
         "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
-
-        "njkkfaliiinmkcckepjdmgbmjljfdeee" # CodeWing
-        "ldleapnlgbkpkabhbkkeangmnfpikahe" # What's new on GitHub
-        "ialbpcipalajnakfondkflpkagbkdoib" # Lovely forks
-        "anlikcnbgdeidpacdbdljnabclhahhmd" # Enhanced GitHub
       ];
     in
       builtins.map (id: {inherit id;}) ids;
