@@ -10,7 +10,7 @@
       android-studio
       android-tools
 
-      # maestro # Mobile UI Automation tool
+      maestro # Mobile UI Automation tool
 
       kotlin-language-server
       kotlin-native
