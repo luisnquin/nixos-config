@@ -21,8 +21,21 @@
       sdkmanager # for me, "Accept The License - The CLI"
     ];
 
-    file."${ANDROID_HOME}/platform-tools" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${pkgs.android-tools}/bin";
+    file = {
+      "${ANDROID_HOME}/platform-tools" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${pkgs.android-tools}/bin";
+      };
+
+      # Oh, but we, we couldn't stay together
+      # I knew this wouldn't last forever
+      # forever, just more one time than never
+      # this is the last string to server
+      ".gradle/gradle.properties".text = ''
+        org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        org.gradle.parallel=true
+        org.gradle.configureondemand=true
+        org.gradle.daemon=false
+      '';
     };
 
     sessionPath = [
