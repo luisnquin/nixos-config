@@ -29,7 +29,7 @@
       # Oh, but we, we couldn't stay together
       # I knew this wouldn't last forever
       # forever, just more one time than never
-      # this is the last string to server
+      # this is the last string to sever
       ".gradle/gradle.properties".text = ''
         org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
         org.gradle.parallel=true
