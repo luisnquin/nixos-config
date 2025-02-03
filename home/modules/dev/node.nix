@@ -33,6 +33,7 @@
     file = {
       ".npmrc".text = ''
         prefix=${npmGlobalDir}
+        //registry.npmjs.org/:_authToken=''${NPM_TOKEN}
       '';
 
       ".bunfig.toml".text = ''
