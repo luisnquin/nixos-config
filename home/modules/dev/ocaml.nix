@@ -9,6 +9,7 @@ in {
     ocamlPackages.utop
     dune-release
     ocamlformat
+    dune_3
     ocaml
   ];
 
