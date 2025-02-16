@@ -4,7 +4,7 @@
   pkgs,
   ...
 }: let
-  zen-browser = inputs.zen-browser.packages.${system}.twilight-resilient;
+  zen-browser = inputs.zen-browser.packages.${system}.twilight;
 in {
   home.packages = [
     zen-browser
