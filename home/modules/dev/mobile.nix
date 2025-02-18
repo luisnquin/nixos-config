@@ -1,4 +1,5 @@
 {
+  inputs,
   config,
   pkgs,
   ...
@@ -16,7 +17,19 @@
       kotlin-native
       kotlin
 
-      nodePackages."eas-cli"
+      # every year this day is important, today is not the exception
+      # I wanted to try peepshow but
+      #
+      # In my imagination you're waiting laying on your side
+      # With your hands between your thighs
+      #
+      # It it's a seven-hour flight or a 45-minute drive
+      #
+      # In my imagination you're waiting laying on your side
+      # With your hands between your thighs
+      #
+      # Did you know that this is a long-term joke? 'Cause I didn't
+      inputs.expo-flake.packages.${system}.eas-cli
 
       sdkmanager # for me, "Accept The License - The CLI"
     ];

@@ -162,6 +162,10 @@
         nixpkgs-stable.follows = "nixpkgs";
       };
     };
+    expo-flake = {
+      url = "github:0xc000022070/expo-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs: let
