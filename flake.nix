@@ -156,9 +156,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     ghostty = {
-      url = "github:ghostty-org/ghostty";
+      url = "github:ghostty-org/ghostty?ref=refs/tags/tip";
       inputs = {
-        nixpkgs-unstable.follows = "nixpkgs";
+        # nixpkgs-unstable.follows = "nixpkgs";
         nixpkgs-stable.follows = "nixpkgs";
       };
     };
