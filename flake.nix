@@ -162,6 +162,13 @@
         nixpkgs-stable.follows = "nixpkgs";
       };
     };
+    prismlauncher = {
+      url = "github:Diegiwg/PrismLauncher-Cracked";
+      inputs = {
+        flake-compat.follows = "flake-compat";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
     expo-flake = {
       url = "github:0xc000022070/expo-flake";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -1,4 +1,5 @@
 {
+  inputs,
   pkgs,
   user,
   ...
@@ -15,6 +16,7 @@
   environment = {
     systemPackages = [
       pkgs.protonup # ensure to run it the first time
+      inputs.prismlauncher.packages.${pkgs.system}.default # jailbreak offline accounts
     ];
 
     sessionVariables = {
