@@ -3,17 +3,14 @@
   system,
   pkgs,
   ...
-}: let
-  zen-browser = inputs.zen-browser.packages.${system}.twilight;
-in {
-  home.packages = [
-    zen-browser
-  ];
-
+}: {
   xdg.mimeApps = let
     associations = builtins.listToAttrs (map (name: {
         inherit name;
-        value = zen-browser.meta.desktopFile;
+        value = let
+          zen-browser = inputs.zen-browser.packages.${system}.twilight;
+        in
+          zen-browser.meta.desktopFile;
       }) [
         "application/x-extension-shtml"
         "application/x-extension-xhtml"
@@ -37,14 +34,18 @@ in {
     defaultApplications = associations;
   };
 
-  programs.chromium = {
-    enable = true;
-    package = pkgs.brave;
-    extensions = let
-      ids = [
-        "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
-      ];
-    in
-      builtins.map (id: {inherit id;}) ids;
+  programs = {
+    chromium = {
+      enable = true;
+      package = pkgs.brave;
+      extensions = let
+        ids = [
+          "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
+        ];
+      in
+        builtins.map (id: {inherit id;}) ids;
+    };
+
+    zen-browser.enable = true;
   };
 }

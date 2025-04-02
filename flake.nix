@@ -248,6 +248,7 @@
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
+        inputs.zen-browser.homeModules.twilight
         inputs.nao.homeManagerModules.default
         ./home/options
       ];
