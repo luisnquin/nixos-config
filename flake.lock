@@ -1181,11 +1181,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1743849740,
-        "narHash": "sha256-ggVct8jrTB8OZBtPxH++PZDBhOU1MJHdpzBDhs5PxtQ=",
+        "lastModified": 1744117961,
+        "narHash": "sha256-xtYr/9NIJO+NZXDJwVjqys23Cx3xIeCXZtb47XzLfLU=",
         "owner": "0xc000022070",
         "repo": "zen-browser-flake",
-        "rev": "41455486298ef224e4bae6f551d3508b94d36456",
+        "rev": "70fe8d4b27feeb4c8651e5daf2eaf6a4072e820e",
         "type": "github"
       },
       "original": {
