@@ -95,7 +95,7 @@
       submodules = true;
     };
     encore = {
-      url = "github:encoredev/encore-flake";
+      url = "github:0xc000022070/encore-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     agenix = {
@@ -250,6 +250,7 @@
         inputs.spicetify-nix.homeManagerModules.default
         inputs.zen-browser.homeModules.twilight
         inputs.nao.homeManagerModules.default
+        inputs.encore.homeModules.default
         ./home/options
       ];
     };
