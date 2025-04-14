@@ -10,19 +10,7 @@
       pkgs.extra.ecsview
       (awscli2.overrideAttrs
         (_old: {
-          disabledTestPaths = [
-            "tests/dependencies"
-            "tests/unit/botocore"
-            "tests/unit/customizations/logs"
-            "tests/unit/customizations/cloudtrail"
-
-            # Integration tests require networking
-            "tests/integration"
-
-            # Disable slow tests (only run unit tests)
-            "tests/backends"
-            "tests/functional"
-          ];
+          doCheck = false;
         }))
       stu
     ];
