@@ -44,11 +44,15 @@ self: let
 
     # See https://wiki.hyprland.org/Configuring/Master-Layout/ for more
     master {
-      new_status = master
+        new_status = master
     }
 
     gestures {
         workspace_swipe = off
+    }
+
+    ecosystem {
+        no_update_news = true
     }
 
     device {
