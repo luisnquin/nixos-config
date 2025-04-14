@@ -7,7 +7,8 @@
     '';
   };
 
-  environment.systemPackages = [
-    pkgs.extra.kmon
-  ];
+  # can't build anymore
+  # environment.systemPackages = [
+  #   pkgs.extra.kmon
+  # ];
 }
