@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   home.packages = with pkgs; [
-    (python314.withPackages
+    (python313.withPackages
       (p:
         with p; [
           pipx # install and run apps in isolated environments
