@@ -593,11 +593,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1744600867,
-        "narHash": "sha256-2ZHXLyctT1+D+lAhLCux5c0gmIs0Td0cksGTG/6Qso8=",
+        "lastModified": 1744937213,
+        "narHash": "sha256-5sbFuckzTNvcmjWqul4BSR3wTI+wPvnOKq6lqWrd6T8=",
         "owner": "luisnquin",
         "repo": "hyprstfu",
-        "rev": "6aa38d976f44d7dfdea7e0f2e5525d1491d7b5ef",
+        "rev": "41dbd211796c3110ddf7127f3513a0c153d4c8c2",
         "type": "github"
       },
       "original": {
