@@ -37,8 +37,16 @@
   programs.zen-browser = {
     enable = true;
     policies = {
+      AutofillAddressEnabled = true;
+      AutofillCreditCardEnabled = false;
       DisableAppUpdate = true;
+      DisableFeedbackCommands = true;
+      DisableFirefoxStudies = true;
+      DisablePocket = true; # save webs for later reading
       DisableTelemetry = true;
+      DontCheckDefaultBrowser = true;
+      NoDefaultBookmarks = true;
+      OfferToSaveLogins = false;
     };
   };
 
