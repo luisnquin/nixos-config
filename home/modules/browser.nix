@@ -34,16 +34,13 @@
     defaultApplications = associations;
   };
 
-  home.packages = [
-    (
-      inputs.zen-browser.packages.${system}.twilight-unwrapped.override {
-        policies = {
-          DisableAppUpdate = true;
-          DisableTelemetry = true;
-        };
-      }
-    )
-  ];
+  programs.zen-browser = {
+    enable = true;
+    policies = {
+      DisableAppUpdate = true;
+      DisableTelemetry = true;
+    };
+  };
 
   programs = {
     chromium = {
