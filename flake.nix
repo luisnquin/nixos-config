@@ -94,7 +94,7 @@
       submodules = true;
     };
     encore = {
-      url = "github:0xc000022070/encore-flake/fix/add-missing-deps-for-autoPatchelfHook";
+      url = "github:encoredev/encore-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     agenix = {
