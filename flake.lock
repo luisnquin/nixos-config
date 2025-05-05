@@ -112,15 +112,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1745338452,
-        "narHash": "sha256-/folV3yt+Zi6/x+F3j87ixV0KNmIT4xUJhc6Z28YDGM=",
-        "owner": "encoredev",
+        "lastModified": 1746456803,
+        "narHash": "sha256-C+VjgV4g20zTKSFMCRO1YhjxOgyNjbZcmiZqDc5X/xY=",
+        "owner": "0xc000022070",
         "repo": "encore-flake",
-        "rev": "25f044c96c9ee667a44dcfcb88fdc27518f0955d",
+        "rev": "092795b008564c51205768184d3b479cf90e876a",
         "type": "github"
       },
       "original": {
-        "owner": "encoredev",
+        "owner": "0xc000022070",
+        "ref": "fix/add-missing-deps-for-autoPatchelfHook",
         "repo": "encore-flake",
         "type": "github"
       }
