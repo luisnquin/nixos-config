@@ -14,7 +14,7 @@
     };
 
     # ALSA provides a udev rule for restoring volume settings.
-    udev.packages = [pkgs.alsa-utils];
+    # udev.packages = [pkgs.alsa-utils];
   };
 
   # pulseaudio doesn't give a good support for some programs
