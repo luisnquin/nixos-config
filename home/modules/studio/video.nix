@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   home.packages = [
-    pkgs.davinci-resolve
+    # pkgs.davinci-resolve
     pkgs.shotcut
     pkgs.ffmpeg
   ];
