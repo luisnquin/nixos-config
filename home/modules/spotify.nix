@@ -22,6 +22,8 @@ in {
       popupLyrics
       songStats
       skipStats
+      powerBar
+      adblock
       shuffle
       wikify
     ];
