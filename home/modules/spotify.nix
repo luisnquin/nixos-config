@@ -14,7 +14,6 @@ in {
 
     enabledExtensions = with extensions; [
       volumePercentage
-      beautifulLyrics
       historyShortcut
       fullAppDisplay
       fullAlbumDate
