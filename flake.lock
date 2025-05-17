@@ -125,26 +125,6 @@
         "type": "github"
       }
     },
-    "expo-flake": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1739872283,
-        "narHash": "sha256-3skYUZLOLo+hDuKi4Nv/9+MdVvpDdTWJb9lU6t+VsWY=",
-        "owner": "0xc000022070",
-        "repo": "expo-flake",
-        "rev": "044bcb26f0390fd2e47aaad50a6b0f2af782c0be",
-        "type": "github"
-      },
-      "original": {
-        "owner": "0xc000022070",
-        "repo": "expo-flake",
-        "type": "github"
-      }
-    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -968,7 +948,6 @@
         "agenix": "agenix",
         "battery-notifier": "battery-notifier",
         "encore": "encore",
-        "expo-flake": "expo-flake",
         "flake-compat": "flake-compat",
         "flake-parts": "flake-parts",
         "flake-programs-sqlite": "flake-programs-sqlite",
