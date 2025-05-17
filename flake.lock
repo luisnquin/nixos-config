@@ -956,6 +956,7 @@
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
         "spotify-dbus-control": "spotify-dbus-control",
+        "superfreq": "superfreq",
         "systems": "systems_4",
         "treefmt-nix": "treefmt-nix",
         "zen-browser": "zen-browser",
@@ -1026,6 +1027,26 @@
       "original": {
         "owner": "0xc000022070",
         "repo": "spotify-dbus-control",
+        "type": "github"
+      }
+    },
+    "superfreq": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1747419066,
+        "narHash": "sha256-InuFll/Pzj2tQe1ZtfcWF0angi23Y0MLZ03plCb/Q9k=",
+        "owner": "NotAShelf",
+        "repo": "superfreq",
+        "rev": "39736f29253b5c49ca926db44ab812b596cc03a2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NotAShelf",
+        "repo": "superfreq",
         "type": "github"
       }
     },

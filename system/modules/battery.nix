@@ -4,6 +4,7 @@
   pkgs,
   host,
   user,
+  lib,
   ...
 }: let
   powerSupplyBatteryPath = "/sys/class/power_supply/BAT1";
@@ -33,7 +34,39 @@ in {
   '';
 
   services = {
-    thermald.enable = host.isLaptop;
+    superfreq = lib.mkIf host.isLaptop {
+      enable = true;
+      settings = {
+        charger = {
+          governor = "performance";
+          turbo = "auto";
+          epp = "performance";
+          epb = "balance_performance";
+          platform_profile = "performance";
+          min_freq_mhz = 800;
+          max_freq_mhz = 3500;
+        };
+
+        battery = {
+          governor = "powersave";
+          turbo = "auto";
+          epp = "power";
+          epb = "balance_power";
+          platform_profile = "low-power";
+          min_freq_mhz = 800;
+          max_freq_mhz = 2500;
+        };
+
+        daemon = {
+          poll_interval_sec = 4;
+          adaptive_interval = true;
+          min_poll_interval_sec = 1;
+          max_poll_interval_sec = 30;
+          throttle_on_battery = true;
+        };
+      };
+    };
+
     logind.lidSwitchExternalPower = "ignore"; # prevent lid switch from triggering a suspend
   };
 
