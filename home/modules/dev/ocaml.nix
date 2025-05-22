@@ -20,7 +20,7 @@ in {
       enableZshIntegration = true;
     };
 
-    zsh.initExtra = ''
+    zsh.initContent = ''
       [[ ! -r ${opamInitScriptPath} ]] || source ${opamInitScriptPath} >/dev/null 2>/dev/null
     '';
   };

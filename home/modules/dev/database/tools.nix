@@ -41,7 +41,7 @@ in {
     sqlc
   ];
 
-  programs.zsh.initExtra = let
+  programs.zsh.initContent = let
     # TODO: try to directly add to the path
     inherit (config.home) homeDirectory;
   in ''
