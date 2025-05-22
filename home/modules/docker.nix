@@ -6,7 +6,7 @@
   # https://github.com/jesseduffield/lazydocker/blob/master/docs/Config.md
   programs.lazydocker = lib.mkIf nixosConfig.virtualisation.docker.enable {
     enable = true;
-    config = {
+    settings = {
       gui = {
         scrollHeight = 2;
         language = "en";
