@@ -1,53 +1,49 @@
 {pkgs, ...}: {
   programs.vscode = {
     enable = true;
-    enableExtensionUpdateCheck = true;
-    mutableExtensionsDir = true;
-    enableUpdateCheck = true;
     package = pkgs.vscode;
+    mutableExtensionsDir = true;
 
-    extensions = with pkgs.vscode-extensions; [
-      # Go
-      golang.go
+    profiles.default = {
+      enableExtensionUpdateCheck = true;
+      enableUpdateCheck = true;
 
-      # Rust
-      rust-lang.rust-analyzer
+      extensions = with pkgs.vscode-extensions; [
+        # Go
+        golang.go
 
-      # Nix
-      arrterian.nix-env-selector
-      brettm12345.nixfmt-vscode
-      kamadorueda.alejandra
-      jnoortheen.nix-ide
-      bbenoist.nix
+        # Rust
+        rust-lang.rust-analyzer
 
-      # OCaml
-      ocamllabs.ocaml-platform
+        # Nix
+        arrterian.nix-env-selector
+        brettm12345.nixfmt-vscode
+        kamadorueda.alejandra
+        jnoortheen.nix-ide
+        bbenoist.nix
 
-      # Python
-      ms-python.python
-      # ms-python.vscode-pylance
-      # ms-python.pylint
-      # zeshuaro.vscode-python-poetry
+        # OCaml
+        ocamllabs.ocaml-platform
 
-      # JS ecosystem
-      # rvest.vs-code-prettier-eslint
-      # YoavBls.pretty-ts-errors
+        # Python
+        ms-python.python
 
-      # Git
-      eamodio.gitlens
+        # Git
+        eamodio.gitlens
 
-      # Formats
-      redhat.vscode-yaml
-      # dlasagno.rasi
+        # Formats
+        redhat.vscode-yaml
+        # dlasagno.rasi
 
-      # Theme
-      zhuangtongfa.material-theme
+        # Theme
+        zhuangtongfa.material-theme
 
-      # Misc
-      christian-kohler.path-intellisense
-      mechatroner.rainbow-csv
-      usernamehw.errorlens
-      ritwickdey.liveserver
-    ];
+        # Misc
+        christian-kohler.path-intellisense
+        mechatroner.rainbow-csv
+        usernamehw.errorlens
+        ritwickdey.liveserver
+      ];
+    };
   };
 }
