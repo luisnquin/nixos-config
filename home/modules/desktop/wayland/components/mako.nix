@@ -3,8 +3,8 @@
     enable = true;
     settings = {
       font = "Cascadia Code 9";
-      backgroundColor = "#1b1924de";
-      textColor = "#cbcacf";
+      background-color = "#1b1924de";
+      text-color = "#cbcacf";
 
       layer = "overlay";
       anchor = "top-right";
@@ -13,13 +13,13 @@
       padding = "20";
       margin = "5";
 
-      borderColor = "#1b1924de";
-      borderRadius = 3;
-      borderSize = 2;
+      border-color = "#1b1924de";
+      border-radius = 3;
+      border-size = 2;
 
-      defaultTimeout = 6000;
-      progressColor = "over #2e1545";
-      maxIconSize = 25;
+      default-timeout = 6000;
+      progress-color = "over #2e1545";
+      max-icon-size = 25;
       icons = true;
       sort = "-time";
 
