@@ -52,6 +52,8 @@ in {
           "float, title:^(Emulator)$"
           "float,center, class:^(ghostty.hyprdrop)$"
           "size 1280 720, class:^(ghostty.hyprdrop)$"
+          "float,center, class:^(waybar.nmtui)$"
+          "size 1050 720, class:^(waybar.nmtui)$"
         ];
       };
 

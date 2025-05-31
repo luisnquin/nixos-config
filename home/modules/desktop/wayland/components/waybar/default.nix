@@ -160,7 +160,7 @@
           "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)"; # 󰤨
           "tooltip" = true;
           "interval" = 1;
-          "on-click" = "${lib.getExe config.programs.ghostty.package} -e ${pkgs.networkmanager}/bin/nmtui connect";
+          "on-click" = "${lib.getExe config.programs.ghostty.package} --class=waybar.nmtui -e ${pkgs.networkmanager}/bin/nmtui connect";
         };
 
         "custom/power" = {
