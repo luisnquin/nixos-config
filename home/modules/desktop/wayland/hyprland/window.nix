@@ -14,6 +14,8 @@ in {
     windowrulev2 = float,center,forceinput, class:(Rofi)$
     windowrulev2 = float, title:^(Android Emulator -)
     windowrulev2 = float, title:^(Emulator)$
+
+    windowrule = opacity 1.0 override 1.0 override,class:Emulator
   '';
 
   decoration = ''
