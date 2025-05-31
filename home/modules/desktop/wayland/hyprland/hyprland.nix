@@ -62,7 +62,7 @@ self: let
     permission = ${lib.getExe pkgs.grim}, screencopy, allow
     permission = /nix/store/*-zen*/bin/(zen|zen-beta|zen-twilight), screencopy, allow
     permission = ${lib.getExe pkgs.brave}, screencopy, allow
-    permission = ${lib.getExe pkgs.discord}, screencopy, allow
+    permission = ${lib.getExe pkgs.discord-canary}, screencopy, allow
     permission = ${lib.getExe pkgs.obs-studio}, screencopy, allow
     permission = ${lib.getExe pkgs.xdg-desktop-portal-hyprland}, screencopy, allow
 
