@@ -49,6 +49,8 @@ in {
           "float,center,forceinput, class:(Rofi)$"
           "float, title:^(Android Emulator -)"
           "float, title:^(Emulator)$"
+          "float,center, class:^(ghostty.hyprdrop)$"
+          "size 1280 720, class:^(ghostty.hyprdrop)$"
         ];
       };
 
