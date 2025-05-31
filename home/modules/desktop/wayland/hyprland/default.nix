@@ -54,6 +54,8 @@ in {
           "size 1280 720, class:^(ghostty.hyprdrop)$"
           "float,center, class:^(waybar.nmtui)$"
           "size 1050 720, class:^(waybar.nmtui)$"
+          "float,center, class:^(waybar.btop)$"
+          "size 1280 720, class:^(waybar.btop)$"
         ];
       };
 

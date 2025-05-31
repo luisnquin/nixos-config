@@ -14,7 +14,7 @@
     };
     style = builtins.readFile ./styles/waybar-v1.css;
     settings = let
-      runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} -e ${pkgs.btop}/bin/btop";
+      runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop";
     in [
       {
         "position" = "top";
