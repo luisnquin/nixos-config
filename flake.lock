@@ -801,11 +801,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1744598689,
-        "narHash": "sha256-onXFVoMjxxXHK+G7T9tFsQFotGSN40Mf5Rx2NSlP/iI=",
+        "lastModified": 1748697628,
+        "narHash": "sha256-VztlA5A1rjRlBRTxsKQbg2z7j7zGt4TdcEfxBFiL3hc=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "f3e239eb4e4312cc1f3debbaa9c3a92b4e9a0e3e",
+        "rev": "c053e0c4d8547872eadd16cd5995855c994f3ab6",
         "type": "github"
       },
       "original": {
