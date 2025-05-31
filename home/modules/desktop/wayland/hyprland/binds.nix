@@ -59,8 +59,7 @@
   ];
 
   custom = let
-    rofi-plugin-call = name: program-to-exec: ''${pkgs.rofi}/bin/rofi -modi "${name}:${program-to-exec}" -show ${name}'';
-
+    rofi-plugin-call = name: program-to-exec: ''${lib.getExe pkgs.rofi} -modi "${name}:${program-to-exec}" -show ${name}'';
     spotify-dbus-control = inputs.spotify-dbus-control.defaultPackage.${system};
     hyprstfu = inputs.hyprstfu.defaultPackage.${system};
 
@@ -80,59 +79,59 @@
     }
     {
       "mod+key" = ",XF86AudioMicMute";
-      "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --toggle-mic";
+      "dispatcher" = "exec, ${lib.getExe sys-sound} --toggle-mic";
     }
     {
       "mod+key" = ",XF86AudioMute";
-      "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --toggle-vol";
+      "dispatcher" = "exec, ${lib.getExe sys-sound} --toggle-vol";
     }
     {
       "mod+key" = ",XF86AudioLowerVolume";
-      "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --dec";
+      "dispatcher" = "exec, ${lib.getExe sys-sound} --dec";
     }
     {
       "mod+key" = ",XF86AudioRaiseVolume";
-      "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --inc";
+      "dispatcher" = "exec, ${lib.getExe sys-sound} --inc";
     }
     {
       "mod+key" = "SUPER, XF86AudioRaiseVolume";
-      "dispatcher" = "exec, ${sys-sound}/bin/sys-sound --inc --unleashed";
+      "dispatcher" = "exec, ${lib.getExe sys-sound} --inc --unleashed";
     }
     {
       "mod+key" = "SUPER_SHIFT, Print";
-      "dispatcher" = "exec, ${grimblast}/bin/grimblast --freeze --notify copy area";
+      "dispatcher" = "exec, ${lib.getExe grimblast} --freeze --notify copy area";
     }
     {
       "mod+key" = "${mainMod}, Print";
-      "dispatcher" = "exec, ${grimblast}/bin/grimblast --notify copy active";
+      "dispatcher" = "exec, ${lib.getExe grimblast} --notify copy active";
     }
     {
       "mod+key" = ",Print";
-      "dispatcher" = "exec, ${grimblast}/bin/grimblast --notify copy screen";
+      "dispatcher" = "exec, ${lib.getExe grimblast} --notify copy screen";
     }
     {
       "mod+key" = ",XF86MonBrightnessDown";
-      "dispatcher" = "exec, ${sys-brightness}/bin/sys-brightness --dec";
+      "dispatcher" = "exec, ${lib.getExe sys-brightness} --dec";
     }
     {
       "mod+key" = ",XF86MonBrightnessUp";
-      "dispatcher" = "exec, ${sys-brightness}/bin/sys-brightness --inc";
+      "dispatcher" = "exec, ${lib.getExe sys-brightness} --inc";
     }
     {
       "mod+key" = "SUPER_SHIFT, C";
-      "dispatcher" = "exec, ${rofi-plugin-call "clipboard" "${cliphist-rofi}/bin/cliphist-rofi"}";
+      "dispatcher" = "exec, ${rofi-plugin-call "clipboard" "${lib.getExe cliphist-rofi}"}";
     }
     {
       "mod+key" = "SUPER_SHIFT, Q";
-      "dispatcher" = "exec, ${pkgs.rofi}/bin/rofi -show window";
+      "dispatcher" = "exec, ${lib.getExe pkgs.rofi} -show window";
     }
     {
       "mod+key" = "${mainMod}, Q";
-      "dispatcher" = "exec, ${pkgs.rofi}/bin/rofi -show drun";
+      "dispatcher" = "exec, ${lib.getExe pkgs.rofi} -show drun";
     }
     {
       "mod+key" = "SUPER_SHIFT, E";
-      "dispatcher" = "exec, ${pkgs.bemoji}/bin/bemoji";
+      "dispatcher" = "exec, ${lib.getExe pkgs.bemoji}";
     }
     {
       "mod+key" = "CTRL_SHIFT, braceleft";
@@ -160,15 +159,15 @@
     }
     {
       "mod+key" = "SUPER_SHIFT, S";
-      "dispatcher" = "exec, ${pkgs.toybox}/bin/pkill glava || ${pkgs.glava}/bin/glava -d";
+      "dispatcher" = "exec, ${pkgs.toybox}/bin/pkill glava || ${lib.getExe pkgs.glava} -d";
     }
     {
       "mod+key" = "${mainMod}, M";
-      "dispatcher" = "exec, ${hyprstfu}/bin/hyprstfu";
+      "dispatcher" = "exec, ${lib.getExe hyprstfu}";
     }
     {
       "mod+key" = "${mainMod}, K";
-      "dispatcher" = "exec, ${pkgs.extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
+      "dispatcher" = "exec, ${lib.getExe pkgs.extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
     }
   ];
 in
