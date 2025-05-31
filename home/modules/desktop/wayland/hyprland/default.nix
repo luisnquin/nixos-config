@@ -151,7 +151,7 @@ in {
         "${lib.getExe pkgs.brave}, screencopy, allow"
         "${lib.getExe pkgs.discord-canary}, screencopy, allow"
         "${lib.getExe pkgs.obs-studio}, screencopy, allow"
-        "${lib.getExe pkgs.xdg-desktop-portal-hyprland}, screencopy, allow"
+        "${pkgs.xdg-desktop-portal-hyprland}/bin/xdg-desktop-portal-hyprland, screencopy, allow"
       ];
     };
     extraConfig = ''
