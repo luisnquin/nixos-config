@@ -1,4 +1,5 @@
 args @ {
+  nixosConfig,
   pkgs,
   lib,
   ...
@@ -151,7 +152,7 @@ in {
         "${lib.getExe pkgs.brave}, screencopy, allow"
         "${lib.getExe pkgs.discord-canary}, screencopy, allow"
         "${lib.getExe pkgs.obs-studio}, screencopy, allow"
-        "${pkgs.xdg-desktop-portal-hyprland}/bin/xdg-desktop-portal-hyprland, screencopy, allow"
+        "${nixosConfig.programs.hyprland.portalPackage}/bin/xdg-desktop-portal-hyprland, screencopy, allow"
       ];
     };
     extraConfig = ''
