@@ -3,20 +3,7 @@ args @ {
   pkgs,
   lib,
   ...
-}: let
-  mainMod = "SUPER";
-
-  execOnce = [
-    "${pkgs.wl-clipboard}/bin/wl-paste --watch ${pkgs.cliphist}/bin/cliphist store -max-items 200"
-    "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
-    "[workspace 2 silent] ghostty"
-    "${pkgs.extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'; while [ -z \"$ADDRESS\" ] ; do ADDRESS=$(hyprctl clients -j | jq -r '.[] | select(.class == \"ghostty.hyprdrop\") | .address'); done; ${pkgs.extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'"
-  ];
-
-  execAlways = [
-    "pkill waybar & sleep 0.1 && waybar"
-  ];
-in {
+}: {
   imports = [
     ../components/swww.nix
     ../components/mako.nix
@@ -27,7 +14,9 @@ in {
     ../../gtk.nix
   ];
 
-  wayland.windowManager.hyprland = {
+  wayland.windowManager.hyprland = let
+    mainMod = "SUPER";
+  in {
     enable = true;
     settings = {
       monitor = ",preferred,auto,1,mirror,eDP-1";
@@ -149,6 +138,17 @@ in {
         "${mainMod}, mouse:273, resizewindow"
       ];
 
+      exec-once = [
+        "${pkgs.wl-clipboard}/bin/wl-paste --watch ${pkgs.cliphist}/bin/cliphist store -max-items 200"
+        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
+        "[workspace 2 silent] ghostty"
+        "${pkgs.extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'; while [ -z \"$ADDRESS\" ] ; do ADDRESS=$(hyprctl clients -j | jq -r '.[] | select(.class == \"ghostty.hyprdrop\") | .address'); done; ${pkgs.extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'"
+      ];
+
+      exec = [
+        "pkill waybar & sleep 0.1 && waybar"
+      ];
+
       permission = [
         "${lib.getExe pkgs.hyprpicker}, screencopy, allow"
         "${lib.getExe pkgs.grim}, screencopy, allow"
@@ -159,11 +159,9 @@ in {
         "${nixosConfig.programs.hyprland.portalPackage}/bin/xdg-desktop-portal-hyprland, screencopy, allow"
       ];
     };
-    extraConfig = ''
-      $mainMod = ${mainMod}
 
-      ${lib.concatMapStrings (cmd: "exec-once = ${cmd}\n") execOnce}
-      ${lib.concatMapStrings (cmd: "exec = ${cmd}\n") execAlways}
+    extraConfig = ''
+      $mainMod = "${mainMod}"
     '';
   };
 }
