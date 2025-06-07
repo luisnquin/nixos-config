@@ -160,8 +160,9 @@
     ghostty = {
       url = "github:ghostty-org/ghostty?ref=refs/tags/tip";
       inputs = {
-        nixpkgs-unstable.follows = "nixpkgs";
-        nixpkgs-stable.follows = "nixpkgs";
+        flake-compat.follows = "flake-compat";
+        flake-utils.follows = "flake-utils";
+        nixpkgs.follows = "nixpkgs";
       };
     };
     prismlauncher = {
