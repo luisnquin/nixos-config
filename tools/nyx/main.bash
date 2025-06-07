@@ -132,15 +132,6 @@ inspect_files() {
 update_system() {
     pre_update() {
         require_sudo
-        printf "\n\033[0;95mChecking syntax errors\033[0m\n"
-
-        check_nix_files_format || {
-            printf "\n\033[0;91mSyntax errors detected or files are not correctly formatted!\033[0m\n"
-            exit 1
-        }
-
-        printf "\n\033[0;95mEnsuring symlinks\033[0m\n"
-        ensure_symlinks
 
         printf "\n\033[0;92mStarting update process...\033[0m\n\n"
         printf "\033[38;2;240;89;104mUpdating system...\033[0m\n"
