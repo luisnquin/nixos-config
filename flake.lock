@@ -923,9 +923,9 @@
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
         "spotify-dbus-control": "spotify-dbus-control",
-        "superfreq": "superfreq",
         "systems": "systems_3",
         "treefmt-nix": "treefmt-nix",
+        "watt": "watt",
         "zen-browser": "zen-browser",
         "zeroxgen": "zeroxgen"
       }
@@ -997,26 +997,6 @@
         "type": "github"
       }
     },
-    "superfreq": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1749215741,
-        "narHash": "sha256-ALqLhQXEd42kiZ0LLVY7woT1pmXyDcNGMZO4KhdWDq4=",
-        "owner": "NotAShelf",
-        "repo": "superfreq",
-        "rev": "d33659209ebf17af0173663a7b548e91feea7b9d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NotAShelf",
-        "repo": "superfreq",
-        "type": "github"
-      }
-    },
     "systems": {
       "locked": {
         "lastModified": 1681028828,
@@ -1078,6 +1058,26 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "watt": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1749215741,
+        "narHash": "sha256-ALqLhQXEd42kiZ0LLVY7woT1pmXyDcNGMZO4KhdWDq4=",
+        "owner": "NotAShelf",
+        "repo": "watt",
+        "rev": "d33659209ebf17af0173663a7b548e91feea7b9d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NotAShelf",
+        "repo": "watt",
         "type": "github"
       }
     },

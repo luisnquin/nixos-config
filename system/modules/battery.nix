@@ -34,7 +34,7 @@ in {
   '';
 
   services = {
-    superfreq = lib.mkIf host.isLaptop {
+    watt = lib.mkIf host.isLaptop {
       enable = true;
       settings = {
         charger = {

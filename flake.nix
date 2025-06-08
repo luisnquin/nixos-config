@@ -172,8 +172,8 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    superfreq = {
-      url = "github:NotAShelf/superfreq";
+    watt = {
+      url = "github:NotAShelf/watt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -242,7 +242,7 @@
           inherit system;
         })
         inputs.agenix.nixosModules.default
-        inputs.superfreq.nixosModules.default
+        inputs.watt.nixosModules.default
         ./tools/nix/nixos-options
       ];
 
