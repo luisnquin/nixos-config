@@ -1004,11 +1004,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1747419066,
-        "narHash": "sha256-InuFll/Pzj2tQe1ZtfcWF0angi23Y0MLZ03plCb/Q9k=",
+        "lastModified": 1749215741,
+        "narHash": "sha256-ALqLhQXEd42kiZ0LLVY7woT1pmXyDcNGMZO4KhdWDq4=",
         "owner": "NotAShelf",
         "repo": "superfreq",
-        "rev": "39736f29253b5c49ca926db44ab812b596cc03a2",
+        "rev": "d33659209ebf17af0173663a7b548e91feea7b9d",
         "type": "github"
       },
       "original": {
