@@ -896,6 +896,22 @@
         "type": "github"
       }
     },
+    "renixpkgs": {
+      "locked": {
+        "lastModified": 1749433647,
+        "narHash": "sha256-6jkpreVGbcB+FOPj2pq2e3YGTvn2HDdlWNRuLyt8q58=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e9761a0d6685771814d3ee7a4cb3fc8f01485fa5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "e9761a0d6685771814d3ee7a4cb3fc8f01485fa5",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "agenix": "agenix",
@@ -920,6 +936,7 @@
         "poetry2nix": "poetry2nix",
         "pre-commit-hooks": "pre-commit-hooks",
         "prismlauncher": "prismlauncher",
+        "renixpkgs": "renixpkgs",
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
         "spotify-dbus-control": "spotify-dbus-control",

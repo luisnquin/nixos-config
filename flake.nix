@@ -4,6 +4,7 @@
   # welcome to the hell ;]
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
+    renixpkgs.url = "github:NixOS/nixpkgs?ref=e9761a0d6685771814d3ee7a4cb3fc8f01485fa5";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
@@ -181,6 +182,7 @@
   outputs = inputs @ {
     nixpkgs-extra,
     home-manager,
+    renixpkgs,
     nix-nostd,
     hyprland,
     nixpkgs,
@@ -189,6 +191,11 @@
     system = "x86_64-linux";
 
     pkgs = let
+      config = {
+        allowBroken = false;
+        allowUnfree = true;
+      };
+
       default = import nixpkgs {
         overlays =
           import ./overlays/nixpkgs.nix
@@ -197,12 +204,12 @@
               inherit (hyprland.packages.${system}) hyprland xdg-desktop-portal-hyprland;
             })
           ];
-        config = {
-          allowBroken = false;
-          allowUnfree = true;
-        };
 
-        inherit system;
+        inherit config system;
+      };
+
+      re = import renixpkgs {
+        inherit config system;
       };
 
       extra = nixpkgs-extra.packages.${system};
@@ -215,7 +222,7 @@
     in
       default
       // {
-        inherit extra libx;
+        inherit re extra libx;
       };
 
     inherit (pkgs) lib;
