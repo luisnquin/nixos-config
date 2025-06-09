@@ -178,9 +178,14 @@
     };
   };
 
-  outputs = inputs: let
-    inherit (inputs) nixpkgs-extra home-manager nix-nostd hyprland nixpkgs;
-
+  outputs = inputs @ {
+    nixpkgs-extra,
+    home-manager,
+    nix-nostd,
+    hyprland,
+    nixpkgs,
+    ...
+  }: let
     system = "x86_64-linux";
 
     pkgs = let
