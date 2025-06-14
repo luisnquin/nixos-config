@@ -11,7 +11,7 @@
 
     users = {
       ${user.alias} = {
-        description = ''Dorian 🍂'';
+        description = ''Ori^'';
 
         home = ''/home/${user.alias}/'';
         hashedPassword = null;
