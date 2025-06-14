@@ -978,11 +978,11 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1747355848,
-        "narHash": "sha256-WpOTfGuObhpaI38+uHgaOwnMAjHMrdLrfs6D35fKwjk=",
+        "lastModified": 1749357231,
+        "narHash": "sha256-AbrPgGFVYR45TlYLHYTppayG0xzOG9XXhi+1j3Klbw8=",
         "owner": "Gerg-L",
         "repo": "spicetify-nix",
-        "rev": "a2bc0d49449fc61ca2eb364d6189179059394483",
+        "rev": "03783416f7416715c52166d4e8ba0492a7149397",
         "type": "github"
       },
       "original": {
