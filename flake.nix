@@ -5,6 +5,7 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     renixpkgs.url = "github:NixOS/nixpkgs?ref=e9761a0d6685771814d3ee7a4cb3fc8f01485fa5";
+    zanixpkgs.url = "github:NixOS/nixpkgs?ref=9e83b64f727c88a7711a2c463a7b16eedb69a84c";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
@@ -183,6 +184,7 @@
     nixpkgs-extra,
     home-manager,
     renixpkgs,
+    zanixpkgs,
     nix-nostd,
     hyprland,
     nixpkgs,
@@ -212,6 +214,10 @@
         inherit config system;
       };
 
+      za = import zanixpkgs {
+        inherit config system;
+      };
+
       extra = nixpkgs-extra.packages.${system};
 
       libx =
@@ -222,7 +228,7 @@
     in
       default
       // {
-        inherit re extra libx;
+        inherit re za extra libx;
       };
 
     inherit (pkgs) lib;

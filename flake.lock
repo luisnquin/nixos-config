@@ -943,6 +943,7 @@
         "systems": "systems_3",
         "treefmt-nix": "treefmt-nix",
         "watt": "watt",
+        "zanixpkgs": "zanixpkgs",
         "zen-browser": "zen-browser",
         "zeroxgen": "zeroxgen"
       }
@@ -1136,6 +1137,22 @@
       "original": {
         "owner": "hyprwm",
         "repo": "xdg-desktop-portal-hyprland",
+        "type": "github"
+      }
+    },
+    "zanixpkgs": {
+      "locked": {
+        "lastModified": 1750134718,
+        "narHash": "sha256-v263g4GbxXv87hMXMCpjkIxd/viIF7p3JpJrwgKdNiI=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9e83b64f727c88a7711a2c463a7b16eedb69a84c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "9e83b64f727c88a7711a2c463a7b16eedb69a84c",
+        "repo": "nixpkgs",
         "type": "github"
       }
     },
