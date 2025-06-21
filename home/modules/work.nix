@@ -1,7 +1,7 @@
 {pkgs, ...}: {
   home.packages = with pkgs; [
-    mattermost-desktop
-    zoom-us
+    google-chat-linux
+    telegram-desktop
     slack
   ];
 }
