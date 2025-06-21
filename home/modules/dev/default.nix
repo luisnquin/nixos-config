@@ -18,5 +18,6 @@
     ./rust.nix
     ./etc.nix
     ./zig.nix
+    ./ee.nix
   ];
 }
