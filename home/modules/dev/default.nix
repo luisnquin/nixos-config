@@ -16,7 +16,6 @@
     ./ocaml.nix
     ./node.nix
     ./rust.nix
-    # ./llm.nix
     ./etc.nix
     ./zig.nix
   ];
