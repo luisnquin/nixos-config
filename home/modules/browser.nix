@@ -27,7 +27,6 @@
         "application/json"
         "text/plain"
         "text/html"
-        "image/*"
       ]);
   in {
     associations.added = associations;
