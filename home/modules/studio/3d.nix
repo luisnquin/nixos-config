@@ -1,6 +1,7 @@
 {pkgs, ...}: {
-  home.packages = [
-    pkgs.blender
-    pkgs.orca-slicer
+  home.packages = with pkgs; [
+    blender
+    orca-slicer
+    freecad-wayland
   ];
 }
