@@ -62,6 +62,14 @@
           installation_mode = "force_installed";
         };
       };
+      Preferences = let
+        locked = value: {
+          "Value" = value;
+          "Status" = "locked";
+        };
+      in {
+        "browser.tabs.warnOnClose" = locked false;
+      };
     };
   };
 
