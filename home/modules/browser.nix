@@ -4,6 +4,10 @@
   pkgs,
   ...
 }: {
+  imports = [
+    inputs.zen-browser.homeModules.twilight
+  ];
+
   xdg.mimeApps = let
     associations = builtins.listToAttrs (map (name: {
         inherit name;
