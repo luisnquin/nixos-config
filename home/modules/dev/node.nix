@@ -14,7 +14,7 @@
       nest-cli
       pkgs.za.nodejs_24
       husky
-      biome
+      pkgs.za.biome
       bun
     ];
 
