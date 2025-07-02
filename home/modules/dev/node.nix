@@ -12,7 +12,7 @@
       nodePackages.pnpm
       pkgs.extra.npkill # remove node_modules from child directories
       nest-cli
-      pkgs.za.nodejs_24
+      pkgs.nodejs_24
       husky
       pkgs.za.biome
       bun
