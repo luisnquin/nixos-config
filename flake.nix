@@ -5,7 +5,7 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     renixpkgs.url = "github:NixOS/nixpkgs?ref=e9761a0d6685771814d3ee7a4cb3fc8f01485fa5";
-    zanixpkgs.url = "github:NixOS/nixpkgs?ref=8a462fb9e7707dbf97d5794f56656573bdcc92e5";
+    zanixpkgs.url = "github:NixOS/nixpkgs?ref=4dab91c09660994bc989810f0fbce49b480b7913";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
