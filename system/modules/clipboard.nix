@@ -7,7 +7,7 @@ if isWayland
 then {
   environment.systemPackages = with pkgs; [
     wl-clipboard
-    cliphist
+    pkgs.za.cliphist
   ];
 }
 else {
