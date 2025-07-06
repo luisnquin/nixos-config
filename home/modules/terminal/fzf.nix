@@ -36,7 +36,5 @@
         "--scrollbar='│'"
       ];
     };
-
-    emoji-fzf.enable = true;
   };
 }
