@@ -50,6 +50,8 @@
 
   tools.nyx.enable = true;
 
+  programs.command-not-found.enable = true;
+
   environment = {
     systemPackages = with pkgs; let
       inherit (inputs.nix-scripts.packages.${system}) nixgrep;
