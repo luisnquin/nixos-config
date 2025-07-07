@@ -9,23 +9,21 @@
   programs.dconf.enable = true;
 
   services = {
+    displayManager.gdm = {
+      enable = true;
+      autoSuspend = false;
+      wayland = true;
+    };
+
     xserver = {
       enable = true;
       autorun = true;
       xkb.layout = host.keyboardLayout;
-
-      displayManager.gdm = {
-        enable = true;
-        autoSuspend = false;
-        wayland = true;
-      };
-
       desktopManager.xterm.enable = true;
     };
 
     libinput = {
       enable = true;
-
       touchpad = {
         tapping = true;
         naturalScrolling = true;
