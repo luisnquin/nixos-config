@@ -66,6 +66,10 @@ args @ {
         };
       };
 
+      debug = {
+        disable_logs = false;
+      };
+
       animations = {
         enabled = true;
         bezier = [
