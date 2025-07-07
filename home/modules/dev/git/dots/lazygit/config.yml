@@ -1,7 +1,6 @@
 confirmOnQuit: false
 disableStartupPopups: false
 git:
-  allBranchesLogCmd: git log --graph --all --color=always --abbrev-commit --decorate --date=relative  --pretty=medium
   autoFetch: false
   autoRefresh: true
   branchLogCmd: git log --graph --color=always --abbrev-commit --decorate --date=relative --pretty=medium {{branchName}} --
@@ -23,6 +22,8 @@ git:
     useConfig: false
   parseEmoji: false
   skipHookPrefix: WIP
+  allBranchesLogCmds:
+    - git log --graph --all --color=always --abbrev-commit --decorate --date=relative  --pretty=medium
 gui:
   border: single
   commandLogSize: 8
