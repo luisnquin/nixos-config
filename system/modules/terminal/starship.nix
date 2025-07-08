@@ -8,7 +8,7 @@
       scan_timeout = 30;
 
       aws = {
-        format = "\\[[$symbol($profile )(\($region\))]($style)\\] ";
+        format = "\\[[$symbol ($profile )(\($region\))]($style)\\] ";
         style = "bold blue";
         symbol = " ";
 
