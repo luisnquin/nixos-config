@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   home.packages = [
-    pkgs.re.code-cursor
+    pkgs.code-cursor
   ];
 
   # so the process is detached from the terminal

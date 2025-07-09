@@ -4,7 +4,6 @@
   # welcome to the hell ;]
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
-    renixpkgs.url = "github:NixOS/nixpkgs?ref=e9761a0d6685771814d3ee7a4cb3fc8f01485fa5";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
@@ -182,7 +181,6 @@
   outputs = inputs @ {
     nixpkgs-extra,
     home-manager,
-    renixpkgs,
     nix-nostd,
     hyprland,
     nixpkgs,
@@ -208,10 +206,6 @@
         inherit config system;
       };
 
-      re = import renixpkgs {
-        inherit config system;
-      };
-
       extra = nixpkgs-extra.packages.${system};
 
       libx =
@@ -222,7 +216,7 @@
     in
       default
       // {
-        inherit re extra libx;
+        inherit extra libx;
       };
 
     inherit (pkgs) lib;
