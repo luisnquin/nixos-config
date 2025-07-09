@@ -14,11 +14,4 @@
     ];
   };
 
-  programs.k9s = let
-    inherit (pkgs.libx.formats) fromYAML;
-  in {
-    enable = true;
-    skins.skin = fromYAML ../../../dots/k9s/skin.yml;
-    views = fromYAML ../../../dots/k9s/views.yml;
-  };
 }
