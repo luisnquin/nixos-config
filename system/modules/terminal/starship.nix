@@ -111,8 +111,8 @@
       nix_shell = {
         symbol = " ";
         style = "#c07bed";
-        impure_msg = "dev shell";
-        pure_msg = "pure dev shell";
+        impure_msg = "nix";
+        pure_msg = "pure nix";
         format = " with [$symbol$state]($style) ";
       };
 
