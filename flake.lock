@@ -940,11 +940,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1739737983,
-        "narHash": "sha256-6dgHg6mTjEO1S5Uuo9z9Y5/4+3hCcvkufIV+2oq8PRI=",
+        "lastModified": 1752757359,
+        "narHash": "sha256-mGoS0ZgVH+mcQszbVGYyV4lis1gPiYbVnYN3Ktr8J2I=",
         "owner": "luisnquin",
         "repo": "senv",
-        "rev": "14f60b2d549a5fcf635e4709c85ed113d7505cdc",
+        "rev": "b9ff32a61648f56f2c070aed3e26011760fd726f",
         "type": "github"
       },
       "original": {
