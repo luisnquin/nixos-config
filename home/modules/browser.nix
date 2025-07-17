@@ -39,7 +39,12 @@
 
   programs.zen-browser = {
     enable = true;
-    policies = {
+    policies = let
+      locked = value: {
+        Value = value;
+        Status = "locked";
+      };
+    in {
       AutofillAddressEnabled = true;
       AutofillCreditCardEnabled = false;
       DisableAppUpdate = true;
@@ -66,13 +71,9 @@
           installation_mode = "force_installed";
         };
       };
-      Preferences = let
-        locked = value: {
-          "Value" = value;
-          "Status" = "locked";
-        };
-      in {
-        "browser.tabs.warnOnClose" = locked false;
+      Preferences = builtins.mapAttrs (_: locked) {
+        "browser.tabs.warnOnClose" = false;
+        "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
       };
     };
   };
