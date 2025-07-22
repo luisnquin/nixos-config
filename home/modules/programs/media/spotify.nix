@@ -28,4 +28,6 @@ in {
       wikify
     ];
   };
+
+  services.playerctld.enable = true;
 }

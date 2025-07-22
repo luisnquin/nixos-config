@@ -1,7 +1,6 @@
 {
   inputs,
   system,
-  pkgs,
   ...
 }: {
   imports = [
@@ -76,36 +75,5 @@
         "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
       };
     };
-  };
-
-  programs.librewolf = {
-    enable = true;
-    settings = {
-      "beacon.enabled" = false;
-      "browser.startup.page" = 3;
-      "device.sensors.enabled" = false;
-      "dom.battery.enabled" = false;
-      "dom.event.clipboardevents.enabled" = false;
-      "geo.enabled" = false;
-      "media.peerconnection.enabled" = false;
-      "privacy.clearHistory.cookiesAndStorage" = false;
-      "privacy.clearHistory.siteSettings" = false;
-      "privacy.firstparty.isolate" = true;
-      "privacy.resistFingerprinting" = false;
-      "privacy.trackingprotection.enabled" = true;
-      "privacy.trackingprotection.socialtracking.enabled" = true;
-      "webgl.disabled" = true; # may be annoying
-    };
-  };
-
-  programs.chromium = {
-    enable = true;
-    package = pkgs.brave;
-    extensions = let
-      ids = [
-        "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
-      ];
-    in
-      builtins.map (id: {inherit id;}) ids;
   };
 }
