@@ -15,6 +15,7 @@
     ./bluetooth.nix
     ./clipboard.nix
     ./graphics.nix
+    ./printing.nix
     ./battery.nix
     ./android.nix
     ./systemd.nix
