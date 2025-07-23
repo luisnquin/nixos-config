@@ -1,18 +1,11 @@
-{pkgs, ...}: let
-  inherit (pkgs) nano;
-in {
+{pkgs, ...}: {
   home = {
-    packages = [nano];
+    packages = [pkgs.nano];
 
-    file.".nanorc".text = let
-      nanoDir = builtins.path {
-        name = "personal-nanorc-files";
-        path = ./.nanorc;
-      };
-    in ''
-      include "${nano}/share/nano/*.nanorc"
-      include "${nano}/share/nano/extra/*.nanorc"
-      include "${nanoDir}/*.nanorc"
+    file.".nanorc".text = ''
+      include "${pkgs.nano}/share/nano/*.nanorc"
+      include "${pkgs.nano}/share/nano/extra/*.nanorc"
+      include "${./.nanorc}"
 
       set titlecolor white,magenta
       set positionlog
