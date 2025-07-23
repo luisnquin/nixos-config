@@ -7,6 +7,6 @@
   };
 
   xdg.configFile = {
-    "rofi/config.rasi".text = builtins.readFile ./../../dots/rofi/config.rasi;
+    "rofi/config.rasi".text = builtins.readFile ./config.rasi;
   };
 }

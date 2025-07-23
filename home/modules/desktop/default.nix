@@ -3,6 +3,7 @@
     ./hyprland
     ./waybar
     ./swww
+    ./rofi
 
     ./asshole.nix
     ./color-picker.nix
@@ -12,7 +13,6 @@
     ./mako.nix
     ./mouse.nix
     ./notifications.nix
-    ./rofi.nix
     ./xdg.nix
   ];
 
