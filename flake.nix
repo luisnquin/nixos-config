@@ -224,11 +224,9 @@
 
     metadata = pkgs.libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
-    specialArgs = let
-      inherit (metadata.host) desktop;
-    in {
-      isTiling = builtins.elem desktop ["hyprland" "i3"];
-      isWayland = desktop == "hyprland";
+    specialArgs = {
+      isTiling = true;
+      isWayland = true;
 
       # Child modules should deal with the things they want to take from the inputs.
       inherit inputs pkgs system;
