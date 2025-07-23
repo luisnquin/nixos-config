@@ -4,6 +4,7 @@
     ./waybar
     ./swww
 
+    ./asshole.nix
     ./color-picker.nix
     ./dunst.nix
     ./gsimplecal.nix
