@@ -7,7 +7,7 @@ in {
     file.".nanorc".text = let
       nanoDir = builtins.path {
         name = "personal-nanorc-files";
-        path = ./dots/nanorc;
+        path = ./.nanorc;
       };
     in ''
       include "${nano}/share/nano/*.nanorc"

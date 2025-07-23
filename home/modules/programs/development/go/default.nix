@@ -1,7 +1,7 @@
 {
   imports = [
-    ./terminal.nix
     ./cli.nix
-    ./etc.nix
+    ./shell.nix
+    ./tools.nix
   ];
 }

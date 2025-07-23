@@ -8,7 +8,7 @@
 
     initContent = builtins.readFile (builtins.path {
       name = "go-shrc";
-      path = ./dots/shell.sh;
+      path = ./shell.sh;
     });
   };
 }
