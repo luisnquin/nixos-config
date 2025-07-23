@@ -53,7 +53,8 @@
     # Other actions
     "${mainMod}, SPACE, togglefloating"
     "${mainMod}, MINUS, togglesplit"
-    "SUPER_SHIFT, W, killactive"
+
+    "SUPER_SHIFT, W, exec, ${./kill-active.sh}"
     "SUPER_SHIFT, MINUS, pseudo"
     "${mainMod}, F, fullscreen"
   ];
