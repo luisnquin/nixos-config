@@ -217,11 +217,11 @@
         "zon2nix": "zon2nix"
       },
       "locked": {
-        "lastModified": 1751840395,
-        "narHash": "sha256-g93h5xxNUDZha8ppkNbYKYOem9aPJc0IqdwpHNyKMzo=",
+        "lastModified": 1753300123,
+        "narHash": "sha256-HVjOHKFCr00tarMaWWsOrVzLimB2WNomGe3z/CAqIpE=",
         "owner": "ghostty-org",
         "repo": "ghostty",
-        "rev": "78e861b50ea88aa7e9cfb5362364f40f47943088",
+        "rev": "f7424c8a76145db3f6e5bd9ace440dbcd098982b",
         "type": "github"
       },
       "original": {
@@ -1185,7 +1185,8 @@
     "zig": {
       "inputs": {
         "flake-compat": [
-          "ghostty"
+          "ghostty",
+          "flake-compat"
         ],
         "flake-utils": [
           "ghostty",
@@ -1231,8 +1232,8 @@
       },
       "original": {
         "owner": "jcollie",
-        "ref": "56c159be489cc6c0e73c3930bd908ddc6fe89613",
         "repo": "zon2nix",
+        "rev": "56c159be489cc6c0e73c3930bd908ddc6fe89613",
         "type": "github"
       }
     }
