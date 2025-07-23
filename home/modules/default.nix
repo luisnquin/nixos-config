@@ -8,6 +8,7 @@
 
     ./programs/browser
     ./programs/media
+    ./programs/security
     ./programs/shell
     ./programs/social
     ./programs/studio
@@ -15,7 +16,6 @@
 
     ./docker.nix
     ./file-manager.nix
-    ./password-store.nix
     ./xdg.nix
   ];
 }
