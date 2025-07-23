@@ -4,7 +4,6 @@
   ...
 }: {
   imports = [
-    ../../services
     ../../modules
   ];
 

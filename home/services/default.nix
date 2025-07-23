@@ -1,5 +1,0 @@
-{
-  imports = [
-    ./bluetooth-mpris.nix
-  ];
-}
