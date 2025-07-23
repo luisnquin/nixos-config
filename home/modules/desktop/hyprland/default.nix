@@ -150,7 +150,7 @@ args @ {
         "${lib.getExe pkgs.brave}, screencopy, allow"
         "${lib.getExe pkgs.discord-canary}, screencopy, allow"
         "${lib.getExe pkgs.obs-studio}, screencopy, allow"
-        "${nixosConfig.programs.hyprland.portalPackage}/bin/xdg-desktop-portal-hyprland, screencopy, allow"
+        "/nix/store/[a-z0-9]{32}-xdg-desktop-portal-hyprland-*/libexec/.xdg-desktop-portal-hyprland-wrapped, screencopy, allow"
       ];
     };
 
