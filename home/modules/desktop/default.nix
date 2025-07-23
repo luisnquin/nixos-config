@@ -1,16 +1,10 @@
-{host, ...}: {
+{
   imports = [
-    {
-      "hyprland" = ./wayland/hyprland;
-      "plasma" = ./x11/plasma;
-      "i3" = ./x11/i3;
-    }
-    .${
-      host.desktop
-    }
+    ./wayland/hyprland
     ./color-picker.nix
     ./notifications.nix
     ./gsimplecal.nix
+    ./xdg.nix
   ];
 
   xsession.enable = true;

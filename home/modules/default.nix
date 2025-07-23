@@ -13,6 +13,5 @@
     ./programs/terminal
 
     ./file-manager.nix
-    ./xdg.nix
   ];
 }
