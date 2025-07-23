@@ -68,7 +68,7 @@
 
     grimblast = inputs.hyprland-contrib.packages.${system}.grimblast.overrideAttrs (_oldAttrs: {
       prePatch = ''
-        substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${../../../../dots/icons/crop.512.png}'
+        substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
       '';
     });
 

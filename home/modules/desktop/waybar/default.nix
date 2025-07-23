@@ -12,7 +12,7 @@
       enable = false;
       target = "graphical-session.target";
     };
-    style = builtins.readFile ./styles/waybar-v1.css;
+    style = builtins.readFile ./v1.css;
     settings = let
       runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop";
     in [

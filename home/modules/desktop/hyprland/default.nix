@@ -4,16 +4,6 @@ args @ {
   lib,
   ...
 }: {
-  imports = [
-    ../components/swww.nix
-    ../components/mako.nix
-    ../components/waybar
-
-    ../../cursor.nix
-    ../../rofi.nix
-    ../../gtk.nix
-  ];
-
   wayland.windowManager.hyprland = let
     mainMod = "SUPER";
   in {
