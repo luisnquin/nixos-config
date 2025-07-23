@@ -1,10 +1,15 @@
 {
   imports = [
-    ./bat.nix
     ./btop
     ./macchina
+    ./tmux
+    ./zsh
+
+    ./bat.nix
+    ./direnv.nix
     ./man.nix
     ./nao.nix
     ./translate.nix
+    ./tty.nix
   ];
 }

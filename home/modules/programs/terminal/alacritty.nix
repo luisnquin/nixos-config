@@ -5,6 +5,6 @@
   };
 
   xdg.configFile = {
-    "alacritty.toml".text = builtins.readFile ./dots/alacritty.toml;
+    "alacritty.toml".text = builtins.readFile ./alacritty.toml;
   };
 }

@@ -1,6 +1,5 @@
 {
   imports = [
-    ./terminal
     ./desktop
     ./editors
     ./dev
@@ -12,6 +11,7 @@
     ./programs/shell
     ./programs/social
     ./programs/studio
+    ./programs/terminal
 
     ./docker.nix
     ./file-manager.nix
