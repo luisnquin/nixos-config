@@ -13,6 +13,14 @@
     gamemode.enable = true;
   };
 
+  services.flatpak.packages = [
+    {
+      # Minecraft Bedrock (Play Store)
+      appId = "io.mrarm.mcpelauncher";
+      origin = "flathub";
+    }
+  ];
+
   environment = {
     systemPackages = [
       pkgs.protonup # ensure to run it the first time

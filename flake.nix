@@ -172,6 +172,7 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     watt = {
       url = "github:NotAShelf/watt";
       inputs.nixpkgs.follows = "nixpkgs";
