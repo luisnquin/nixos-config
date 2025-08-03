@@ -176,7 +176,6 @@
       url = "github:NotAShelf/watt";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixpkgs-spamton.url = "github:NixOS/nixpkgs/pull/363859/head"; # Only for spamton-shimeji
   };
 
   outputs = inputs @ {

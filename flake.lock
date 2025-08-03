@@ -793,22 +793,6 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/e9b51731911566bbf7e4895475a87fe06961de0b.tar.gz"
       }
     },
-    "nixpkgs-spamton": {
-      "locked": {
-        "lastModified": 1733823741,
-        "narHash": "sha256-mCWtONwNu7SfBfyESaQfwj9c0hW2HETM9qfJHOIfCDI=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "eb0a1b9c5b0c3578507a86d3d0e0dc8d2862d206",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "pull/363859/head",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "passgen": {
       "inputs": {
         "flake-utils": [
@@ -932,7 +916,6 @@
         "nix-scripts": "nix-scripts",
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
-        "nixpkgs-spamton": "nixpkgs-spamton",
         "passgen": "passgen",
         "poetry2nix": "poetry2nix",
         "pre-commit-hooks": "pre-commit-hooks",
