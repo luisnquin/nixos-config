@@ -75,6 +75,84 @@
       "o22.ptr2763.discord.com"
       "o23.ptr1336.discord.com"
       "o24.ptr4166.discord.com"
+
+      # DJI Analytics and User Tracking
+      "active.dji.com"
+      "insiders.dji.com"
+      "enterprise-insights.dji.com"
+      "enterprise-insightse.dji.com"
+      "esslog.dji.com"
+      "lces.dji.com"
+      "dds.dji.com"
+      "www.dds.dji.com"
+      "records.dji.com"
+      "viewpoints.dji.com"
+      "referral.dji.com"
+      "questionnaire.djicdn.com"
+      "quiz.djicdn.com"
+
+      # DJI Telemetry Data Collection
+      "stormsend.dji.com"
+      "stormsend1.djicdn.com"
+      "stormsend2.djicdn.com"
+      "stormsend3.djicdn.com"
+      "stormsend4.djicdn.com"
+      "r-stormsend1.djicdn.com"
+      "r-stormsend3.djicdn.com"
+
+      # DJI User Behavior Tracking
+      "click.dji.com"
+      "www.click.dji.com"
+      "u.dji.com"
+      "www.u.dji.com"
+      "live-chat.dji.com"
+      "support-chat.dji.com"
+      "support-chat-api-vg.dji.com"
+      "support-chatu.dji.com"
+
+      # DJI Encrypted/Obscured Tracking
+      "dwmdrcaqnu8zzhopg1kpi4mfv9ogr2beyhxueqby.dji.com"
+      "cvqdbkz3u6.dji.com"
+      "cvqdbkz3u63.dji.com"
+      "simencrypt.djicdn.com"
+      "simencrypti.djicdn.com"
+
+      # DJI CRM and Customer Data Collection
+      "crmfe-stagea.djicdn.com"
+      "crm-robot.djicdn.com"
+      "srm-vendor.djicdn.com"
+
+      # DJI Payment Tracking
+      "cnpay1.dji.com"
+      "cnpays.djicdn.com"
+      "r-pay.djicdn.com"
+      "pay.djicdn.com"
+
+      # DJI Event and Campaign Tracking
+      "event.dji.com"
+      "events2.djicdn.com"
+      "events3.djicdn.com"
+      "campaign.djicdn.com"
+      "campaign-us1.djicdn.com"
+      "campaign-us2.djicdn.com"
+      "campaign-cn.djicdn.com"
+      "campaign-cn1.djicdn.com"
+      "campaign-cn2.djicdn.com"
+
+      # DJI Account Data Collection
+      "account-api3.dji.com"
+      "accounts.dji.com"
+      "account.djicdn.com"
+      "account5.djicdn.com"
+      "prm.dji.com"
+      "test-prm.djicdn.com"
+
+      # DJI App Distribution Tracking
+      "app-distribution.djicdn.com"
+      "app-distribution-cn.djicdn.com"
+      "app-distribution-global.djicdn.com"
+      "app-distribution-download.djicdn.com"
+      "www.app-distribution-cn.djicdn.com"
     ];
   };
 }
