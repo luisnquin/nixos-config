@@ -44,6 +44,14 @@
       "marketingplatform.google.com"
       "partner.googleadservices.com"
       "measurementapi.com"
+
+      "st1.zoom.us"
+      "logfiles.zoom.us"
+      "zoomlogfiles.zoom.us"
+
+      "ads.telegram.org"
+      "stats.telegram.org"
+      "tracking.telegram.org"
     ];
   };
 }
