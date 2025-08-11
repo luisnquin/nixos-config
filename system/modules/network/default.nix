@@ -4,7 +4,6 @@
   ...
 }: {
   imports = [
-    ./cloudflare.nix
     ./firewall.nix
     ./hosts.nix
     ./vpn.nix
@@ -31,6 +30,7 @@
   environment = {
     systemPackages = with pkgs; [
       wirelesstools
+      cloudflared
       wireshark
       inetutils
       iptables
