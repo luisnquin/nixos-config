@@ -77,6 +77,9 @@
       Preferences = builtins.mapAttrs (_: locked) {
         "browser.tabs.warnOnClose" = false;
         "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
+        # Disable swipe gestures (Browser:BackOrBackDuplicate, Browser:ForwardOrForwardDuplicate)
+        "browser.gesture.swipe.left" = "";
+        "browser.gesture.swipe.right" = "";
       };
     };
   };
