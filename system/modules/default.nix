@@ -1,29 +1,26 @@
 {
   imports = [
-    ./terminal
-    ./security
     ./desktop
-    ./network
+    ./programs/development
+    ./programs/terminal
+    ./programs/network
+    ./programs/security
+    ./programs/vm
+    ./hardware
     ./boot
     ./fs
-    ./vm
 
     ./essentials.nix
     ./bloatware.nix
     ./bluetooth.nix
     ./clipboard.nix
-    ./graphics.nix
     ./printing.nix
-    ./battery.nix
     ./flatpak.nix
-    ./android.nix
     ./systemd.nix
     ./kernel.nix
-    ./docker.nix
     ./gaming.nix
     ./thunar.nix
     ./fonts.nix
-    ./audio.nix
     ./dbus.nix
     ./nix.nix
   ];

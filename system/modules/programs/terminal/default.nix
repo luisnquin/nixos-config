@@ -17,7 +17,7 @@
   environment = {
     interactiveShellInit = builtins.readFile (builtins.path {
       name = "${host.name}-system-shrc-script";
-      path = ./dots/.shrc;
+      path = ./.shrc;
     });
 
     variables.EDITOR = "nano";

@@ -35,7 +35,7 @@
 
     interactiveShellInit = builtins.readFile (builtins.path {
       name = "${host.name}-system-zshrc-script";
-      path = ./dots/.zshrc;
+      path = ./.zshrc;
     });
   };
 }
