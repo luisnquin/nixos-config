@@ -6,9 +6,4 @@
       options snd-intel-dspcfg dsp_driver=1
     '';
   };
-
-  # can't build anymore
-  # environment.systemPackages = [
-  #   pkgs.extra.kmon
-  # ];
 }

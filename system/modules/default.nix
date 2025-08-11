@@ -1,5 +1,6 @@
 {
   imports = [
+    ./core
     ./desktop
     ./programs/development
     ./programs/terminal
@@ -7,21 +8,13 @@
     ./programs/security
     ./programs/vm
     ./hardware
+    ./peripherals
     ./boot
     ./fs
 
     ./essentials.nix
-    ./bloatware.nix
-    ./bluetooth.nix
-    ./clipboard.nix
-    ./printing.nix
     ./flatpak.nix
-    ./systemd.nix
-    ./kernel.nix
     ./gaming.nix
-    ./thunar.nix
-    ./fonts.nix
-    ./dbus.nix
     ./nix.nix
   ];
 }
