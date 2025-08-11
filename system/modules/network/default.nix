@@ -7,7 +7,6 @@
     ./cloudflare.nix
     ./firewall.nix
     ./hosts.nix
-    ./nginx.nix
     ./vpn.nix
   ];
 
