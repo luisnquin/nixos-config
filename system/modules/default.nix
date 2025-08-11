@@ -2,7 +2,9 @@
   imports = [
     ./core
     ./desktop
+    ./programs/compression.nix
     ./programs/development
+    ./programs/gaming
     ./programs/terminal
     ./programs/network
     ./programs/security
@@ -12,9 +14,7 @@
     ./boot
     ./fs
 
-    ./essentials.nix
     ./flatpak.nix
-    ./gaming.nix
     ./nix.nix
   ];
 }

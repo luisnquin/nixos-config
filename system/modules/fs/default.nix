@@ -1,6 +1,7 @@
 {
   imports = [
     ./incron.nix
+    ./utils.nix
   ];
 
   boot = {
