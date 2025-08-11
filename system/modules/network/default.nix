@@ -4,9 +4,7 @@
   ...
 }: {
   imports = [
-    ./firewall.nix
     ./hosts.nix
-    ./vpn.nix
   ];
 
   networking = {
@@ -20,6 +18,13 @@
         type = "monitor";
         flags = "control";
       };
+    };
+    firewall = let
+      ports = [5900 8081];
+    in {
+      enable = true;
+      allowedTCPPorts = ports;
+      interfaces."wlo1".allowedTCPPorts = ports;
     };
 
     hostName = host.name;
@@ -45,4 +50,6 @@
   };
 
   programs.wireshark.enable = true;
+
+  services.mullvad-vpn.enable = true;
 }
