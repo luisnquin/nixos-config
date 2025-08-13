@@ -73,6 +73,10 @@
           install_urL = "https://addons.mozilla.org/firefox/downloads/latest/return-youtube-dislikes/latest.xpi";
           installation_mode = "force_installed";
         };
+        "@searchengineadremover" = {
+          install_urL = "https://addons.mozilla.org/firefox/downloads/latest/searchengineadremover/latest.xpi";
+          installation_mode = "force_installed";
+        };
       };
       Preferences = builtins.mapAttrs (_: locked) {
         "browser.tabs.warnOnClose" = false;
