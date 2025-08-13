@@ -70,11 +70,11 @@
           installation_mode = "force_installed";
         };
         "{762f9885-5a13-4abd-9c77-433dcd38b8fd}" = {
-          install_urL = "https://addons.mozilla.org/firefox/downloads/latest/return-youtube-dislikes/latest.xpi";
+          install_url = "https://addons.mozilla.org/firefox/downloads/latest/return-youtube-dislikes/latest.xpi";
           installation_mode = "force_installed";
         };
         "@searchengineadremover" = {
-          install_urL = "https://addons.mozilla.org/firefox/downloads/latest/searchengineadremover/latest.xpi";
+          install_url = "https://addons.mozilla.org/firefox/downloads/latest/searchengineadremover/latest.xpi";
           installation_mode = "force_installed";
         };
       };
