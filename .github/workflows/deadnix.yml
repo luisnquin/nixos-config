@@ -26,10 +26,10 @@ jobs:
           git branch --show-current
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v22
+        uses: cachix/install-nix-action@v31
 
       - name: Setup Cachix
-        uses: cachix/cachix-action@v12
+        uses: cachix/cachix-action@v16
         with:
           name: deadnix
 
