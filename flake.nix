@@ -193,9 +193,6 @@
       config = {
         allowBroken = false;
         allowUnfree = true;
-        permittedInsecurePackages = [
-          "libsoup-2.74.3"
-        ];
       };
 
       default = import nixpkgs {
