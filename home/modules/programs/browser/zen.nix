@@ -1,8 +1,4 @@
-{
-  inputs,
-  system,
-  ...
-}: {
+{inputs, ...}: {
   imports = [
     inputs.zen-browser.homeModules.twilight
   ];
@@ -10,10 +6,11 @@
   xdg.mimeApps = let
     associations = builtins.listToAttrs (map (name: {
         inherit name;
-        value = let
-          zen-browser = inputs.zen-browser.packages.${system}.twilight;
-        in
-          zen-browser.meta.desktopName;
+        value = "zen-twilight.desktop";
+        # value = let
+        #   zen-browser = inputs.zen-browser.packages.${system}.twilight;
+        # in
+        #   zen-browser.meta.desktopName;
       }) [
         "application/x-extension-shtml"
         "application/x-extension-xhtml"
