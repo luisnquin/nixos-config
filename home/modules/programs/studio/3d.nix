@@ -3,6 +3,12 @@
     blender
     orca-slicer
     freecad-wayland
-    bambu-studio
+  ];
+
+  services.flatpak.packages = [
+    {
+      appId = "com.bambulab.BambuStudio";
+      origin = "flathub";
+    }
   ];
 }
