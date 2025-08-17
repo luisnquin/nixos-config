@@ -5,6 +5,7 @@
 
     ./programs/browser
     ./programs/media
+    ./programs/package-managers
     ./programs/development
     ./programs/security
     ./programs/shell
