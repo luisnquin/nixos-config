@@ -13,7 +13,7 @@
         value = let
           zen-browser = inputs.zen-browser.packages.${system}.twilight;
         in
-          zen-browser.meta.desktopFile;
+          zen-browser.meta.desktopName;
       }) [
         "application/x-extension-shtml"
         "application/x-extension-xhtml"
