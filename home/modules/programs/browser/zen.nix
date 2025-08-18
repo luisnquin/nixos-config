@@ -1,7 +1,6 @@
 {
   inputs,
   system,
-  config,
   pkgs,
   ...
 }: {
@@ -74,26 +73,24 @@
         "@searchengineadremover" = "searchengineadremover";
         "uBlock0@raymondhill.net" = "ublock-origin";
       };
-      Preferences = mkLockedAttrs (config.programs.librewolf.settings
-        // {
-          "browser.tabs.warnOnClose" = false;
-          "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
-          # Disable swipe gestures (Browser:BackOrBackDuplicate, Browser:ForwardOrForwardDuplicate)
-          "browser.gesture.swipe.left" = "";
-          "browser.gesture.swipe.right" = "";
-          "browser.tabs.hoverPreview.enabled" = true;
-          "browser.newtabpage.activity-stream.feeds.topsites" = false;
-          "browser.topsites.contile.enabled" = false;
+      Preferences = mkLockedAttrs {
+        "browser.tabs.warnOnClose" = false;
+        "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
+        # Disable swipe gestures (Browser:BackOrBackDuplicate, Browser:ForwardOrForwardDuplicate)
+        "browser.gesture.swipe.left" = "";
+        "browser.gesture.swipe.right" = "";
+        "browser.tabs.hoverPreview.enabled" = true;
+        "browser.newtabpage.activity-stream.feeds.topsites" = false;
+        "browser.topsites.contile.enabled" = false;
 
-          "privacy.resistFingerprinting" = true;
-          "privacy.firstparty.isolate" = true;
-          "network.cookie.cookieBehavior" = 5;
-          "dom.battery.enabled" = false;
+        "privacy.resistFingerprinting" = true;
+        "privacy.firstparty.isolate" = true;
+        "network.cookie.cookieBehavior" = 5;
+        "dom.battery.enabled" = false;
 
-          "webgl.disabled" = false;
-          "gfx.webrender.all" = true;
-          "network.http.http3.enabled" = true;
-        });
+        "gfx.webrender.all" = true;
+        "network.http.http3.enabled" = true;
+      };
     };
 
     profiles.default = {
