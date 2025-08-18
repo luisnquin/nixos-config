@@ -1,5 +1,6 @@
 {
   inputs,
+  system,
   pkgs,
   ...
 }: {
@@ -10,11 +11,10 @@
   xdg.mimeApps = let
     associations = builtins.listToAttrs (map (name: {
         inherit name;
-        value = "zen-twilight.desktop";
-        # value = let
-        #   zen-browser = inputs.zen-browser.packages.${system}.twilight;
-        # in
-        #   zen-browser.meta.desktopName;
+        value = let
+          zen-browser = inputs.zen-browser.packages.${system}.twilight;
+        in
+          zen-browser.meta.desktopFileName;
       }) [
         "application/x-extension-shtml"
         "application/x-extension-xhtml"
