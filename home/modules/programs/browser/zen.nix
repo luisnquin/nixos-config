@@ -87,6 +87,7 @@
         "browser.gesture.swipe.left" = "";
         "browser.gesture.swipe.right" = "";
         "browser.tabs.hoverPreview.enabled" = true;
+        "browser.newtabpage.activity-stream.feeds.topsites" = false;
         "browser.topsites.contile.enabled" = false;
       };
     };
