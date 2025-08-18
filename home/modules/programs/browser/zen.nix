@@ -86,6 +86,7 @@
         # Disable swipe gestures (Browser:BackOrBackDuplicate, Browser:ForwardOrForwardDuplicate)
         "browser.gesture.swipe.left" = "";
         "browser.gesture.swipe.right" = "";
+        "browser.tabs.hoverPreview.enabled" = true;
       };
     };
 
