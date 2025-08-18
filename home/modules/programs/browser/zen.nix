@@ -89,6 +89,11 @@
         "browser.tabs.hoverPreview.enabled" = true;
         "browser.newtabpage.activity-stream.feeds.topsites" = false;
         "browser.topsites.contile.enabled" = false;
+
+        "privacy.resistFingerprinting" = true;
+        "privacy.firstparty.isolate" = true;
+        "network.cookie.cookieBehavior" = 5;
+        "dom.battery.enabled" = false;
       };
     };
 
