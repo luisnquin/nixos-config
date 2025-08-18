@@ -94,6 +94,9 @@
         "privacy.firstparty.isolate" = true;
         "network.cookie.cookieBehavior" = 5;
         "dom.battery.enabled" = false;
+
+        "gfx.webrender.all" = true;
+        "network.http.http3.enabled" = true;
       };
     };
 
