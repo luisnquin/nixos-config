@@ -41,10 +41,14 @@
     enable = true;
 
     policies = let
-      locked = value: {
+      mkLockedAttrs = builtins.mapAttrs (_: value: {
         Value = value;
         Status = "locked";
-      };
+      });
+      mkExtensionSettings = builtins.mapAttrs (_: pluginId: {
+        install_url = "https://addons.mozilla.org/firefox/downloads/latest/${pluginId}/latest.xpi";
+        installation_mode = "force_installed";
+      });
     in {
       AutofillAddressEnabled = true;
       AutofillCreditCardEnabled = false;
@@ -62,25 +66,13 @@
         Cryptomining = true;
         Fingerprinting = true;
       };
-      ExtensionSettings = {
-        "wappalyzer@crunchlabz.com" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/wappalyzer/latest.xpi";
-          installation_mode = "force_installed";
-        };
-        "{85860b32-02a8-431a-b2b1-40fbd64c9c69}" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/github-file-icons/latest.xpi";
-          installation_mode = "force_installed";
-        };
-        "{762f9885-5a13-4abd-9c77-433dcd38b8fd}" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/return-youtube-dislikes/latest.xpi";
-          installation_mode = "force_installed";
-        };
-        "@searchengineadremover" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/searchengineadremover/latest.xpi";
-          installation_mode = "force_installed";
-        };
+      ExtensionSettings = mkExtensionSettings {
+        "wappalyzer@crunchlabz.com" = "wappalyzer";
+        "{85860b32-02a8-431a-b2b1-40fbd64c9c69}" = "github-file-icons";
+        "{762f9885-5a13-4abd-9c77-433dcd38b8fd}" = "return-youtube-dislikes";
+        "@searchengineadremover" = "searchengineadremover";
       };
-      Preferences = builtins.mapAttrs (_: locked) {
+      Preferences = mkLockedAttrs {
         "browser.tabs.warnOnClose" = false;
         "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
         # Disable swipe gestures (Browser:BackOrBackDuplicate, Browser:ForwardOrForwardDuplicate)
