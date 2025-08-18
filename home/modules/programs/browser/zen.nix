@@ -90,8 +90,9 @@
     };
 
     profiles.default = {
-      force = true;
       search = {
+        force = true;
+        default = "google"; # ddg?
         engines = let
           nixSnowflakeIcon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
         in {
