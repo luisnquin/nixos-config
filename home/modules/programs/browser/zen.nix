@@ -174,6 +174,25 @@
           container = containers."Shopping".id;
           position = 3000;
         };
+        "Research" = {
+          id = "ec287d7f-d910-4860-b400-513f269dee77";
+          icon = "💌";
+          position = 4000;
+          theme = {
+            type = "gradient";
+            colors = [
+              {
+                red = 171;
+                green = 219;
+                blue = 227;
+                algorithm = "floating";
+                type = "explicit-lightness";
+              }
+            ];
+            opacity = 0.2;
+            texture = 0.5;
+          };
+        };
       };
 
       search = {
