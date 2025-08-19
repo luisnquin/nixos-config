@@ -116,6 +116,20 @@
           id = "572910e1-4468-4832-a869-0b3a93e2f165";
           icon = "🎭";
           position = 1000;
+          theme = {
+            type = "gradient";
+            colors = [
+              {
+                red = 226;
+                green = 182;
+                blue = 184;
+                algorithm = "floating";
+                type = "explicit-lightness";
+              }
+            ];
+            opacity = 0.8;
+            texture = 0.5;
+          };
         };
         "Work" = {
           id = "08be3ada-2398-4e63-bb8e-f8bf9caa8d10";
