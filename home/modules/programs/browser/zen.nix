@@ -59,7 +59,6 @@
       DisablePocket = true; # save webs for later reading
       DisableTelemetry = true;
       DontCheckDefaultBrowser = true;
-      NoDefaultBookmarks = true;
       OfferToSaveLogins = false;
       EnableTrackingProtection = {
         Value = true;
@@ -114,6 +113,27 @@
         "zen.view.compact.hide-tabbar" = true;
         "zen.view.compact.hide-toolbar" = true;
         "zen.view.compact.animate-sidebar" = false;
+      };
+
+      bookmarks = {
+        force = true;
+        settings = [
+          {
+            name = "Nix sites";
+            toolbar = true;
+            bookmarks = [
+              {
+                name = "homepage";
+                url = "https://nixos.org/";
+              }
+              {
+                name = "wiki";
+                tags = ["wiki" "nix"];
+                url = "https://wiki.nixos.org/";
+              }
+            ];
+          }
+        ];
       };
 
       containersForce = true;
