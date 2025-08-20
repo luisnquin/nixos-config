@@ -197,7 +197,7 @@
 
       search = {
         force = true;
-        default = "ddg";
+        default = "google";
         engines = let
           nixSnowflakeIcon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
         in {
