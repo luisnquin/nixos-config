@@ -1,4 +1,4 @@
-{
+{config, ...}: {
   imports = [
     ./plugins.nix
   ];
@@ -15,12 +15,6 @@
     };
 
     # (relative to $HOME)
-    dotDir = ".zsh";
-
-    # historySubstringSearch = {
-    #   enable = true;
-    #   searchUpKey = "^[[A";
-    #   searchDownKey = "^[[B";
-    # };
+    dotDir = "${config.home.homeDirectory}/.zsh";
   };
 }
