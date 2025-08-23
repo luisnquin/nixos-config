@@ -3,6 +3,7 @@
     blender
     orca-slicer
     freecad-wayland
+    inkscape # vector graphics, before 3d
   ];
 
   services.flatpak.packages = [
