@@ -74,6 +74,7 @@
         "github-repository-size@pranavmangal" = "gh-repo-size";
         "firefox-extension@steamdb.info" = "steam-database";
         "@searchengineadremover" = "searchengineadremover";
+        "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
         "uBlock0@raymondhill.net" = "ublock-origin";
       };
       Preferences = mkLockedAttrs {
