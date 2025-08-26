@@ -5,7 +5,7 @@ email = "lpaandres2020@gmail.com"
 gitEmail = "lpaandres2020@gmail.com"
 
 [hosts.nyx]
-timeZone = "America/Lima"
+timeZone = "America/El_Salvador"
 i18nLocale = "en_US.UTF-8"
 keyboardLayout = "latam"
 resolution = "1920x1080"
