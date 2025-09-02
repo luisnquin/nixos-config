@@ -111,10 +111,6 @@ args @ {
         new_status = "master";
       };
 
-      gestures = {
-        workspace_swipe = "off";
-      };
-
       ecosystem = {
         no_update_news = true;
         enforce_permissions = true;
