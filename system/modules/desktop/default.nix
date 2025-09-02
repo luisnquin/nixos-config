@@ -42,6 +42,6 @@
   programs.kdeconnect.enable = true;
 
   xdg.portal.extraPortals = lib.mkIf (isTiling && config.programs.kdeconnect.enable) [
-    pkgs.libsForQt5.xdg-desktop-portal-kde
+    pkgs.kdePackages.xdg-desktop-portal-kde
   ];
 }
