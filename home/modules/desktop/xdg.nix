@@ -12,7 +12,7 @@
       pictures = "${home}/Pictures";
       music = null;
       publicShare = null;
-      # templates = "${home}/Experiments";
+      templates = null;
       videos = "${home}/Videos";
       extraConfig = {
         XDG_PROJECTS_DIR = "${home}/Projects";
