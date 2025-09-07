@@ -8,7 +8,7 @@
 in {
   programs.spicetify = with spicetify; {
     enable = true;
-    theme = themes.text;
+    theme = themes.hazy;
 
     spotifyPackage = pkgs.spotify;
 
