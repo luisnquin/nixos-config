@@ -1,6 +1,6 @@
 {
   inputs,
-  system,
+  config,
   pkgs,
   ...
 }: {
@@ -12,9 +12,9 @@
     associations = builtins.listToAttrs (map (name: {
         inherit name;
         value = let
-          inherit (inputs.zen-browser.packages.${system}.beta) meta;
+          zen-browser = config.programs.zen-browser.package;
         in
-          meta.desktopFileName;
+          zen-browser.meta.desktopFileName;
       }) [
         "application/x-extension-shtml"
         "application/x-extension-xhtml"
