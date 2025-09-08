@@ -173,6 +173,14 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    nixcord = {
+      url = "github:kaylorben/nixcord";
+      inputs = {
+        flake-compat.follows = "flake-compat";
+        flake-parts.follows = "flake-parts";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     watt = {
       url = "github:NotAShelf/watt";
@@ -256,6 +264,7 @@
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
         inputs.nao.homeManagerModules.default
+        inputs.nixcord.homeModules.nixcord
         inputs.encore.homeModules.default
         ./home/options
       ];
