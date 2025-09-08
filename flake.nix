@@ -182,10 +182,6 @@
       };
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
-    watt = {
-      url = "github:NotAShelf/watt";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs @ {
@@ -256,7 +252,6 @@
           inherit system;
         })
         inputs.agenix.nixosModules.default
-        inputs.watt.nixosModules.default
         ./tools/nix/nixos-options
       ];
 

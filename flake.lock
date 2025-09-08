@@ -982,7 +982,6 @@
         "spotify-dbus-control": "spotify-dbus-control",
         "systems": "systems_2",
         "treefmt-nix": "treefmt-nix",
-        "watt": "watt",
         "zen-browser": "zen-browser",
         "zeroxgen": "zeroxgen"
       }
@@ -1102,26 +1101,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "type": "github"
-      }
-    },
-    "watt": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1749377316,
-        "narHash": "sha256-hw3rL4rlIlYJMTeE7DlQ3lRhQDJURAhE+PC/NT4VAAQ=",
-        "owner": "NotAShelf",
-        "repo": "watt",
-        "rev": "154724c7b1bd49654ea55df719e1eb3219ec2000",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NotAShelf",
-        "repo": "watt",
         "type": "github"
       }
     },
