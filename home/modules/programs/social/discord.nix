@@ -15,7 +15,7 @@
 
     config = {
       themeLinks = [
-        "https://raw.githubusercontent.com/rose-pine/discord/main/rose-pine.theme.css"
+        "https://betterdiscord.app/Download?id=1143"
       ];
       frameless = true;
       disableMinSize = true;
