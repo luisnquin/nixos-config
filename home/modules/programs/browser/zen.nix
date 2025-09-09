@@ -70,6 +70,7 @@
         "wappalyzer@crunchlabz.com" = "wappalyzer";
         "{85860b32-02a8-431a-b2b1-40fbd64c9c69}" = "github-file-icons";
         "{762f9885-5a13-4abd-9c77-433dcd38b8fd}" = "return-youtube-dislikes";
+        "{74145f27-f039-47ce-a470-a662b129930a}" = "clearurls";
         "github-no-more@ihatereality.space" = "github-no-more";
         "github-repository-size@pranavmangal" = "gh-repo-size";
         "firefox-extension@steamdb.info" = "steam-database";
