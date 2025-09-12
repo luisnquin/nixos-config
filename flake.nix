@@ -72,14 +72,6 @@
       repo = "flake-compat";
       flake = false;
     };
-    pre-commit-hooks = {
-      url = "github:cachix/git-hooks.nix";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        nixpkgs-stable.follows = "nixpkgs";
-        flake-compat.follows = "flake-compat";
-      };
-    };
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -87,7 +79,7 @@
     hyprland = {
       url = "https://github.com/hyprwm/Hyprland";
       inputs = {
-        pre-commit-hooks.follows = "pre-commit-hooks";
+        pre-commit-hooks.follows = "";
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
@@ -124,14 +116,10 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    treefmt-nix = {
-      url = "github:numtide/treefmt-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
       inputs = {
-        treefmt-nix.follows = "treefmt-nix";
+        treefmt-nix.follows = "";
         flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
       };
