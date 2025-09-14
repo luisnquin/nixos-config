@@ -4,9 +4,10 @@
     ./hardware
 
     ./programs/browser
-    ./programs/media
-    ./programs/package-managers
     ./programs/development
+    ./programs/media
+    ./programs/office.nix
+    ./programs/package-managers
     ./programs/security
     ./programs/shell
     ./programs/social
