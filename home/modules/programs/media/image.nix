@@ -14,6 +14,7 @@
   });
 in {
   home.packages = [
+    pkgs.imagemagick
     feh
   ];
 
