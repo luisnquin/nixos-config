@@ -3,7 +3,11 @@
 
   programs.nixcord = {
     enable = true;
-    vesktop.enable = true;
+    branch = "canary";
+    vesktop = {
+      enable = true;
+      unstable = true;
+    };
 
     config = {
       themeLinks = [
