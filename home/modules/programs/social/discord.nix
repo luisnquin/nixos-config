@@ -3,11 +3,8 @@
 
   programs.nixcord = {
     enable = true;
-    branch = "canary";
-    vesktop = {
-      enable = true;
-      unstable = true;
-    };
+    discord.enable = false;
+    vesktop.enable = true;
 
     config = {
       themeLinks = [
