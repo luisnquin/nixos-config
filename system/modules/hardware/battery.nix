@@ -32,7 +32,7 @@ in {
     }
   '';
 
-  services.logind.lidSwitchExternalPower = "ignore"; # prevent lid switch from triggering a suspend
+  services.logind.settings.Login.HandleLidSwitchExternalPower = "ignore"; # prevent lid switch from triggering a suspend
 
   systemd.services.battery-charge-threshold = {
     enable = host.isLaptop;
