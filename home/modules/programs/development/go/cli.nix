@@ -3,16 +3,15 @@
     enable = true;
     package = pkgs.go;
 
-    goPrivate = [
-      "github.com/chanchitaapp"
-      "github.com/0xc000022070"
-    ];
-
-    goBin = "go/bin";
-    goPath = "go";
-  };
-
-  xdg.configFile = {
-    "go/env".text = builtins.readFile ./env;
+    env = {
+      GOPRIVATE = [
+        "github.com/chanchitaapp"
+        "github.com/0xc000022070"
+      ];
+      GOBIN = "go/bin";
+      GOPATH = "go";
+      GO111MODULE = "on";
+      CGO_ENABLED = "0";
+    };
   };
 }
