@@ -20,7 +20,7 @@
           system
         } or throwSystem;
     in
-      pkgs.vscode.overrideAttrs (oldAttrs: {
+      pkgs.vscode.overrideAttrs (_oldAttrs: {
         src = builtins.fetchTarball {
           url = "https://update.code.visualstudio.com/${version}/${plat}/stable";
           sha256 = "1319wjggg77fs6kgw8jfdjxifgg7sdhw51r5spspsldklk1a7qih";
