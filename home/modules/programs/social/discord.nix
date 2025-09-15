@@ -1,12 +1,4 @@
-{pkgs, ...}: {
-  home.packages = [
-    (pkgs.discord-canary.override {
-      withVencord = true;
-      withOpenASAR = true;
-      nss = pkgs.nss_latest;
-    })
-  ];
-
+{
   services.arrpc.enable = true;
 
   programs.nixcord = {
