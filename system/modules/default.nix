@@ -2,6 +2,7 @@
   imports = [
     ./core
     ./desktop
+    ./programs/browser/chromium.nix
     ./programs/compression.nix
     ./programs/development
     ./programs/gaming
