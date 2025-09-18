@@ -9,13 +9,16 @@
       "--no-default-browser-check"
       "--enable-zero-copy"
       "--disable-sync-preferences"
-      # "--ignore-gpu-blocklist"
+      "--ignore-gpu-blocklist"
       # "--enable-features=AcceleratedVideoDecodeLinuxGL"
       # "--enable-parallel-downloading"
     ];
     extensions = let
       ids = [
         "ficfmibkjjnpogdcfhfokmihanoldbfe" # File Icons for GitHub and GitLab
+        "ddkjiahejlhfcafbddmgiahcphecmpfh" # uBlock Origin Lite
+        "dffbjiomnajbmlhjelpipfldgkijdemn" # URL Cleaner
+        "ldpochfccmkkmhdbclfhpagapcfdljkj" # Decentraleyes
       ];
     in
       builtins.map (id: {inherit id;}) ids;
