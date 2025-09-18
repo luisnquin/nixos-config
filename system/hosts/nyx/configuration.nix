@@ -58,7 +58,7 @@
         else
           echo '${pkgs.libx.base64.decode "VGFrZSBhbGwgdGhlIGJsYW1lIQo="}'
         fi
-
+        random_bool=$(( RANDOM % 2 ))
         sleep 0.05
         i=$(( i + 1 ))
       done
