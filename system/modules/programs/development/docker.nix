@@ -1,13 +1,33 @@
 {pkgs, ...}: {
   networking.firewall.trustedInterfaces = ["docker0"];
 
-  virtualisation = {
-    docker = {
-      enable = true;
-      autoPrune = {
-        enable = true;
-        dates = "daily";
+  virtualisation.docker = {
+    enable = true;
+    daemon.settings = {
+      "builder" = {
+        "gc" = {
+          "enabled" = true;
+          "defaultKeepStorage" = "10GB";
+          "policy" = [
+            {
+              "keepStorage" = "8GB";
+              "filter" = ["unused-for=1440h"];
+            }
+            {
+              "keepStorage" = "15GB";
+              "filter" = ["unused-for=2200h"];
+            }
+            {
+              "keepStorage" = "20GB";
+              "all" = true;
+            }
+          ];
+        };
       };
+    };
+    autoPrune = {
+      enable = true;
+      dates = "daily";
     };
   };
 
