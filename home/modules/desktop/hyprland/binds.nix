@@ -1,5 +1,6 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
+  pkgs-extra,
   config,
   inputs,
   system,
@@ -168,7 +169,7 @@
     }
     {
       "mod+key" = "${mainMod}, K";
-      "dispatcher" = "exec, ${lib.getExe pkgs.extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
+      "dispatcher" = "exec, ${lib.getExe pkgs-extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
     }
   ];
 in

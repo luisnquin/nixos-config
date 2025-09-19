@@ -1,6 +1,6 @@
 {
   host,
-  pkgs,
+  libx,
   nix,
   ...
 }: {
@@ -54,9 +54,9 @@
       i=0
       while [ $i -le 15 ]; do
         if [[ $random_bool -eq 0 ]]; then
-          echo "${pkgs.libx.base64.decode "RGVsdXNpb25zIHdvbid0IGNob2tlIHlvdX4gSW5kZXhPZj1lbnQlCg=="}"
+          echo "${libx.base64.decode "RGVsdXNpb25zIHdvbid0IGNob2tlIHlvdX4gSW5kZXhPZj1lbnQlCg=="}"
         else
-          echo '${pkgs.libx.base64.decode "VGFrZSBhbGwgdGhlIGJsYW1lIQo="}'
+          echo '${libx.base64.decode "VGFrZSBhbGwgdGhlIGJsYW1lIQo="}'
         fi
         random_bool=$(( RANDOM % 2 ))
         sleep 0.05

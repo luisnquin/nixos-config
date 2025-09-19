@@ -1,6 +1,7 @@
 {
   pkgs,
   user,
+  libx,
   ...
 }: {
   programs.gnupg.agent = {
@@ -20,7 +21,7 @@
 
   services.openssh = {
     enable = true;
-    banner = pkgs.libx.base64.decode "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
+    banner = libx.base64.decode "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
     ports = [
       357
     ];

@@ -1,13 +1,13 @@
 {
   inputs,
   system,
-  pkgs,
+  libx,
   ...
 }: {
   services.swww.enable = true;
 
   xdg.configFile = let
-    wallpaperFiles = pkgs.libx.fs.getFilesInDirectory ./wallpapers;
+    wallpaperFiles = libx.fs.getFilesInDirectory ./wallpapers;
 
     inherit (inputs.nix-scripts.packages.${system}) swww-switcher;
   in {

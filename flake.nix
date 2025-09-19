@@ -199,33 +199,26 @@
 
         inherit config system;
       };
-
-      extra = nixpkgs-extra.packages.${system};
-
-      libx =
-        (nix-nostd.lib)
-        // import ./lib {
-          inherit pkgs lib;
-        };
     in
-      default
-      // {
-        inherit extra libx;
+      default;
+
+    libx =
+      nix-nostd.lib
+      // import ./lib {
+        inherit pkgs;
       };
 
-    inherit (pkgs) lib;
-
-    metadata = pkgs.libx.mkMetadata ./flake.toml "luisnquin@nyx";
+    metadata = libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
     specialArgs = {
       isTiling = true;
       isWayland = true;
+      pkgs-extra = nixpkgs-extra.packages.${system};
 
-      # Child modules should deal with the things they want to take from the inputs.
-      inherit inputs pkgs system;
+      inherit inputs system libx;
     };
   in
-    pkgs.libx.mkSetup {
+    libx.mkSetup {
       inherit (metadata) user host nix;
       inherit pkgs specialArgs;
 

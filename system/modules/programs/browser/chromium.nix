@@ -1,4 +1,4 @@
-{pkgs, ...}: {
+{libx, ...}: {
   programs.chromium = {
     enable = true;
     extraOpts = {
@@ -50,7 +50,7 @@
       "BlockThirdPartyCookies" = true;
       "DefaultCookiesSetting" = 4;
       "CookiesAllowedForUrls" = [
-        (pkgs.libx.base64.decode "aHR0cHM6Ly9wcm90ZWN0LXVlLmlzbWFydGxpZmUubWUK")
+        (libx.base64.decode "aHR0cHM6Ly9wcm90ZWN0LXVlLmlzbWFydGxpZmUubWUK")
       ];
 
       "DnsOverHttpsMode" = "secure";
