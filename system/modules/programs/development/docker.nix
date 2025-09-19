@@ -31,6 +31,11 @@
     autoPrune = {
       enable = true;
       dates = "daily";
+      flags = [
+        "--all"
+        "--force"
+        "--filter=until=720h" # 30d
+      ];
     };
   };
 
