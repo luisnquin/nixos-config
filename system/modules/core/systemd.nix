@@ -22,4 +22,9 @@
   systemd.extraConfig = ''
     DefaultTimeoutStopSec=15s
   '';
+
+  services.journald.extraConfig = ''
+    SystemMaxUse=1G
+    MaxRetentionSec=7days
+  '';
 }
