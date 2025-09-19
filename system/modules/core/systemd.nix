@@ -19,9 +19,9 @@
     }
   ];
 
-  systemd.extraConfig = ''
-    DefaultTimeoutStopSec=15s
-  '';
+  systemd.settings.Manager = {
+    DefaultTimeoutStopSec = "15s";
+  };
 
   services.journald.extraConfig = ''
     SystemMaxUse=1G
