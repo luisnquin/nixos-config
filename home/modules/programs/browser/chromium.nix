@@ -10,8 +10,8 @@
       "--enable-zero-copy"
       "--disable-sync-preferences"
       "--ignore-gpu-blocklist"
-      # "--enable-features=AcceleratedVideoDecodeLinuxGL"
-      # "--enable-parallel-downloading"
+      "--enable-features=AcceleratedVideoDecodeLinuxGL"
+      "--enable-parallel-downloading"
     ];
     extensions = let
       ids = [
