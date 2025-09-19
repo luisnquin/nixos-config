@@ -6,4 +6,6 @@
       options snd-intel-dspcfg dsp_driver=1
     '';
   };
+
+  security.protectKernelImage = true;
 }
