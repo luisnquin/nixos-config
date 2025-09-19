@@ -1,7 +1,7 @@
 {
   description = "Infrastructure for NixOS, Flakes and home manager ❄️";
 
-  # welcome to the hell ;]
+  # welcome to my hell ;]
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     nixpkgs-extra = {
