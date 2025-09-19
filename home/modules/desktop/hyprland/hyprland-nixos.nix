@@ -1,0 +1,1 @@
+../../../../system/modules/desktop/hyprland.nix
