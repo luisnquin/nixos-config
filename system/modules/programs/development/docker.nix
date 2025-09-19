@@ -24,6 +24,9 @@
           ];
         };
       };
+      "max-concurrent-downloads" = 5;
+      "max-concurrent-uploads" = 5;
+      "max-download-attempts" = 3;
     };
     autoPrune = {
       enable = true;
