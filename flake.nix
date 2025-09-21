@@ -24,6 +24,10 @@
     systems.url = "github:nix-systems/default-linux";
     nix-nostd.url = "github:chessai/nix-std";
 
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     battery-notifier = {
       url = "github:luisnquin/battery-notifier";
       inputs = {
@@ -227,6 +231,7 @@
       hostsPath = ./system/hosts;
 
       nixosModules = [
+        inputs.disko.nixosModules.default
         inputs.flake-programs-sqlite.nixosModules.programs-sqlite
         (import ./secrets {
           inherit (inputs) agenix;

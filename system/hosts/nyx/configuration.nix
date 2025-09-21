@@ -9,6 +9,7 @@
     ../../modules
 
     ./hardware-configuration.nix
+    ./disko-config.nix
   ];
 
   hardware = {
