@@ -5,12 +5,25 @@
 
 > **Warning**
 >
-> _Maybe_ this is a single user setup and is not intended to be anything else
+> Single user setup and is not intended to be anything else so fo
 
-## Resources
+## Setup
 
-- [Used scripts](https://github.com/luisnquin/nix-scripts)
-- [Additional pkgs](https://github.com/luisquin/nixpkgs-extra)
+No GUI or "manual steps" are required so just get the minimal ISO (if possible).
+
+```bash
+# Clone the configuration (or just grab the disko-config.nix file)
+$ git clone https://github.com/luisnquin/nixos-config.git
+
+# Partition and format disks with disko
+$ sudo nix --experimental-features "nix-command flakes" run \
+    github:nix-community/disko -- --mode disko nixos-config/system/hosts/nyx/disko-config.nix
+
+# Install NixOS using the configuration flake
+$ sudo nixos-install --root /mnt --flake github:luisnquin/nixos-config#nyx
+```
+
+After that just reboot and continue the setup with home manager.
 
 ## How does it look like?
 
