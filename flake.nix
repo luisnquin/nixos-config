@@ -200,7 +200,7 @@
               inherit (hyprland.packages.${system}) xdg-desktop-portal-hyprland;
              
               hyprland = hyprland.packages.${system}.hyprland.overrideAttrs (oldAttrs: {
-                src = fetchgit {
+                src = _self.fetchgit {
                   url = "https://github.com/hyprwm/Hyprland";
                   rev = "70a7047ee175d2e7fca1575d50a3738ac40fd2c6";  # Replace with the correct commit or branch
                   sha256 = "1mxbhp6anjiq567prvklnrgv4a0853s1xl0nj27jlkaq66q1j0vl";
