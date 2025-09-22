@@ -15,7 +15,7 @@
         description = ''Ori^'';
 
         home = ''/home/${user.alias}/'';
-        hashedPassword = null;
+        initialHashedPassword = "$y$j9T$FSyIWawN7XrwjmaN5LG5B0$hpO2SDerGvBaoYCfPFbrxcn2j3NS8aTgBfcseMS/QiB";
         isNormalUser = true;
 
         extraGroups = [
