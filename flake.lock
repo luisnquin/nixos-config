@@ -602,22 +602,6 @@
         "type": "github"
       }
     },
-    "libnbtplusplus": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1699286814,
-        "narHash": "sha256-yy0q+bky80LtK1GWzz7qpM+aAGrOqLuewbid8WT1ilk=",
-        "owner": "PrismLauncher",
-        "repo": "libnbtplusplus",
-        "rev": "23b955121b8217c1c348a9ed2483167a6f3ff4ad",
-        "type": "github"
-      },
-      "original": {
-        "owner": "PrismLauncher",
-        "repo": "libnbtplusplus",
-        "type": "github"
-      }
-    },
     "nao": {
       "inputs": {
         "nixpkgs": [
@@ -638,21 +622,6 @@
       "original": {
         "owner": "luisnquin",
         "repo": "nao",
-        "type": "github"
-      }
-    },
-    "nix-filter": {
-      "locked": {
-        "lastModified": 1731533336,
-        "narHash": "sha256-oRam5PS1vcrr5UPgALW0eo1m/5/pls27Z/pabHNy2Ms=",
-        "owner": "numtide",
-        "repo": "nix-filter",
-        "rev": "f7653272fd234696ae94229839a99b73c9ab7de0",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "nix-filter",
         "type": "github"
       }
     },
@@ -894,31 +863,6 @@
         "type": "github"
       }
     },
-    "prismlauncher": {
-      "inputs": {
-        "flake-compat": [
-          "flake-compat"
-        ],
-        "libnbtplusplus": "libnbtplusplus",
-        "nix-filter": "nix-filter",
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1736636015,
-        "narHash": "sha256-/5xtzKed3r84lIMMDVrQE8jqvTUzHTdsWyPIySw/NGs=",
-        "owner": "Diegiwg",
-        "repo": "PrismLauncher-Cracked",
-        "rev": "988d07e2ff01a4962c72f28052a0d96d4b84ca97",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Diegiwg",
-        "repo": "PrismLauncher-Cracked",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "agenix": "agenix",
@@ -944,7 +888,6 @@
         "nixpkgs-extra": "nixpkgs-extra",
         "passgen": "passgen",
         "poetry2nix": "poetry2nix",
-        "prismlauncher": "prismlauncher",
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
         "spotify-dbus-control": "spotify-dbus-control",
