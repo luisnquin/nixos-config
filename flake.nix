@@ -199,7 +199,7 @@
             (_self: _super: {
               inherit (hyprland.packages.${system}) xdg-desktop-portal-hyprland;
              
-              hyprland = hyprland.packages.${system}.hyprland.overrideAttrs (oldAttrs: {
+              hyprland = hyprland.packages.${system}.hyprland.overrideAttrs (_oldAttrs: {
                 src = _self.fetchgit {
                   url = "https://github.com/hyprwm/Hyprland";
                   rev = "70a7047ee175d2e7fca1575d50a3738ac40fd2c6";
