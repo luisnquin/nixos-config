@@ -3,9 +3,9 @@
   pkgs,
   ...
 }: {
-  environment.systemPackages = [
-    inputs.prismlauncher.packages.${pkgs.system}.default # jailbreak offline accounts
-  ];
+  # environment.systemPackages = [
+  #   inputs.prismlauncher.packages.${pkgs.system}.default # jailbreak offline accounts
+  # ];
 
   services.flatpak.packages = [
     {
