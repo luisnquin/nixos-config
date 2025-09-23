@@ -2,8 +2,8 @@
   gtk = {
     enable = true;
     theme = {
-      name = "WhiteSur";
-      package = pkgs.whitesur-gtk-theme;
+      name = "Juno";
+      package = pkgs.juno-theme;
     };
 
     iconTheme = {
