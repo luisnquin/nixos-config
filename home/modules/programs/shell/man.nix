@@ -1,4 +1,4 @@
-{pkgs, ...}: {
+{ ...}: {
   programs.tealdeer = {
     enable = true;
     settings.updates = {
