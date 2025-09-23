@@ -1,6 +1,7 @@
 {
   host,
-  libx,
+  pkgs,
+  lib,
   nix,
   ...
 }: {
@@ -51,19 +52,7 @@
       echo '  .      .   . .   .   .   . .  +   .    .            +'
       echo
 
-      random_bool=$(( RANDOM % 2 ))
-      i=0
-      while [ $i -le 15 ]; do
-        if [[ $random_bool -eq 0 ]]; then
-          echo "${libx.base64.decode "RGVsdXNpb25zIHdvbid0IGNob2tlIHlvdX4gSW5kZXhPZj1lbnQlCg=="}"
-        else
-          echo '${libx.base64.decode "VGFrZSBhbGwgdGhlIGJsYW1lIQo="}'
-        fi
-        random_bool=$(( RANDOM % 2 ))
-        sleep 0.05
-        i=$(( i + 1 ))
-      done
-      sleep 0.8
+      ${lib.getExe pkgs.genact} --exit-after-time 1s
     '';
   };
 
