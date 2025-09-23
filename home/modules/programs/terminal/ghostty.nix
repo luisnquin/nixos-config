@@ -19,10 +19,8 @@
       cursor-style-blink = "true";
 
       background-opacity = "0.8";
-      background-blur-radius = "20";
 
       link-url = "true";
-      class = "com.mitchellh.ghostty";
 
       working-directory = "home";
 
