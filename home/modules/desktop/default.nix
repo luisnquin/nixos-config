@@ -6,7 +6,6 @@
     ./rofi
 
     ./color-picker.nix
-    ./dunst.nix
     ./gsimplecal.nix
     ./gtk.nix
     ./mako.nix
