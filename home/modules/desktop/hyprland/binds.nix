@@ -156,6 +156,10 @@
       "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --toggle";
     }
     {
+      "mod+key" = "${mainMod}, Delete";
+      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} play-pause --all-players --ignore-player=spotify";
+    }
+    {
       "mod+key" = "SUPER_SHIFT, R";
       "dispatcher" = "exec, ${pkgs.hyprland}/bin/hyprctl reload";
     }
