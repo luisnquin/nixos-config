@@ -8,7 +8,7 @@
 
     config = {
       themeLinks = [
-        "https://betterdiscord.app/Download?id=1143"
+        "https://raw.githubusercontent.com/refact0r/system24/refs/heads/main/theme/system24.theme.css"
       ];
       frameless = true;
       disableMinSize = true;
