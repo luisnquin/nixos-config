@@ -2,8 +2,8 @@
   gtk = {
     enable = true;
     theme = {
-      name = "Juno";
-      package = pkgs.juno-theme;
+      name = "Vimix-light-doder";
+      package = pkgs.vimix-gtk-themes;
     };
 
     iconTheme = {
