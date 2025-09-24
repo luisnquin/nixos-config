@@ -11,7 +11,7 @@
       width = 320;
       height = 130;
       padding = "20";
-      margin = "5";
+      margin = "10,20,5";
 
       border-color = "#1b1924de";
       border-radius = 3;
