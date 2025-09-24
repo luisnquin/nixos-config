@@ -890,7 +890,6 @@
         "poetry2nix": "poetry2nix",
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
-        "spotify-dbus-control": "spotify-dbus-control",
         "systems": "systems_2",
         "zen-browser": "zen-browser",
         "zeroxgen": "zeroxgen"
@@ -939,29 +938,6 @@
       "original": {
         "owner": "Gerg-L",
         "repo": "spicetify-nix",
-        "type": "github"
-      }
-    },
-    "spotify-dbus-control": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1744598295,
-        "narHash": "sha256-aXX/ai2OBEnKaIxH41mCN+CMrvgKAhMrlHJicAw+F2o=",
-        "owner": "0xc000022070",
-        "repo": "spotify-dbus-control",
-        "rev": "11cf1dbc31e2d761518cea4357cc3c12cddf2f6e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "0xc000022070",
-        "repo": "spotify-dbus-control",
         "type": "github"
       }
     },

@@ -62,7 +62,6 @@
 
   custom = let
     rofi-plugin-call = name: program-to-exec: ''${lib.getExe pkgs.rofi} -modi "${name}:${program-to-exec}" -show ${name}'';
-    spotify-dbus-control = inputs.spotify-dbus-control.defaultPackage.${system};
     hyprstfu = inputs.hyprstfu.defaultPackage.${system};
 
     inherit (inputs.nix-scripts.packages.${system}) sys-sound sys-brightness cliphist-rofi;
@@ -137,23 +136,23 @@
     }
     {
       "mod+key" = "CTRL_SHIFT, braceleft";
-      "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --push-back";
+      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} position 5- --player=spotify";
     }
     {
       "mod+key" = "CTRL_SHIFT, braceright";
-      "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --push-forward";
+      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} position 5+ --player=spotify";
     }
     {
       "mod+key" = "SUPER_SHIFT, braceright";
-      "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --next";
+      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} next --player=spotify";
     }
     {
       "mod+key" = "SUPER_SHIFT, braceleft";
-      "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --prev";
+      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} previous --player=spotify";
     }
     {
       "mod+key" = "${mainMod}, Pause";
-      "dispatcher" = "exec, ${lib.getExe spotify-dbus-control} --toggle";
+      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} play-pause --player=spotify";
     }
     {
       "mod+key" = "${mainMod}, Delete";

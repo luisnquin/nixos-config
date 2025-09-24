@@ -113,13 +113,6 @@
       url = "github:0xc000022070/0xgen";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    spotify-dbus-control = {
-      url = "github:0xc000022070/spotify-dbus-control";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
       inputs = {
