@@ -79,6 +79,7 @@
         "uBlock0@raymondhill.net" = "ublock-origin";
       };
       Preferences = mkLockedAttrs {
+        "browser.aboutConfig.showWarning" = false;
         "browser.tabs.warnOnClose" = false;
         "media.videocontrols.picture-in-picture.video-toggle.enabled" = true;
         # Disable swipe gestures (Browser:BackOrBackDuplicate, Browser:ForwardOrForwardDuplicate)
