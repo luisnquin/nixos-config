@@ -1,5 +1,7 @@
-{pkgs, ...}: {
+{user, ...}: {
   networking.firewall.trustedInterfaces = ["docker0"];
+  hardware.nvidia-container-toolkit.enable = true;
+  users.users.${user.alias}.extraGroups = ["docker"];
 
   virtualisation.docker = {
     enable = true;
@@ -36,26 +38,6 @@
         "--force"
         "--filter=until=720h" # 30d
       ];
-    };
-  };
-
-  hardware.nvidia-container-toolkit.enable = true;
-
-  environment = {
-    systemPackages = with pkgs; [
-      docker
-    ];
-
-    shellAliases = {
-      dka = "docker kill $(docker ps -qa) 2> /dev/null";
-      dra = "docker rm -f $(docker ps -qa) 2> /dev/null";
-      dkra = "dka; dra";
-      dria = "docker rmi -f $(docker image ls -qa)";
-      dils = "docker image ls";
-      dcp = "docker cp";
-      dps = "docker ps -a";
-      dl = "docker logs";
-      ld = "lazydocker";
     };
   };
 }

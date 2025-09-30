@@ -22,7 +22,6 @@
           "networkmanager"
           "wireshark"
           "dialout" # https://askubuntu.com/questions/112568/how-do-i-allow-a-non-default-user-to-use-serial-device-ttyusb0
-          "docker"
           "wheel"
         ];
 

@@ -1,13 +1,13 @@
 {
   imports = [
     ./database
+    ./docker
     ./editors
     ./git
     ./go
     ./ops
     ./pwn
 
-    ./docker.nix
     ./ee.nix
     ./encore.nix
     ./etc.nix
