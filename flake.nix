@@ -188,8 +188,8 @@
               hyprland = hyprland.packages.${system}.hyprland.overrideAttrs (_oldAttrs: {
                 src = _self.fetchgit {
                   url = "https://github.com/hyprwm/Hyprland";
-                  rev = "70a7047ee175d2e7fca1575d50a3738ac40fd2c6";
-                  sha256 = "sha256-NHEzK6MN8Tv9YrnJb2A9KxcOI2cCsKRqZOC5kUeG8Aw=";
+                  rev = "38c1e72c9d81fcdad8f173e06102a5da18836230";
+                  sha256 = "sha256-SAJKAYq1QeDCx19+JVwkvyfXLpmXJrOyUCRH+Dy7T/c=";
                 };
               });
             })
