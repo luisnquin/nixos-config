@@ -1,4 +1,7 @@
-[
+{
+  inputs,
+  system,
+}: [
   (
     _self: super: {
       logkeys = super.logkeys.overrideAttrs (prev: {
@@ -23,4 +26,15 @@
       });
     }
   )
+  (_self: _super: {
+    inherit (inputs.hyprland.packages.${system}) xdg-desktop-portal-hyprland;
+
+    hyprland = inputs.hyprland.packages.${system}.hyprland.overrideAttrs (_oldAttrs: {
+      src = _self.fetchgit {
+        url = "https://github.com/hyprwm/Hyprland";
+        rev = "38c1e72c9d81fcdad8f173e06102a5da18836230";
+        sha256 = "sha256-SAJKAYq1QeDCx19+JVwkvyfXLpmXJrOyUCRH+Dy7T/c=";
+      };
+    });
+  })
 ]
