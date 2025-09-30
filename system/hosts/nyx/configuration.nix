@@ -58,10 +58,6 @@
 
   system = {
     inherit (nix) stateVersion;
-    autoUpgrade = {
-      enable = true;
-      allowReboot = false;
-      channel = "https://nixos.org/channels/${nix.channel}";
-    };
+    autoUpgrade.enable = false;
   };
 }
