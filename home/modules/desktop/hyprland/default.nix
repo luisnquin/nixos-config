@@ -26,7 +26,6 @@ args @ {
         ];
 
         windowrulev2 = [
-          "float,center,forceinput, class:(Rofi)$"
           "float, title:^(Android Emulator -)"
           "float, title:^(Emulator)$"
           "float,center, class:^(ghostty.hyprdrop)$"
