@@ -13,7 +13,7 @@
       font-synthetic-style = "bold";
       font-size = "10.8";
 
-      theme = "iceberg-dark";
+      theme = "Iceberg Dark";
 
       cursor-style = "bar";
       cursor-style-blink = "true";
