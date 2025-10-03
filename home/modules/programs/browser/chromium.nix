@@ -4,7 +4,8 @@
     enable = true;
     package = pkgs.chromium;
     commandLineArgs = [
-      "--new-window='https://protect-ue.ismartlife.me/playback'"
+      "--new-window"
+      "https://protect-ue.ismartlife.me/playback"
       "--enable-logging=stderr"
       "--extension-mime-request-handling=always-prompt-for-install"
       "--no-default-browser-check"
