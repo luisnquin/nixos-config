@@ -30,10 +30,11 @@
     inherit (inputs.hyprland.packages.${system}) xdg-desktop-portal-hyprland;
 
     hyprland = inputs.hyprland.packages.${system}.hyprland.overrideAttrs (_oldAttrs: {
+      # disko does not work with the src they've set
       src = _self.fetchgit {
         url = "https://github.com/hyprwm/Hyprland";
-        rev = "38c1e72c9d81fcdad8f173e06102a5da18836230";
-        sha256 = "sha256-SAJKAYq1QeDCx19+JVwkvyfXLpmXJrOyUCRH+Dy7T/c=";
+        rev = "76d998743ac10e712238c1016db4d8e8d16f1049";
+        sha256 = "sha256-IKNfBuBbuofOVHJujnzBGaSydnmlMBRWl9owIZVVk9k=";
       };
     });
   })
