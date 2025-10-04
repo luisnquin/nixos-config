@@ -691,11 +691,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1751562370,
-        "narHash": "sha256-Q4KUr4SKwng9Y2dHqL+D5pcc/ByrFMZw4teO62qv9Pw=",
+        "lastModified": 1759608380,
+        "narHash": "sha256-fr+3bl4zFste5FmSQWlrSvuJW/kw+090gON9r3UzcYs=",
         "owner": "0xc000022070",
         "repo": "nix-scripts",
-        "rev": "2cf26bf2f74f0e9e8c20d3d78c1c11ab1bf93cc5",
+        "rev": "423d2f78628f757d5ab4b8b2937ff9f1954a8455",
         "type": "github"
       },
       "original": {
