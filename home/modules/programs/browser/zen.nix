@@ -155,9 +155,9 @@
             type = "gradient";
             colors = [
               {
-                red = 235;
-                green = 230;
-                blue = 252;
+                red = 216;
+                green = 204;
+                blue = 235;
                 algorithm = "floating";
                 type = "explicit-lightness";
               }
