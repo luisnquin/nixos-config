@@ -33,7 +33,7 @@
           "data_types" = [
             "browsing_history"
           ];
-          "time_to_live_in_hours" = 24 * 3;
+          "time_to_live_in_hours" = 24 / 2;
         }
         {
           "data_types" = [
