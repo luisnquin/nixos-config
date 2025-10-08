@@ -122,11 +122,6 @@
 
     profiles.default = let
       containers = {
-        Work = {
-          color = "blue";
-          icon = "briefcase";
-          id = 1;
-        };
         Shopping = {
           color = "yellow";
           icon = "dollar";
@@ -187,12 +182,6 @@
             opacity = 0.8;
             texture = 0.5;
           };
-        };
-        "Work" = {
-          id = "08be3ada-2398-4e63-bb8e-f8bf9caa8d10";
-          icon = "😟";
-          container = containers."Work".id;
-          position = 2000;
         };
         "Shopping" = {
           id = "2441acc9-79b1-4afb-b582-ee88ce554ec0";
