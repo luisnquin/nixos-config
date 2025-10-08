@@ -85,7 +85,7 @@
           latency = 4;
         };
         messageLinkEmbeds.enable = true;
-        messageLogger.enable = true;
+        messageLogger.enable = false;
         messageTags.enable = true;
         moreCommands.enable = true;
         moreKaomoji.enable = true;
