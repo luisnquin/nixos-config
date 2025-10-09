@@ -144,7 +144,7 @@
       };
     };
     ghostty = {
-      url = "github:ghostty-org/ghostty?ref=refs/tags/tip";
+      url = "github:ghostty-org/ghostty?ref=v1.2.2";
       inputs = {
         flake-compat.follows = "flake-compat";
         flake-utils.follows = "flake-utils";
