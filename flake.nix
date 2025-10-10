@@ -77,7 +77,7 @@
       flake = false;
     };
     hyprland-contrib = {
-      url = "github:hyprwm/contrib";
+      url = "github:hyprwm/contrib?ref=04721247f417256ca96acf28cdfe946cf1006263";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     hyprland = {
