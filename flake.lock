@@ -1021,16 +1021,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1759965431,
-        "narHash": "sha256-HvXr+rOkSZeseOYCruuMKMAUedcDkHOuYpFbnlIPs8Y=",
-        "owner": "0xc000022070",
+        "lastModified": 1760357077,
+        "narHash": "sha256-LAWtl0N6ZwLswKgLFgODoUwNEGf+bLH2et+1C5J4ZD4=",
+        "owner": "6iovan",
         "repo": "zen-browser-flake",
-        "rev": "391a133511ad7e09651b9c3939d8cf8d379766b1",
+        "rev": "b5dad9a86ffc70e7b1c515f70ae7622f3a493bfc",
         "type": "github"
       },
       "original": {
-        "owner": "0xc000022070",
-        "ref": "beta",
+        "owner": "6iovan",
+        "ref": "feat/pins-declaration",
         "repo": "zen-browser-flake",
         "type": "github"
       }
