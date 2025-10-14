@@ -120,15 +120,7 @@
       };
     };
 
-    profiles.default = let
-      containers = {
-        Shopping = {
-          color = "yellow";
-          icon = "dollar";
-          id = 2;
-        };
-      };
-    in {
+    profiles.default = rec {
       settings = {
         "zen.workspaces.continue-where-left-off" = true;
         "zen.workspaces.natural-scroll" = true;
@@ -159,8 +151,32 @@
         ];
       };
 
+      pinsForce = true;
+      pins = {
+        "GitHub" = {
+          id = "0209d3e9-df67-4295-8cf7-27ee135afbad";
+          workspace = spaces."Rendezvous".id;
+          url = "https://github.com";
+          position = 1;
+          isEssential = true;
+        };
+        "WhatsApp Web" = {
+          id = "311c3368-a46c-4445-932e-5f2807ea1765";
+          workspace = spaces."Rendezvous".id;
+          url = "https://web.whatsapp.com/";
+          position = 2;
+          isEssential = true;
+        };
+      };
+
       containersForce = true;
-      inherit containers;
+      containers = {
+        Shopping = {
+          color = "yellow";
+          icon = "dollar";
+          id = 2;
+        };
+      };
 
       spacesForce = true;
       spaces = {
