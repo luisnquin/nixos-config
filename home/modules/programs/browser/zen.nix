@@ -167,6 +167,12 @@
           position = 102;
           isEssential = false;
         };
+        "Telegram Web" = {
+          id = "5065293b-1c04-40ee-ba1d-99a231873864";
+          url = "https://web.telegram.org/k/";
+          position = 103;
+          isEssential = true;
+        };
       };
 
       containersForce = true;
