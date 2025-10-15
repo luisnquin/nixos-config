@@ -154,18 +154,18 @@
       pinsForce = true;
       pins = {
         "GitHub" = {
-          id = "0209d3e9-df67-4295-8cf7-27ee135afbad";
+          id = "48e8a119-5a14-4826-9545-91c8e8dd3bf6";
           workspace = spaces."Rendezvous".id;
           url = "https://github.com";
-          position = 1;
-          isEssential = true;
+          position = 101;
+          isEssential = false;
         };
         "WhatsApp Web" = {
-          id = "311c3368-a46c-4445-932e-5f2807ea1765";
+          id = "1eabb6a3-911b-4fa9-9eaf-232a3703db19";
           workspace = spaces."Rendezvous".id;
           url = "https://web.whatsapp.com/";
-          position = 2;
-          isEssential = true;
+          position = 102;
+          isEssential = false;
         };
       };
 
