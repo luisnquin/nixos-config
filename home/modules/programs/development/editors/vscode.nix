@@ -6,7 +6,7 @@
   programs.vscode = {
     enable = true;
     package = let
-      version = "1.104.3";
+      version = "1.105.1";
       throwSystem = throw "Unsupported system: ${system}";
       plat =
         {
@@ -23,7 +23,7 @@
       pkgs.vscode.overrideAttrs (_oldAttrs: {
         src = builtins.fetchTarball {
           url = "https://update.code.visualstudio.com/${version}/${plat}/stable";
-          sha256 = "0fs1w2ggmih36100j3q3jg5pf8pjc8sk0zj2xzs6imdvqkg0wkvf";
+          sha256 = "1xfaplgfn3mvpa4l35gy3b51ihawsq1rr1vs2fi9lz210348nagp";
         };
         inherit version;
       });
