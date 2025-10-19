@@ -1,4 +1,8 @@
-{pkgs, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   programs.go = {
     enable = true;
     package = pkgs.go;
@@ -9,7 +13,7 @@
         "github.com/0xc000022070"
       ];
       GOBIN = "go/bin";
-      GOPATH = "go";
+      GOPATH = "${config.home.homeDirectory}/go";
       GO111MODULE = "on";
       CGO_ENABLED = "0";
     };
