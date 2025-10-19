@@ -2,7 +2,7 @@
   services = {
     ollama = {
       enable = true;
-      package = pkgs.ollama.overrideAttrs (old: rec {
+      package = pkgs.ollama.overrideAttrs (_old: rec {
         # Use the latest version from nixpkgs
         version = "0.12.3";
         src = pkgs.fetchFromGitHub {
