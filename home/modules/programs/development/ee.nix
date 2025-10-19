@@ -1,5 +1,7 @@
 {pkgs, ...}: {
-  home.packages = [
-    pkgs.arduino-ide
+  home.packages = with pkgs; [
+    arduino-ide
+    mpremote
+    picocom
   ];
 }
