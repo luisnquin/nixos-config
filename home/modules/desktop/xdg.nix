@@ -16,7 +16,7 @@
       videos = "${home}/Videos";
       extraConfig = {
         XDG_PROJECTS_DIR = "${home}/Projects";
-        XDG_WORK_DIR = "${home}/Work";
+        # XDG_WORK_DIR = "${home}/Work";
       };
     };
 
