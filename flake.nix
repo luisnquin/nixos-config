@@ -143,6 +143,13 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    bud = {
+      url = "github:0xc000118128/bud";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
     ghostty = {
       url = "github:ghostty-org/ghostty?ref=v1.2.2";
       inputs = {

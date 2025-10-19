@@ -83,6 +83,29 @@
         "type": "github"
       }
     },
+    "bud": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1760909560,
+        "narHash": "sha256-pUDrasaPtMDdl2hdnIgMCsR0TEUGLDNTGku+kiUtV3o=",
+        "owner": "0xc000118128",
+        "repo": "bud",
+        "rev": "c86f5ff178e962c803987e188aad75a124e0176f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "0xc000118128",
+        "repo": "bud",
+        "type": "github"
+      }
+    },
     "darwin": {
       "inputs": {
         "nixpkgs": [
@@ -867,6 +890,7 @@
       "inputs": {
         "agenix": "agenix",
         "battery-notifier": "battery-notifier",
+        "bud": "bud",
         "disko": "disko",
         "encore": "encore",
         "flake-compat": "flake-compat",
