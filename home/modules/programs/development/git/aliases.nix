@@ -32,7 +32,7 @@
     gmgc = "find . -maxdepth 1 -type d | xargs -I {} bash -c 'if git -C {} rev-parse --git-dir > /dev/null 2>&1; then git -C {} gc --aggressive; fi'";
 
     # Pull current branch
-    gp = "git pull origin --ff-only $(git branch --show-current)";
+    gp = "git pull origin $(git branch --show-current)";
     gprb = "git pull --rebase origin $(git branch --show-current)";
 
     # deprecated ↓
