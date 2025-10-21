@@ -116,6 +116,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.systems.follows = "systems";
       inputs.hyprutils.follows = "hyprutils";
+      inputs.hyprlang.follows = "hyprlang";
       inputs.aquamarine.follows = "aquamarine";
       inputs.hyprgraphics.follows = "hyprgraphics";
       inputs.hyprwayland-scanner.follows = "hyprwayland-scanner";
