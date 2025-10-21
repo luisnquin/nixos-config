@@ -76,6 +76,50 @@
       repo = "flake-compat";
       flake = false;
     };
+    hyprwayland-scanner = {
+      url = "github:hyprwm/hyprwayland-scanner";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+    };
+    hyprgraphics = {
+      url = "github:hyprwm/hyprgraphics";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+    };
+    aquamarine = {
+      url = "github:hyprwm/aquamarine";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+      inputs.hyprwayland-scanner.follows = "hyprwayland-scanner";
+    };
+    hyprwire = {
+      url = "github:hyprwm/hyprwire";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+    };
+    hyprutils = {
+      url = "github:hyprwm/hyprutils";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+    };
+    hyprlang = {
+      url = "github:hyprwm/hyprlang";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+    };
+    hyprtoolkit = {
+      url = "github:hyprwm/hyprtoolkit";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+      inputs.hyprutils.follows = "hyprutils";
+      inputs.aquamarine.follows = "aquamarine";
+      inputs.hyprgraphics.follows = "hyprgraphics";
+      inputs.hyprwayland-scanner.follows = "hyprwayland-scanner";
+    };
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -86,6 +130,11 @@
         pre-commit-hooks.follows = "";
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
+        hyprwayland-scanner.follows = "hyprwayland-scanner";
+        hyprgraphics.follows = "hyprgraphics";
+        aquamarine.follows = "aquamarine";
+        hyprutils.follows = "hyprutils";
+        hyprlang.follows = "hyprlang";
       };
       type = "git";
       submodules = true;
@@ -95,6 +144,13 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
+        hyprwayland-scanner.follows = "hyprwayland-scanner";
+        hyprgraphics.follows = "hyprgraphics";
+        aquamarine.follows = "aquamarine";
+        hyprwire.follows = "hyprwire";
+        hyprutils.follows = "hyprutils";
+        hyprlang.follows = "hyprlang";
+        hyprtoolkit.follows = "hyprtoolkit";
       };
     };
     encore = {
