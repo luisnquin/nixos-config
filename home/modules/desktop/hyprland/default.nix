@@ -1,5 +1,7 @@
 args @ {
   pkgs-extra,
+  inputs,
+  system,
   pkgs,
   lib,
   ...
@@ -132,6 +134,7 @@ args @ {
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
         "[workspace 2 silent] ghostty"
         "${pkgs-extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'; while [ -z \"$ADDRESS\" ] ; do ADDRESS=$(hyprctl clients -j | jq -r '.[] | select(.class == \"ghostty.hyprdrop\") | .address'); done; ${pkgs-extra.hyprdrop}/bin/hyprdrop -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'"
+        "${lib.getExe inputs.hyprlauncher.packages.${system}.default} -d"
       ];
 
       exec = [

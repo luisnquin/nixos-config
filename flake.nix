@@ -90,6 +90,13 @@
       type = "git";
       submodules = true;
     };
+    hyprlauncher = {
+      url = "github:flashrun24/hyprlauncher/nix";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
     encore = {
       url = "github:encoredev/encore-flake";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -131,6 +131,10 @@
       "dispatcher" = "exec, ${lib.getExe pkgs.rofi} -show drun";
     }
     {
+      "mod+key" = "${mainMod}, W";
+      "dispatcher" = "exec, ${lib.getExe inputs.hyprlauncher.packages.${system}.default}";
+    }
+    {
       "mod+key" = "SUPER_SHIFT, E";
       "dispatcher" = "exec, ${lib.getExe pkgs.bemoji}";
     }
