@@ -142,7 +142,7 @@
       submodules = true;
     };
     hyprlauncher = {
-      url = "github:flashrun24/hyprlauncher/nix";
+      url = "github:hyprwm/hyprlauncher";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";

@@ -583,16 +583,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1761000156,
-        "narHash": "sha256-baea/dniBvmK16quET4pqG79VZezMnUo0nBzyCJ+uPg=",
-        "owner": "flashrun24",
+        "lastModified": 1761239946,
+        "narHash": "sha256-KPqWLrCq+t1RqSwJixkOa1QCX09o4iiX1VBVXX4pdtQ=",
+        "owner": "hyprwm",
         "repo": "hyprlauncher",
-        "rev": "1bfa77f57e6a410db853aba103f4a5dba4d45fb8",
+        "rev": "12fbd17b6b23a154e75635a019f3cb890e5b9183",
         "type": "github"
       },
       "original": {
-        "owner": "flashrun24",
-        "ref": "nix",
+        "owner": "hyprwm",
         "repo": "hyprlauncher",
         "type": "github"
       }
