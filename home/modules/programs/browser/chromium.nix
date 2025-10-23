@@ -2,7 +2,7 @@
   # check chromium-nixos.nix
   programs.chromium = {
     enable = true;
-    package = pkgs.ungoogled-chromium;
+    package = pkgs.chromium;
     commandLineArgs = [
       "--new-window"
       "https://protect-ue.ismartlife.me/playback"
