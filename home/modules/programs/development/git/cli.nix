@@ -12,8 +12,6 @@
       signer = "${pkgs.gnupg}/bin/gpg2";
     };
 
-    userName = user.fullName;
-    userEmail = user.gitEmail;
     ignores = [
       "**/.cache/"
       "**/.idea/"
@@ -24,7 +22,17 @@
       "**/result-*"
     ];
 
-    extraConfig = {
+    settings = {
+      user = {
+        name = user.fullName;
+        email = user.gitEmail;
+      };
+
+      alias = {
+        undo = "reset --soft HEAD^";
+        amend = "commit --amend";
+      };
+
       core = {
         editor = "nano -w";
         whitespace = "trailing-space,space-before-tab";
@@ -48,11 +56,6 @@
       rebase.autoStash = true;
       pull.rebase = true;
       fetch.prune = true;
-    };
-
-    aliases = {
-      undo = "reset --soft HEAD^";
-      amend = "commit --amend";
     };
   };
 }
