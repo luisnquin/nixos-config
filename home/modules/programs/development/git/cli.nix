@@ -1,6 +1,7 @@
 {
   pkgs,
   user,
+  lib,
   ...
 }: {
   programs.git = {
@@ -9,7 +10,7 @@
     signing = {
       signByDefault = true;
       key = null; # letting GnuPG to decide what signing key to use depending on commit's author
-      signer = "${pkgs.gnupg}/bin/gpg2";
+      signer = lib.getExe pkgs.gnupg;
     };
 
     ignores = [
