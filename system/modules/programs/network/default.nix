@@ -8,17 +8,7 @@
   ];
 
   networking = {
-    networkmanager = {
-      enable = true;
-      unmanaged = ["wlp0s20f0u2"];
-    };
-    wlanInterfaces = {
-      wlp0s20f0u2 = {
-        device = "wlp0s20f0u2";
-        type = "monitor";
-        flags = "control";
-      };
-    };
+    networkmanager.enable = true;
     firewall = let
       ports = [5900 8081];
     in {
