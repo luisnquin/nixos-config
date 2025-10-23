@@ -47,6 +47,8 @@
         jnoortheen.nix-ide
         bbenoist.nix
 
+        kilocode.kilo-code
+
         # OCaml
         ocamllabs.ocaml-platform
 
