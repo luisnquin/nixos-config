@@ -11,7 +11,6 @@ in {
   home.packages = with pkgs; [
     (inputs.zeroxgen.defaultPackage.${system})
 
-    nodePackages.firebase-tools
     nodePackages_latest.cspell
     license-generator
     # onlyoffice-bin
