@@ -98,6 +98,7 @@
         "firefox-extension@steamdb.info" = "steam-database";
         "@searchengineadremover" = "searchengineadremover";
         "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
+        "trackmenot@mrl.nyu.edu" = "trackmenot";
       };
       Preferences = mkLockedAttrs {
         "browser.aboutConfig.showWarning" = false;
