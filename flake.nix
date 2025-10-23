@@ -287,6 +287,7 @@
       nixosModules = [
         inputs.disko.nixosModules.default
         inputs.flake-programs-sqlite.nixosModules.programs-sqlite
+        inputs.home-manager.nixosModules.default
         (import ./secrets {
           inherit (inputs) agenix;
           inherit system;

@@ -13,6 +13,8 @@
     ./disko-config.nix
   ];
 
+  home-manager.useGlobalPkgs = true;
+
   hardware = {
     enableRedistributableFirmware = true;
     cpu.intel.updateMicrocode = true;
