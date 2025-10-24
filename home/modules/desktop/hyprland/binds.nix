@@ -128,10 +128,6 @@
     }
     {
       "mod+key" = "${mainMod}, Q";
-      "dispatcher" = "exec, ${lib.getExe pkgs.rofi} -show drun";
-    }
-    {
-      "mod+key" = "${mainMod}, W";
       "dispatcher" = "exec, ${lib.getExe inputs.hyprlauncher.packages.${system}.default}";
     }
     {
