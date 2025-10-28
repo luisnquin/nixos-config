@@ -21,6 +21,7 @@
         "ddkjiahejlhfcafbddmgiahcphecmpfh" # uBlock Origin Lite
         "dffbjiomnajbmlhjelpipfldgkijdemn" # URL Cleaner
         "ldpochfccmkkmhdbclfhpagapcfdljkj" # Decentraleyes
+        "mefhakmgclhhfbdadeojlkbllmecialg" # Tabby Cat
       ];
     in
       builtins.map (id: {inherit id;}) ids;
