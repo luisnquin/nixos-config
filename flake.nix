@@ -216,7 +216,7 @@
       };
     };
     ghostty = {
-      url = "github:ghostty-org/ghostty?ref=v1.2.2";
+      url = "github:ghostty-org/ghostty?ref=tip";
       inputs = {
         flake-compat.follows = "flake-compat";
         flake-utils.follows = "flake-utils";
