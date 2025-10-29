@@ -20,6 +20,10 @@
 
       background-opacity = "0.8";
 
+      notify-on-command-finish = "always";
+      notify-on-command-finish-action = "bell";
+      notify-on-command-finish-after = "5s";
+
       link-url = "true";
 
       working-directory = "home";
