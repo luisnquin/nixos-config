@@ -1,43 +1,60 @@
 {pkgs, ...}: let
-  betaflight-configurator = pkgs.stdenv.mkDerivation rec {
-    pname = "betaflight-configurator-app";
-    version = "unreleased";
+  mkChromeApp = {
+    pname,
+    appUrl,
+    desktopName,
+    description,
+  }:
+    pkgs.stdenv.mkDerivation rec {
+      inherit pname;
+      version = "unreleased";
 
-    dontUnpack = true;
-    nativeBuildInputs = [pkgs.copyDesktopItems];
+      dontUnpack = true;
+      nativeBuildInputs = [pkgs.copyDesktopItems];
 
-    desktopItems = [
-      (pkgs.makeDesktopItem {
-        name = pname;
-        desktopName = "Betaflight Configurator";
-        comment = "Launch Betaflight Configurator in Chromium";
-        exec = pname;
-        icon = "chromium"; # TODO: use official icon
-        categories = ["Network" "Utility"];
-        startupNotify = true;
-      })
-    ];
+      desktopItems = [
+        (pkgs.makeDesktopItem {
+          name = pname;
+          inherit desktopName;
+          comment = description;
+          exec = pname;
+          icon = "chromium"; # TODO: use official icon
+          categories = ["Network" "Utility"];
+          startupNotify = true;
+        })
+      ];
 
-    installPhase = ''
-      runHook preInstall
+      installPhase = ''
+        runHook preInstall
 
-      mkdir -p $out/bin
+        mkdir -p $out/bin
 
-      # The executable wrapper
-      cat > $out/bin/${pname} <<EOF
-      #!/bin/sh
-      exec ${pkgs.lib.getExe pkgs.chromium} --no-first-run --app=https://app.betaflight.com "\$@"
-      EOF
-      chmod +x $out/bin/${pname}
+        # The executable wrapper
+        cat > $out/bin/${pname} <<EOF
+        #!/bin/sh
+        exec ${pkgs.lib.getExe pkgs.chromium} --no-first-run --app=${appUrl} "\$@"
+        EOF
+        chmod +x $out/bin/${pname}
 
-      runHook postInstall
-    '';
+        runHook postInstall
+      '';
 
-    meta.description = "A wrapper to open Betaflight Configurator web app in Chromium";
-  };
+      meta = {inherit description;};
+    };
 in {
   home.packages = [
-    betaflight-configurator
+    (mkChromeApp {
+      pname = "betaflight-configurator-app";
+      appUrl = "https://app.betaflight.com";
+      desktopName = "Betaflight Configurator";
+      description = "A wrapper to open Betaflight Configurator web app in Chromium";
+    })
+    (mkChromeApp {
+      pname = "esc-configurator-app";
+      appUrl = "https://esc-configurator.com/";
+      desktopName = "ESC Configurator";
+      description = "A wrapper to open EmuFlight Configurator web app in Chromium";
+    })
     pkgs.express-lrs-configurator
     pkgs.inav-configurator
     pkgs.mission-planner
