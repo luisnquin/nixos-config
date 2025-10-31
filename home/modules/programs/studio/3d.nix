@@ -21,6 +21,16 @@
     ))
   ];
 
+  xdg.mimeApps = let
+    associations = builtins.listToAttrs (map (name: {
+      inherit name;
+      value = "fstl.desktop";
+    }) ["model/stl" "application/sla"]);
+  in {
+    associations.added = associations;
+    defaultApplications = associations;
+  };
+
   services.flatpak.packages = [
     {
       appId = "com.bambulab.BambuStudio";
