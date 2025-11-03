@@ -7,6 +7,7 @@
 
     ./color-picker.nix
     ./gsimplecal.nix
+    ./hyprlauncher.nix
     ./gtk.nix
     ./mako.nix
     ./mouse.nix
