@@ -234,6 +234,11 @@
           container = containers."Shopping".id;
           position = 1002;
         };
+        "Big Big Big Problem" = {
+          id = "8ed24375-68d4-4d37-ab7e-b2e121f994c1";
+          icon = "😫";
+          position = 1003;
+        };
       };
 
       search = {
