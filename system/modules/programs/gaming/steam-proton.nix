@@ -5,7 +5,7 @@
 }: {
   environment = {
     systemPackages = [
-      pkgs.protonup # ensure to run it the first time
+      pkgs.protonup-ng # ensure to run it the first time
       pkgs.steam-run
     ];
 
