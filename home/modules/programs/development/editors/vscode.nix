@@ -1,32 +1,6 @@
-{
-  pkgs,
-  system,
-  ...
-}: {
+{pkgs, ...}: {
   programs.vscode = {
     enable = true;
-    package = let
-      version = "1.105.1";
-      throwSystem = throw "Unsupported system: ${system}";
-      plat =
-        {
-          x86_64-linux = "linux-x64";
-          x86_64-darwin = "darwin";
-          aarch64-linux = "linux-arm64";
-          aarch64-darwin = "darwin-arm64";
-          armv7l-linux = "linux-armhf";
-        }
-    .${
-          system
-        } or throwSystem;
-    in
-      pkgs.vscode.overrideAttrs (_oldAttrs: {
-        src = builtins.fetchTarball {
-          url = "https://update.code.visualstudio.com/${version}/${plat}/stable";
-          sha256 = "1xfaplgfn3mvpa4l35gy3b51ihawsq1rr1vs2fi9lz210348nagp";
-        };
-        inherit version;
-      });
     mutableExtensionsDir = true;
 
     profiles.default = {
