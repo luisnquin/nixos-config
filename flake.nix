@@ -4,7 +4,6 @@
   # welcome to my hell ;]
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.05";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
@@ -271,7 +270,6 @@
       isTiling = true;
       isWayland = true;
       pkgs-extra = nixpkgs-extra.packages.${system};
-      pkgs-stable = inputs.nixpkgs-stable.legacyPackages.${system};
 
       inherit inputs system libx;
     };

@@ -1,3 +1,3 @@
-{pkgs-stable, ...}: {
-  environment.systemPackages = [pkgs-stable.rpcs3];
+{pkgs, ...}: {
+  environment.systemPackages = [pkgs.rpcs3];
 }
