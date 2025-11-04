@@ -1,7 +1,7 @@
 args @ {
   pkgs-extra,
-  inputs,
   system,
+  inputs,
   pkgs,
   lib,
   ...

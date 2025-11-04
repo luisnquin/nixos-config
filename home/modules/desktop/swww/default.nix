@@ -1,6 +1,6 @@
 {
-  inputs,
   system,
+  inputs,
   libx,
   ...
 }: {

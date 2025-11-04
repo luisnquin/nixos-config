@@ -1,4 +1,5 @@
 {
+  system,
   inputs,
   pkgs,
   user,
@@ -54,19 +55,20 @@
 
   programs.command-not-found.enable = true;
 
-  environment = {
-    systemPackages = with pkgs; let
-      inherit (inputs.nix-scripts.packages.${system}) nixgrep;
-    in [
+  environment = let
+    nixgrep = inputs.nix-scripts.packages.${system}.nixgrep;
+  in {
+    systemPackages = with pkgs; [
       nix-output-monitor
       nix-prefetch-git
       cached-nix-shell
       deadnix
-      nixgrep
       statix
       nurl
       nil # lsp
       nvd # package diff
+
+      nixgrep
 
       nixpkgs-review
       nixpkgs-lint

@@ -10,10 +10,11 @@ let
       configArgs
       // {
         inherit hmConfig;
+        inherit (pkgs.stdenv.hostPlatform) system;
       };
   in
     nixpkgs.lib.nixosSystem {
-      inherit (pkgs) system;
+      system = pkgs.stdenv.hostPlatform.system;
       inherit specialArgs pkgs;
 
       modules = nixosModules;
@@ -29,6 +30,7 @@ let
     extraSpecialArgs =
       configArgs
       // {
+        system = pkgs.stdenv.hostPlatform.system;
         inherit nixosConfig;
       };
   in
