@@ -280,11 +280,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1704584327,
-        "narHash": "sha256-3dHW5VJt8KMBn+JM5wgn8kn0MpHG1aKDQeBHmDjXbjA=",
+        "lastModified": 1762304454,
+        "narHash": "sha256-7XBXfpnT5F/kVWx2uR9N+OhEmkUwvUzUwzsB+dqwaj8=",
         "owner": "luisnquin",
         "repo": "grub-themes",
-        "rev": "f75e7a16c1b64ffc54bab917346a12570517840a",
+        "rev": "38fe2245e3c5c23cf10bbc1d9e2ed17b2069d389",
         "type": "github"
       },
       "original": {
