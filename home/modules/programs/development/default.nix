@@ -13,7 +13,6 @@
     ./etc.nix
     ./mobile.nix
     ./node.nix
-    ./ocaml.nix
     ./processors.nix
     ./python.nix
     ./rust.nix

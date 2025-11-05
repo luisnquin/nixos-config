@@ -23,9 +23,6 @@
 
         kilocode.kilo-code
 
-        # OCaml
-        ocamllabs.ocaml-platform
-
         # Python
         ms-python.python
 
