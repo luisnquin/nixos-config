@@ -11,7 +11,10 @@ args @ {
   in {
     enable = true;
     settings = {
-      monitor = ",preferred,auto,1,mirror,eDP-1";
+      monitor = [
+        "eDP-1,1920x1080@144,0x0,1"
+        "HDMI-A-1,1920x1080@60,1920x0,1"
+      ];
       env = "XCURSOR_SIZE,24";
 
       general = {
