@@ -217,7 +217,7 @@
       };
     };
     ghostty = {
-      url = "github:ghostty-org/ghostty?ref=tip";
+      url = "github:ghostty-org/ghostty?ref=7071a22cb54ffbbe0b9d46aeec9954f9c25cd69c";
       inputs = {
         flake-compat.follows = "flake-compat";
         flake-utils.follows = "flake-utils";
