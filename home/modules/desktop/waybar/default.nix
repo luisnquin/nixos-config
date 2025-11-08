@@ -20,6 +20,8 @@
         "position" = "top";
         "layer" = "top";
 
+        "output" = ["eDP-1"];
+
         modules-left = [
           "custom/launcher"
           # "user"
