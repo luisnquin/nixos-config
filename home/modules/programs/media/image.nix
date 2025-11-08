@@ -1,42 +1,31 @@
 {pkgs, ...}: let
-  feh = pkgs.feh.overrideAttrs (old: {
-    nativeBuildInputs = old.nativeBuildInputs ++ [pkgs.copyDesktopItems];
+  mkWithDesktopItemWrapper = package: name: desktopName: exec: genericName: {
+    new = package.overrideAttrs (old: {
+      nativeBuildInputs = (old.nativeBuildInputs or []) ++ [pkgs.copyDesktopItems];
 
-    desktopItems = [
-      (pkgs.makeDesktopItem {
-        name = "feh";
-        exec = "feh --bg-scale %f";
-        icon = "feh";
-        desktopName = "feh";
-        genericName = "Image Viewer";
-      })
-    ];
-  });
+      desktopItems = [
+        (pkgs.makeDesktopItem {
+          inherit name desktopName exec genericName;
+        })
+      ];
+    });
+    desktopFileName = desktopName;
+  };
 
-  sxiv = pkgs.sxiv.overrideAttrs (old: {
-    nativeBuildInputs = [pkgs.copyDesktopItems];
-
-    desktopItems = [
-      (pkgs.makeDesktopItem {
-        name = "sxiv (gif)";
-        exec = "sxiv -a";
-        desktopName = "sxiv";
-        genericName = "Gif Viewer";
-      })
-    ];
-  });
+  feh = mkWithDesktopItemWrapper pkgs.feh "feh" "feh" "feh --bg-scale %f" "Image Viewer";
+  sxiv = mkWithDesktopItemWrapper pkgs.sxiv "sxiv (gif)" "svix" "sxiv -a %f" "Gif Viewer";
 in {
   home.packages = [
     pkgs.imagemagick
-    feh
-    sxiv
+    sxiv.new
+    feh.new
   ];
 
   xdg.mimeApps = let
     associations =
       builtins.listToAttrs (map (mimeType: {
           name = mimeType;
-          value = "feh.desktop";
+          value = feh.desktopFileName;
         })
         [
           "image/svg+xml"
@@ -45,7 +34,7 @@ in {
         ])
       // {
         name = "image/gif";
-        value = "sxiv.desktop";
+        value = sxiv.desktopFileName;
       };
   in {
     associations.added = associations;
