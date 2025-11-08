@@ -81,6 +81,10 @@
         Cryptomining = true;
         Fingerprinting = true;
       };
+      SanitizeOnShutdown = {
+        FormData = true;
+        Cache = true;
+      };
       ExtensionSettings = mkExtensionSettings {
         "wappalyzer@crunchlabz.com" = mkExtensionEntry {
           id = "wappalyzer";
