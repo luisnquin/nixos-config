@@ -6,6 +6,10 @@ args @ {
   lib,
   ...
 }: {
+  home.sessionVariables = {
+    GRIMBLAST_HIDE_CURSOR = 0;
+  };
+
   wayland.windowManager.hyprland = let
     mainMod = "SUPER";
   in {
