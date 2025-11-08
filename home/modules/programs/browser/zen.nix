@@ -100,7 +100,7 @@
         "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
         "trackmenot@mrl.nyu.edu" = "trackmenot";
         "{861a3982-bb3b-49c6-bc17-4f50de104da1}" = "custom-user-agent-revived";
-        "sponsorBlocker@ajay.app" = "sponsorblock";
+        "{3579f63b-d8ee-424f-bbb6-6d0ce3285e6a}" = "chameleon-ext";
       };
       Preferences = mkLockedAttrs {
         "browser.aboutConfig.showWarning" = false;
