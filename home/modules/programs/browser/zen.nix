@@ -138,6 +138,7 @@
         "zen.view.compact.hide-toolbar" = true;
         "zen.view.compact.animate-sidebar" = false;
         "zen.welcome-screen.seen" = true;
+        "zen.urlbar.behavior" = "float";
       };
 
       bookmarks = {
