@@ -36,6 +36,7 @@ in {
     redis-cli
     mongosh
     litecli
+    sqlite
     pgcli
     mycli
     sqlc
