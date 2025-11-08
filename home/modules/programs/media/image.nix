@@ -38,7 +38,17 @@ in {
         value = sxiv.desktopFileName;
       };
   in {
-    associations.added = associations;
     defaultApplications = associations;
+
+    associations = {
+      added = associations;
+      removed = {
+        "image/gif" = "chromium-browser.desktop";
+        "image/jpg" = "chromium-browser.desktop";
+        "image/jpeg" = "chromium-browser.desktop";
+        "image/png" = "chromium-browser.desktop";
+        "image/svg+xml" = "chromium-browser.desktop";
+      };
+    };
   };
 }
