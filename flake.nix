@@ -113,13 +113,15 @@
     };
     hyprtoolkit = {
       url = "github:hyprwm/hyprtoolkit";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.systems.follows = "systems";
-      inputs.hyprutils.follows = "hyprutils";
-      inputs.hyprlang.follows = "hyprlang";
-      inputs.aquamarine.follows = "aquamarine";
-      inputs.hyprgraphics.follows = "hyprgraphics";
-      inputs.hyprwayland-scanner.follows = "hyprwayland-scanner";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        hyprutils.follows = "hyprutils";
+        hyprlang.follows = "hyprlang";
+        aquamarine.follows = "aquamarine";
+        hyprgraphics.follows = "hyprgraphics";
+        hyprwayland-scanner.follows = "hyprwayland-scanner";
+      };
     };
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
