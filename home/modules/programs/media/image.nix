@@ -30,6 +30,7 @@ in {
         [
           "image/svg+xml"
           "image/png"
+          "image/jpg"
           "image/jpeg"
         ])
       // {
