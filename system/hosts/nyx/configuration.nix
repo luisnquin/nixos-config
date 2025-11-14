@@ -54,7 +54,14 @@
       echo '  .      .   . .   .   .   . .  +   .    .            +'
       echo
 
-      ${lib.getExe pkgs.genact} --exit-after-time 1s
+      ${lib.getExe pkgs.genact} -s=5 --exit-after-time=1s \
+        -m bootlog \
+        -m cryptomining \
+        -m docker_image_rm \
+        -m download \
+        -m kernel_compile \
+        -m memdump \
+        -m simcity
     '';
   };
 
