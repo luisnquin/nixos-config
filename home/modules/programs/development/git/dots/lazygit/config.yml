@@ -17,9 +17,9 @@ git:
     args: ""
     manualCommit: false
   overrideGpg: false
-  paging:
-    colorArg: always
-    useConfig: false
+  pagers:
+    - colorArg: always
+      useConfig: false
   parseEmoji: false
   skipHookPrefix: WIP
   allBranchesLogCmds:
@@ -114,7 +114,7 @@ keybinding:
     commitChangesWithoutHook: w
     fetch: f
     ignoreFile: i
-    openMergeTool: M
+    openMergeOptions: M
     openStatusFilter: <c-b>
     refreshFiles: r
     stashAllChanges: s
