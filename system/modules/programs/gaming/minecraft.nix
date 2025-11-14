@@ -1,6 +1,4 @@
-{
-  ...
-}: {
+{...}: {
   # environment.systemPackages = [
   #   inputs.prismlauncher.packages.${pkgs.system}.default # jailbreak offline accounts
   # ];
