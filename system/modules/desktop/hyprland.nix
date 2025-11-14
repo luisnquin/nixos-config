@@ -1,7 +1,14 @@
 {pkgs, ...}: {
   environment.pathsToLink = ["/libexec"];
 
-  xdg.portal.extraPortals = [pkgs.xdg-desktop-portal-wlr];
+  xdg.portal = {
+    xdgOpenUsePortal = true;
+    extraPortals = [pkgs.xdg-desktop-portal-wlr pkgs.xdg-desktop-portal-gtk];
+
+    configPackages = [
+      pkgs.xdg-desktop-portal-hyprland
+    ];
+  };
 
   programs = {
     hyprland = {
