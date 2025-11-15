@@ -107,7 +107,7 @@ args @ {
         disable_hyprland_logo = true;
         focus_on_activate = false;
         new_window_takes_over_fullscreen = 1;
-        initial_workspace_tracking = 2;
+        initial_workspace_tracking = 0;
       };
 
       dwindle = {
