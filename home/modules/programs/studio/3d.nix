@@ -22,13 +22,16 @@
   ];
 
   xdg.mimeApps = let
-    associations = builtins.listToAttrs (map (name: {
-      inherit name;
-      value = "fstl.desktop";
-    }) ["model/stl" "application/sla"]);
+    associationsFor = value:
+      builtins.listToAttrs (map (name: {
+        inherit name value;
+      }) ["model/stl" "application/sla"]);
   in {
-    associations.added = associations;
-    defaultApplications = associations;
+    associations = {
+      added = associationsFor "fstl.desktop";
+      removed = associationsFor "OrcaSlicer.desktop" // associationsFor "com.bambulab.BambuStudio.desktop";
+    };
+    defaultApplications = associationsFor "fstl.desktop";
   };
 
   services.flatpak.packages = [
