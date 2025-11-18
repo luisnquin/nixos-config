@@ -28,6 +28,11 @@
       "StickyKeysEnabled" = false;
       "DeviceAllowNewUsers" = false;
 
+      "RestoreOnStartup" = 5;
+      "RestoreOnStartupURLs" = [
+        "https://protect-ue.ismartlife.me/playback"
+      ];
+
       "BrowsingDataLifetime" = [
         {
           "data_types" = [
