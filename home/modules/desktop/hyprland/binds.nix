@@ -108,7 +108,7 @@
     }
     {
       "mod+key" = ",Print";
-      "dispatcher" = "exec, ${lib.getExe grimblast} --notify copy screen";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprshot} -m output --clipboard-only";
     }
     {
       "mod+key" = ",XF86MonBrightnessDown";
