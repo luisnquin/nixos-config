@@ -2,10 +2,6 @@ name: Deadnix
 
 on: [push, pull_request]
 
-env:
-  committer_name: Antigen
-  committer_email: antigen.bot0@gmail.com
-
 jobs:
   deadnix-job:
     runs-on: ubuntu-latest
@@ -24,6 +20,4 @@ jobs:
       - name: Run deadnix and publish changes if any
         uses: luisnquin/deadnix-action@main
         with:
-          author: ${{env.committer_name}} <${{env.committer_email}}>
-          committer: ${{env.committer_name}} <${{env.committer_email}}>
           commit_message: "deadnix: remove dead code"
