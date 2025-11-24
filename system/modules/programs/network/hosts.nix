@@ -4,12 +4,12 @@
       "www.instagram.com"
       "instagram.com"
 
-      # "web.facebook.com"
-      # "www.facebook.com"
-      # "m.facebook.com"
-      # "facebook.com"
-      # "www.fb.com"
-      # "fb.com"
+      "web.facebook.com"
+      "www.facebook.com"
+      "m.facebook.com"
+      "facebook.com"
+      "www.fb.com"
+      "fb.com"
 
       "www.pinterest.es"
 
