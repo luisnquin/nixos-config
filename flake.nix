@@ -19,8 +19,8 @@
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
-    flake-parts.url = "github:hercules-ci/flake-parts";
 
+    # we have this like it couldn't be exposed via builtins.systems
     systems.url = "github:nix-systems/default-linux";
     nix-nostd.url = "github:chessai/nix-std";
 
@@ -121,6 +121,7 @@
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # The hyprshit family
     hyprland = {
       url = "https://github.com/hyprwm/Hyprland";
       inputs = {
@@ -173,18 +174,9 @@
       url = "github:0xc000022070/0xgen";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    poetry2nix = {
-      url = "github:nix-community/poetry2nix";
-      inputs = {
-        treefmt-nix.follows = "";
-        flake-utils.follows = "flake-utils";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
     nix-scripts = {
       url = "github:0xc000022070/nix-scripts";
       inputs = {
-        poetry2nix.follows = "poetry2nix";
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
@@ -222,17 +214,16 @@
       url = "github:kaylorben/nixcord";
       inputs = {
         flake-compat.follows = "";
-        flake-parts.follows = "flake-parts";
         nixpkgs.follows = "nixpkgs";
       };
     };
+    # Am I a sinner for having this crap in my PURE system?
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
   };
 
   outputs = inputs @ {
     nixpkgs-extra,
     home-manager,
-    nix-nostd,
     nixpkgs,
     ...
   }: let
@@ -254,11 +245,9 @@
     in
       default;
 
-    libx =
-      nix-nostd.lib
-      // import ./lib {
-        inherit pkgs;
-      };
+    libx = import ./lib {
+      inherit pkgs;
+    };
 
     metadata = libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
