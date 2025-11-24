@@ -70,12 +70,6 @@
         systems.follows = "systems";
       };
     };
-    flake-compat = {
-      type = "github";
-      owner = "edolstra";
-      repo = "flake-compat";
-      flake = false;
-    };
     hyprwayland-scanner = {
       url = "github:hyprwm/hyprwayland-scanner";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -219,7 +213,7 @@
     ghostty = {
       url = "github:ghostty-org/ghostty?ref=7071a22cb54ffbbe0b9d46aeec9954f9c25cd69c";
       inputs = {
-        flake-compat.follows = "flake-compat";
+        flake-compat.follows = "";
         flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
       };
@@ -227,7 +221,7 @@
     nixcord = {
       url = "github:kaylorben/nixcord";
       inputs = {
-        flake-compat.follows = "flake-compat";
+        flake-compat.follows = "";
         flake-parts.follows = "flake-parts";
         nixpkgs.follows = "nixpkgs";
       };
