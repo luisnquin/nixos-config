@@ -108,7 +108,14 @@
     }
     {
       "mod+key" = ",Print";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprshot} -m output --clipboard-only";
+      "dispatcher" = (
+        let
+          askTargetCmd = "${lib.getExe pkgs.hyprshot} -m output --clipboard-only";
+          allTargetsCmd = "${lib.getExe grimblast} --notify copy screen";
+
+          eval = "${pkgs.hyprland}/bin/hyprctl monitors all -j | ${lib.getExe pkgs.jq} \". | length\"";
+        in "exec, bash -c 'if [ \"$(${eval})\" -eq 1 ]; then ${allTargetsCmd}; else ${askTargetCmd}; fi'"
+      );
     }
     {
       "mod+key" = ",XF86MonBrightnessDown";
