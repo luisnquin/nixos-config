@@ -123,7 +123,8 @@
     };
     # The hyprshit family
     hyprland = {
-      url = "https://github.com/hyprwm/Hyprland";
+      url = "https://github.com/hyprwm/Hyprland.git";
+      rev = "40d8fa84919c6d0e9fcb1536f4bc09710d4c031c";
       inputs = {
         pre-commit-hooks.follows = "";
         nixpkgs.follows = "nixpkgs";
