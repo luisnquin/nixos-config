@@ -54,7 +54,6 @@
       "tracking.telegram.org"
 
       "otelcol.discord.com"
-      "click.discord.com"
       "seo.discord.com"
       "crawl-35-227-62-178.ptr.discord.com"
       "crawl-35-196-132-85.ptr.discord.com"
