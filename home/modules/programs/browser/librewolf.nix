@@ -1,6 +1,6 @@
 {
   programs.librewolf = {
-    enable = true;
+    enable = false;
     settings = {
       "beacon.enabled" = false;
       "browser.startup.page" = 3;
