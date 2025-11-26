@@ -25,10 +25,10 @@
   # $ sudo scanimage -d epson2:libusb:*:* --format=jpeg --resolution 300 --mode Color > output.jpg
   environment.systemPackages = with pkgs; [xsane simple-scan];
 
-  services.saned.enable = true;
+  # services.saned.enable = true;
 
-  hardware.sane = {
-    enable = true;
-    extraBackends = [pkgs.epkowa];
-  };
+  # hardware.sane = {
+  #   enable = true;
+  #   extraBackends = [pkgs.epkowa];
+  # };
 }
