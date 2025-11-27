@@ -32,18 +32,12 @@ args @ {
         "col.inactive_border" = "rgba(595959aa)";
 
         windowrule = [
-          "opacity 1.0 override 1.0 override,class:Emulator"
-        ];
-
-        windowrulev2 = [
-          "float, title:^(Android Emulator -)"
-          "float, title:^(Emulator)$"
-          "float,center, class:^(ghostty.hyprdrop)$"
-          "size 1280 720, class:^(ghostty.hyprdrop)$"
-          "float,center, class:^(waybar.nmtui)$"
-          "size 1050 720, class:^(waybar.nmtui)$"
-          "float,center, class:^(waybar.btop)$"
-          "size 1280 720, class:^(waybar.btop)$"
+          "match:class ^(Emulator)$, opacity 1.0 override 1.0 override 1.0 override"
+          "match:title ^(Android Emulator -) float"
+          "match:title ^(Emulator)$ float"
+          "match:class ^(ghostty\.hyprdrop)$, float center size 1280 720"
+          "match:class ^(waybar\.nmtui)$, float center size 1050 720"
+          "match:class ^(waybar\.btop)$, float center size 1280 720"
         ];
       };
 
@@ -106,7 +100,7 @@ args @ {
         disable_autoreload = true;
         disable_hyprland_logo = true;
         focus_on_activate = false;
-        new_window_takes_over_fullscreen = 1;
+        # new_window_takes_over_fullscreen = 1;
         initial_workspace_tracking = 0;
       };
 
