@@ -33,11 +33,11 @@ args @ {
 
         windowrule = [
           "match:class ^(Emulator)$, opacity 1.0 override 1.0 override 1.0 override"
-          "match:title ^(Android Emulator -) float"
-          "match:title ^(Emulator)$ float"
-          "match:class ^(ghostty\.hyprdrop)$, float center size 1280 720"
-          "match:class ^(waybar\.nmtui)$, float center size 1050 720"
-          "match:class ^(waybar\.btop)$, float center size 1280 720"
+          "match:title ^(Android Emulator -) float on"
+          "match:title ^(Emulator)$ float on"
+          "match:class ^(ghostty\.hyprdrop)$, float on center size 1280 720"
+          "match:class ^(waybar\.nmtui)$, float on center size 1050 720"
+          "match:class ^(waybar\.btop)$, float on center size 1280 720"
         ];
       };
 
