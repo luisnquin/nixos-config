@@ -35,9 +35,9 @@ args @ {
           "match:class ^(Emulator)$, opacity 1.0 override 1.0 override 1.0 override"
           "match:title ^(Android Emulator -) float on"
           "match:title ^(Emulator)$ float on"
-          "match:class ^(ghostty\.hyprdrop)$, float on center size 1280 720"
-          "match:class ^(waybar\.nmtui)$, float on center size 1050 720"
-          "match:class ^(waybar\.btop)$, float on center size 1280 720"
+          "match:class ^(ghostty.hyprdrop)$, float on, size 1280 720, center on"
+          "match:class ^(waybar.nmtui)$, float on, size 1050 720, center on"
+          "match:class ^(waybar.btop)$, float on, size 1280 720, center on"
         ];
       };
 
