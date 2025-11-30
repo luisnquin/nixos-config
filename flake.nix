@@ -56,6 +56,13 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    black-terminal = {
+      url = "github:luisnquin/black-terminal";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
     nao = {
       url = "github:luisnquin/nao";
       inputs = {
@@ -202,18 +209,18 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    nixcord = {
+      url = "github:kaylorben/nixcord";
+      inputs = {
+        flake-compat.follows = "";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
     ghostty = {
       url = "github:ghostty-org/ghostty?ref=7071a22cb54ffbbe0b9d46aeec9954f9c25cd69c";
       inputs = {
         flake-compat.follows = "";
         flake-utils.follows = "flake-utils";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
-    nixcord = {
-      url = "github:kaylorben/nixcord";
-      inputs = {
-        flake-compat.follows = "";
         nixpkgs.follows = "nixpkgs";
       };
     };
@@ -285,6 +292,7 @@
         inputs.nao.homeManagerModules.default
         inputs.nixcord.homeModules.nixcord
         inputs.encore.homeModules.default
+        inputs.black-terminal.homeModules.default
         ./home/options
       ];
     };

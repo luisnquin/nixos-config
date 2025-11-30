@@ -79,6 +79,26 @@
         "type": "github"
       }
     },
+    "black-terminal": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1764545978,
+        "narHash": "sha256-qy+zY2Av+iNM8ud35mKFGPlUYWSl1ltfE+xLSyBb0lQ=",
+        "owner": "luisnquin",
+        "repo": "black-terminal",
+        "rev": "8d2f2c6477b9a5cff68d4e624b683924f3e4efff",
+        "type": "github"
+      },
+      "original": {
+        "owner": "luisnquin",
+        "repo": "black-terminal",
+        "type": "github"
+      }
+    },
     "bud": {
       "inputs": {
         "flake-utils": [
@@ -1022,6 +1042,7 @@
         "agenix": "agenix",
         "aquamarine": "aquamarine",
         "battery-notifier": "battery-notifier",
+        "black-terminal": "black-terminal",
         "bud": "bud",
         "disko": "disko",
         "encore": "encore",
