@@ -12,6 +12,7 @@
     direnv.enable = true;
     fzf.enable = true;
     macchina.enable = true;
+    starship.enable = true;
     tmux.enable = true;
     zsh.enable = true;
   };

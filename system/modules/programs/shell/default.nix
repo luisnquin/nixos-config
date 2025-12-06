@@ -5,7 +5,6 @@
 }: {
   shared = {
     aliases.enable = true;
-    starship.enable = true;
     zsh.enable = true;
   };
 
