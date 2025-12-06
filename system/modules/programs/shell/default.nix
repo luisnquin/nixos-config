@@ -3,11 +3,11 @@
   host,
   ...
 }: {
-  imports = [
-    ./starship.nix
-    ./aliases.nix
-    ./zsh.nix
-  ];
+  shared = {
+    aliases.enable = true;
+    starship.enable = true;
+    zsh.enable = true;
+  };
 
   console = {
     font = "Lat2-Terminus16";
