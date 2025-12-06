@@ -1,11 +1,19 @@
-{
+{user, ...}: {
   imports = [
     ./terminal.nix
-    ./aliases.nix
     ./jujutsu.nix
-    ./lazygit.nix
     ./github.nix
-    ./cli.nix
     ./etc.nix
   ];
+
+  shared = {
+    git = {
+      enable = true;
+      user = {
+        name = user.fullName;
+        email = user.gitEmail;
+      };
+    };
+    lazygit.enable = true;
+  };
 }
