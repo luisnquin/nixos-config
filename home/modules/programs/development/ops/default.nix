@@ -3,7 +3,7 @@
     ./terraform.nix
     ./tools.nix
     ./k8s.nix
-    ./gdk.nix
+    # ./gdk.nix
     ./aws.nix
   ];
 }
