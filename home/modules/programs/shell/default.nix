@@ -14,6 +14,7 @@
     macchina.enable = true;
     starship.enable = true;
     tmux.enable = true;
+    zoxide.enable = true;
     zsh.enable = true;
   };
 
