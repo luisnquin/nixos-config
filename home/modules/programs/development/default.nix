@@ -16,7 +16,6 @@
     ./processors.nix
     ./python.nix
     ./rust.nix
-    ./uav.nix
     ./zig.nix
   ];
 }
