@@ -142,7 +142,7 @@
         spotifyCrack.enable = true;
         spotifyShareCommands.enable = true;
         startupTimings.enable = true;
-        streamerModeOnStream.enable = true;
+        streamerModeOnStream.enable = false;
         themeAttributes.enable = true;
         translate.enable = true;
         typingIndicator.enable = true;
