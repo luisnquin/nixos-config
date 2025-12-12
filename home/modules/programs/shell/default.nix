@@ -10,6 +10,7 @@
     bat.enable = true;
     btop.enable = true;
     direnv.enable = true;
+    eza.enable = true;
     fzf.enable = true;
     macchina.enable = true;
     starship.enable = true;
