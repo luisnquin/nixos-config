@@ -56,10 +56,7 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    black-terminal = {
-      url = "github:luisnquin/black-terminal";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    black-terminal.url = "github:luisnquin/black-terminal";
     nao = {
       url = "github:luisnquin/nao";
       inputs = {

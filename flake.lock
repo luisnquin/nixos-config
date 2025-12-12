@@ -80,17 +80,12 @@
       }
     },
     "black-terminal": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
       "locked": {
-        "lastModified": 1765119320,
-        "narHash": "sha256-G6iS/SFmXusmqaScfBqxkqydzwIehR5VUc3xBcxycwg=",
+        "lastModified": 1765549308,
+        "narHash": "sha256-ichq6kILLUW4M9H+TXuWdB/HFaKF8ct+9sVNKn0DF/s=",
         "owner": "luisnquin",
         "repo": "black-terminal",
-        "rev": "7308c6c71bd879d841370f426a016907a5b8d90b",
+        "rev": "268010cba776285cbfbf5707b7999a041bcffd94",
         "type": "github"
       },
       "original": {
