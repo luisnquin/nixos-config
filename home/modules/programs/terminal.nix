@@ -1,12 +1,9 @@
 {
   inputs,
   system,
+  pkgs,
   ...
 }: {
-  home.sessionPath = [
-    "$HOME/.local/bin"
-  ];
-
   shared = {
     alacritty.enable = true;
     ghostty = {
@@ -15,6 +12,18 @@
       settings = {
         font-size = "10.8";
       };
+    };
+  };
+
+  home = {
+    sessionPath = [
+      "$HOME/.local/bin"
+    ];
+
+    packages = [pkgs.magic-wormhole];
+
+    shellAliases = {
+      mw = "magic-wormhole";
     };
   };
 }
