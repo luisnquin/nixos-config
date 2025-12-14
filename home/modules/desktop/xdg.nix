@@ -29,7 +29,6 @@
       associations = {
         "inode/directory" = dolphin;
         "x-scheme-handler/geo" = "wheelmap-geo-handler.desktop";
-        "x-scheme-handler/slack" = "slack.desktop";
 
         "application/pdf" = zathura;
 
