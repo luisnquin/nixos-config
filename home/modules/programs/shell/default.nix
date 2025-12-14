@@ -13,6 +13,7 @@
     eza.enable = true;
     fzf.enable = true;
     macchina.enable = true;
+    magic-wormhole.enable = true;
     starship.enable = true;
     tmux.enable = true;
     zoxide.enable = true;

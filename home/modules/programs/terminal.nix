@@ -1,7 +1,6 @@
 {
   inputs,
   system,
-  pkgs,
   ...
 }: {
   shared = {
@@ -19,11 +18,5 @@
     sessionPath = [
       "$HOME/.local/bin"
     ];
-
-    packages = [pkgs.magic-wormhole];
-
-    shellAliases = {
-      mw = "magic-wormhole";
-    };
   };
 }
