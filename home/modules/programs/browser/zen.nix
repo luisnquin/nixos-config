@@ -189,6 +189,12 @@
           position = 103;
           isEssential = true;
         };
+        "PairDrop" = {
+          id = "c70a0cd7-6ee8-470f-85c6-85a73a7a6196";
+          url = "https://pairdrop.net/";
+          position = 104;
+          isEssential = true;
+        };
       };
 
       containersForce = true;
