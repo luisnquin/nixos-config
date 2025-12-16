@@ -3,7 +3,13 @@
 
   programs.nixcord = {
     enable = true;
-    discord.enable = true;
+
+    discord = {
+      enable = true;
+      equicord.enable = true;
+      vencord.enable = false;
+    };
+
     vesktop.enable = false;
 
     config = {
@@ -26,18 +32,18 @@
         betterSettings.enable = true;
         betterUploadButton.enable = true;
         biggerStreamPreview.enable = true;
-        blurNSFW.enable = true;
+        blurNsfw.enable = true;
         callTimer = {
           enable = true;
           format = "human";
         };
-        clearURLs.enable = true;
+        clearUrLs.enable = true;
         colorSighted.enable = true;
         consoleJanitor.enable = true;
         consoleShortcuts.enable = true;
         copyEmojiMarkdown.enable = true;
         copyFileContents.enable = true;
-        copyUserURLs.enable = true;
+        copyUserUrLs.enable = true;
         customRPC = {
           enable = false; # TODO
         };
@@ -93,7 +99,7 @@
         mutualGroupDMs.enable = true;
         newGuildSettings = {
           enable = true;
-          messages = "only@Mentions";
+          messages = 1; # Only @mentions
           role = false;
         };
         noBlockedMessages.enable = true;
@@ -132,13 +138,13 @@
         showConnections.enable = true;
         showHiddenChannels = {
           enable = true;
-          showMode = "muted";
+          showMode = 1; # Muted
         };
         showHiddenThings.enable = true;
         showTimeoutDuration.enable = true;
         silentMessageToggle.enable = true;
         sortFriendRequests.enable = true;
-        spotifyControls.enable = true;
+        # spotifyControls.enable = true;
         spotifyCrack.enable = true;
         spotifyShareCommands.enable = true;
         startupTimings.enable = true;
@@ -154,7 +160,7 @@
         validReply.enable = true;
         validUser.enable = true;
         voiceChatDoubleClick.enable = true;
-        vencordToolbox.enable = true;
+        # vencordToolbox.enable = true;r
         viewIcons.enable = true;
         viewRaw.enable = true;
         voiceDownload.enable = true;
