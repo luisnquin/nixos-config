@@ -7,7 +7,6 @@
     ./programs/development
     ./programs/media
     ./programs/office.nix
-    ./programs/finance.nix
     ./programs/package-managers
     ./programs/security
     ./programs/shell
