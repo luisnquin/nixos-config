@@ -326,6 +326,22 @@
             icon = nixSnowflakeIcon;
             definedAliases = ["hmop"];
           };
+
+          "Google Maps" = {
+            urls = [
+              {
+                template = "http://maps.google.com";
+                params = [
+                  {
+                    name = "q";
+                    value = "{searchTerms}";
+                  }
+                ];
+              }
+            ];
+            definedAliases = ["maps" "gmaps"];
+          };
+
           bing.metaData.hidden = "true";
         };
       };
