@@ -282,7 +282,7 @@
               }
             ];
             icon = nixSnowflakeIcon;
-            definedAliases = ["np"];
+            definedAliases = ["pkgs"];
           };
           "Nix Options" = {
             urls = [
