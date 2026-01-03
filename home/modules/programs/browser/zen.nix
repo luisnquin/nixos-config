@@ -1,6 +1,7 @@
 {
   inputs,
   config,
+  libx,
   pkgs,
   ...
 }: {
@@ -150,19 +151,18 @@
         force = true;
         settings = [
           {
-            name = "Nix sites";
-            toolbar = true;
-            bookmarks = [
-              {
-                name = "homepage";
-                url = "https://nixos.org/";
-              }
-              {
-                name = "wiki";
-                tags = ["wiki" "nix"];
-                url = "https://wiki.nixos.org/";
-              }
-            ];
+            name = "encore";
+            tags = ["encore" "k9"];
+            keyword = "encore";
+            url = libx.base64.decode "aHR0cHM6Ly9hcHAuZW5jb3JlLmNsb3VkL2dhdGUtazktbXpuaQo=";
+          }
+          {
+            name = "kernel.org";
+            url = "https://www.kernel.org";
+          }
+          {
+            name = "orders";
+            url = "https://www.aliexpress.com/p/order/index.html";
           }
         ];
       };
