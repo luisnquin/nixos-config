@@ -49,7 +49,7 @@
         jnoortheen.nix-ide
         bbenoist.nix
 
-        kilocode.kilo-code
+        # kilocode.kilo-code
 
         # Python
         ms-python.python
