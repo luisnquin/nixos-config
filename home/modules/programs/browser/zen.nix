@@ -337,6 +337,25 @@
             definedAliases = ["maps" "gmaps"];
           };
 
+          "DuckDuckGo" = {
+            urls = [
+              {
+                template = "https://duckduckgo.com";
+                params = [
+                  {
+                    name = "q";
+                    value = "{searchTerms}";
+                  }
+                  {
+                    name = "origin";
+                    value = "your_ass";
+                  }
+                ];
+              }
+            ];
+            definedAliases = ["duck" "ddg" "dck" "dckk"];
+          };
+
           bing.metaData.hidden = "true";
         };
       };
