@@ -372,6 +372,21 @@
             definedAliases = ["maker" "mw"];
           };
 
+          Printables = {
+            urls = [
+              {
+                template = "https://www.printables.com/search/models";
+                params = [
+                  {
+                    name = "q";
+                    value = "{searchTerms}";
+                  }
+                ];
+              }
+            ];
+            definedAliases = ["pt" "print" "printables"];
+          };
+
           bing.metaData.hidden = "true";
         };
       };
