@@ -38,7 +38,6 @@ in {
     litecli
     sqlite
     pgcli
-    mycli
     sqlc
   ];
 
