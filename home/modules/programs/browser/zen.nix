@@ -357,6 +357,21 @@
             definedAliases = ["duck" "ddg" "dck" "dckk"];
           };
 
+          MakerWorld = {
+            urls = [
+              {
+                template = "https://makerworld.com/en/search/models";
+                params = [
+                  {
+                    name = "keyword";
+                    value = "{searchTerms}";
+                  }
+                ];
+              }
+            ];
+            definedAliases = ["maker" "mw"];
+          };
+
           bing.metaData.hidden = "true";
         };
       };
