@@ -338,7 +338,7 @@
             definedAliases = ["maps" "gmaps"];
           };
 
-          "DuckDuckGo" = {
+          "ddg" = {
             urls = [
               {
                 template = "https://duckduckgo.com";
