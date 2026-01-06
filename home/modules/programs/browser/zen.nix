@@ -164,6 +164,14 @@
             name = "orders";
             url = "https://www.aliexpress.com/p/order/index.html";
           }
+          {
+            name = "s3";
+            url = "https://sa-east-1.console.aws.amazon.com/s3/buckets?region=sa-east-1";
+          }
+          {
+            name = "iam";
+            url = "https://us-east-1.console.aws.amazon.com/iam/home?region=sa-east-1";
+          }
         ];
       };
 
