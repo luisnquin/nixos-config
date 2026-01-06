@@ -16,12 +16,11 @@
       stu
     ];
 
-    # sessionVariables = rec {
-    #   # default profiles are very ambiguous
-    #   AWS_DEFAULT_PROFILE = "personal";
-    #   AWS_PROFILE = AWS_DEFAULT_PROFILE;
-    #   AWS_REGION = "sa-east-1";
-    # };
+    sessionVariables = rec {
+      AWS_DEFAULT_PROFILE = "default";
+      AWS_PROFILE = AWS_DEFAULT_PROFILE;
+      AWS_REGION = "sa-east-1";
+    };
 
     file = let
       inherit (config.home) homeDirectory;
