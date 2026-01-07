@@ -37,14 +37,12 @@
       min-free-check-interval = 30;
       # https://nix.dev/recipes/faq#what-to-do-if-a-binary-cache-is-down-or-unreachable
       trusted-public-keys = [
-        "nix-gaming.cachix.org-1:nbjlureqMbRAxR1gJ/f3hxemL9svXaZF/Ees8vCUUs4="
         "ghostty.cachix.org-1:QB389yTa6gTyneehvqG58y0WnHjQOqgnA+wBnpWWxns="
       ];
       trusted-substituters = [
         "https://cache.nixos.org"
       ];
       substituters = [
-        "https://nix-gaming.cachix.org"
         "https://ghostty.cachix.org"
         "https://cache.nixos.org"
       ];
