@@ -60,6 +60,24 @@
 
       "DnsOverHttpsMode" = "secure";
       "DnsOverHttpsTemplates" = "https://cloudflare-dns.com/dns-query";
+
+      "ManagedBookmarks" = [
+        {
+          "toplevel_name" = "Absent friends";
+        }
+        {
+          "name" = "ESC Configurator";
+          "url" = "esc-configurator.com";
+        }
+        {
+          "name" = "EdgeTX Buddy";
+          "url" = "buddy.edgetx.org";
+        }
+        {
+          "name" = "Betaflight Configurator";
+          "url" = "app.betaflight.com";
+        }
+      ];
     };
   };
 }
