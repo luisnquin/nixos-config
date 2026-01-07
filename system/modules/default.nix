@@ -8,7 +8,7 @@
     ./programs/gaming
     # ./programs/llm.nix
     ./programs/network
-    ./programs/package-managers
+    ./programs/pms
     ./programs/peripherals
     ./programs/security
     ./programs/shell
