@@ -29,23 +29,23 @@
       "DeviceAllowNewUsers" = false;
 
       "RestoreOnStartup" = 5;
-      "RestoreOnStartupURLs" = [
-        "https://protect-ue.ismartlife.me/playback"
-      ];
+      # "RestoreOnStartupURLs" = [
+      #   "https://protect-ue.ismartlife.me/playback"
+      # ];
 
       "BrowsingDataLifetime" = [
         {
           "data_types" = [
             "browsing_history"
           ];
-          "time_to_live_in_hours" = 24 / 2;
+          "time_to_live_in_hours" = 1;
         }
         {
           "data_types" = [
             "password_signin"
             "autofill"
           ];
-          "time_to_live_in_hours" = 2;
+          "time_to_live_in_hours" = 1;
         }
       ];
 

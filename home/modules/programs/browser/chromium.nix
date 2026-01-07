@@ -14,6 +14,7 @@
       "--enable-features=AcceleratedVideoDecodeLinuxGL"
       "--enable-parallel-downloading"
       "--password-store=basic"
+      " --disable-session-crashed-bubble"
       "--use-mock-keychain"
     ];
     extensions = let
