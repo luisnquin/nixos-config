@@ -13,6 +13,8 @@
       "--ignore-gpu-blocklist"
       "--enable-features=AcceleratedVideoDecodeLinuxGL"
       "--enable-parallel-downloading"
+      "--password-store=basic"
+      "--use-mock-keychain"
     ];
     extensions = let
       ids = [
