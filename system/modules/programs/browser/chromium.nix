@@ -77,6 +77,15 @@
           "name" = "Betaflight Configurator";
           "url" = "app.betaflight.com";
         }
+        # less waste of time
+        {
+          "name" = "Declaraciones SUNAT";
+          "url" = "https://api-seguridad.sunat.gob.pe/v1/clientessol/03590141-c69c-438c-a36a-8ee2a3ad9747/oauth2/login";
+        }
+        {
+          "name" = "Aduanas";
+          "url" = "https://api-seguridad.sunat.gob.pe/v1/clientessol/59d39217-c025-4de5-b342-393b0f4630ab/oauth2/loginMenuSol";
+        }
       ];
     };
   };
