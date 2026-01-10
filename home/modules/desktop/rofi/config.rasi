@@ -4,7 +4,7 @@ configuration {
   yoffset: 0;
 
   font: "Cascadia Code 10";
-  show-icons: false;
+  show-icons: true;
   case-sensitive: false;
   terminal: "ghostty";
 
