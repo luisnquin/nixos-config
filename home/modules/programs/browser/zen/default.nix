@@ -246,7 +246,7 @@
       keyboardShortcuts = [
         {
           id = "zen-compact-mode-toggle";
-          key = "s";
+          key = "c";
           modifiers.control = true;
           modifiers.alt = true;
         }
