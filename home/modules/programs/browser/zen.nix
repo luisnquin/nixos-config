@@ -401,6 +401,25 @@
           bing.metaData.hidden = "true";
         };
       };
+
+      keyboardShortcutsVersion = 13;
+      keyboardShortcuts = [
+        {
+          id = "zen-compact-mode-toggle";
+          key = "s";
+          modifiers.control = true;
+          modifiers.alt = true;
+        }
+        {
+          id = "key_savePage";
+          key = "s";
+          modifiers.control = true;
+        }
+        {
+          id = "key_quitApplication";
+          disabled = true;
+        }
+      ];
     };
   };
 }
