@@ -1,42 +1,13 @@
 {
   inputs,
-  config,
   libx,
   pkgs,
   ...
 }: {
   imports = [
     inputs.zen-browser.homeModules.beta
+    ./xdg.nix
   ];
-
-  xdg.mimeApps = let
-    associations = builtins.listToAttrs (map (name: {
-        inherit name;
-        value = let
-          zen-browser = config.programs.zen-browser.package;
-        in
-          zen-browser.meta.desktopFileName;
-      }) [
-        "application/x-extension-shtml"
-        "application/x-extension-xhtml"
-        "application/x-extension-html"
-        "application/x-extension-xht"
-        "application/x-extension-htm"
-        "x-scheme-handler/unknown"
-        "x-scheme-handler/mailto"
-        "x-scheme-handler/chrome"
-        "x-scheme-handler/about"
-        "x-scheme-handler/https"
-        "x-scheme-handler/http"
-        "application/xhtml+xml"
-        "application/json"
-        "text/plain"
-        "text/html"
-      ]);
-  in {
-    associations.added = associations;
-    defaultApplications = associations;
-  };
 
   programs.zen-browser = {
     enable = true;
@@ -147,6 +118,10 @@
         "zen.urlbar.behavior" = "float";
       };
 
+      # mods = [
+      #   "c01d3e22-1cee-45c1-a25e-53c0f180eea8" # Ghost Tabs
+      # ];
+
       bookmarks = {
         force = true;
         settings = [
@@ -177,6 +152,8 @@
           }
         ];
       };
+
+      search = import ./search-config.nix {inherit pkgs;};
 
       pinsForce = true;
       pins = {
@@ -262,143 +239,6 @@
           icon = "💸";
           container = containers."Shopping".id;
           position = 1002;
-        };
-      };
-
-      search = {
-        force = true;
-        default = "google";
-        privateDefault = "ddg";
-        engines = let
-          nixSnowflakeIcon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
-        in {
-          "Nix Packages" = {
-            urls = [
-              {
-                template = "https://search.nixos.org/packages";
-                params = [
-                  {
-                    name = "type";
-                    value = "packages";
-                  }
-                  {
-                    name = "channel";
-                    value = "unstable";
-                  }
-                  {
-                    name = "query";
-                    value = "{searchTerms}";
-                  }
-                ];
-              }
-            ];
-            icon = nixSnowflakeIcon;
-            definedAliases = ["pkgs"];
-          };
-          "Nix Options" = {
-            urls = [
-              {
-                template = "https://search.nixos.org/options";
-                params = [
-                  {
-                    name = "channel";
-                    value = "unstable";
-                  }
-                  {
-                    name = "query";
-                    value = "{searchTerms}";
-                  }
-                ];
-              }
-            ];
-            icon = nixSnowflakeIcon;
-            definedAliases = ["nop"];
-          };
-          "Home Manager Options" = {
-            urls = [
-              {
-                template = "https://home-manager-options.extranix.com/";
-                params = [
-                  {
-                    name = "query";
-                    value = "{searchTerms}";
-                  }
-                  {
-                    name = "release";
-                    value = "master"; # unstable
-                  }
-                ];
-              }
-            ];
-            icon = nixSnowflakeIcon;
-            definedAliases = ["hmop"];
-          };
-
-          "Google Maps" = {
-            urls = [
-              {
-                template = "http://maps.google.com";
-                params = [
-                  {
-                    name = "q";
-                    value = "{searchTerms}";
-                  }
-                ];
-              }
-            ];
-            definedAliases = ["maps" "gmaps"];
-          };
-
-          "ddg" = {
-            urls = [
-              {
-                template = "https://duckduckgo.com";
-                params = [
-                  {
-                    name = "q";
-                    value = "{searchTerms}";
-                  }
-                  {
-                    name = "origin";
-                    value = "your_ass";
-                  }
-                ];
-              }
-            ];
-            definedAliases = ["duck" "ddg" "dck" "dckk"];
-          };
-
-          MakerWorld = {
-            urls = [
-              {
-                template = "https://makerworld.com/en/search/models";
-                params = [
-                  {
-                    name = "keyword";
-                    value = "{searchTerms}";
-                  }
-                ];
-              }
-            ];
-            definedAliases = ["maker" "mw"];
-          };
-
-          Printables = {
-            urls = [
-              {
-                template = "https://www.printables.com/search/models";
-                params = [
-                  {
-                    name = "q";
-                    value = "{searchTerms}";
-                  }
-                ];
-              }
-            ];
-            definedAliases = ["pt" "print" "printables"];
-          };
-
-          bing.metaData.hidden = "true";
         };
       };
 
