@@ -1,7 +1,7 @@
 {pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     (lutris.override {
-      extraPkgs = pkgs: [
+      extraPkgs = _pkgs: [
         (wine.override {wineBuild = "wine64";})
       ];
     })
