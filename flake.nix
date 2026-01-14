@@ -207,6 +207,7 @@
       url = "github:ghostty-org/ghostty/tip";
       inputs = {
         flake-compat.follows = "";
+        home-manager.follows = "home-manager";
         flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
       };
