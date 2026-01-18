@@ -146,6 +146,22 @@
       definedAliases = ["pt" "print" "printables"];
     };
 
+    "ChatGPT" = {
+      urls = [
+        {
+          template = "https://chat.openai.com";
+          params = [
+            {
+              name = "q";
+              value = "{searchTerms}";
+            }
+          ];
+        }
+      ];
+      icon = "https://chatgpt.com/cdn/assets/favicon-eex17e9e.ico";
+      definedAliases = ["@gpt" "@chatgpt"];
+    };
+
     bing.metaData.hidden = "true";
   };
 }
