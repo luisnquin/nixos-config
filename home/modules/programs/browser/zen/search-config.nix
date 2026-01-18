@@ -81,7 +81,22 @@
       ];
       definedAliases = ["maps" "gmaps"];
     };
-
+    "StartPage" = {
+      urls = [
+        {
+          template = "https://www.startpage.com/sp/search";
+          params = [
+            {
+              name = "q";
+              value = "{searchTerms}";
+            }
+          ];
+        }
+      ];
+      definedAliases = ["startpage" "sp" "pp"];
+      icon = "https://www.startpage.com/sp/cdn/favicons/favicon-gradient.ico";
+      updateInterval = 24 * 60 * 60 * 1000;
+    };
     "ddg" = {
       urls = [
         {
