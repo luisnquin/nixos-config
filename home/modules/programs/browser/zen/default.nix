@@ -158,6 +158,12 @@
           modifiers.alt = true;
         }
         {
+          id = "zen-toggle-sidebar";
+          key = "x";
+          modifiers.control = true;
+          modifiers.alt = true;
+        }
+        {
           id = "key_savePage";
           key = "s";
           modifiers.control = true;
