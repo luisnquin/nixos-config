@@ -11,7 +11,7 @@
 
   programs.zen-browser = {
     enable = true;
-
+    languagePacks = ["en-US"];
     policies = import ./policies-config.nix;
 
     profiles.default = rec {
