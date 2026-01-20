@@ -143,11 +143,11 @@
     }
     {
       "mod+key" = "CTRL_SHIFT, braceleft";
-      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} position 5- --player=spotify";
+      "dispatcher" = "exec, bash -c 'if ${lib.getExe pkgs.playerctl} --player=spotify status 2>/dev/null | grep -q Playing; then ${lib.getExe pkgs.playerctl} position 5- --player=spotify; else ${lib.getExe pkgs.playerctl} position 5-; fi'";
     }
     {
       "mod+key" = "CTRL_SHIFT, braceright";
-      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} position 5+ --player=spotify";
+      "dispatcher" = "exec, bash -c 'if ${lib.getExe pkgs.playerctl} --player=spotify status 2>/dev/null | grep -q Playing; then ${lib.getExe pkgs.playerctl} position 5+ --player=spotify; else ${lib.getExe pkgs.playerctl} position 5+; fi'";
     }
     {
       "mod+key" = "SUPER_SHIFT, braceright";
