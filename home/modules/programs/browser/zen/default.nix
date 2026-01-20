@@ -69,6 +69,21 @@
             url = "https://us-east-1.console.aws.amazon.com/iam/home?region=sa-east-1";
             keyword = "iam";
           }
+          {
+            name = "firebase";
+            url = "https://console.firebase.google.com/u/0/";
+            keyword = "fire";
+          }
+          {
+            name = "novu";
+            url = "https://dashboard-v2.novu.co/env/dev_env_gQwrIEDTzbHL4coa";
+            keyword = "novu";
+          }
+          {
+            name = "supabase";
+            url = "https://supabase.com/dashboard/project/mjkvxcziwkwohxpuejak";
+            keyword = "supa";
+          }
         ];
       };
 
