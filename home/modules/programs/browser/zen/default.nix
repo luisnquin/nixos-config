@@ -84,6 +84,16 @@
             url = "https://supabase.com/dashboard/project/mjkvxcziwkwohxpuejak";
             keyword = "supa";
           }
+          {
+            name = "krear3d";
+            url = "https://www.tiendakrear3d.com/productos/filamentos/";
+            keyword = "3d";
+          }
+          {
+            name = "digitalz3d";
+            url = "http://www.digitalz3d.com/filamentos";
+            keyword = "3dd";
+          }
         ];
       };
 
