@@ -6,7 +6,6 @@
     ./programs/compression.nix
     ./programs/development
     ./programs/gaming
-    # ./programs/llm.nix
     ./programs/network
     ./programs/pms
     ./programs/peripherals
