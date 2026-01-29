@@ -48,6 +48,7 @@
             keyword = "l${toString i}";
             name = keyword;
             url = "https://mail.google.com/mail/u/${toString i}/#inbox";
+            tags = ["gmail"];
           }) [0 1 2 3];
         in
           [
@@ -95,11 +96,13 @@
               name = "krear3d";
               url = "https://www.tiendakrear3d.com/productos/filamentos/";
               keyword = "3d";
+              tags = ["3d"];
             }
             {
               name = "digitalz3d";
               url = "http://www.digitalz3d.com/filamentos";
               keyword = "3dd";
+              tags = ["3d"];
             }
           ]
           ++ gmailEntries;
