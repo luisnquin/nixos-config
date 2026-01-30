@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   imports = [
-    ./vscode.nix
+    ./vscode-like.nix
     ./nano.nix
     ./zed.nix
   ];
