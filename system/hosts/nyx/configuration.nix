@@ -29,6 +29,8 @@
   i18n.defaultLocale = host.i18nLocale;
   location.provider = "geoclue2";
 
+  documentation.enable = false;
+
   system = {
     activationScripts = {
       banner.text = ''
