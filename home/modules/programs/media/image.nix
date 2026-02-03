@@ -25,7 +25,7 @@ in {
     associations =
       builtins.listToAttrs (map (mimeType: {
           name = mimeType;
-          value = feh.desktopFileName;
+          value = ["${feh.desktopFileName}.desktop"];
         })
         [
           "image/svg+xml"
@@ -34,8 +34,7 @@ in {
           "image/jpeg"
         ])
       // {
-        name = "image/gif";
-        value = sxiv.desktopFileName;
+        "image/gif" = ["${sxiv.desktopFileName}.desktop"];
       };
   in {
     defaultApplications = associations;
