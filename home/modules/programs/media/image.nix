@@ -1,19 +1,36 @@
 {pkgs, ...}: let
-  mkWithDesktopItemWrapper = package: name: desktopName: exec: genericName: {
+  mkWithDesktopItemWrapper = {
+    package,
+    desktopName,
+    exec,
+    genericName,
+    name ? desktopName,
+  }: {
     new = package.overrideAttrs (old: {
       nativeBuildInputs = (old.nativeBuildInputs or []) ++ [pkgs.copyDesktopItems];
-
       desktopItems = [
         (pkgs.makeDesktopItem {
           inherit name desktopName exec genericName;
         })
       ];
     });
-    desktopFileName = desktopName;
+    desktopFile = "${desktopName}.desktop";
   };
 
-  feh = mkWithDesktopItemWrapper pkgs.feh "feh" "feh" "feh --bg-scale %f" "Image Viewer";
-  sxiv = mkWithDesktopItemWrapper pkgs.sxiv "sxiv (gif)" "svix" "sxiv -a %f" "Gif Viewer";
+  feh = mkWithDesktopItemWrapper {
+    package = pkgs.feh;
+    desktopName = "feh";
+    exec = "feh --bg-scale %f";
+    genericName = "Image Viewer";
+  };
+
+  sxiv = mkWithDesktopItemWrapper {
+    package = pkgs.sxiv;
+    desktopName = "svix";
+    name = "sxiv (gif)";
+    exec = "sxiv -a %f";
+    genericName = "Gif Viewer";
+  };
 in {
   home.packages = [
     pkgs.imagemagick
@@ -22,32 +39,23 @@ in {
   ];
 
   xdg.mimeApps = let
-    associations =
-      builtins.listToAttrs (map (mimeType: {
-          name = mimeType;
-          value = ["${feh.desktopFileName}.desktop"];
-        })
-        [
-          "image/svg+xml"
-          "image/png"
-          "image/jpg"
-          "image/jpeg"
-        ])
-      // {
-        "image/gif" = ["${sxiv.desktopFileName}.desktop"];
-      };
+    chromiumDesktop = "chromium-browser.desktop";
+
+    defaultApps = {
+      "image/svg+xml" = [feh.desktopFile];
+      "image/png" = [feh.desktopFile];
+      "image/jpg" = [feh.desktopFile];
+      "image/jpeg" = [feh.desktopFile];
+      "image/gif" = [sxiv.desktopFile];
+    };
+
+    unsetChromium = builtins.mapAttrs (_: _: [chromiumDesktop]) defaultApps;
   in {
-    defaultApplications = associations;
+    defaultApplications = defaultApps;
 
     associations = {
-      added = associations;
-      removed = {
-        "image/gif" = "chromium-browser.desktop";
-        "image/jpg" = "chromium-browser.desktop";
-        "image/jpeg" = "chromium-browser.desktop";
-        "image/png" = "chromium-browser.desktop";
-        "image/svg+xml" = "chromium-browser.desktop";
-      };
+      added = defaultApps;
+      removed = unsetChromium;
     };
   };
 }
