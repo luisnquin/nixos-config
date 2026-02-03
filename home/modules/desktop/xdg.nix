@@ -1,4 +1,7 @@
 {config, ...}: {
+  # let me be the lesser of a beautiful man
+  xdg.configFile."mimeapps.list".force = true;
+
   xdg = {
     enable = true;
     userDirs = let
