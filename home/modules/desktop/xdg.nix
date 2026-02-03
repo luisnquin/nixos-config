@@ -31,17 +31,16 @@
 
       associations = {
         "inode/directory" = dolphin;
-        "x-scheme-handler/geo" = "wheelmap-geo-handler.desktop";
-
         "application/pdf" = zathura;
 
-        "video/*" = vlc; # not working as expected...
-        "video/x-matroska" = vlc;
-        "video/quicktime" = vlc;
-
         "video/mp4" = vlc;
+        "video/x-matroska" = vlc;
+        "video/webm" = vlc;
+        "video/x-msvideo" = vlc;
+
         "audio/mpeg" = vlc;
-        "audio/*" = vlc;
+        "audio/flac" = vlc;
+        "audio/ogg" = vlc;
 
         "text/x-python" = vscode;
       };
