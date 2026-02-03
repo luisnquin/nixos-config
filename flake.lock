@@ -1,5 +1,25 @@
 {
   "nodes": {
+    "3mf2stl": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1770146037,
+        "narHash": "sha256-MqRqhEBv8MLor8WcOpD6Ka3Nc5HpZfMF70FmWF2Pd2I=",
+        "owner": "0xc000118128",
+        "repo": "3mf2stl",
+        "rev": "44e07080e42602b1be3e2ff1823c5a973892f60d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "0xc000118128",
+        "repo": "3mf2stl",
+        "type": "github"
+      }
+    },
     "agenix": {
       "inputs": {
         "darwin": "darwin",
@@ -1031,6 +1051,7 @@
     },
     "root": {
       "inputs": {
+        "3mf2stl": "3mf2stl",
         "agenix": "agenix",
         "aquamarine": "aquamarine",
         "battery-notifier": "battery-notifier",

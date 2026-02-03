@@ -214,6 +214,10 @@
     };
     # Am I a sinner for having this crap in my PURE system?
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
+    "3mf2stl" = {
+      url = "github:0xc000118128/3mf2stl";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ {
