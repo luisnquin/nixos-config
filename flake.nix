@@ -21,7 +21,7 @@
     };
 
     # we have this like it couldn't be exposed via builtins.systems
-    systems.url = "github:nix-systems/default-linux";
+    systems.url = "github:nix-systems/default";
     nix-nostd.url = "github:chessai/nix-std";
 
     disko = {
@@ -180,6 +180,7 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
+        flake-utils.follows = "flake-utils";
       };
     };
     flake-programs-sqlite = {
