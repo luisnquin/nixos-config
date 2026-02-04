@@ -174,6 +174,7 @@
       "dispatcher" = "exec, ${pkgs.toybox}/bin/pkill glava || ${lib.getExe pkgs.glava} -d";
     }
     {
+      # toggle audio of active window
       "mod+key" = "${mainMod}, M";
       "dispatcher" = "exec, ${lib.getExe hyprstfu}";
     }
