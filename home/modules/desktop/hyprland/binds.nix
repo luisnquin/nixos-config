@@ -135,7 +135,7 @@
     }
     {
       "mod+key" = "${mainMod}, Q";
-      "dispatcher" = "exec, ${lib.getExe inputs.hyprlauncher.packages.${system}.default}";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprlauncher}";
     }
     {
       "mod+key" = "SUPER_SHIFT, E";

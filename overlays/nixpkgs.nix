@@ -36,16 +36,16 @@
     }
   )
   (_self: _super: {
-    inherit (inputs.hyprland.packages.${system}) xdg-desktop-portal-hyprland;
+    inherit (inputs.hyprdysmorphic.packages.${system}) xdg-desktop-portal-hyprland hyprlauncher;
 
     # fufexan is a noob at nix, look this shit: https://github.com/hyprwm/Hyprland/blob/c92fb5e85f4a5fd3a0f5ffb5892f6a61cfe1be2b/nix/default.nix#L82
 
-    hyprland = inputs.hyprland.packages.${system}.hyprland.overrideAttrs (_oldAttrs: {
+    hyprland = inputs.hyprdysmorphic.packages.${system}.hyprland.overrideAttrs (_oldAttrs: {
       # disko does not work with the src they've set
       src = _self.fetchgit {
         url = "https://github.com/hyprwm/Hyprland";
-        rev = "c92fb5e85f4a5fd3a0f5ffb5892f6a61cfe1be2b";
-        sha256 = "sha256-sBndsTEWfHREb1bKdEy0RI0qShcVMgOVXguEdLMR7KA=";
+        rev = "02ff413002eddd7419ba70eb0f9f92acd2d97ddc";
+        sha256 = "sha256-6zqlqYFnR8nFJgLOkW+OILtwETtQH5b0PFXgayz++sg=";
       };
     });
   })
