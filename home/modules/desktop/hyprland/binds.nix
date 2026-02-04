@@ -178,6 +178,10 @@
       "dispatcher" = "exec, ${lib.getExe hyprstfu}";
     }
     {
+      "mod+key" = "SUPER_SHIFT, M";
+      "dispatcher" = "exec, ${lib.getExe hyprstfu} -unmute-all";
+    }
+    {
       "mod+key" = "${mainMod}, K";
       "dispatcher" = "exec, ${lib.getExe pkgs-extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
     }
