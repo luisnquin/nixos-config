@@ -21,16 +21,15 @@ jobs:
       - name: Check the flake
         run: nix flake check
 
-  # check-lock:
-  #   name: Check Lock
-  #   runs-on: ubuntu-latest
+  check-lock:
+    name: Check Lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
 
-  #     - name: Install Nix
-  #       uses: cachix/install-nix-action@v31
-
-  #     - name: Check flake.lock
-  #       run: nix run github:tgirlcloud/locker
+      - name: Check flake.lock
+        run: nix run github:tgirlcloud/locker
