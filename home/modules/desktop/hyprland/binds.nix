@@ -170,10 +170,6 @@
       "dispatcher" = "exec, ${pkgs.hyprland}/bin/hyprctl reload";
     }
     {
-      "mod+key" = "SUPER_SHIFT, S";
-      "dispatcher" = "exec, ${pkgs.toybox}/bin/pkill glava || ${lib.getExe pkgs.glava} -d";
-    }
-    {
       # toggle audio of active window
       "mod+key" = "${mainMod}, M";
       "dispatcher" = "exec, ${lib.getExe hyprstfu}";
