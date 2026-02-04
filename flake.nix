@@ -134,6 +134,8 @@
         aquamarine.follows = "aquamarine";
         hyprutils.follows = "hyprutils";
         hyprlang.follows = "hyprlang";
+        hyprland-guiutils.inputs.hyprtoolkit.follows = "hyprtoolkit";
+        hyprwire.follows = "hyprwire";
       };
       type = "git";
       submodules = true;
