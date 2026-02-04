@@ -1,4 +1,5 @@
 {pkgs, ...}: {
+  home.shellAliases."code" = "cursor";
   programs.vscode = {
     enable = true;
     package = pkgs.code-cursor;
