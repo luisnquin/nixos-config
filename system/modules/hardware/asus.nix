@@ -3,7 +3,7 @@
 
   services.asusd = {
     enable = true;
-    enableUserService = true;
+    enableUserService = false;
 
     asusdConfig.text = ''
       "bat_charge_limit": 80
