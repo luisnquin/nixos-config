@@ -16,16 +16,19 @@ in {
       volumePercentage
       historyShortcut
       fullAppDisplay
+      aiBandBlocker
       fullAlbumDate
       betterGenres
       hidePodcasts
       popupLyrics
       songStats
       skipStats
+      trashbin
       powerBar
       adblock
       shuffle
       wikify
+      oneko
     ];
   };
 
