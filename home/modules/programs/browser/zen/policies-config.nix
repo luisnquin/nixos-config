@@ -75,6 +75,7 @@ in {
     "browser.tabs.hoverPreview.enabled" = true;
     "browser.newtabpage.activity-stream.feeds.topsites" = false;
     "browser.topsites.contile.enabled" = false;
+    "browser.translations.enable" = false;
 
     "privacy.resistFingerprinting" = true;
     "privacy.resistFingerprinting.randomization.canvas.use_siphash" = true;
