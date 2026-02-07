@@ -68,6 +68,11 @@
               keyword = "orders";
             }
             {
+              name = "cart";
+              url = "https://www.aliexpress.com/p/shoppingcart/index.html";
+              keyword = "cart";
+            }
+            {
               name = "s3";
               url = "https://sa-east-1.console.aws.amazon.com/s3/buckets?region=sa-east-1";
               keyword = "s3";
