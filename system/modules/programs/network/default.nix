@@ -22,6 +22,9 @@
     wireguard.enable = true;
   };
 
+  # most systems doesn't need this enabled
+  systemd.services.NetworkManager-wait-online.enable = false;
+
   environment = {
     systemPackages = with pkgs; [
       wirelesstools
