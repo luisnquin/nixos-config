@@ -24,7 +24,7 @@
   };
 
   services.journald.extraConfig = ''
-    SystemMaxUse=1G
-    MaxRetentionSec=7days
+    Storage=volatile
+    RuntimeMaxUse=100M
   '';
 }

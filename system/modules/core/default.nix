@@ -3,7 +3,7 @@
     ./compat.nix
     ./dbus.nix
     ./kernel.nix
-    ./systemd.nix
+    ./systemd-journald.nix
     ./tools.nix
   ];
 
