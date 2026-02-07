@@ -73,5 +73,76 @@
         ),
       )
     '';
+
+    fanCurvesConfig.text = ''
+      (
+        Balanced: (
+          cpu: [
+            (temp: 30, pwm: 0),
+            (temp: 40, pwm: 5),
+            (temp: 50, pwm: 15),
+            (temp: 60, pwm: 30),
+            (temp: 70, pwm: 50),
+            (temp: 80, pwm: 70),
+            (temp: 90, pwm: 85),
+            (temp: 100, pwm: 100),
+          ],
+          gpu: [
+            (temp: 30, pwm: 0),
+            (temp: 40, pwm: 5),
+            (temp: 50, pwm: 15),
+            (temp: 60, pwm: 30),
+            (temp: 70, pwm: 50),
+            (temp: 80, pwm: 70),
+            (temp: 90, pwm: 85),
+            (temp: 100, pwm: 100),
+          ],
+        ),
+        Performance: (
+          cpu: [
+            (temp: 30, pwm: 15),
+            (temp: 40, pwm: 25),
+            (temp: 50, pwm: 40),
+            (temp: 60, pwm: 55),
+            (temp: 70, pwm: 70),
+            (temp: 80, pwm: 85),
+            (temp: 90, pwm: 95),
+            (temp: 100, pwm: 100),
+          ],
+          gpu: [
+            (temp: 30, pwm: 15),
+            (temp: 40, pwm: 25),
+            (temp: 50, pwm: 40),
+            (temp: 60, pwm: 55),
+            (temp: 70, pwm: 70),
+            (temp: 80, pwm: 85),
+            (temp: 90, pwm: 95),
+            (temp: 100, pwm: 100),
+          ],
+        ),
+        Quiet: (
+          cpu: [
+            (temp: 30, pwm: 0),
+            (temp: 40, pwm: 0),
+            (temp: 50, pwm: 8),
+            (temp: 60, pwm: 18),
+            (temp: 70, pwm: 35),
+            (temp: 80, pwm: 55),
+            (temp: 90, pwm: 70),
+            (temp: 100, pwm: 80),
+          ],
+          gpu: [
+            (temp: 30, pwm: 0),
+            (temp: 40, pwm: 0),
+            (temp: 50, pwm: 8),
+            (temp: 60, pwm: 18),
+            (temp: 70, pwm: 35),
+            (temp: 80, pwm: 55),
+            (temp: 90, pwm: 70),
+            (temp: 100, pwm: 80),
+          ],
+        ),
+      )
+    '';
   };
 }
