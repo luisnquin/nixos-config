@@ -1,10 +1,32 @@
 {
+  services.power-profiles-daemon.enable = true;
+
   services.asusd = {
     enable = true;
     enableUserService = true;
 
     asusdConfig.text = ''
       "bat_charge_limit": 80
+    '';
+
+    profileConfig.text = ''
+      (
+        active_profile: Balanced,
+        profiles: {
+          Balanced: (
+            platform_profile: Balanced,
+            fan_curve: (cpu: [], gpu: []),
+          ),
+          Performance: (
+            platform_profile: Performance,
+            fan_curve: (cpu: [], gpu: []),
+          ),
+          Quiet: (
+            platform_profile: Quiet,
+            fan_curve: (cpu: [], gpu: []),
+          ),
+        },
+      )
     '';
 
     auraConfigs.tuf.text = ''
