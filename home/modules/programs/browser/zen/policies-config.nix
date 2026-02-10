@@ -64,6 +64,7 @@ in {
     "trackmenot@mrl.nyu.edu" = "trackmenot";
     "{861a3982-bb3b-49c6-bc17-4f50de104da1}" = "custom-user-agent-revived";
     "{3579f63b-d8ee-424f-bbb6-6d0ce3285e6a}" = "chameleon-ext";
+    "{4590d8b8-3569-46e3-a571-cabfbaeab2c1}" = "no-youtube-shorts";
   };
   Preferences = mkLockedAttrs {
     "browser.aboutConfig.showWarning" = false;
