@@ -60,18 +60,11 @@
     "${mainMod}, F, fullscreen"
   ];
 
-  custom = let
-    rofi-plugin-call = name: program-to-exec: ''${lib.getExe pkgs.rofi} -modi "${name}:${program-to-exec}" -show ${name}'';
+  hyprctlCmd = "${pkgs.hyprland}/bin/hyprctl";
+
+  generic = let
     hyprstfu = inputs.hyprstfu.defaultPackage.${system};
-
-    inherit (inputs.nix-scripts.packages.${system}) sys-sound sys-brightness cliphist-rofi;
-
-    grimblast = inputs.hyprland-contrib.packages.${system}.grimblast.overrideAttrs (_oldAttrs: {
-      prePatch = ''
-        substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
-      '';
-    });
-
+    inherit (inputs.nix-scripts.packages.${system}) sys-sound sys-brightness;
     inherit (pkgs) lib;
   in [
     {
@@ -99,35 +92,12 @@
       "dispatcher" = "exec, ${lib.getExe sys-sound} --inc --unleashed";
     }
     {
-      "mod+key" = "SUPER_SHIFT, Print";
-      "dispatcher" = "exec, ${lib.getExe grimblast} --freeze --notify copy area";
-    }
-    {
-      "mod+key" = "${mainMod}, Print";
-      "dispatcher" = "exec, ${lib.getExe grimblast} --notify copy active";
-    }
-    {
-      "mod+key" = ",Print";
-      "dispatcher" = (
-        let
-          askTargetCmd = "${lib.getExe pkgs.hyprshot} -m output --clipboard-only";
-          allTargetsCmd = "${lib.getExe grimblast} --notify copy screen";
-
-          eval = "${pkgs.hyprland}/bin/hyprctl monitors all -j | ${lib.getExe pkgs.jq} \". | length\"";
-        in "exec, bash -c 'if [ \"$(${eval})\" -eq 1 ]; then ${allTargetsCmd}; else ${askTargetCmd}; fi'"
-      );
-    }
-    {
       "mod+key" = ",XF86MonBrightnessDown";
       "dispatcher" = "exec, ${lib.getExe sys-brightness} --dec";
     }
     {
       "mod+key" = ",XF86MonBrightnessUp";
       "dispatcher" = "exec, ${lib.getExe sys-brightness} --inc";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, C";
-      "dispatcher" = "exec, ${rofi-plugin-call "clipboard" "${lib.getExe cliphist-rofi}"}";
     }
     {
       "mod+key" = "SUPER_SHIFT, Q";
@@ -142,32 +112,8 @@
       "dispatcher" = "exec, ${lib.getExe pkgs.bemoji}";
     }
     {
-      "mod+key" = "CTRL_SHIFT, braceleft";
-      "dispatcher" = "exec, bash -c 'if ${lib.getExe pkgs.playerctl} --player=spotify status 2>/dev/null | grep -q Playing; then ${lib.getExe pkgs.playerctl} position 5- --player=spotify; else ${lib.getExe pkgs.playerctl} position 5-; fi'";
-    }
-    {
-      "mod+key" = "CTRL_SHIFT, braceright";
-      "dispatcher" = "exec, bash -c 'if ${lib.getExe pkgs.playerctl} --player=spotify status 2>/dev/null | grep -q Playing; then ${lib.getExe pkgs.playerctl} position 5+ --player=spotify; else ${lib.getExe pkgs.playerctl} position 5+; fi'";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, braceright";
-      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} next --player=spotify";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, braceleft";
-      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} previous --player=spotify";
-    }
-    {
-      "mod+key" = "${mainMod}, Pause";
-      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} play-pause --player=spotify";
-    }
-    {
-      "mod+key" = "${mainMod}, Delete";
-      "dispatcher" = "exec, ${lib.getExe pkgs.playerctl} play-pause --all-players --ignore-player=spotify";
-    }
-    {
       "mod+key" = "SUPER_SHIFT, R";
-      "dispatcher" = "exec, ${pkgs.hyprland}/bin/hyprctl reload";
+      "dispatcher" = "exec, ${hyprctlCmd} reload";
     }
     {
       # toggle audio of active window
@@ -183,5 +129,73 @@
       "dispatcher" = "exec, ${lib.getExe pkgs-extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
     }
   ];
+
+  clipboard = let
+    inherit (pkgs.lib) getExe;
+
+    grimblastCmd = let
+      package = inputs.hyprland-contrib.packages.${system}.grimblast.overrideAttrs (_oldAttrs: {
+        prePatch = ''
+          substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
+        '';
+      });
+    in (pkgs.lib.getExe package);
+
+    rofiCall = name: cmd: ''${getExe pkgs.rofi} -modi "${name}:${cmd}" -show ${name}'';
+  in [
+    {
+      "mod+key" = "SUPER_SHIFT, Print";
+      "dispatcher" = "exec, ${grimblastCmd} --freeze --notify copy area";
+    }
+    {
+      "mod+key" = "${mainMod}, Print";
+      "dispatcher" = "exec, ${grimblastCmd} --notify copy active";
+    }
+    {
+      # only copy one monitor at a time
+      "mod+key" = ",Print";
+      "dispatcher" = (
+        let
+          askTargetCmd = "${getExe pkgs.hyprshot} -m output --clipboard-only";
+          allTargetsCmd = "${grimblastCmd} --notify copy screen";
+          eval = "${hyprctlCmd} monitors all -j | ${getExe pkgs.jq} \". | length\"";
+        in "exec, bash -c 'if [ \"$(${eval})\" -eq 1 ]; then ${allTargetsCmd}; else ${askTargetCmd}; fi'"
+      );
+    }
+    {
+      "mod+key" = "SUPER_SHIFT, C";
+      "dispatcher" = "exec, ${rofiCall "clipboard" "${getExe inputs.nix-scripts.packages.${system}.cliphist-rofi}"}";
+    }
+  ];
+
+  playerctl = let
+    pctlCmd = pkgs.lib.getExe pkgs.playerctl;
+    pctlFallback = cmd: "bash -c 'if ${pctlCmd} --player=spotify status 2>/dev/null | grep -q Playing; then ${pctlCmd} ${cmd} --player=spotify; else ${pctlCmd} ${cmd}; fi'";
+  in [
+    {
+      "mod+key" = "CTRL_SHIFT, braceleft";
+      "dispatcher" = "exec, ${pctlFallback "position 5-"}";
+    }
+    {
+      "mod+key" = "CTRL_SHIFT, braceright";
+      "dispatcher" = "exec, ${pctlFallback "position 5+"}";
+    }
+    {
+      "mod+key" = "SUPER_SHIFT, braceright";
+      "dispatcher" = "exec, ${pctlFallback "next"}";
+    }
+    {
+      "mod+key" = "SUPER_SHIFT, braceleft";
+      "dispatcher" = "exec, ${pctlFallback "previous"}";
+    }
+    {
+      "mod+key" = "${mainMod}, Pause";
+      "dispatcher" = "exec, ${pctlCmd} play-pause --player=spotify";
+    }
+    {
+      "mod+key" = "${mainMod}, Delete";
+      "dispatcher" = "exec, ${pctlCmd} play-pause --all-players --ignore-player=spotify";
+    }
+  ];
 in
-  window ++ workspaces ++ builtins.map (b: b."mod+key" + ", " + b.dispatcher) custom
+  window ++ workspaces ++ builtins.map (b: b."mod+key" + ", " + b.dispatcher) (generic ++ clipboard ++ playerctl)
