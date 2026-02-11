@@ -52,19 +52,24 @@ in {
       id = "ublock-origin";
       pinned = true;
     };
-    "{a4c4eda4-fb84-4a84-b4a1-f7c1cbf2a1ad}" = "refined-github-";
-    "{85860b32-02a8-431a-b2b1-40fbd64c9c69}" = "github-file-icons";
-    "{762f9885-5a13-4abd-9c77-433dcd38b8fd}" = "return-youtube-dislikes";
-    "{74145f27-f039-47ce-a470-a662b129930a}" = "clearurls";
-    "github-no-more@ihatereality.space" = "github-no-more";
-    "github-repository-size@pranavmangal" = "gh-repo-size";
-    "firefox-extension@steamdb.info" = "steam-database";
-    "@searchengineadremover" = "searchengineadremover";
-    "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
-    "trackmenot@mrl.nyu.edu" = "trackmenot";
-    "{861a3982-bb3b-49c6-bc17-4f50de104da1}" = "custom-user-agent-revived";
+    # about:debugging#/runtime/this-firefox
+    "{0814291e-c531-4741-a8e7-9a3e8f62bf71}" = "remove-youtube-tracking";
     "{3579f63b-d8ee-424f-bbb6-6d0ce3285e6a}" = "chameleon-ext";
     "{4590d8b8-3569-46e3-a571-cabfbaeab2c1}" = "no-youtube-shorts";
+    "{74145f27-f039-47ce-a470-a662b129930a}" = "clearurls";
+    "{762f9885-5a13-4abd-9c77-433dcd38b8fd}" = "return-youtube-dislikes";
+    "{85860b32-02a8-431a-b2b1-40fbd64c9c69}" = "github-file-icons";
+    "{861a3982-bb3b-49c6-bc17-4f50de104da1}" = "custom-user-agent-revived";
+    "{a4c4eda4-fb84-4a84-b4a1-f7c1cbf2a1ad}" = "refined-github-";
+    "{ef9e884b-b6d8-4544-b0de-82c46c5e95de}" = "sponsorblock";
+    "{f52149fe-80cc-4d07-868d-c0e4a85453a0}" = "page-screenshot";
+    "{fef652df-dd80-450e-b64a-567abeb3aa4b}" = "youtube-cards";
+    "@searchengineadremover" = "searchengineadremover";
+    "firefox-extension@steamdb.info" = "steam-database";
+    "github-no-more@ihatereality.space" = "github-no-more";
+    "github-repository-size@pranavmangal" = "gh-repo-size";
+    "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
+    "trackmenot@mrl.nyu.edu" = "trackmenot";
   };
   Preferences = mkLockedAttrs {
     "browser.aboutConfig.showWarning" = false;
