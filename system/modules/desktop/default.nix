@@ -1,9 +1,10 @@
 {
-  host,
-  lib,
-  pkgs,
   isTiling,
   config,
+  host,
+  pkgs,
+  user,
+  lib,
   ...
 }: {
   imports = [
@@ -16,10 +17,13 @@
   programs.dconf.enable = true;
 
   services = {
-    displayManager.gdm = {
+    greetd = {
       enable = true;
-      autoSuspend = false;
-      wayland = true;
+      settings = {
+        default_session = {
+          command = ''${pkgs.greetd.greetd}/bin/agreety --cmd ${pkgs.hyprland}/bin/start-hyprland'';
+        };
+      };
     };
 
     xserver = {
