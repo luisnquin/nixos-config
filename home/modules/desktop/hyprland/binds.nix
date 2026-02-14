@@ -125,6 +125,14 @@
       "dispatcher" = "exec, ${lib.getExe hyprstfu} -unmute-all";
     }
     {
+      "mod+key" = "SUPER_SHIFT, XF86AudioLowerVolume";
+      "dispatcher" = "exec, ${lib.getExe hyprstfu} -volume 5-";
+    }
+    {
+      "mod+key" = "SUPER_SHIFT, XF86AudioRaiseVolume";
+      "dispatcher" = "exec, ${lib.getExe hyprstfu} -volume 5+";
+    }
+    {
       "mod+key" = "${mainMod}, K";
       "dispatcher" = "exec, ${lib.getExe pkgs-extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
     }
