@@ -3,7 +3,6 @@
   config,
   host,
   pkgs,
-  user,
   lib,
   ...
 }: {
