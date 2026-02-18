@@ -14,6 +14,8 @@
     languagePacks = ["en-US"];
     policies = import ./policies-config.nix;
 
+    suppressXdgMigrationWarning = true;
+
     profiles.default = rec {
       settings = {
         "zen.workspaces.continue-where-left-off" = true;
