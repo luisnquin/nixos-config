@@ -16,6 +16,11 @@
         url = libx.base64.decode "aHR0cHM6Ly9hcHAuZW5jb3JlLmNsb3VkL2dhdGUtazktbXpuaQo=";
       }
       {
+        name = "makerworld";
+        url = "https://makerworld.com/en/3d-models";
+        keyword = "mw";
+      }
+      {
         name = "kernel.org";
         url = "https://www.kernel.org";
       }
