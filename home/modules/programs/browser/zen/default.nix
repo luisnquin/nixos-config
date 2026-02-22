@@ -190,6 +190,10 @@
           id = "key_quitApplication";
           disabled = true;
         }
+        {
+          id = "zen-copy-url";
+          disabled = true;
+        }
       ];
     };
   };
