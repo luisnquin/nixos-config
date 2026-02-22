@@ -36,7 +36,7 @@ args @ {
           "match:class ^(ghostty.hyprdrop)$, float on, size 1280 720, center on"
           "match:class ^(waybar.nmtui)$, float on, size 1050 720, center on"
           "match:class ^(waybar.btop)$, float on, size 1280 720, center on"
-          "match:title ^(Picture in picture), float on, pin on"
+          "match:title ^(Picture in picture|Picture-in-Picture), size 640 360, float on, pin on"
         ];
       };
 
