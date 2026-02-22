@@ -1,5 +1,6 @@
 {pkgs, ...}: {
   home.shellAliases."code" = "cursor";
+
   programs.vscode = {
     enable = true;
     package = pkgs.code-cursor;
@@ -9,6 +10,19 @@
     profiles.default = {
       enableExtensionUpdateCheck = true;
       enableUpdateCheck = true;
+
+      keybindings = [
+        {
+          key = "ctrl+c";
+          command = "editor.action.clipboardCopyAction";
+          when = "textInputFocus";
+        }
+        {
+          key = "ctrl+y";
+          command = "redo";
+          when = "textInputFocus";
+        }
+      ];
 
       extensions = with pkgs.vscode-extensions;
         [
