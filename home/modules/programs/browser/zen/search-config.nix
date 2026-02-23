@@ -26,7 +26,7 @@
         }
       ];
       icon = nixSnowflakeIcon;
-      definedAliases = ["pkgs"];
+      definedAliases = ["@pkgs"];
     };
     "Nix Options" = {
       urls = [
@@ -45,7 +45,7 @@
         }
       ];
       icon = nixSnowflakeIcon;
-      definedAliases = ["nop"];
+      definedAliases = ["@nop"];
     };
     "Home Manager Options" = {
       urls = [
@@ -79,7 +79,7 @@
           ];
         }
       ];
-      definedAliases = ["maps" "gmaps"];
+      definedAliases = ["@maps" "@gmaps"];
     };
     "StartPage" = {
       urls = [
@@ -93,7 +93,7 @@
           ];
         }
       ];
-      definedAliases = ["startpage" "sp" "pp"];
+      definedAliases = ["@startpage" "@sp" "@pp"];
       icon = "https://www.startpage.com/sp/cdn/favicons/favicon-gradient.ico";
       updateInterval = 24 * 60 * 60 * 1000;
     };
@@ -106,14 +106,10 @@
               name = "q";
               value = "{searchTerms}";
             }
-            {
-              name = "origin";
-              value = "your_ass";
-            }
           ];
         }
       ];
-      definedAliases = ["duck" "ddg" "dck" "dckk"];
+      definedAliases = ["@duck" "@ddg" "@dck" "@dckk"];
     };
 
     MakerWorld = {
@@ -128,7 +124,7 @@
           ];
         }
       ];
-      definedAliases = ["maker" "mw"];
+      definedAliases = ["@maker" "@mw"];
     };
 
     Printables = {
@@ -143,7 +139,7 @@
           ];
         }
       ];
-      definedAliases = ["pt" "print" "printables"];
+      definedAliases = ["@pt" "@print" "@printables"];
     };
 
     "ChatGPT" = {
@@ -159,7 +155,7 @@
         }
       ];
       icon = "https://chatgpt.com/cdn/assets/favicon-eex17e9e.ico";
-      definedAliases = ["@gpt" "@chatgpt"];
+      definedAliases = ["@gpt" "@chat" "@chatgpt"];
     };
 
     bing.metaData.hidden = "true";
