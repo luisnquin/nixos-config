@@ -51,8 +51,6 @@
 
   tools.nyx.enable = true;
 
-  programs.command-not-found.enable = true;
-
   environment = let
     nixgrep = inputs.nix-scripts.packages.${system}.nixgrep;
   in {

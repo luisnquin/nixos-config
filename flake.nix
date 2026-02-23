@@ -114,12 +114,9 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    flake-programs-sqlite = {
-      url = "github:wamserma/flake-programs-sqlite";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        utils.follows = "flake-utils";
-      };
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake/beta";
@@ -200,7 +197,7 @@
 
       nixosModules = [
         inputs.disko.nixosModules.default
-        inputs.flake-programs-sqlite.nixosModules.programs-sqlite
+        inputs.nix-index-database.nixosModules.default
         inputs.black-terminal.nixosModules.default
         inputs.home-manager.nixosModules.default
         (import ./secrets {

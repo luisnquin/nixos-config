@@ -198,29 +198,6 @@
         "type": "github"
       }
     },
-    "flake-programs-sqlite": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "utils": [
-          "flake-utils"
-        ]
-      },
-      "locked": {
-        "lastModified": 1765119143,
-        "narHash": "sha256-/M9biJnFk1pwE0EL3zmvr0jX0jqnb6wgdtGFV6pazKA=",
-        "owner": "wamserma",
-        "repo": "flake-programs-sqlite",
-        "rev": "f7ec436c4effa827383905a1bb71f3d6ec99cecb",
-        "type": "github"
-      },
-      "original": {
-        "owner": "wamserma",
-        "repo": "flake-programs-sqlite",
-        "type": "github"
-      }
-    },
     "flake-utils": {
       "inputs": {
         "systems": [
@@ -836,6 +813,26 @@
         "type": "github"
       }
     },
+    "nix-index-database": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1771734689,
+        "narHash": "sha256-/phvMgr1yutyAMjKnZlxkVplzxHiz60i4rc+gKzpwhg=",
+        "owner": "nix-community",
+        "repo": "nix-index-database",
+        "rev": "8f590b832326ab9699444f3a48240595954a4b10",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nix-index-database",
+        "type": "github"
+      }
+    },
     "nix-nostd": {
       "locked": {
         "lastModified": 1710870712,
@@ -1005,7 +1002,6 @@
         "black-terminal": "black-terminal",
         "disko": "disko",
         "encore": "encore",
-        "flake-programs-sqlite": "flake-programs-sqlite",
         "flake-utils": "flake-utils",
         "ghostty": "ghostty",
         "grub-themes": "grub-themes",
@@ -1015,6 +1011,7 @@
         "hyprstfu": "hyprstfu",
         "nao": "nao",
         "nix-flatpak": "nix-flatpak",
+        "nix-index-database": "nix-index-database",
         "nix-nostd": "nix-nostd",
         "nix-scripts": "nix-scripts",
         "nixcord": "nixcord",
