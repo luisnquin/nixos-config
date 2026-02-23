@@ -26,7 +26,6 @@
 
       extensions = with pkgs.vscode-extensions;
         [
-          # kilocode.kilo-code
           # vira.vsc-vira-theme
           aaron-bond.better-comments
           arrterian.nix-env-selector
@@ -84,6 +83,12 @@
             publisher = "kaanaytekin";
             version = "0.0.3";
             sha256 = "sha256-I5dkJlFH5JFzQ0Q5rOklVJ1qAzkbSVEy0gxsHH2Adf0=";
+          }
+          {
+            name = "nix-embedded-highlighter";
+            publisher = "atomicspirit";
+            version = "0.0.1";
+            sha256 = "sha256-KZfUaPjReHQH0XCCiejAs+0Go8WEeGiOuxjkTfSnku0=";
           }
         ];
     };
