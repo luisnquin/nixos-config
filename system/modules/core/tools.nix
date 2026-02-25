@@ -7,4 +7,6 @@
     wget
     eza # ls replacement
   ];
+
+  boot.binfmt.emulatedSystems = ["aarch64-linux"];
 }
