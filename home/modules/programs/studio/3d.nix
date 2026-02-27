@@ -60,10 +60,16 @@ in {
     defaultApplications = associationsFor "fstl.desktop" // {"model/3mf" = "3mf2stl.desktop";};
   };
 
-  services.flatpak.packages = [
-    {
-      appId = "com.bambulab.BambuStudio";
-      origin = "flathub";
-    }
-  ];
+  services.flatpak = {
+    packages = [
+      {
+        appId = "com.bambulab.BambuStudio";
+        origin = "flathub";
+      }
+    ];
+
+    overrides."com.bambulab.BambuStudio".Context = {
+      filesystems = ["xdg-download:rw"];
+    };
+  };
 }
