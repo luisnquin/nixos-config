@@ -69,7 +69,7 @@ in {
     "github-no-more@ihatereality.space" = "github-no-more";
     "github-repository-size@pranavmangal" = "gh-repo-size";
     "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
-    "trackmenot@mrl.nyu.edu" = "trackmenot";
+    # "trackmenot@mrl.nyu.edu" = "trackmenot";
   };
   Preferences = mkLockedAttrs {
     "browser.aboutConfig.showWarning" = false;
