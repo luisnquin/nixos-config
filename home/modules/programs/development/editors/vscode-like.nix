@@ -1,9 +1,9 @@
 {pkgs, ...}: {
-  home.shellAliases."code" = "cursor";
+  home.shellAliases."code" = "antigravity";
 
   programs.vscode = {
     enable = true;
-    package = pkgs.code-cursor;
+    package = pkgs.antigravity;
 
     mutableExtensionsDir = true;
 
