@@ -148,6 +148,10 @@
       url = "github:0xc000118128/3mf2stl";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    ttree = {
+      url = "github:luisnquin/ttree";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ {

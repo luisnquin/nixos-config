@@ -1021,6 +1021,7 @@
         "senv": "senv",
         "spicetify-nix": "spicetify-nix",
         "systems": "systems",
+        "ttree": "ttree",
         "zen-browser": "zen-browser",
         "zeroxgen": "zeroxgen"
       }
@@ -1083,6 +1084,26 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "ttree": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1772340610,
+        "narHash": "sha256-u6ZilTksDv8GvWMqwdC0fAwM/KwEdgWVROZwYPou7vc=",
+        "owner": "luisnquin",
+        "repo": "ttree",
+        "rev": "454d67caf3e714dfe4adaa6ecbd8ec8af639703f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "luisnquin",
+        "repo": "ttree",
         "type": "github"
       }
     },
