@@ -1094,11 +1094,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1772340610,
-        "narHash": "sha256-u6ZilTksDv8GvWMqwdC0fAwM/KwEdgWVROZwYPou7vc=",
+        "lastModified": 1772383567,
+        "narHash": "sha256-cVQXrEdevLIhwZYHMbBatVdsMhfUu7etwsK4sDQnD5A=",
         "owner": "luisnquin",
         "repo": "ttree",
-        "rev": "454d67caf3e714dfe4adaa6ecbd8ec8af639703f",
+        "rev": "a353d207d29e2158f8fc0778db48c85d9be8dfde",
         "type": "github"
       },
       "original": {
