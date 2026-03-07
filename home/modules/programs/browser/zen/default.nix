@@ -14,7 +14,6 @@
     policies = import ./policies-config.nix;
 
     setAsDefaultBrowser = true;
-    suppressXdgMigrationWarning = true;
 
     profiles.default = rec {
       settings = {
