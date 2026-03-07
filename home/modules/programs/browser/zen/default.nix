@@ -6,7 +6,6 @@
 }: {
   imports = [
     inputs.zen-browser.homeModules.beta
-    ./xdg.nix
   ];
 
   programs.zen-browser = {
@@ -14,6 +13,7 @@
     languagePacks = ["en-US"];
     policies = import ./policies-config.nix;
 
+    setAsDefaultBrowser = true;
     suppressXdgMigrationWarning = true;
 
     profiles.default = rec {
