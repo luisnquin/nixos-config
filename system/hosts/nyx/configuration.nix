@@ -34,37 +34,41 @@
   system = {
     activationScripts = {
       banner.text = ''
-        echo '    .              +   .                .   . .     .  .'
-        sleep 0.3
-        echo '                    .                    .       .     *'
-        echo '    .       *                        . . . .  .   .  + .'
-        sleep 0.2
-        echo '              (You Are Here)            .   .  +  . . .'
-        echo '  .                 |             .  .   .    .    . .'
-        echo '                    |           .     .     . +.    +  .'
-        sleep 0.5
-        echo '                    ↓            .       .   . .'
-        echo '          . .       .         .    * . . .  .  +   .'
-        echo '            +        ° <- (nyx)  *   .   .      +'
-        echo '<==[{                      .       . +  .+. .'
-        sleep 0.3
-        echo '    .                      .     . + .  . .     .      .'
-        echo '            .      .    .     . .   . . .        ! /'
-        echo '        *             .    . .  +    .  .       - O -  ←- (jyx)'
-        echo '            .     .    .  +   . .  *  .        . / |'
-        echo '                . + .  .  .  .. +  .'
-        echo '  .  +   .  .  .  *   .  *  . +..  .            *'
-        echo '  .      .   . .   .   .   . .  +   .    .            +'
-        echo
+        if [ ! -f /run/nixos-banner-shown ]; then
+          echo '    .              +   .                .   . .     .  .'
+          sleep 0.3
+          echo '                    .                    .       .     *'
+          echo '    .       *                        . . . .  .   .  + .'
+          sleep 0.2
+          echo '              (You Are Here)            .   .  +  . . .'
+          echo '  .                 |             .  .   .    .    . .'
+          echo '                    |           .     .     . +.    +  .'
+          sleep 0.5
+          echo '                    ↓            .       .   . .'
+          echo '          . .       .         .    * . . .  .  +   .'
+          echo '            +        ° <- (nyx)  *   .   .      +'
+          echo '<==[{                      .       . +  .+. .'
+          sleep 0.3
+          echo '    .                      .     . + .  . .     .      .'
+          echo '            .      .    .     . .   . . .        ! /'
+          echo '        *             .    . .  +    .  .       - O -  ←- (jyx)'
+          echo '            .     .    .  +   . .  *  .        . / |'
+          echo '                . + .  .  .  .. +  .'
+          echo '  .  +   .  .  .  *   .  *  . +..  .            *'
+          echo '  .      .   . .   .   .   . .  +   .    .            +'
+          echo
 
-        ${lib.getExe pkgs.genact} -s=5 --exit-after-time=1s \
-          -m bootlog \
-          -m cryptomining \
-          -m docker_image_rm \
-          -m download \
-          -m kernel_compile \
-          -m memdump \
-          -m simcity
+          ${lib.getExe pkgs.genact} -s=5 --exit-after-time=1s \
+            -m bootlog \
+            -m cryptomining \
+            -m docker_image_rm \
+            -m download \
+            -m kernel_compile \
+            -m memdump \
+            -m simcity
+
+          touch /run/nixos-banner-shown
+        fi
       '';
     };
 
