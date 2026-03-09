@@ -4,7 +4,7 @@
   inputs,
   ...
 }: let
-  _3mf2stl = inputs."3mf2stl".packages.${pkgs.system}.default;
+  _3mf2stl = inputs."3mf2stl".packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   convertScript = pkgs.writeShellScriptBin "3mf2stl-convert" ''
     #!/bin/bash

@@ -1,6 +1,6 @@
 {...}: {
   # environment.systemPackages = [
-  #   inputs.prismlauncher.packages.${pkgs.system}.default # jailbreak offline accounts
+  #   inputs.prismlauncher.packages.${pkgs.stdenv.hostPlatform.system}.default # jailbreak offline accounts
   # ];
 
   services.flatpak.packages = [
