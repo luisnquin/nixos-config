@@ -16,6 +16,12 @@
         url = libx.base64.decode "aHR0cHM6Ly9hcHAuZW5jb3JlLmNsb3VkL2dhdGUtazktbXpuaQo=";
       }
       {
+        name = "nixos";
+        tags = ["nix"];
+        keyword = "nixos";
+        url = "https://search.nixos.org";
+      }
+      {
         name = "makerworld";
         url = "https://makerworld.com/en/3d-models";
         keyword = "mw";
