@@ -71,6 +71,12 @@
         keyword = "3dd";
         tags = ["3d"];
       }
+      {
+        name = "cine";
+        url = "https://www.cinerama.com.pe/cartelera_cine/CINERAMA_CHIMBOTE";
+        keyword = "cine";
+        tags = ["cinema"];
+      }
     ]
     ++ gmailEntries;
 }
