@@ -89,7 +89,6 @@
           rust-lang.rust-analyzer
           streetsidesoftware.code-spell-checker
           usernamehw.errorlens
-          usernamehw.errorlens
           wmaurer.change-case
           yoavbls.pretty-ts-errors
           zhuangtongfa.material-theme
