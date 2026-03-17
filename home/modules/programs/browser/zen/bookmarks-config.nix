@@ -22,6 +22,12 @@
         url = "https://search.nixos.org";
       }
       {
+        name = "hm";
+        tags = ["nix"];
+        keyword = "home";
+        url = "https://home-manager-options.extranix.com/?query&release=master";
+      }
+      {
         name = "makerworld";
         url = "https://makerworld.com/en/3d-models";
         keyword = "mw";
