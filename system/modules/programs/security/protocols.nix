@@ -24,6 +24,11 @@
     };
   };
 
+  programs.ssh.extraConfig = ''
+    Host mac
+      HostName dyx.local
+  '';
+
   services.openssh = {
     enable = true;
     banner = libx.base64.decode "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
