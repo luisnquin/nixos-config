@@ -4,6 +4,7 @@
   ...
 }: {
   imports = [
+    ./discovery.nix
     ./hosts.nix
   ];
 
