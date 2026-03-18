@@ -6,7 +6,6 @@
   ...
 }: {
   imports = [
-    ../../services
     ../../modules
 
     ./hardware-configuration.nix
