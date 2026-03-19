@@ -6,7 +6,7 @@
 }: let
   passgen = inputs.passgen.defaultPackage.${system};
 
-  senv = inputs.senv.defaultPackage.${system};
+  senv = inputs.senv.packages.${system}.default;
 in {
   home.packages = with pkgs; [
     (inputs.zeroxgen.defaultPackage.${system})

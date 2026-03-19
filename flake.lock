@@ -1028,19 +1028,16 @@
     },
     "senv": {
       "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1752757359,
-        "narHash": "sha256-mGoS0ZgVH+mcQszbVGYyV4lis1gPiYbVnYN3Ktr8J2I=",
+        "lastModified": 1773937443,
+        "narHash": "sha256-CVNrVamKHCtvvi7F8X+hGVGXSZ625PSTLSWlbWh/B44=",
         "owner": "luisnquin",
         "repo": "senv",
-        "rev": "b9ff32a61648f56f2c070aed3e26011760fd726f",
+        "rev": "0016f0b84df6c33da9283b980b224eaa52199c96",
         "type": "github"
       },
       "original": {

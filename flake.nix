@@ -51,10 +51,7 @@
     };
     senv = {
       url = "github:luisnquin/senv";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     black-terminal.url = "github:luisnquin/black-terminal";
     nao = {
