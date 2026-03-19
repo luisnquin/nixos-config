@@ -51,9 +51,9 @@
     "${mainMod}, mouse_down, workspace, e+1"
     "${mainMod}, mouse_up, workspace, e-1"
 
-    # Other actions
+    # Other actionsss
     "${mainMod}, SPACE, togglefloating"
-    "${mainMod}, MINUS, togglesplit"
+    "${mainMod}, S, layoutmsg, togglesplit"
 
     "SUPER_SHIFT, W, exec, ${./kill-active.sh}"
     "SUPER_SHIFT, MINUS, pseudo"
