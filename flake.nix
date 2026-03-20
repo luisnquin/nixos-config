@@ -134,8 +134,8 @@
       url = "github:ghostty-org/ghostty/tip";
       inputs = {
         flake-compat.follows = "";
+        zig.inputs.systems.follows = "systems";
         home-manager.follows = "home-manager";
-        flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
       };
     };
@@ -209,6 +209,10 @@
         inputs.agenix.nixosModules.default
         ./tools/nix/nixos-options
       ];
+
+      # tmux plugins via hm
+      # Win+K activa terminal flotante en Hyprland, quisiera activar eso en windows que tienen fullscreen sin quitarles eso,
+      # el fullscreen
 
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
