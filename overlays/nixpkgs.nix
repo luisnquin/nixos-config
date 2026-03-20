@@ -1,6 +1,4 @@
 {
-  inputs,
-  system,
 }: [
   (
     _self: super: {
