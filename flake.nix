@@ -22,7 +22,6 @@
 
     # we have this like it couldn't be exposed via builtins.systems
     systems.url = "github:nix-systems/default";
-    nix-nostd.url = "github:chessai/nix-std";
 
     disko = {
       url = "github:nix-community/disko";
