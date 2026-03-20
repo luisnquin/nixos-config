@@ -1,6 +1,4 @@
 {
-  inputs,
-  system,
   pkgs,
   host,
   user,
@@ -11,10 +9,8 @@
   offset = 1;
   safeChargeLimit = builtins.toString (host.batteryThreshold + offset);
 in {
-  environment.systemPackages = let
-    inherit (inputs.nix-scripts.packages.${system}) batlimit;
-  in [
-    (batlimit.override {
+  environment.systemPackages = [
+    (pkgs.scripts.batlimit.override {
       inherit powerSupplyBatteryPath safeChargeLimit;
     })
   ];

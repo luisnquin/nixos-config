@@ -1,11 +1,5 @@
-{
-  inputs,
-  system,
-  ...
-}: {
-  home.packages = let
-    inherit (inputs.nix-scripts.packages.${system}) sys-brightness sys-sound;
-  in [
+{pkgs, ...}: {
+  home.packages = with pkgs.scripts; [
     sys-brightness
     sys-sound
   ];

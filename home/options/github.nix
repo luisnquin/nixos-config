@@ -1,5 +1,4 @@
 {
-  pkgs-extra,
   config,
   pkgs,
   lib,
@@ -42,7 +41,7 @@ in {
         )
         ++ (
           if cfg.tui
-          then [pkgs-extra.ght]
+          then [pkgs.ght]
           else []
         )
         ++ (

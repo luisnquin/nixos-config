@@ -1,16 +1,5 @@
-{
-  inputs,
-  system,
-  pkgs,
-  ...
-}: let
-  passgen = inputs.passgen.defaultPackage.${system};
-
-  senv = inputs.senv.packages.${system}.default;
-in {
+{pkgs, ...}: {
   home.packages = with pkgs; [
-    (inputs.zeroxgen.defaultPackage.${system})
-
     nodePackages_latest.cspell
     license-generator
     # onlyoffice-bin

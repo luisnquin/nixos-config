@@ -1,5 +1,4 @@
 {
-  pkgs-extra,
   config,
   pkgs,
   ...
@@ -7,8 +6,8 @@
   home = {
     packages = with pkgs; [
       aws-lambda-rie
-      pkgs-extra.s3-edit
-      pkgs-extra.ecsview
+      s3-edit
+      ecsview
       (awscli2.overrideAttrs
         (_old: {
           doCheck = false;

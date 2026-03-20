@@ -11,10 +11,6 @@
       });
     }
   )
-  (_self: _super: {
-    inherit (inputs.hyprdysmorphic.packages.${system}) xdg-desktop-portal-hyprland hyprlauncher hyprland;
-  })
-
   (_self: super: {
     antigravity = super.antigravity.overrideAttrs (_oldAttrs: rec {
       version = "1.20.5";

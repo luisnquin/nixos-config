@@ -1,6 +1,5 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
-  pkgs-extra,
   config,
   inputs,
   system,
@@ -64,7 +63,7 @@
 
   generic = let
     hyprstfu = inputs.hyprstfu.defaultPackage.${system};
-    inherit (inputs.nix-scripts.packages.${system}) sys-sound sys-brightness;
+    inherit (pkgs.scripts) sys-sound sys-brightness;
     inherit (pkgs) lib;
   in [
     {
@@ -134,7 +133,7 @@
     }
     {
       "mod+key" = "${mainMod}, K";
-      "dispatcher" = "exec, ${lib.getExe pkgs-extra.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
     }
   ];
 
@@ -147,7 +146,7 @@
           substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
         '';
       });
-    in (pkgs.lib.getExe package);
+    in (getExe package);
 
     rofiCall = name: cmd: ''${getExe pkgs.rofi} -modi "${name}:${cmd}" -show ${name}'';
   in [
@@ -172,7 +171,7 @@
     }
     {
       "mod+key" = "SUPER_SHIFT, C";
-      "dispatcher" = "exec, ${rofiCall "clipboard" "${getExe inputs.nix-scripts.packages.${system}.cliphist-rofi}"}";
+      "dispatcher" = "exec, ${rofiCall "clipboard" "${getExe pkgs.scripts.cliphist-rofi}"}";
     }
   ];
 

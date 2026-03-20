@@ -7,8 +7,8 @@
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
-        flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
       };
     };
     home-manager = {
@@ -93,13 +93,6 @@
     };
     passgen = {
       url = "github:0xc000022070/passgen";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
-    zeroxgen = {
-      url = "github:0xc000022070/0xgen";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-scripts = {
@@ -107,7 +100,6 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
-        flake-utils.follows = "flake-utils";
       };
     };
     nix-index-database = {
@@ -144,16 +136,16 @@
       url = "github:0xc000118128/3mf2stl";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    ttree = {
-      url = "github:luisnquin/ttree";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs @ {
+    hyprdysmorphic,
     nixpkgs-extra,
     home-manager,
+    nix-scripts,
     nixpkgs,
+    passgen,
+    senv,
     ...
   }: let
     system = "x86_64-linux";
@@ -165,9 +157,17 @@
       };
 
       default = import nixpkgs {
-        overlays = import ./overlays/nixpkgs.nix {
-          inherit inputs system;
-        };
+        overlays =
+          (import ./overlays/nixpkgs.nix {
+            inherit inputs system;
+          })
+          ++ [
+            hyprdysmorphic.overlays.default
+            nixpkgs-extra.overlays.default
+            nix-scripts.overlays.default
+            passgen.overlays.default
+            senv.overlays.default
+          ];
 
         inherit config system;
       };
@@ -183,7 +183,6 @@
     specialArgs = {
       isTiling = true;
       isWayland = true;
-      pkgs-extra = nixpkgs-extra.packages.${system};
 
       inherit inputs system libx;
     };

@@ -1,6 +1,4 @@
 {
-  system,
-  inputs,
   pkgs,
   user,
   ...
@@ -51,9 +49,7 @@
 
   tools.nyx.enable = true;
 
-  environment = let
-    nixgrep = inputs.nix-scripts.packages.${system}.nixgrep;
-  in {
+  environment = {
     systemPackages = with pkgs; [
       nix-output-monitor
       nix-prefetch-git
@@ -64,7 +60,7 @@
       nil # lsp
       nvd # package diff
 
-      nixgrep
+      scripts.nixgrep
 
       nixpkgs-review
       nixpkgs-lint

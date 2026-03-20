@@ -1,7 +1,5 @@
 {
   config,
-  inputs,
-  system,
   pkgs,
   lib,
   ...
@@ -97,24 +95,20 @@
           "tooltip" = false;
         };
 
-        "custom/mullvad" = let
-          inherit (inputs.nix-scripts.packages.${system}) mullvad-status;
-        in {
-          "exec" = "${lib.getExe mullvad-status} --waybar \"{{emoji}}  {{relay-id}}\"";
+        "custom/mullvad" = {
+          "exec" = "${lib.getExe pkgs.scripts.mullvad-status} --waybar \"{{emoji}}  {{relay-id}}\"";
           "interval" = 2;
           "return-type" = "json";
-          "on-click" = "${lib.getExe mullvad-status} --toggle-connection";
+          "on-click" = "${lib.getExe pkgs.scripts.mullvad-status} --toggle-connection";
         };
 
-        "custom/network-scan" = let
-          inherit (inputs.nix-scripts.packages.${system}) nmcli-wifi-scan-waybar;
-        in {
-          "exec" = "${lib.getExe nmcli-wifi-scan-waybar}";
+        "custom/network-scan" = {
+          "exec" = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar}";
           "return-type" = "json";
           "tooltip" = true;
           "interval" = 1;
           "tooltip-format" = "Scan wifi networks nearby";
-          "on-click" = "${lib.getExe nmcli-wifi-scan-waybar} --scan";
+          "on-click" = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
         };
 
         "custom/clock" = {

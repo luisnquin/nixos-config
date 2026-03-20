@@ -1,13 +1,9 @@
-{
-  pkgs-extra,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   fonts = {
     packages = with pkgs; [
       nerd-fonts.fira-code
       nerd-fonts.symbols-only
-      pkgs-extra.coders-crux
+      coders-crux
       jetbrains-mono
       cascadia-code
       roboto-mono

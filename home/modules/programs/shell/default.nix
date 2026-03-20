@@ -1,8 +1,4 @@
 {
-  inputs,
-  system,
-  ...
-}: {
   imports = [
     ./man.nix
     ./nao.nix
@@ -23,10 +19,6 @@
     zoxide.enable = true;
     zsh.enable = true;
   };
-
-  home.packages = [
-    inputs.ttree.packages.${system}.default
-  ];
 
   programs.zsh.completionInit = builtins.readFile ../../.../../../../tools/nyx/completions.zsh;
 }
