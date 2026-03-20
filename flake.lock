@@ -198,26 +198,6 @@
         "type": "github"
       }
     },
-    "flake-utils": {
-      "inputs": {
-        "systems": [
-          "systems"
-        ]
-      },
-      "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
     "ghostty": {
       "inputs": {
         "flake-compat": [],
@@ -247,19 +227,19 @@
     },
     "grub-themes": {
       "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
         "nixpkgs": [
           "nixpkgs"
+        ],
+        "systems": [
+          "systems"
         ]
       },
       "locked": {
-        "lastModified": 1762304454,
-        "narHash": "sha256-7XBXfpnT5F/kVWx2uR9N+OhEmkUwvUzUwzsB+dqwaj8=",
+        "lastModified": 1774002033,
+        "narHash": "sha256-NjOmeCZmne76oDS+eV0qqXWqZQ6SEtUYxXlzE9Ce2/0=",
         "owner": "luisnquin",
         "repo": "grub-themes",
-        "rev": "38fe2245e3c5c23cf10bbc1d9e2ed17b2069d389",
+        "rev": "b1e60fd6c3e8bc8381daeb279b6e02c7701d52da",
         "type": "github"
       },
       "original": {
@@ -626,19 +606,19 @@
     },
     "hyprstfu": {
       "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
         "nixpkgs": [
           "nixpkgs"
+        ],
+        "systems": [
+          "systems"
         ]
       },
       "locked": {
-        "lastModified": 1771047980,
-        "narHash": "sha256-25POG8cwTOajMCkynYiPkhQmLYLAZgy/2Dsq3ZeMwp4=",
+        "lastModified": 1774001993,
+        "narHash": "sha256-Gzy9UjyBXtyNmPaBYqHruNAf9MYAKlIyDPafeY491c8=",
         "owner": "luisnquin",
         "repo": "hyprstfu",
-        "rev": "28b0b52506850f5265715ce64f73330e4c6ea180",
+        "rev": "1b1119236b189a4a6bf9c490cc29c584528947cf",
         "type": "github"
       },
       "original": {
@@ -996,7 +976,6 @@
         "black-terminal": "black-terminal",
         "disko": "disko",
         "encore": "encore",
-        "flake-utils": "flake-utils",
         "ghostty": "ghostty",
         "grub-themes": "grub-themes",
         "home-manager": "home-manager",

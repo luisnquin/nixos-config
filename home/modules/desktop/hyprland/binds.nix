@@ -62,7 +62,6 @@
   hyprctlCmd = "${pkgs.hyprland}/bin/hyprctl";
 
   generic = let
-    hyprstfu = inputs.hyprstfu.defaultPackage.${system};
     inherit (pkgs.scripts) sys-sound sys-brightness;
     inherit (pkgs) lib;
   in [
@@ -117,19 +116,19 @@
     {
       # toggle audio of active window
       "mod+key" = "${mainMod}, M";
-      "dispatcher" = "exec, ${lib.getExe hyprstfu}";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu}";
     }
     {
       "mod+key" = "SUPER_SHIFT, M";
-      "dispatcher" = "exec, ${lib.getExe hyprstfu} -unmute-all";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu} -unmute-all";
     }
     {
       "mod+key" = "SUPER_SHIFT, XF86AudioLowerVolume";
-      "dispatcher" = "exec, ${lib.getExe hyprstfu} -volume 5-";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu} -volume 5-";
     }
     {
       "mod+key" = "SUPER_SHIFT, XF86AudioRaiseVolume";
-      "dispatcher" = "exec, ${lib.getExe hyprstfu} -volume 5+";
+      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu} -volume 5+";
     }
     {
       "mod+key" = "${mainMod}, K";

@@ -15,10 +15,6 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    flake-utils = {
-      url = "github:numtide/flake-utils";
-      inputs.systems.follows = "systems";
-    };
 
     # we have this like it couldn't be exposed via builtins.systems
     systems.url = "github:nix-systems/default";
@@ -38,14 +34,14 @@
       url = "github:luisnquin/grub-themes";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
+        systems.follows = "systems";
       };
     };
     hyprstfu = {
       url = "github:luisnquin/hyprstfu";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
+        systems.follows = "systems";
       };
     };
     senv = {
@@ -142,6 +138,8 @@
     nixpkgs-extra,
     home-manager,
     nix-scripts,
+    grub-themes,
+    hyprstfu,
     nixpkgs,
     passgen,
     senv,
@@ -163,7 +161,9 @@
           ++ [
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
+            grub-themes.overlays.default
             nix-scripts.overlays.default
+            hyprstfu.overlays.default
             passgen.overlays.default
             senv.overlays.default
           ];
