@@ -94,7 +94,6 @@
         messageLogger.enable = false;
         messageTags.enable = true;
         moreCommands.enable = true;
-        moreKaomoji.enable = true;
         moreUserTags.enable = true;
         # mutualGroupDMs.enable = true;
         newGuildSettings = {
@@ -143,7 +142,7 @@
         showHiddenThings.enable = true;
         showTimeoutDuration.enable = true;
         silentMessageToggle.enable = true;
-        sortFriendRequests.enable = true;
+        # sortFriendRequests.enable = true;
         # spotifyControls.enable = true;
         spotifyCrack.enable = true;
         spotifyShareCommands.enable = true;

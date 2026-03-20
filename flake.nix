@@ -114,8 +114,7 @@
       };
     };
     nixcord = {
-      # (FlameFlag) until https://github.com/FlameFlag/nixcord/pull/180 is merged
-      url = "github:bddvlpr/nixcord";
+      url = "github:FlameFlag/nixcord";
       inputs = {
         flake-compat.follows = "";
         nixpkgs.follows = "nixpkgs";
