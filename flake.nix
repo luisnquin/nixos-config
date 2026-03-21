@@ -89,7 +89,10 @@
     };
     passgen = {
       url = "github:0xc000022070/passgen";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
     };
     nix-scripts = {
       url = "github:0xc000022070/nix-scripts";
@@ -114,6 +117,7 @@
       inputs = {
         flake-compat.follows = "";
         nixpkgs.follows = "nixpkgs";
+        nixpkgs-nixcord.follows = "nixpkgs";
       };
     };
     ghostty = {
