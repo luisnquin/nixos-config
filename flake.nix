@@ -124,8 +124,8 @@
       url = "github:ghostty-org/ghostty/tip";
       inputs = {
         flake-compat.follows = "";
-        zig.inputs.systems.follows = "systems";
         home-manager.follows = "home-manager";
+        systems.follows = "systems";
         nixpkgs.follows = "nixpkgs";
       };
     };
