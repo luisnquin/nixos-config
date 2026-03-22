@@ -12,6 +12,7 @@
     direnv.enable = true;
     eza.enable = true;
     fzf.enable = true;
+    less.enable = true;
     macchina.enable = true;
     magic-wormhole.enable = true;
     starship.enable = true;
