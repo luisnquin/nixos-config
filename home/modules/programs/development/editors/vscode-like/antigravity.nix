@@ -11,6 +11,8 @@
     cp ${./settings.json} ~/.config/Antigravity/User/settings.json
   '';
 
+  home.shellAliases."code" = "antigravity";
+
   programs.antigravity = {
     enable = true;
     mutableExtensionsDir = true;
