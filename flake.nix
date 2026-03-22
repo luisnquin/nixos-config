@@ -15,8 +15,6 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # we have this like it couldn't be exposed via builtins.systems
     systems.url = "github:nix-systems/default";
 
     disko = {
@@ -101,8 +99,8 @@
         systems.follows = "systems";
       };
     };
-    nix-index-database = {
-      url = "github:nix-community/nix-index-database";
+    flake-programs-sqlite = {
+      url = "github:wamserma/flake-programs-sqlite";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     zen-browser = {
@@ -199,7 +197,7 @@
 
       nixosModules = [
         inputs.disko.nixosModules.default
-        inputs.nix-index-database.nixosModules.default
+        inputs.flake-programs-sqlite.nixosModules.programs-sqlite
         inputs.black-terminal.nixosModules.default
         inputs.home-manager.nixosModules.default
         (import ./secrets {
