@@ -1,5 +1,4 @@
-{
-}: [
+{...}: [
   (
     _self: super: {
       panicparse = super.panicparse.overrideAttrs (_old: {
