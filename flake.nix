@@ -101,7 +101,10 @@
     };
     flake-programs-sqlite = {
       url = "github:wamserma/flake-programs-sqlite";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        utils.inputs.systems.follows = "systems";
+      };
     };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake/beta";
