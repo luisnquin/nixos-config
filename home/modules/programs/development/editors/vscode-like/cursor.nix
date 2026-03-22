@@ -8,7 +8,9 @@
 
   home.activation.copyCursorSettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p ~/.config/Cursor/User
+    rm -f ~/.config/Cursor/User/settings.json
     cp ${./settings.json} ~/.config/Cursor/User/settings.json
+    chmod +w ~/.config/Cursor/User/settings.json
   '';
 
   programs.cursor = {

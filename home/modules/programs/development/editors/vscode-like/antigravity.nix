@@ -8,7 +8,9 @@
 
   home.activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p ~/.config/Antigravity/User
+    rm -f ~/.config/Antigravity/User/settings.json
     cp ${./settings.json} ~/.config/Antigravity/User/settings.json
+    chmod +w ~/.config/Antigravity/User/settings.json
   '';
 
   home.shellAliases."code" = "antigravity";
