@@ -26,6 +26,10 @@
           command = "redo";
           when = "textInputFocus";
         }
+        {
+          key = "ctrl+space";
+          command = "workbench.action.terminal.toggleTerminal";
+        }
       ];
 
       extensions = with pkgs.vscode-extensions;

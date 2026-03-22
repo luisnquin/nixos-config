@@ -7,7 +7,7 @@
   in [
     (import "${hmFork}/modules/programs/cursor.nix")
     (import "${hmFork}/modules/programs/antigravity.nix")
-    ./antigravity.nix
+    ./antigravity
     ./cursor.nix
   ];
 }
