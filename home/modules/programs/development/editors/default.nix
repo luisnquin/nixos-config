@@ -1,6 +1,6 @@
 {
   imports = [
-    ./vscode-like.nix
+    ./vscode-like
     ./nano
   ];
 }

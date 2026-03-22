@@ -1,54 +1,9 @@
-{pkgs, ...}: {
-  imports = let
-    hmFork = builtins.fetchTarball {
-      url = "https://github.com/sei40kr/home-manager/archive/vscode-fork-modules.tar.gz";
-      sha256 = "0r5pv246jp1xc8g1kpzb0dyimpih9xrj7np6sabwmdwnc6pm3wyz";
-    };
-  in [
-    (import "${hmFork}/modules/programs/cursor.nix")
-    (import "${hmFork}/modules/programs/antigravity.nix")
-  ];
-
-  home = let
-    mcpConfig = {
-      mcpServers = {
-        encore = {
-          command = "encore";
-          args = ["mcp" "run" "--app=gate-k9-mzni"];
-          disabledTools = [
-            "query_database"
-            "get_secrets"
-          ];
-        };
-
-        supabase = {
-          serverUrl = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
-          disabledTools = [
-            "reset_branch"
-            "rebase_branch"
-            "delete_branch"
-            "merge_branch"
-            "list_migrations"
-            "apply_migration"
-            "list_branches"
-            "create_branch"
-            "deploy_edge_function"
-            "get_edge_function"
-            "list_edge_functions"
-            "execute_sql"
-          ];
-        };
-      };
-    };
-  in {
-    shellAliases."code" = "antigravity";
-    file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON mcpConfig;
-  };
-
-  programs.cursor = {
-    enable = true;
-    package = pkgs.code-cursor;
-  };
+{
+  config,
+  pkgs,
+  ...
+}: {
+  home.file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON config.programs.mcp.vendorServers;
 
   programs.antigravity = {
     enable = true;
