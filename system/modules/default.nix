@@ -11,7 +11,6 @@
     ./programs/peripherals
     ./programs/security
     ./programs/shell
-    ./programs/vnc.nix
     ./programs/vm
     ./hardware
     ./boot

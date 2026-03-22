@@ -13,6 +13,7 @@
     ./programs/social
     ./programs/studio
     ./programs/terminal.nix
+    ./programs/vnc.nix
 
     ./file-manager.nix
   ];
