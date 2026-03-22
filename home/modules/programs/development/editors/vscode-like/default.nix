@@ -2,7 +2,7 @@
   imports = let
     hmFork = builtins.fetchTarball {
       url = "https://github.com/sei40kr/home-manager/archive/vscode-fork-modules.tar.gz";
-      sha256 = "0r5pv246jp1xc8g1kpzb0dyimpih9xrj7np6sabwmdwnc6pm3wyz";
+      sha256 = "1bq3i0rpiajvdq7n4ai05249rmi9k9cdx59m261p77hrr3jyaqr1";
     };
   in [
     (import "${hmFork}/modules/programs/cursor.nix")
