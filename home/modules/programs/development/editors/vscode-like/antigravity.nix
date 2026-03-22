@@ -19,8 +19,6 @@
       enableExtensionUpdateCheck = true;
       enableUpdateCheck = true;
 
-      enableMcpIntegration = true;
-
       keybindings = [
         {
           key = "ctrl+c";
