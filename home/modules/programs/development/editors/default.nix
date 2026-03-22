@@ -1,8 +1,6 @@
-{pkgs, ...}: {
+{
   imports = [
     ./vscode-like.nix
-    ./nano.nix
+    ./nano
   ];
-
-  home.packages = [pkgs.antigravity];
 }
