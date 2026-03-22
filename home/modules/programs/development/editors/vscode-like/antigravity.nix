@@ -1,9 +1,15 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }: {
   home.file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON config.programs.mcp.vendorServers;
+
+  home.activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    mkdir -p ~/.config/Antigravity/User
+    cp ${./settings.json} ~/.config/Antigravity/User/settings.json
+  '';
 
   programs.antigravity = {
     enable = true;

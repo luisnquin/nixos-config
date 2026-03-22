@@ -1,0 +1,177 @@
+{
+	"git.openRepositoryInParentFolders": "always",
+	"git.terminalAuthentication": true,
+	"git.mergeEditor": false,
+	"git.blame.editorDecoration.enabled": true,
+	"gitlens.currentLine.enabled": false,
+
+	"window.title": "${dirty}${rootName}/.../${activeEditorShort} ${separator} VSCode",
+	"window.openFoldersInNewWindow": "on",
+	"window.openFilesInNewWindow": "off",
+	"window.titleBarStyle": "custom",
+	"window.dialogStyle": "custom",
+	"window.confirmBeforeClose": "never",
+	"window.menuBarVisibility": "compact",
+	"window.doubleClickIconToClose": true,
+	"window.customMenuBarAltFocus": true,
+
+	"workbench.startupEditor": "none",
+	"workbench.settings.editor": "json",
+	"workbench.editor.showTabs": "multiple",
+	"workbench.editor.labelFormat": "short",
+	"workbench.editor.pinnedTabSizing": "compact",
+	"workbench.editorLargeFileConfirmation": 1024,
+	"workbench.panel.opensMaximized": "never",
+	"workbench.sideBar.location": "right",
+	"workbench.statusBar.visible": false,
+
+	"files.autoSave": "afterDelay",
+	"files.autoSaveDelay": 1000,
+	"files.refactoring.autoSave": true,
+
+	"files.exclude": {
+		"node_modules": true,
+		".direnv": true,
+		"**/.next": true,
+		"**/.terraform": true,
+		"**/coverage-ts": true
+	},
+
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/bower_components": true,
+		"**/*.code-search": true,
+		"result/*": true
+	},
+
+	"terminal.integrated.defaultProfile.linux": "zsh",
+	"terminal.integrated.fontFamily": "'Cascadia Code', 'Symbols Nerd Font Mono'",
+	"terminal.integrated.fontSize": 14,
+	"terminal.integrated.scrollback": 10000,
+	"terminal.integrated.copyOnSelection": true,
+	"terminal.integrated.enableMultiLinePasteWarning": "never",
+	"terminal.integrated.gpuAcceleration": "on",
+	"terminal.integrated.inheritEnv": true,
+
+	"terminal.integrated.profiles.linux": {
+		"bash": { "path": "bash", "icon": "terminal-bash" },
+		"zsh": { "path": "zsh" },
+		"fish": { "path": "fish" },
+		"tmux": { "path": "tmux", "icon": "terminal-tmux" }
+	},
+
+	"editor.fontFamily": "'Cascadia Code', 'Symbols Nerd Font Mono'",
+	"editor.fontLigatures": true,
+	"editor.fontSize": 14,
+
+	"editor.tabSize": 4,
+	"editor.indentSize": "tabSize",
+	"editor.autoIndent": "advanced",
+
+	"editor.formatOnSave": true,
+	"editor.formatOnSaveMode": "file",
+	"editor.formatOnPaste": false,
+	"editor.formatOnType": false,
+
+	"editor.wordWrap": "off",
+	"editor.renderWhitespace": "boundary",
+	"editor.smoothScrolling": false,
+
+	"editor.cursorStyle": "line",
+	"editor.cursorBlinking": "phase",
+	"editor.cursorWidth": 2,
+
+	"editor.bracketPairColorization.enabled": true,
+	"editor.bracketPairColorization.independentColorPoolPerBracketType": true,
+	"editor.guides.bracketPairs": true,
+	"editor.guides.indentation": false,
+
+	"editor.inlineSuggest.enabled": true,
+	"editor.stickyScroll.enabled": true,
+	"editor.linkedEditing": true,
+
+	"editor.scrollbar.vertical": "hidden",
+	"editor.scrollbar.horizontal": "auto",
+	"editor.scrollbar.verticalScrollbarSize": 13,
+
+	"editor.acceptSuggestionOnEnter": "smart",
+	"editor.tabCompletion": "on",
+	"editor.suggest.selectionMode": "whenQuickSuggestion",
+
+	"editor.matchBrackets": "never",
+	"editor.glyphMargin": false,
+	"editor.hideCursorInOverviewRuler": true,
+	"editor.overviewRulerBorder": false,
+
+	"[json]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.tabSize": 2
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[yaml]": {
+		"editor.defaultFormatter": "redhat.vscode-yaml",
+		"editor.tabSize": 2
+	},
+
+	"[javascript]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.tabSize": 2
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.tabSize": 2,
+		"editor.rulers": [125]
+	},
+	"[javascriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.tabSize": 2,
+		"editor.rulers": [125]
+	},
+	"[typescriptreact]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+
+	"go.useLanguageServer": true,
+	"go.formatTool": "gofumpt",
+	"go.lintTool": "golangci-lint",
+	"go.lintFlags": ["--fast"],
+	"go.diagnostic.vulncheck": "Imports",
+
+	"[go]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 4,
+		"editor.codeActionsOnSave": {
+			"source.organizeImports": "explicit"
+		}
+	},
+
+	"nix.enableLanguageServer": true,
+	"nix.serverPath": "nil",
+	"alejandra.program": "alejandra",
+
+	"[nix]": {
+		"editor.defaultFormatter": "kamadorueda.alejandra",
+		"editor.tabSize": 2
+	},
+
+	"[terraform]": {
+		"editor.defaultFormatter": "hashicorp.terraform",
+		"editor.tabSize": 2
+	},
+	"[dockerfile]": {
+		"editor.defaultFormatter": "docker.docker"
+	},
+
+	"extensions.autoUpdate": true,
+	"explorer.confirmDelete": false,
+	"explorer.confirmDragAndDrop": false,
+	"diffEditor.wordWrap": "off",
+
+	"cSpell.enabled": false,
+	"security.workspace.trust.untrustedFiles": "open",
+
+	"workbench.colorTheme": "Vira Deepforest High Contrast",
+	"workbench.iconTheme": "vira-icons-deepforest"
+}
