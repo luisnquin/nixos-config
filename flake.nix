@@ -129,7 +129,6 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    # Am I a sinner for having this crap in my PURE system?
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
       url = "github:0xc000118128/3mf2stl";
@@ -211,17 +210,14 @@
         ./tools/nix/nixos-options
       ];
 
-      # tmux plugins via hm
-      # Win+K activa terminal flotante en Hyprland, quisiera activar eso en windows que tienen fullscreen sin quitarles eso,
-      # el fullscreen
-
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
+        inputs.black-terminal.homeModules.default
         inputs.nao.homeManagerModules.default
+        inputs."3mf2stl".homeModules.default
         inputs.nixcord.homeModules.nixcord
         inputs.encore.homeModules.default
-        inputs.black-terminal.homeModules.default
         ./home/options
       ];
     };
