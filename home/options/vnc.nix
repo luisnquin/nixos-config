@@ -76,7 +76,7 @@ in {
     xdg.configFile = mapAttrs' mkConfigFile cfg.entries;
 
     xdg.desktopEntries =
-      mapAttrs (name: entry: {
+      mapAttrs (name: _entry: {
         name = "${name} (VNC)";
         genericName = "VNC Client";
         exec = "${pkgs.realvnc-vnc-viewer}/bin/vncviewer -config ${config.xdg.configHome}/vnc/${name}.vnc";
