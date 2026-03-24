@@ -4,6 +4,7 @@
     entries.mac = {
       host = "dyx.local";
       fullScreen = true;
+      encoding = "Tight";
     };
   };
 }
