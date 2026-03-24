@@ -10,6 +10,8 @@
       android-studio
       android-tools
 
+      scrcpy
+
       kotlin-language-server
       kotlin-native
       kotlin
