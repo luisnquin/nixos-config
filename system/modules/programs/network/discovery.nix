@@ -1,6 +1,7 @@
 {
   services.avahi = {
     enable = true;
+    ipv6 = false;
     nssmdns4 = true;
     openFirewall = true;
 
@@ -11,6 +12,12 @@
       userServices = true;
     };
 
-    denyInterfaces = ["docker0" "veth*"];
+    allowInterfaces = ["wlo1" "eno2"];
+
+    extraConfig = ''
+      [publish]
+      publish-a-on-ipv6=no
+      publish-aaaa-on-ipv4=no
+    '';
   };
 }
