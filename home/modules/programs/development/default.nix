@@ -1,5 +1,6 @@
 {
   imports = [
+    ./agents
     ./database
     ./docker
     ./editors
@@ -8,7 +9,6 @@
     ./ops
     ./pwn
 
-    ./agents.nix
     ./ee.nix
     ./encore.nix
     ./etc.nix
