@@ -850,11 +850,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1773994878,
-        "narHash": "sha256-vA7ZUmJ2CvW0utYZaJoAPrUbK4JzykBXu1lcBNc67AQ=",
+        "lastModified": 1774312874,
+        "narHash": "sha256-mFc7Iy+Oqwr7Vwb7CmNIWilSYiTw2857imf6Rb75ITg=",
         "owner": "FlameFlag",
         "repo": "nixcord",
-        "rev": "148c632f3ba29e32695225631a1e7d255136f749",
+        "rev": "71f4b3f92ca534c3665deb63e229195955d96cf9",
         "type": "github"
       },
       "original": {
