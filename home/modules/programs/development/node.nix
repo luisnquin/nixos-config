@@ -32,9 +32,16 @@ in {
     enable = true;
     package = pkgs.nodejs_25;
     settings = {
-      prefix = NPM_GLOBAL_DIR;
-      init-license = "MIT";
+      audit = true;
+      audit-level = "critical";
+      fund = false;
       ignore-scripts = true;
+      init-private = true;
+      init-version = "0.0.1";
+      init-author-email = config.programs.git.settings.user.email;
+      init-author-name = config.programs.git.settings.user.name;
+      init-license = "MIT";
+      prefix = NPM_GLOBAL_DIR;
     };
   };
 
