@@ -3,19 +3,17 @@
   pkgs,
   lib,
   ...
-}: {
-  home = let
-    npmGlobalDir = "${config.home.homeDirectory}/.npm-global";
-  in {
+}: let
+  NPM_GLOBAL_DIR = "${config.home.homeDirectory}/.npm-global";
+  BUN_GLOBAL_DIR = "${config.home.homeDirectory}/.bun-global";
+in {
+  home = {
     packages = with pkgs; [
       npm-check-updates # (ncu) Find newer versions of package dependencies and check outdated npm packages locally or globally.
-      nodePackages.pnpm
       npkill # remove node_modules from child directories
       nest-cli
-      nodejs_24
       husky
       biome
-      bun
     ];
 
     sessionVariables = {
@@ -23,33 +21,45 @@
       NODE_OPTIONS = "--disable-warning=ExperimentalWarning";
     };
 
-    sessionPath = ["${npmGlobalDir}/bin"];
+    sessionPath = ["${NPM_GLOBAL_DIR}/bin" "${BUN_GLOBAL_DIR}/bin"];
 
     activation.init = lib.hm.dag.entryAfter ["writeBoundary"] ''
-      mkdir -p ${npmGlobalDir}/bin \
-               ${npmGlobalDir}/lib
+      mkdir -p {${NPM_GLOBAL_DIR},${BUN_GLOBAL_DIR}}/{bin,lib}
     '';
+  };
 
-    file = {
-      ".npmrc".text = ''
-        prefix=${npmGlobalDir}
-        //registry.npmjs.org/:_authToken=''${NPM_TOKEN}
-      '';
+  programs.npm = {
+    enable = true;
+    package = pkgs.nodejs_25;
+    settings = {
+      prefix = NPM_GLOBAL_DIR;
+      init-license = "MIT";
+    };
+  };
 
-      ".bunfig.toml".text = ''
-        [runtime]
-        logLevel = "debug"
-        telemetry = false
+  programs.bun = {
+    enable = true;
+    settings = {
+      runtime = {
+        logLevel = "debug";
+        telemetry = false;
+      };
 
-        [install]
-        optional = true
-        dev = true
-        peer = true
-        production = false
-        exact = true
+      install = {
+        optional = true;
+        dev = true;
+        peer = true;
+        production = false;
+        exact = true;
+        globalBinDir = "${BUN_GLOBAL_DIR}/bin";
+        cache = "${BUN_GLOBAL_DIR}/cache";
+      };
 
-        auto = "fallback"
-      '';
+      console = {
+        depth = 3;
+      };
+
+      auto = "fallback";
     };
   };
 }
