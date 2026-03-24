@@ -34,6 +34,7 @@ in {
     settings = {
       prefix = NPM_GLOBAL_DIR;
       init-license = "MIT";
+      ignore-scripts = true;
     };
   };
 
