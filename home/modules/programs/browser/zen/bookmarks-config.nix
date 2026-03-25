@@ -1,6 +1,18 @@
 {libx, ...}: {
   force = true;
   settings = let
+    mkEntryWithKeywords = {
+      name,
+      url,
+      keywords,
+      tags ? [],
+    }:
+      map (kw: {
+        inherit name url tags;
+        keyword = kw;
+      })
+      keywords;
+
     gmailEntries = map (i: rec {
       keyword = "l${toString i}";
       name = keyword;
@@ -95,5 +107,10 @@
         tags = ["cinema"];
       }
     ]
+    ++ (mkEntryWithKeywords {
+      name = "zerotrust";
+      url = "https://dash.cloudflare.com/one/";
+      keywords = ["zero" "tunnels"];
+    })
     ++ gmailEntries;
 }
