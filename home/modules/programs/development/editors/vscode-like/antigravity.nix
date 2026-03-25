@@ -70,6 +70,7 @@
           streetsidesoftware.code-spell-checker
           usernamehw.errorlens
           wmaurer.change-case
+          esbenp.prettier-vscode
           yoavbls.pretty-ts-errors
           zhuangtongfa.material-theme
           ziglang.vscode-zig
