@@ -1,5 +1,6 @@
 {host, ...}: {
   imports = [
+    ./caddy.nix
     ./discovery.nix
     ./hosts.nix
     ./tools.nix

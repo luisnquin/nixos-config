@@ -1,6 +1,8 @@
 {
   networking.hosts = {
     "127.0.0.1" = [
+      "magic.nshard.com"
+
       "www.instagram.com"
       "instagram.com"
 
