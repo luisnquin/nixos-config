@@ -2,6 +2,7 @@
   inputs,
   libx,
   pkgs,
+  lib,
   ...
 }: {
   imports = [
@@ -46,7 +47,7 @@
       #   enable = true;
       # };
 
-      bookmarks = import ./bookmarks-config.nix {inherit libx;};
+      bookmarks = import ./bookmarks-config.nix {inherit libx lib;};
 
       search = import ./search-config.nix {inherit pkgs;};
 

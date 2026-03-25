@@ -1,4 +1,8 @@
-{libx, ...}: {
+{
+  libx,
+  lib,
+  ...
+}: {
   force = true;
   settings = let
     mkEntryWithKeywords = {
@@ -7,9 +11,11 @@
       keywords,
       tags ? [],
     }:
-      map (kw: {
-        inherit name url tags;
+      lib.imap0 (i: kw: {
+        name = "${name}-${toString i}";
         keyword = kw;
+        url = "${url}#${kw}";
+        inherit tags;
       })
       keywords;
 
