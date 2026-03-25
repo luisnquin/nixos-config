@@ -130,6 +130,13 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    agent-skills = {
+      url = "github:Kyure-A/agent-skills-nix";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        home-manager.follows = "nixpkgs";
+      };
+    };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
       url = "github:0xc000118128/3mf2stl";
@@ -214,6 +221,7 @@
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
+        inputs.agent-skills.homeManagerModules.default
         inputs.black-terminal.homeModules.default
         inputs.nao.homeManagerModules.default
         inputs."3mf2stl".homeModules.default

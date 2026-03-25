@@ -47,6 +47,29 @@
         "type": "github"
       }
     },
+    "agent-skills": {
+      "inputs": {
+        "home-manager": [
+          "nixpkgs"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1774030553,
+        "narHash": "sha256-JV6PFjMEew1Owx4ihhdvhuIJ2Ztlz2nDdypuHH7UMRk=",
+        "owner": "Kyure-A",
+        "repo": "agent-skills-nix",
+        "rev": "bf08d4153f03d6a3c7421332483f1e3d25cd6d4c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Kyure-A",
+        "repo": "agent-skills-nix",
+        "type": "github"
+      }
+    },
     "aquamarine": {
       "inputs": {
         "hyprutils": [
@@ -964,6 +987,7 @@
       "inputs": {
         "3mf2stl": "3mf2stl",
         "agenix": "agenix",
+        "agent-skills": "agent-skills",
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
         "disko": "disko",
