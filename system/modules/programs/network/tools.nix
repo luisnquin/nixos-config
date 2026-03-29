@@ -12,7 +12,7 @@
   ];
 
   services = with pkgs; [
-    cloudflared
+    cloudflared # https://developers.cloudflare.com/ssl/edge-certificates/additional-options/total-tls/error-messages/#active-domains
     lsyncd
   ];
 in {
