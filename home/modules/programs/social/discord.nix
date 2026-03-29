@@ -92,7 +92,7 @@
         };
         messageLinkEmbeds.enable = true;
         messageLogger.enable = false;
-        messageTags.enable = true;
+        # messageTags.enable = true;
         moreCommands.enable = true;
         moreUserTags.enable = true;
         # mutualGroupDMs.enable = true;
