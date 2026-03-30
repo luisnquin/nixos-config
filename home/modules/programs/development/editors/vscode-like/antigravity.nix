@@ -106,6 +106,12 @@
             version = "0.0.1";
             sha256 = "sha256-KZfUaPjReHQH0XCCiejAs+0Go8WEeGiOuxjkTfSnku0=";
           }
+          {
+            name = "native-preview";
+            publisher = "TypeScriptTeam";
+            version = "0.20260329.1";
+            sha256 = "sha256-sKePls4n8bgYtSRXLvSTK8bamN/4CVqD2SBcMpytJZg=";
+          }
         ];
     };
   };

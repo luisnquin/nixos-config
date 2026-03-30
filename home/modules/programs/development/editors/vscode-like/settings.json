@@ -137,6 +137,8 @@
 		"editor.defaultFormatter": "biomejs.biome"
 	},
 
+	"js/ts.experimental.useTsgo": true,
+
 	"go.useLanguageServer": true,
 	"go.formatTool": "gofumpt",
 	"go.lintTool": "golangci-lint",
