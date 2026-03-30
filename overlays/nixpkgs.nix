@@ -10,10 +10,10 @@
   )
   (_self: super: {
     antigravity = super.antigravity.overrideAttrs (_oldAttrs: rec {
-      version = "1.20.6";
+      version = "1.21.9";
       src = super.fetchurl {
-        url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}-5891862175809536/linux-x64/Antigravity.tar.gz";
-        sha256 = "sha256-rTgr8yGmIW0H+Vrx9hPgP1oH/fb8ZjK3ac6D2Br91Wc=";
+        url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}-4905428782546944/linux-x64/Antigravity.tar.gz";
+        sha256 = "sha256-hepNVfUtMvu/nZL93HR/EOjQTBvQCgdyG1cfp/LvUiY=";
       };
     });
   })
