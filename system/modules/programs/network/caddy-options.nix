@@ -6,7 +6,7 @@
 with lib; let
   cfg = config.services.caddy.structuredVirtualHosts;
 
-  mkVHost = name: vhost: let
+  mkVHost = _name: vhost: let
     tlsConfig =
       if vhost.tls == null
       then ""
