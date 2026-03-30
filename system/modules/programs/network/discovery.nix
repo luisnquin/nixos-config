@@ -1,4 +1,4 @@
-{
+{host, ...}: {
   services.avahi = {
     enable = true;
     ipv6 = false;
@@ -8,7 +8,7 @@
     publish = {
       enable = true;
       addresses = true;
-      workstation = true;
+      workstation = false;
       userServices = true;
     };
 
@@ -18,6 +18,17 @@
       [publish]
       publish-a-on-ipv6=no
       publish-aaaa-on-ipv4=no
+    '';
+
+    extraServiceFiles.workstation = ''
+      <?xml version="1.0" standalone='no'?>
+      <service-group>
+        <name replace-wildcards="yes">${host.name}</name>
+        <service>
+          <type>_workstation._tcp</type>
+          <port>9</port>
+        </service>
+      </service-group>
     '';
   };
 }
