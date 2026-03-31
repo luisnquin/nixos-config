@@ -1,10 +1,14 @@
 {pkgs, ...}: {
-  # Printer setup
-  # $ lp -d EPSON_L3110_Series <target> (or just use cups's webint)
+  # Just print it: lp <target>
+  # Print and spec target: lp -d EPSON_L3110_Series <target>
   services.printing = {
     enable = true;
     drivers = [pkgs.epson-escpr];
   };
+
+  # TODO:
+  # printing/laser
+  # printing/3d
 
   hardware.printers.ensurePrinters = [
     {
@@ -20,15 +24,18 @@
     }
   ];
 
-  # Scanner setup
-  # $ ls -l /dev/bus/usb/*/*
-  # $ sudo scanimage -d epson2:libusb:*:* --format=jpeg --resolution 300 --mode Color > output.jpg
-  environment.systemPackages = with pkgs; [xsane simple-scan];
+  environment.systemPackages = [
+    # Tests nozzles: sudo escputil -n -P EPSON_L3110_Series -u
+    # Head cleaning: sudo escputil -c -P EPSON_L3110_Series -u
+    pkgs.gutenprint
+  ];
 
-  # services.saned.enable = true;
+  services.saned.enable = true;
 
-  # hardware.sane = {
-  #   enable = true;
-  #   extraBackends = [pkgs.epkowa];
-  # };
+  hardware.sane = {
+    enable = true;
+    # List devices: scanimage -L
+    # Proceed: scanimage -d epson2:libusb:003:006 --mode Color --resolution 300 --format=png > <name>.png
+    extraBackends = [pkgs.epkowa];
+  };
 }
