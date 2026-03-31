@@ -13,6 +13,12 @@
       };
     };
 
-    claude-code.enable = true;
+    claude-code = {
+      enable = true;
+      memory.text = ''
+        Do not include the Co-authored-by trailer in commits.
+        Do not use emojis in development outputs.
+      '';
+    };
   };
 }
