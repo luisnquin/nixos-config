@@ -11,6 +11,8 @@
         ];
       };
 
+      expo.url = "https://mcp.expo.dev/mcp";
+
       supabase = {
         url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
         disabledTools = [
