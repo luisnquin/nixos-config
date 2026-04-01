@@ -26,9 +26,24 @@
       ];
 
       memory.text = ''
-        Do not include the Co-authored-by trailer in commits.
         Do not use emojis in development outputs.
       '';
+
+      includeCoAuthoredBy = false;
+
+      permissions = {
+        allow = [
+          "Bash(git diff:*)"
+          "Bash(git status:*)"
+        ];
+
+        ask = [
+          "Bash(git push:*)"
+        ];
+
+        defaultMode = "acceptEdits";
+        disableBypassPermissionsMode = "disable";
+      };
 
       settings = {
         model = "claude-haiku-4-5-20251001";
