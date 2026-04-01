@@ -98,7 +98,9 @@
           No emojis in dev output.
           Use conventional commits in new projects; follow existing conventions otherwise.
           "style" is only for formatting.
-          Don't overexplain in the commit body.
+          Keep commit bodies concise.
+          Use lowercase titles unless required.
+          Do not use flake-utils in new nix flakes.
         '';
 
         permissions = {
