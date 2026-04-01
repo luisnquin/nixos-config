@@ -98,6 +98,7 @@
           No emojis in dev output.
           Use conventional commits in new projects; follow existing conventions otherwise.
           "style" is only for formatting.
+          Don't overexplain in the commit body.
         '';
 
         permissions = {
