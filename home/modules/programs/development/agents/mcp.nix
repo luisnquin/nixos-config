@@ -1,4 +1,9 @@
 {
+  inputs,
+  system,
+  lib,
+  ...
+}: {
   programs.mcp = {
     enable = true;
     servers = {
@@ -10,6 +15,8 @@
           "get_secrets"
         ];
       };
+
+      adb.command = lib.getExe inputs.adb-mcp.packages.${system}.default;
 
       expo.url = "https://mcp.expo.dev/mcp";
 

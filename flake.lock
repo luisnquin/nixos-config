@@ -20,6 +20,29 @@
         "type": "github"
       }
     },
+    "adb-mcp": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "systems": [
+          "systems"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775040171,
+        "narHash": "sha256-7422tcGk/j2rAyxw6FFzQsqLO4OtUqS1jzLj73c77Ks=",
+        "owner": "chanchitaapp",
+        "repo": "adb-mcp",
+        "rev": "fb0ec897bf136274b3510d73a53ffa955aa241fe",
+        "type": "github"
+      },
+      "original": {
+        "owner": "chanchitaapp",
+        "repo": "adb-mcp",
+        "type": "github"
+      }
+    },
     "agenix": {
       "inputs": {
         "darwin": "darwin",
@@ -986,6 +1009,7 @@
     "root": {
       "inputs": {
         "3mf2stl": "3mf2stl",
+        "adb-mcp": "adb-mcp",
         "agenix": "agenix",
         "agent-skills": "agent-skills",
         "battery-notifier": "battery-notifier",

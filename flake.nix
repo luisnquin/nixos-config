@@ -137,6 +137,13 @@
         home-manager.follows = "nixpkgs";
       };
     };
+    adb-mcp = {
+      url = "github:chanchitaapp/adb-mcp";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
       url = "github:0xc000118128/3mf2stl";
