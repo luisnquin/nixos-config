@@ -1,4 +1,8 @@
-{config, ...}: {
+{
+  pkgs,
+  config,
+  ...
+}: {
   programs = {
     gemini-cli = {
       enable = true;
@@ -25,6 +29,20 @@
         Do not include the Co-authored-by trailer in commits.
         Do not use emojis in development outputs.
       '';
+
+      settings.hooks = {
+        SessionStart = [
+          {
+            matcher = "";
+            hooks = [
+              {
+                type = "command";
+                command = "${pkgs.pulseaudio}/bin/paplay ${./sounds/session-start.mp3}";
+              }
+            ];
+          }
+        ];
+      };
     };
   };
 }
