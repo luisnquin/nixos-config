@@ -23,7 +23,6 @@
       enable = true;
       enableMcpIntegration = true;
       mcpServers = builtins.removeAttrs config.programs.mcp.servers [
-        "expo"
         "supabase"
       ];
 
