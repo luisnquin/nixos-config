@@ -55,78 +55,45 @@
         };
 
         hooks = let
-          mkAudioHook = mp3: {
+          mkAudioHook = files: {
             type = "command";
-            command = "${pkgs.pulseaudio}/bin/paplay ${mp3}";
+            command = builtins.concatStringsSep " && " (
+              map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
+            );
           };
+
+          mkAudioEvent = files: [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook files)
+              ];
+            }
+          ];
         in {
           SessionStart = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifarm.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifarm.wav])
           ];
           Elicitation = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifrtho.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifrtho.wav])
           ];
           ElicitationResult = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifrtfy.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifrtfy.wav])
           ];
           PostToolUseFailure = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifdngr.wav)
-                (mkAudioHook ./sounds/ifvfrs.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifdngr.wav ./sounds/ifvfrs.wav])
           ];
           UserPromptSubmit = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifrsig.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifrsig.wav])
           ];
           TaskCompleted = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifgood.wav)
-                (mkAudioHook ./sounds/ifrtho.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifgood.wav ./sounds/ifrtho.wav])
           ];
           StopFailure = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifdngr.wav)
-                (mkAudioHook ./sounds/ifrsis.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifdngr.wav ./sounds/ifrsis.wav])
           ];
           PermissionDenied = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifdngr.wav) # TODO: both should be managed by the script
-                (mkAudioHook ./sounds/permission-denied.mp3)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifdngr.wav ./sounds/permission-denied.mp3])
           ];
           PreToolUse = [
             {
@@ -140,12 +107,7 @@
             }
           ];
           SessionEnd = [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook ./sounds/ifdarm.wav)
-              ];
-            }
+            (mkAudioEvent [./sounds/ifdarm.wav])
           ];
         };
 
