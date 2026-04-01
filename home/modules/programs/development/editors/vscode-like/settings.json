@@ -169,6 +169,11 @@
 	"[dockerfile]": {
 		"editor.defaultFormatter": "docker.docker"
 	},
+	"docker-explorer.showDockerContainers": false,
+	"docker-explorer.showAzureRegistries": false,
+	"docker-explorer.showDockerHubTreeView": false,
+	"docker-explorer.showSuggestedDockerImages": false,
+	"docker-explorer.showDockerImages": false,
 
 	"extensions.autoUpdate": true,
 	"explorer.confirmDelete": false,
