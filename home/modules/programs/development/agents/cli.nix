@@ -25,28 +25,18 @@
         "supabase"
       ];
 
-      memory.text = ''
-        Do not use emojis in development outputs.
-      '';
-
-      includeCoAuthoredBy = false;
-
-      permissions = {
-        allow = [
-          "Bash(git diff:*)"
-          "Bash(git status:*)"
-        ];
-
-        ask = [
-          "Bash(git push:*)"
-        ];
-
-        defaultMode = "acceptEdits";
-        disableBypassPermissionsMode = "disable";
-      };
-
+      # https://code.claude.com/docs/en/settings#available-settings
       settings = {
         model = "claude-haiku-4-5-20251001";
+        effortLevel = "medium";
+        outputStyle = "Explanatory";
+        language = "english";
+        cleanupPeriodDays = 20;
+
+        env = {
+          "CLAUDE_CODE_ENABLE_TELEMETRY" = "0";
+        };
+
         hooks = {
           SessionStart = [
             {
@@ -59,6 +49,30 @@
               ];
             }
           ];
+        };
+
+        companyAnnouncements = [
+          "Reminder: you're in solo mode"
+        ];
+
+        includeCoAuthoredBy = false;
+
+        memory.text = ''
+          Do not use emojis in development outputs.
+        '';
+
+        permissions = {
+          allow = [
+            "Bash(git diff:*)"
+            "Bash(git status:*)"
+          ];
+
+          ask = [
+            "Bash(git push:*)"
+          ];
+
+          defaultMode = "acceptEdits";
+          disableBypassPermissionsMode = "disable";
         };
       };
     };
