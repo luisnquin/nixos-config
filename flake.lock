@@ -30,11 +30,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1775040171,
-        "narHash": "sha256-7422tcGk/j2rAyxw6FFzQsqLO4OtUqS1jzLj73c77Ks=",
+        "lastModified": 1775042613,
+        "narHash": "sha256-oXmz1XWeQZNs6tCrjj4JztA8qx8XSaQRACTvDc6ET9A=",
         "owner": "chanchitaapp",
         "repo": "adb-mcp",
-        "rev": "fb0ec897bf136274b3510d73a53ffa955aa241fe",
+        "rev": "5b9f7417b2dfe5cce528e69b7e219e2add746d4b",
         "type": "github"
       },
       "original": {
