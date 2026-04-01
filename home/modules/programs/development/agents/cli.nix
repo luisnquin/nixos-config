@@ -119,11 +119,14 @@
 
         memory.text = ''
           No emojis in dev output.
+          Look for genuine technical dialogue, not validation.
           Use conventional commits in new projects; follow existing conventions otherwise.
           "style" is only for formatting.
           Keep commit bodies concise.
           Use lowercase titles unless required.
           Do not use flake-utils in new nix flakes.
+          Avoid git add (-A|.|--all).
+          Ensure commit messages match the staged changes.
         '';
 
         permissions = {
