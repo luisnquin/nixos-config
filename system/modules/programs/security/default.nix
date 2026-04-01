@@ -1,6 +1,7 @@
 {
   imports = [
     ./protocols.nix
+    ./network.nix
     ./keyring.nix
     ./groups.nix
     ./user.nix
