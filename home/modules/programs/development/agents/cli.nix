@@ -52,6 +52,7 @@
 
         env = {
           "CLAUDE_CODE_ENABLE_TELEMETRY" = "0";
+          "RTK_TELEMETRY_DISABLED" = "1";
         };
 
         hooks = let
