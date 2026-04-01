@@ -30,18 +30,21 @@
         Do not use emojis in development outputs.
       '';
 
-      settings.hooks = {
-        SessionStart = [
-          {
-            matcher = "";
-            hooks = [
-              {
-                type = "command";
-                command = "${pkgs.pulseaudio}/bin/paplay ${./sounds/session-start.mp3}";
-              }
-            ];
-          }
-        ];
+      settings = {
+        model = "claude-haiku-4-5-20251001";
+        hooks = {
+          SessionStart = [
+            {
+              matcher = "";
+              hooks = [
+                {
+                  type = "command";
+                  command = "${pkgs.pulseaudio}/bin/paplay ${./sounds/session-start.mp3}";
+                }
+              ];
+            }
+          ];
+        };
       };
     };
   };
