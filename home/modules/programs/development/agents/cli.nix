@@ -47,14 +47,43 @@
             {
               matcher = "";
               hooks = [
-                (mkAudioHook ./sounds/session-start.mp3)
+                (mkAudioHook ./sounds/ifarm.wav)
+              ];
+            }
+          ];
+          Elicitation = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/iflmsn.wav)
+              ];
+            }
+          ];
+          StopFailure = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/ifdngr.wav)
+                (mkAudioHook ./sounds/ifdarm.wav)
+              ];
+            }
+          ];
+          TaskCompleted = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/ifgood.wav)
+                (mkAudioHook ./sounds/ifrtho.wav)
               ];
             }
           ];
           PermissionDenied = [
             {
               matcher = "";
-              hooks = [(mkAudioHook ./sounds/permission-denied.mp3)];
+              hooks = [
+                (mkAudioHook ./sounds/ifdngr.wav)
+                (mkAudioHook ./sounds/permission-denied.mp3)
+              ];
             }
           ];
         };
