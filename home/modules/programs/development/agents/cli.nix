@@ -37,16 +37,24 @@
           "CLAUDE_CODE_ENABLE_TELEMETRY" = "0";
         };
 
-        hooks = {
+        hooks = let
+          mkAudioHook = mp3: {
+            type = "command";
+            command = "${pkgs.pulseaudio}/bin/paplay ${mp3}";
+          };
+        in {
           SessionStart = [
             {
               matcher = "";
               hooks = [
-                {
-                  type = "command";
-                  command = "${pkgs.pulseaudio}/bin/paplay ${./sounds/session-start.mp3}";
-                }
+                (mkAudioHook ./sounds/session-start.mp3)
               ];
+            }
+          ];
+          PermissionDenied = [
+            {
+              matcher = "";
+              hooks = [(mkAudioHook ./sounds/permission-denied.mp3)];
             }
           ];
         };
