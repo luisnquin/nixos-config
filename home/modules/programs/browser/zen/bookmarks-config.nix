@@ -46,6 +46,12 @@
         url = "https://home-manager-options.extranix.com/?query&release=master";
       }
       {
+        name = "nix-darwin";
+        tags = ["nix"];
+        keyword = "darwin";
+        url = "https://nix-darwin.nshard.com/manual/";
+      }
+      {
         name = "cups";
         url = "http://localhost:631/admin";
         keyword = "cups";
