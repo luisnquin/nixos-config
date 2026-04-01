@@ -72,16 +72,32 @@
             {
               matcher = "";
               hooks = [
-                (mkAudioHook ./sounds/iflmsn.wav)
+                (mkAudioHook ./sounds/ifrtho.wav)
               ];
             }
           ];
-          StopFailure = [
+          ElicitationResult = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/ifrtfy.wav)
+              ];
+            }
+          ];
+          PostToolUseFailure = [
             {
               matcher = "";
               hooks = [
                 (mkAudioHook ./sounds/ifdngr.wav)
-                (mkAudioHook ./sounds/ifdarm.wav)
+                (mkAudioHook ./sounds/ifvfrs.wav)
+              ];
+            }
+          ];
+          UserPromptSubmit = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/ifrsig.wav)
               ];
             }
           ];
@@ -94,11 +110,20 @@
               ];
             }
           ];
-          PermissionDenied = [
+          StopFailure = [
             {
               matcher = "";
               hooks = [
                 (mkAudioHook ./sounds/ifdngr.wav)
+                (mkAudioHook ./sounds/ifrsis.wav)
+              ];
+            }
+          ];
+          PermissionDenied = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/ifdngr.wav) # TODO: both should be managed by the script
                 (mkAudioHook ./sounds/permission-denied.mp3)
               ];
             }
@@ -111,6 +136,14 @@
                   type = "command";
                   command = config.programs.claude-code.hooks."rtk-rewrite.sh";
                 }
+              ];
+            }
+          ];
+          SessionEnd = [
+            {
+              matcher = "";
+              hooks = [
+                (mkAudioHook ./sounds/ifdarm.wav)
               ];
             }
           ];
