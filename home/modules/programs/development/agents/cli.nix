@@ -95,7 +95,9 @@
         includeCoAuthoredBy = false;
 
         memory.text = ''
-          Do not use emojis in development outputs.
+          No emojis in dev output.
+          Use conventional commits in new projects; follow existing conventions otherwise.
+          "style" is only for formatting.
         '';
 
         permissions = {
