@@ -1,8 +1,10 @@
 {
-  pkgs,
   config,
+  pkgs,
   ...
 }: {
+  home.packages = [pkgs.rtk];
+
   programs = {
     gemini-cli = {
       enable = true;
@@ -24,6 +26,21 @@
         "expo"
         "supabase"
       ];
+
+      hooks = let
+        mkRemoteScript = (
+          {
+            url,
+            sha256,
+          }:
+            builtins.readFile (pkgs.fetchurl {inherit url sha256;})
+        );
+      in {
+        "rtk-rewrite.sh" = mkRemoteScript {
+          url = "https://raw.githubusercontent.com/rtk-ai/rtk/d6425c311d89a341902432fb82fdd1f524835b8b/hooks/claude/rtk-rewrite.sh";
+          sha256 = "1yqqa099iiyp6i3wvjkbffw3njcw4kb6rdjgp3rgazpxjh4n63gg";
+        };
+      };
 
       # https://code.claude.com/docs/en/settings#available-settings
       settings = {
@@ -83,6 +100,17 @@
               hooks = [
                 (mkAudioHook ./sounds/ifdngr.wav)
                 (mkAudioHook ./sounds/permission-denied.mp3)
+              ];
+            }
+          ];
+          PreToolUse = [
+            {
+              matcher = "Bash";
+              hooks = [
+                {
+                  type = "command";
+                  command = config.programs.claude-code.hooks."rtk-rewrite.sh";
+                }
               ];
             }
           ];
