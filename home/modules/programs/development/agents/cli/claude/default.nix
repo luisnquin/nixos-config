@@ -41,6 +41,7 @@ in {
 
       env = {
         "CLAUDE_CODE_ENABLE_TELEMETRY" = "0";
+        "DISABLE_AUTOUPDATER" = "1";
       };
 
       hooks = let
