@@ -41,8 +41,21 @@
         };
       };
 
+      marketplaces = {
+        claude-plugins-official = pkgs.fetchFromGitHub {
+          owner = "anthropics";
+          repo = "claude-plugins-official";
+          rev = "b091cb4179d3b62a6e2a39910461c7ec7165b1ef";
+          sha256 = "sha256-uKDVcw6C1uzpiIY+hjgHxr4AU9wM1KF7t3v6zd9XBHk=";
+        };
+      };
+
       # https://code.claude.com/docs/en/settings#available-settings
       settings = {
+        enabledPlugins = {
+          "rust-analyzer-lsp@claude-plugins-official" = true;
+        };
+
         model = "claude-haiku-4-5-20251001";
         effortLevel = "medium";
         outputStyle = "Explanatory";

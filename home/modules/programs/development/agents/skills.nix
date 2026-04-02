@@ -34,7 +34,7 @@ in {
 
     targets = {
       agents.enable = true;
-      claude.enable = true;
+      claude.enable = false;
       antigravity.enable = true;
       cursor.enable = true;
     };
