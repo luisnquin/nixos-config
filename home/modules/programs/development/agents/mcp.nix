@@ -1,12 +1,16 @@
 {
   inputs,
   system,
+  pkgs,
   lib,
   ...
 }: {
   programs.mcp = {
     enable = true;
     servers = {
+      adb.command = lib.getExe inputs.adb-mcp.packages.${system}.default;
+      context7.command = lib.getExe pkgs.context7-mcp;
+
       encore = {
         command = "encore";
         args = ["mcp" "run" "--app=gate-k9-mzni"];
@@ -16,7 +20,8 @@
         ];
       };
 
-      adb.command = lib.getExe inputs.adb-mcp.packages.${system}.default;
+      github.command = lib.getExe pkgs.github-mcp-server;
+      nixos.command = lib.getExe pkgs.mcp-nixos;
 
       supabase = {
         url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
