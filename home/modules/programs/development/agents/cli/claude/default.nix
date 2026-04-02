@@ -126,17 +126,9 @@ in {
         Ensure commit messages match the staged changes.
       '';
 
+      permissionProfile = "standard";
       permissions = {
-        allow = [
-          "Bash(git diff:*)"
-          "Bash(git status:*)"
-        ];
-
-        ask = [
-          "Bash(git push:*)"
-        ];
-
-        defaultMode = "acceptEdits";
+        defaultMode = pkgs.lib.mkForce "acceptEdits";
         disableBypassPermissionsMode = "disable";
       };
     };

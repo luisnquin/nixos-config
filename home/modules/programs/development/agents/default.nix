@@ -1,5 +1,6 @@
 {
   imports = [
+    ./options
     ./cli/gemini
     ./cli/claude
     ./cli/opencode
