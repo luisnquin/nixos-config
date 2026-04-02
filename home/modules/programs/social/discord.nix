@@ -1,8 +1,10 @@
-{
+{pkgs, ...}: {
   services.arrpc.enable = true;
 
+  home.packages = [pkgs.discord];
+
   programs.nixcord = {
-    enable = true;
+    enable = false;
 
     discord = {
       enable = true;
