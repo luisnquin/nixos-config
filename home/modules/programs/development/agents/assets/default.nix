@@ -1,4 +1,8 @@
 {
+  images = {
+    claude = ./images/claude.ico;
+  };
+
   sounds = {
     ifarm = ./sounds/ifarm.wav;
     ifrtho = ./sounds/ifrtho.wav;

@@ -1,10 +1,11 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }: let
   assets = import ../../assets;
-  inherit (assets) sounds;
+  inherit (assets) sounds images;
 in {
   programs.claude-code = {
     enable = true;
@@ -54,7 +55,7 @@ in {
       };
 
       hooks = let
-        mkAudioHook = files: {
+        playAudio = files: {
           type = "command";
           command = builtins.concatStringsSep " && " (
             map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
@@ -64,10 +65,23 @@ in {
         mkAudioEvent = files: {
           matcher = "";
           hooks = [
-            (mkAudioHook files)
+            (playAudio files)
+          ];
+        };
+
+        mkNotification = title: message: {
+          matcher = "";
+          hooks = [
+            {
+              type = "command";
+              command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${images.claude}" "${title}" "${message}"'';
+            }
           ];
         };
       in {
+        Notification = [
+          (mkNotification "Claude Code" "Awaiting your input")
+        ];
         SessionStart = [
           (mkAudioEvent [sounds.ifarm])
         ];
