@@ -1,0 +1,14 @@
+{
+  sounds = {
+    ifarm = ./sounds/ifarm.wav;
+    ifrtho = ./sounds/ifrtho.wav;
+    ifdarm = ./sounds/ifdarm.wav;
+    ifdngr = ./sounds/ifdngr.wav;
+    ifgood = ./sounds/ifgood.wav;
+    ifrsig = ./sounds/ifrsig.wav;
+    ifrsis = ./sounds/ifrsis.wav;
+    ifrtfy = ./sounds/ifrtfy.wav;
+    ifvfrs = ./sounds/ifvfrs.wav;
+    permission-denied = ./sounds/permission-denied.mp3;
+  };
+}
