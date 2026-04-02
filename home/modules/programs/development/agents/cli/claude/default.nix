@@ -14,19 +14,8 @@ in {
       "supabase"
     ];
 
-    hooks = let
-      mkRemoteScript = (
-        {
-          url,
-          sha256,
-        }:
-          builtins.readFile (pkgs.fetchurl {inherit url sha256;})
-      );
-    in {
-      "rtk-rewrite.sh" = mkRemoteScript {
-        url = "https://raw.githubusercontent.com/rtk-ai/rtk/d6425c311d89a341902432fb82fdd1f524835b8b/hooks/rtk-rewrite.sh";
-        sha256 = "sha256-7w1jCZT9fvXyuE+2bNYknEk7uHNrys1HNNfHmBJQGPs=";
-      };
+    hooks = {
+      "rtk-rewrite.sh" = builtins.readFile "${pkgs.rtk}/share/rtk/hooks/rtk-rewrite.sh";
     };
 
     marketplaces = {

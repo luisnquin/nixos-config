@@ -17,4 +17,12 @@
       };
     });
   })
+  (_self: super: {
+    rtk = super.rtk.overrideAttrs (_oldAttrs: {
+      postInstall = ''
+        mkdir -p $out/share/rtk/hooks
+        cp -r hooks/* $out/share/rtk/hooks/
+      '';
+    });
+  })
 ]
