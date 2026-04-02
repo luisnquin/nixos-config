@@ -44,21 +44,19 @@ in {
       };
 
       hooks = let
-        playAudio = files: {
-          type = "command";
-          command = builtins.concatStringsSep " && " (
-            map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
-          );
-        };
-
-        mkAudioEvent = files: {
+        mkAudioHook = files: {
           matcher = "";
           hooks = [
-            (playAudio files)
+            {
+              type = "command";
+              command = builtins.concatStringsSep " && " (
+                map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
+              );
+            }
           ];
         };
 
-        mkNotification = title: message: {
+        mkNotificationHook = title: message: {
           matcher = "";
           hooks = [
             {
@@ -69,31 +67,31 @@ in {
         };
       in {
         Notification = [
-          (mkNotification "Claude Code" "Awaiting your input")
+          (mkNotificationHook "Claude Code" "Awaiting your input")
         ];
         SessionStart = [
-          (mkAudioEvent [sounds.ifarm])
+          (mkAudioHook [sounds.ifarm])
         ];
         Elicitation = [
-          (mkAudioEvent [sounds.ifrtho])
+          (mkAudioHook [sounds.ifrtho])
         ];
         ElicitationResult = [
-          (mkAudioEvent [sounds.ifrtfy])
+          (mkAudioHook [sounds.ifrtfy])
         ];
         PostToolUseFailure = [
-          (mkAudioEvent [sounds.ifdngr sounds.ifvfrs])
+          (mkAudioHook [sounds.ifdngr sounds.ifvfrs])
         ];
         UserPromptSubmit = [
-          (mkAudioEvent [sounds.ifrsig])
+          (mkAudioHook [sounds.ifrsig])
         ];
         TaskCompleted = [
-          (mkAudioEvent [sounds.ifgood sounds.ifrtho])
+          (mkAudioHook [sounds.ifgood sounds.ifrtho])
         ];
         StopFailure = [
-          (mkAudioEvent [sounds.ifdngr sounds.ifrsis])
+          (mkAudioHook [sounds.ifdngr sounds.ifrsis])
         ];
         PermissionDenied = [
-          (mkAudioEvent [sounds.ifdngr sounds.permission-denied])
+          (mkAudioHook [sounds.ifdngr sounds.permission-denied])
         ];
         PreToolUse = [
           {
@@ -107,7 +105,7 @@ in {
           }
         ];
         SessionEnd = [
-          (mkAudioEvent [sounds.ifdarm])
+          (mkAudioHook [sounds.ifdarm])
         ];
       };
 
