@@ -1,6 +1,6 @@
 {
   imports = [
     ./bluetooth.nix
-    ./printing.nix
+    # ./printing.nix
   ];
 }
