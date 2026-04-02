@@ -36,8 +36,8 @@
         );
       in {
         "rtk-rewrite.sh" = mkRemoteScript {
-          url = "https://raw.githubusercontent.com/rtk-ai/rtk/d6425c311d89a341902432fb82fdd1f524835b8b/hooks/claude/rtk-rewrite.sh";
-          sha256 = "1yqqa099iiyp6i3wvjkbffw3njcw4kb6rdjgp3rgazpxjh4n63gg";
+          url = "https://raw.githubusercontent.com/rtk-ai/rtk/d6425c311d89a341902432fb82fdd1f524835b8b/hooks/rtk-rewrite.sh";
+          sha256 = "sha256-7w1jCZT9fvXyuE+2bNYknEk7uHNrys1HNNfHmBJQGPs=";
         };
       };
 
