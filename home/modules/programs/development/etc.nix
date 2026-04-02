@@ -1,6 +1,5 @@
 {pkgs, ...}: {
   home.packages = with pkgs; [
-    nodePackages_latest.cspell
     license-generator
     # onlyoffice-bin
     gnumeric
