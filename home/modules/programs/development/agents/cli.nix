@@ -19,6 +19,8 @@
       };
     };
 
+    opencode.enable = true;
+
     claude-code = {
       enable = true;
       enableMcpIntegration = true;
