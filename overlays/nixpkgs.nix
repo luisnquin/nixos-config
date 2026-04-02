@@ -23,16 +23,19 @@
         mkdir -p $out/share/rtk/hooks
         cp -r hooks/* $out/share/rtk/hooks/
       '';
+    });
+  })
+  (_self: super: {
     claude-code = super.buildNpmPackage (finalAttrs: {
       pname = "claude-code";
-      version = "2.1.89";
+      version = "2.1.90";
 
       src = super.fetchzip {
         url = "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-${finalAttrs.version}.tgz";
-        hash = "sha256-FoTm6KDr+8Dzhk4ibZUlU1QLPFdPm/OriUUWqAaFswg=";
+        hash = "sha256-4/hqWrY2fncQ8p0TxwBAI+mNH98ZDhjvFqB9us7GJK0=";
       };
 
-      npmDepsHash = "sha256-NI4F5bq0lEuMjLUdkGrml2aOzGbGkdyUckgfeVFEe8o=";
+      npmDepsHash = "sha256-8+i2Ay9bGSH1QxAKy5kQ0d57zKlhmTixz3he2ce3KXY=";
 
       postPatch = ''
         cp ${./claude-code-package-lock.json} package-lock.json
