@@ -203,8 +203,19 @@
 
       inherit inputs system libx;
     };
+
+    forAllSystems = function:
+      nixpkgs.lib.genAttrs ["x86_64-linux"] (
+        system: function nixpkgs.legacyPackages.${system}
+      );
   in
-    libx.mkSetup {
+    {
+      packages = forAllSystems (pkgs: rec {
+        default = pkgs.callPackage ./installer {};
+        setup = default;
+      });
+    }
+    // libx.mkSetup {
       inherit (metadata) user host nix;
       inherit pkgs specialArgs;
 
