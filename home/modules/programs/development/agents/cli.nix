@@ -75,14 +75,12 @@
             );
           };
 
-          mkAudioEvent = files: [
-            {
-              matcher = "";
-              hooks = [
-                (mkAudioHook files)
-              ];
-            }
-          ];
+          mkAudioEvent = files: {
+            matcher = "";
+            hooks = [
+              (mkAudioHook files)
+            ];
+          };
         in {
           SessionStart = [
             (mkAudioEvent [./sounds/ifarm.wav])
