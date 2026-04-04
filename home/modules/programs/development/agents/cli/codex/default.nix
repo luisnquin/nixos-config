@@ -1,8 +1,28 @@
 {
   config,
   agent,
+  pkgs,
+  lib,
   ...
-}: {
+}: let
+  inherit (agent.assets) sounds images;
+
+  mkAudioHook = files: [
+    {
+      type = "command";
+      command = builtins.concatStringsSep " && " (
+        map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
+      );
+    }
+  ];
+
+  mkNotificationHook = title: message: [
+    {
+      type = "command";
+      command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${images.claude}" "${title}" "${message}"'';
+    }
+  ];
+in {
   programs.codex = {
     enable = true;
     enableMcpIntegration = true;
@@ -47,6 +67,48 @@
           context_size = "medium";
           allowed_domains = agent.domains;
         };
+      };
+
+      hooks = {
+        SessionStart = [
+          {
+            matcher = "startup|resume";
+            hooks = mkAudioHook [sounds.ifarm];
+          }
+        ];
+        PreToolUse = [
+          {
+            matcher = "Bash";
+            hooks = mkAudioHook [sounds.ifrtho];
+          }
+        ];
+        PostToolUse = [
+          {
+            matcher = "Bash";
+            hooks = mkAudioHook [sounds.ifrtfy];
+          }
+        ];
+        UserPromptSubmit = [
+          {
+            hooks = mkAudioHook [sounds.ifrsig];
+          }
+        ];
+        Stop = [
+          {
+            hooks = [
+              {
+                type = "command";
+                command = "${pkgs.pulseaudio}/bin/paplay ${sounds.ifdarm}";
+                timeout = 30;
+              }
+            ];
+          }
+        ];
+        PermissionRequest = [
+          {
+            hooks = mkNotificationHook "Codex" "Permission required" ++ mkAudioHook [sounds.ifdngr sounds.permission-required];
+          }
+        ];
       };
     };
   };
