@@ -3,6 +3,7 @@
     ./caddy.nix
     ./discovery.nix
     ./hosts.nix
+    ./tailscale.nix
     ./tools.nix
   ];
 

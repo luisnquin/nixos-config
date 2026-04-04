@@ -27,6 +27,12 @@
       group = "caddy";
       mode = "0600";
     };
+    "tailscale/auth-key" = {
+      file = ./tailscale/auth-key.age;
+      owner = "root";
+      group = "root";
+      mode = "0600";
+    };
   };
 
   environment.systemPackages = [agenix.packages.${system}.default];
