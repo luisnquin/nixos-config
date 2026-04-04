@@ -34,26 +34,17 @@
     "Bash(nix flake show:*)"
     "Bash(nix flake metadata:*)"
 
-    # "mcp__github__search_repositories"
-    # "mcp__github__get_file_contents"
-    # "mcp__sequential-thinking__sequentialthinking"
-
-    # "mcp__filesystem__read_file"
-    # "mcp__filesystem__read_text_file"
-    # "mcp__filesystem__read_media_file"
-    # "mcp__filesystem__read_multiple_files"
-    # "mcp__filesystem__list_directory"
-    # "mcp__filesystem__list_directory_with_sizes"
-    # "mcp__filesystem__directory_tree"
-    # "mcp__filesystem__search_files"
-    # "mcp__filesystem__get_file_info"
-    # "mcp__filesystem__list_allowed_directories"
+    "mcp__*"
 
     "WebFetch(domain:github.com)"
     "WebFetch(domain:wiki.hyprland.org)"
     "WebFetch(domain:wiki.hypr.land)"
     "WebFetch(domain:raw.githubusercontent.com)"
     "WebFetch(domain:encore.dev)"
+    "WebFetch(domain:opencode.ai)"
+    "WebFetch(domain:platform.claude.com)"
+    "WebFetch(domain:code.claude.com)"
+    "WebFetch(domain:claude.com)"
   ];
 
   # Standard profile additions - balanced permissions
