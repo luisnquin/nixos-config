@@ -28,7 +28,7 @@ in {
     sources = mkSources [
       {
         repo = "vercel-labs/skills";
-        sha256 = "1japp0hia9wyssicadfnd70x1fj3x1w0cxmv41wbakkg8mgfzfqb";
+        sha256 = "0qpzv67hc38aqh5ilyhq6qd8fvs051v241n12695lykbwy0iykd1";
       }
     ];
 
