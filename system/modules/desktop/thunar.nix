@@ -1,7 +1,7 @@
 {pkgs, ...}: {
   programs.thunar = {
     enable = true;
-    plugins =  [
+    plugins = [
       pkgs.thunar-volman
     ];
   };
