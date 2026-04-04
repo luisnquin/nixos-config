@@ -86,6 +86,14 @@
 
       "Bash(coredumpctl list:*)"
 
+      "Bash(encore:*)"
+      "Bash(bun dev)"
+      "Bash(npx prisma generate)"
+      "Bash(npx prisma validate)"
+      "Bash(npx prisma format)"
+      "Bash(npx prisma migrate dev)"
+      "Bash(npx prisma migrate status)"
+
       # Additional home directory reads
       # "Read(${config.home.homeDirectory}/Documents/github/home-manager/**)"
       # "Read(${config.home.homeDirectory}/.config/sway/**)"
@@ -141,6 +149,9 @@
     "Bash(nixos-rebuild:*)"
     "Bash(sudo:*)"
 
+    "Bash(npx prisma db push)"
+    "Bash(npx prisma migrate deploy)"
+
     "Bash(kill:*)"
     "Bash(killall:*)"
     "Bash(pkill:*)"
@@ -173,6 +184,13 @@
     "Bash(rm -rf /)"
     "Bash(dd:*)"
     "Bash(mkfs:*)"
+
+    "Bash(npx prisma migrate reset)"
+    "Bash(npx prisma studio)"
+    "Bash(npx prisma dev)"
+
+    "Bash(encore secret set:*)"
+    "Bash(encore secret delete:*)"
   ];
 in {
   options.programs.claude-code.permissionProfile = mkOption {
