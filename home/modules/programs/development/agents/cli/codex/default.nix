@@ -1,4 +1,8 @@
-{config, ...}: {
+{
+  config,
+  agent,
+  ...
+}: {
   programs.codex = {
     enable = true;
     enableMcpIntegration = true;
@@ -41,7 +45,7 @@
         view_image = true;
         web_search = {
           context_size = "medium";
-          allowed_domains = ["github.com" "stackoverflow.com"];
+          allowed_domains = agent.domains;
         };
       };
     };

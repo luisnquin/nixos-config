@@ -1,51 +1,46 @@
 {
   config,
+  agent,
   lib,
   ...
 }: let
   inherit (lib) mkOption types mkIf;
 
+  inherit (agent) domains;
+
   cfg = config.programs.claude-code;
 
   # always allowed regardless of profile
-  baseAllow = [
-    "Glob(*)"
-    "Grep(*)"
-    "LS(*)"
-    "Read(*)"
-    "Search(*)"
-    "Task(*)"
-    "TodoWrite(*)"
+  baseAllow =
+    [
+      "Glob(*)"
+      "Grep(*)"
+      "LS(*)"
+      "Read(*)"
+      "Search(*)"
+      "Task(*)"
+      "TodoWrite(*)"
 
-    "Bash(git status)"
-    "Bash(git log:*)"
-    "Bash(git diff:*)"
-    "Bash(git show:*)"
-    "Bash(git branch:*)"
-    "Bash(git remote:*)"
+      "Bash(git status)"
+      "Bash(git log:*)"
+      "Bash(git diff:*)"
+      "Bash(git show:*)"
+      "Bash(git branch:*)"
+      "Bash(git remote:*)"
 
-    "Bash(ls:*)"
-    "Bash(find:*)"
-    "Bash(cat:*)"
-    "Bash(head:*)"
-    "Bash(tail:*)"
+      "Bash(ls:*)"
+      "Bash(find:*)"
+      "Bash(cat:*)"
+      "Bash(head:*)"
+      "Bash(tail:*)"
 
-    "Bash(nix eval:*)"
-    "Bash(nix flake show:*)"
-    "Bash(nix flake metadata:*)"
+      "Bash(nix eval:*)"
+      "Bash(nix flake show:*)"
+      "Bash(nix flake metadata:*)"
 
-    "mcp__*"
-
-    "WebFetch(domain:github.com)"
-    "WebFetch(domain:wiki.hyprland.org)"
-    "WebFetch(domain:wiki.hypr.land)"
-    "WebFetch(domain:raw.githubusercontent.com)"
-    "WebFetch(domain:encore.dev)"
-    "WebFetch(domain:opencode.ai)"
-    "WebFetch(domain:platform.claude.com)"
-    "WebFetch(domain:code.claude.com)"
-    "WebFetch(domain:claude.com)"
-  ];
+      "mcp__*"
+    ]
+    ++ builtins.map (d: "WebFetch(domain:${d})") domains;
 
   # Standard profile additions - balanced permissions
   standardAllow =

@@ -1,11 +1,11 @@
 {
   config,
+  agent,
   pkgs,
   lib,
   ...
 }: let
-  assets = import ../../assets;
-  inherit (assets) sounds images;
+  inherit (agent.assets) sounds images;
 in {
   programs.claude-code = {
     enable = true;

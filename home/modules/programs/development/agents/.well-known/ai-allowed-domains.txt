@@ -1,0 +1,11 @@
+github.com
+stackoverflow.com
+npmjs.com
+wiki.hyprland.org
+wiki.hypr.land
+raw.githubusercontent.com
+encore.dev
+opencode.ai
+platform.claude.com
+code.claude.com
+claude.com
