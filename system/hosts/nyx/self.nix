@@ -10,6 +10,8 @@
       update = {
         description = "Updates your computer using your system and/or home configuration";
 
+        steps = sys.compose "update" ["system" "home"];
+
         subcommands = {
           system = {
             steps = [
@@ -22,14 +24,6 @@
           home = {
             steps = [
               (sys.log "Updating home...")
-              (sys.run "home-manager switch --flake .")
-            ];
-          };
-
-          all = {
-            steps = [
-              sys.requireSudo
-              (sys.run "sudo nixos-rebuild switch --flake .#${config.networking.hostName}")
               (sys.run "home-manager switch --flake .")
             ];
           };

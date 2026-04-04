@@ -34,6 +34,13 @@ with lib; let
     '';
 
     seq = steps: concatStringsSep "\n" steps;
+
+    compose = cmdName: subNames:
+      builtins.concatMap (subName:
+        if cfg.commands.${cmdName}.subcommands ? ${subName}
+        then cfg.commands.${cmdName}.subcommands.${subName}.steps
+        else []
+      ) subNames;
   };
 
   renderSteps = cmd:
