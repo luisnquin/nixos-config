@@ -69,6 +69,7 @@ in {
       in {
         Notification = [
           (mkNotificationHook "Claude Code" "Awaiting your input")
+          (mkAudioHook [sounds.buzact])
         ];
         SessionStart = [
           (mkAudioHook [sounds.ifarm])
@@ -93,6 +94,10 @@ in {
         ];
         PermissionDenied = [
           (mkAudioHook [sounds.ifdngr sounds.permission-denied])
+        ];
+        PermissionRequest = [
+          (mkNotificationHook "Claude Code" "Permission required")
+          (mkAudioHook [sounds.ifdngr sounds.permission-required])
         ];
         PreToolUse = [
           {
