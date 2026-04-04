@@ -131,6 +131,7 @@ in {
         Do not use flake-utils in new nix flakes.
         Avoid git add (-A|.|--all).
         Ensure commit messages match the staged changes.
+        Do not try to commit or create trash .md files unless you're asked for it or your task requires it.
       '';
 
       permissionProfile = "standard";
