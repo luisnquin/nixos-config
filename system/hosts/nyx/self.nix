@@ -34,7 +34,13 @@
         description = "Cleans with the old generations";
 
         steps = [
+          sys.requireSudo
+          (sys.run "sudo nix-collect-garbage --delete-old")
           (sys.run "nix-collect-garbage -d")
+          (sys.run "nix-store --delete")
+          (sys.run "rm -rf ~/.npm/_npx")
+          (sys.run "docker system prune --volumes -f")
+          (sys.run "kondo -a")
         ];
       };
 
