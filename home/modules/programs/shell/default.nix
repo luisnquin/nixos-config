@@ -20,6 +20,4 @@
     zoxide.enable = true;
     zsh.enable = true;
   };
-
-  programs.zsh.completionInit = builtins.readFile ../../.../../../../tools/nyx/completions.zsh;
 }

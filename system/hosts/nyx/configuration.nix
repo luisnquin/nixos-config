@@ -7,9 +7,11 @@
 }: {
   imports = [
     ../../modules
+    ../../options
 
     ./hardware-configuration.nix
     ./disko-config.nix
+    ./self.nix
   ];
 
   home-manager.useGlobalPkgs = true;

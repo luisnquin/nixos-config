@@ -233,7 +233,6 @@
           inherit system;
         })
         inputs.agenix.nixosModules.default
-        ./tools/nix/nixos-options
       ];
 
       homeModules = [

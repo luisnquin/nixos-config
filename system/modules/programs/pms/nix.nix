@@ -49,8 +49,6 @@
 
   programs.command-not-found.enable = true;
 
-  tools.nyx.enable = true;
-
   environment = {
     systemPackages = with pkgs; [
       nix-output-monitor
