@@ -8,9 +8,18 @@ with lib; let
   cfg = config.programs.self;
 
   sys = {
-    run = cmd: ''
-      ${cmd}
-    '';
+    run = cmd:
+      let
+        isAttrSet = builtins.isAttrs cmd;
+        workdir = if isAttrSet then cmd.workdir else ".";
+        command = if isAttrSet then cmd.cmd else cmd;
+      in ''
+        (
+          cd ${workdir}
+          printf "\n\e[38;2;112;112;112m(${workdir})\033[0;32m ${command}\033[0m\n"
+          ${command}
+        )
+      '';
 
     log = msg: ''
       printf "\n%s\n" "${msg}"
@@ -36,11 +45,13 @@ with lib; let
     seq = steps: concatStringsSep "\n" steps;
 
     compose = cmdName: subNames:
-      builtins.concatMap (subName:
-        if cfg.commands.${cmdName}.subcommands ? ${subName}
-        then cfg.commands.${cmdName}.subcommands.${subName}.steps
-        else []
-      ) subNames;
+      builtins.concatMap (
+        subName:
+          if cfg.commands.${cmdName}.subcommands ? ${subName}
+          then cfg.commands.${cmdName}.subcommands.${subName}.steps
+          else []
+      )
+      subNames;
   };
 
   renderSteps = cmd:

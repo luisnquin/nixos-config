@@ -1,8 +1,11 @@
 {
+  hmConfig,
   config,
   sys,
   ...
-}: {
+}: let
+  dotfilesPath = "${hmConfig.home.homeDirectory}/.dotfiles";
+in {
   programs.self = {
     enable = true;
 
@@ -16,15 +19,19 @@
           system = {
             steps = [
               sys.requireSudo
-              (sys.log "Updating system...")
-              (sys.run "sudo nixos-rebuild switch --flake .#${config.networking.hostName}")
+              (sys.run {
+                workdir = dotfilesPath;
+                cmd = "sudo nixos-rebuild switch --flake .#${config.networking.hostName}";
+              })
             ];
           };
 
           home = {
             steps = [
-              (sys.log "Updating home...")
-              (sys.run "home-manager switch --flake .")
+              (sys.run {
+                workdir = dotfilesPath;
+                cmd = "home-manager switch --flake .";
+              })
             ];
           };
         };
@@ -48,7 +55,10 @@
         description = "Applies alejandra style to all .nix files";
 
         steps = [
-          (sys.run "alejandra .")
+          (sys.run {
+            workdir = dotfilesPath;
+            cmd = "alejandra .";
+          })
         ];
       };
     };
