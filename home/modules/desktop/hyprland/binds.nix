@@ -140,7 +140,7 @@
     inherit (pkgs.lib) getExe;
 
     grimblastCmd = let
-      package = inputs.hyprland-contrib.packages.${system}.grimblast.overrideAttrs (_oldAttrs: {
+      package = pkgs.grimblast.overrideAttrs (_oldAttrs: {
         prePatch = ''
           substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
         '';
