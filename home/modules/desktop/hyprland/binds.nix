@@ -1,8 +1,6 @@
 # https://wiki.hyprland.org/Configuring/Keywords/
 {
   config,
-  inputs,
-  system,
   pkgs,
   ...
 }: let
