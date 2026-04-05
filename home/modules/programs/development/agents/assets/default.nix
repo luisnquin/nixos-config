@@ -1,6 +1,7 @@
 {
   images = {
     claude = ./images/claude.ico;
+    gemini = ./images/gemini.png;
   };
 
   sounds = {
