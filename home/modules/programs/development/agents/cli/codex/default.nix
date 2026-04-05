@@ -23,11 +23,19 @@
 
   inherit (agent.assets) sounds images;
 in {
+  home.file.".codex/RTK.md" = {
+    source = "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-codex.md";
+  };
+
   programs.codex = {
     enable = true;
     enableMcpIntegration = true;
 
-    custom-instructions = config.programs.claude-code.settings.memory.text;
+    custom-instructions = ''
+      ${config.programs.claude-code.settings.memory.text}
+
+      @RTK.md
+    '';
 
     settings = {
       analytics.enabled = true;

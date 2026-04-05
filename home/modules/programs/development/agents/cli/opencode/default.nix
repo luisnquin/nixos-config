@@ -1,7 +1,11 @@
-{
+{pkgs, ...}: {
   # https://opencode.ai/config.json
   programs.opencode = {
     enable = true;
+
+    plugins = {
+      "rtk" = "${pkgs.rtk}/share/rtk/hooks/opencode-rtk.ts";
+    };
 
     settings = {
       server.port = 4096;
