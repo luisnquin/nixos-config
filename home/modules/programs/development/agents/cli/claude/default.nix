@@ -2,9 +2,9 @@
   config,
   agent,
   pkgs,
-  lib,
   ...
 }: let
+  inherit (agent) mkAudioHook mkNotificationHook;
   inherit (agent.assets) sounds images;
 in {
   programs.claude-code = {
@@ -44,31 +44,9 @@ in {
         "DISABLE_AUTOUPDATER" = "1";
       };
 
-      hooks = let
-        mkAudioHook = files: {
-          matcher = "";
-          hooks = [
-            {
-              type = "command";
-              command = builtins.concatStringsSep " && " (
-                map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
-              );
-            }
-          ];
-        };
-
-        mkNotificationHook = title: message: {
-          matcher = "";
-          hooks = [
-            {
-              type = "command";
-              command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${images.claude}" "${title}" "${message}"'';
-            }
-          ];
-        };
-      in {
+      hooks = {
         Notification = [
-          (mkNotificationHook "Claude Code" "Awaiting your input")
+          (mkNotificationHook images.claude "Claude Code" "Awaiting your input")
           (mkAudioHook [sounds.buzact])
         ];
         SessionStart = [
@@ -96,7 +74,7 @@ in {
           (mkAudioHook [sounds.ifdngr sounds.permission-denied])
         ];
         PermissionRequest = [
-          (mkNotificationHook "Claude Code" "Permission required")
+          (mkNotificationHook images.claude "Claude Code" "Permission required")
           (mkAudioHook [sounds.ifdngr sounds.permission-required])
         ];
         PreToolUse = [

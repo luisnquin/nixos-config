@@ -1,10 +1,9 @@
 {
   config,
   agent,
-  pkgs,
-  lib,
   ...
 }: let
+  inherit (agent) mkAudioHook mkNotificationHook;
   inherit (agent.assets) sounds images;
 in {
   programs.gemini-cli = {
@@ -23,29 +22,7 @@ in {
       secureModeEnabled = false;
       security.auth.selectedType = "oauth-personal";
 
-      hooks = let
-        mkAudioHook = files: {
-          matcher = "";
-          hooks = [
-            {
-              type = "command";
-              command = builtins.concatStringsSep " && " (
-                map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
-              );
-            }
-          ];
-        };
-
-        mkNotificationHook = title: message: {
-          matcher = "";
-          hooks = [
-            {
-              type = "command";
-              command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${images.gemini}" "${title}" "${message}"'';
-            }
-          ];
-        };
-      in {
+      hooks = {
         SessionStart = [
           (mkAudioHook [sounds.ifarm])
         ];
@@ -61,7 +38,7 @@ in {
           (mkAudioHook [sounds.ifrsig])
         ];
         Notification = [
-          (mkNotificationHook "Gemini" "Awaiting your input")
+          (mkNotificationHook images.gemini "Gemini" "Awaiting your input")
           (mkAudioHook [sounds.buzact])
         ];
       };

@@ -1,6 +1,7 @@
 {
   images = {
     claude = ./images/claude.ico;
+    codex = ./images/codex.svg;
     gemini = ./images/gemini.png;
   };
 
