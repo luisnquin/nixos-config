@@ -21,6 +21,24 @@
         websearch = "ask";
       };
 
+      model = "litellm/gemma4:e4b";
+
+      provider = {
+        litellm = {
+          npm = "@ai-sdk/openai-compatible";
+          name = "LiteLLM";
+          options = {
+            "baseURL" = "http://dyx.local:4000/v1";
+            "apiKey" = "dummy";
+          };
+          models = {
+            "gemma4:e4b" = {
+              "name" = "Gemma 4";
+            };
+          };
+        };
+      };
+
       snapshot = true;
       autoupdate = false;
     };
