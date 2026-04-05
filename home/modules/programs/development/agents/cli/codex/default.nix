@@ -1,9 +1,26 @@
 {
   config,
   agent,
+  pkgs,
+  lib,
   ...
 }: let
-  inherit (agent) mkAudioHook mkNotificationHook;
+  mkAudioHook = files: [
+    {
+      type = "command";
+      command = builtins.concatStringsSep " && " (
+        map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
+      );
+    }
+  ];
+
+  mkNotificationHook = image: title: message: [
+    {
+      type = "command";
+      command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${image}" "${title}" "${message}"'';
+    }
+  ];
+
   inherit (agent.assets) sounds images;
 in {
   programs.codex = {
@@ -75,10 +92,14 @@ in {
             hooks = mkAudioHook [sounds.ifrsig];
           }
         ];
-        Stop = mkAudioHook [sounds.ifdarm];
+        Stop = [
+          {
+            hooks = mkAudioHook [sounds.ifdarm];
+          }
+        ];
         PermissionRequest = [
           {
-            hooks = mkNotificationHook images.codex "Codex" "Permission required" ++ mkAudioHook [sounds.ifdngr sounds.permission-required];
+            hooks = (mkNotificationHook images.codex "Codex" "Permission required") ++ mkAudioHook [sounds.ifdngr sounds.permission-required];
           }
         ];
       };
