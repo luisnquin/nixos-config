@@ -1,6 +1,7 @@
 {
-  pkgs,
   config,
+  pkgs,
+  lib,
   ...
 }: {
   home = {
@@ -70,19 +71,7 @@
     };
   };
 
-  systemd.user.services.rustup-default = {
-    Unit = {
-      Description = "Set the default Rust toolchain";
-    };
-
-    Service = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.rustup}/bin/rustup default stable";
-      Restart = "on-failure";
-    };
-
-    Install = {
-      WantedBy = ["default.target"];
-    };
-  };
+  home.activation.rustupDefault = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    ${lib.getExe pkgs.rustup} default stable >/dev/null 2>&1 || true
+  '';
 }
