@@ -1,4 +1,5 @@
 {
+  # https://opencode.ai/config.json
   programs.opencode = {
     enable = true;
 
@@ -21,7 +22,7 @@
         websearch = "ask";
       };
 
-      model = "litellm/gemma4:e4b";
+      model = "litellm/qwen2.5-coder:7b";
 
       provider = {
         litellm = {
@@ -34,6 +35,9 @@
           models = {
             "gemma4:e4b" = {
               "name" = "Gemma 4";
+            };
+            "qwen2.5-coder:7b" = {
+              "name" = "Qwen 2.5 - Coder";
             };
           };
         };
