@@ -48,7 +48,6 @@ in {
 
       profiles = {
         coding = {
-          model = "gpt-4-turbo";
           personality = "pragmatic";
           features = {
             code_mode = true;
