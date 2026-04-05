@@ -15,6 +15,7 @@
     policies = import ./policies-config.nix;
 
     setAsDefaultBrowser = true;
+    enablePrivateDesktopEntry = true;
 
     profiles.default = rec {
       settings = {
