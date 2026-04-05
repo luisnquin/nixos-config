@@ -10,14 +10,16 @@
         rustfmt
         clippy
 
-        cargo
         rustc
       ]
       ++ cargo-plugins;
 
     sessionPath = ["$HOME/.cargo/bin"];
+  };
 
-    file.".cargo/config.toml".source = (pkgs.formats.toml {}).generate "cargo-config" {
+  programs.cargo = {
+    enable = true;
+    settings = {
       net = {
         git-fetch-with-cli = true;
       };
