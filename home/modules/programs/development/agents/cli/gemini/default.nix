@@ -1,4 +1,5 @@
 {
+  config,
   agent,
   pkgs,
   lib,
@@ -9,6 +10,11 @@ in {
   programs.gemini-cli = {
     enable = true;
     defaultModel = "gemini-2.5-flash";
+
+    context = {
+      GEMINI = config.programs.claude-code.settings.memory.text;
+    };
+
     settings = {
       theme = "Default";
       vimMode = true;
