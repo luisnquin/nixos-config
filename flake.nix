@@ -140,6 +140,10 @@
         systems.follows = "systems";
       };
     };
+    agent-skills-new = {
+      url = "github:0xc000022070/agent-skills-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
       url = "github:0xc000118128/3mf2stl";

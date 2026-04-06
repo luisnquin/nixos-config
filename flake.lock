@@ -93,6 +93,26 @@
         "type": "github"
       }
     },
+    "agent-skills-new": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775446791,
+        "narHash": "sha256-a47jcfaiXX5hqhH/cv/KJbVqPvqmuZdCXjW8IND4PEw=",
+        "owner": "0xc000022070",
+        "repo": "agent-skills-flake",
+        "rev": "7584d3d0d0aa002109f246896f7c57cd1eecabaa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "0xc000022070",
+        "repo": "agent-skills-flake",
+        "type": "github"
+      }
+    },
     "aquamarine": {
       "inputs": {
         "hyprutils": [
@@ -992,6 +1012,7 @@
         "adb-mcp": "adb-mcp",
         "agenix": "agenix",
         "agent-skills": "agent-skills",
+        "agent-skills-new": "agent-skills-new",
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
         "disko": "disko",
