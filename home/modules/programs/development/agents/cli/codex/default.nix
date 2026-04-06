@@ -1,7 +1,5 @@
 {
-  inputs,
   config,
-  system,
   agent,
   pkgs,
   lib,
@@ -38,12 +36,6 @@ in {
 
       @RTK.md
     '';
-
-    # TODO: from overlay + not working as expected, inspect impl in ~/.agents/skills
-    # https://github.com/nix-community/home-manager/blob/7e7269ac064bea120d7b23daed432a096617872d/modules/programs/codex.nix#L172
-    skills = with inputs.agent-skills-new.packages.${system}.skills-sh; {
-      encoredev-skills = official.encoredev.skills;
-    };
 
     settings = {
       analytics.enabled = true;

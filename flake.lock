@@ -72,39 +72,17 @@
     },
     "agent-skills": {
       "inputs": {
-        "home-manager": [
-          "nixpkgs"
-        ],
+        "home-manager": "home-manager",
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1774030553,
-        "narHash": "sha256-JV6PFjMEew1Owx4ihhdvhuIJ2Ztlz2nDdypuHH7UMRk=",
-        "owner": "Kyure-A",
-        "repo": "agent-skills-nix",
-        "rev": "bf08d4153f03d6a3c7421332483f1e3d25cd6d4c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Kyure-A",
-        "repo": "agent-skills-nix",
-        "type": "github"
-      }
-    },
-    "agent-skills-new": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1775446791,
-        "narHash": "sha256-a47jcfaiXX5hqhH/cv/KJbVqPvqmuZdCXjW8IND4PEw=",
+        "lastModified": 1775485981,
+        "narHash": "sha256-nABXzXt5sOXIyBZzZ9z7cgIami6lNS7rQoPUAlDatf4=",
         "owner": "0xc000022070",
         "repo": "agent-skills-flake",
-        "rev": "7584d3d0d0aa002109f246896f7c57cd1eecabaa",
+        "rev": "67fdb8665efc0cd05641e512d5b9a326ff8030cc",
         "type": "github"
       },
       "original": {
@@ -339,6 +317,27 @@
       }
     },
     "home-manager": {
+      "inputs": {
+        "nixpkgs": [
+          "agent-skills",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775457580,
+        "narHash": "sha256-ikws/ssAmG20AGrEwBuwspwPlkubJu34mB+Uz2fJBJs=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "5de7dbd151b0bd65d45785553d4a22d832733ffc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "home-manager_2": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
@@ -1012,7 +1011,6 @@
         "adb-mcp": "adb-mcp",
         "agenix": "agenix",
         "agent-skills": "agent-skills",
-        "agent-skills-new": "agent-skills-new",
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
         "disko": "disko",
@@ -1020,7 +1018,7 @@
         "flake-programs-sqlite": "flake-programs-sqlite",
         "ghostty": "ghostty",
         "grub-themes": "grub-themes",
-        "home-manager": "home-manager",
+        "home-manager": "home-manager_2",
         "hyprdysmorphic": "hyprdysmorphic",
         "hyprstfu": "hyprstfu",
         "nao": "nao",

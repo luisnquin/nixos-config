@@ -126,13 +126,6 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    agent-skills = {
-      url = "github:Kyure-A/agent-skills-nix";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        home-manager.follows = "nixpkgs";
-      };
-    };
     adb-mcp = {
       url = "github:chanchitaapp/adb-mcp";
       inputs = {
@@ -140,7 +133,7 @@
         systems.follows = "systems";
       };
     };
-    agent-skills-new = {
+    agent-skills = {
       url = "github:0xc000022070/agent-skills-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -155,6 +148,7 @@
     hyprdysmorphic,
     nixpkgs-extra,
     home-manager,
+    agent-skills,
     nix-scripts,
     grub-themes,
     hyprstfu,
@@ -179,6 +173,7 @@
           ++ [
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
+            agent-skills.overlays.default
             grub-themes.overlays.default
             nix-scripts.overlays.default
             hyprstfu.overlays.default
@@ -238,8 +233,8 @@
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
-        inputs.agent-skills.homeManagerModules.default
         inputs.black-terminal.homeModules.default
+        inputs.agent-skills.homeModules.default
         inputs.nao.homeManagerModules.default
         inputs."3mf2stl".homeModules.default
         inputs.nixcord.homeModules.nixcord
