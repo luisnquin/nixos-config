@@ -133,8 +133,8 @@
         systems.follows = "systems";
       };
     };
-    agent-skills = {
-      url = "github:0xc000022070/agent-skills-flake";
+    agentic-flake = {
+      url = "github:0xc000022070/agentic-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
@@ -148,7 +148,7 @@
     hyprdysmorphic,
     nixpkgs-extra,
     home-manager,
-    agent-skills,
+    agentic-flake,
     nix-scripts,
     grub-themes,
     hyprstfu,
@@ -173,7 +173,7 @@
           ++ [
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
-            agent-skills.overlays.default
+            agentic-flake.overlays.default
             grub-themes.overlays.default
             nix-scripts.overlays.default
             hyprstfu.overlays.default
@@ -234,7 +234,7 @@
         inputs.battery-notifier.homeManagerModule.default
         inputs.spicetify-nix.homeManagerModules.default
         inputs.black-terminal.homeModules.default
-        inputs.agent-skills.homeModules.default
+        inputs.agentic-flake.homeModules.default
         inputs.nao.homeManagerModules.default
         inputs."3mf2stl".homeModules.default
         inputs.nixcord.homeModules.nixcord
