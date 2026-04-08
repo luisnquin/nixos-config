@@ -70,7 +70,7 @@
         "type": "github"
       }
     },
-    "agent-skills": {
+    "agentic-flake": {
       "inputs": {
         "home-manager": "home-manager",
         "nixpkgs": [
@@ -78,16 +78,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1775488313,
-        "narHash": "sha256-RyQ7mte6/Z8IJDUhme4mF5gK3xj7Pn6qL2Sxy5/Bn8A=",
+        "lastModified": 1775567923,
+        "narHash": "sha256-bmYs+C5WYNJDzaU2QP8zFKJiV6dIbvbuaWcGp3z01q4=",
         "owner": "0xc000022070",
-        "repo": "agent-skills-flake",
-        "rev": "c558cce3da0ce5dcd36a2c84fbf366ec486acafb",
+        "repo": "agentic-flake",
+        "rev": "a3047e81d47def909767455ab19b37492e9595eb",
         "type": "github"
       },
       "original": {
         "owner": "0xc000022070",
-        "repo": "agent-skills-flake",
+        "repo": "agentic-flake",
         "type": "github"
       }
     },
@@ -319,7 +319,7 @@
     "home-manager": {
       "inputs": {
         "nixpkgs": [
-          "agent-skills",
+          "agentic-flake",
           "nixpkgs"
         ]
       },
@@ -1010,7 +1010,7 @@
         "3mf2stl": "3mf2stl",
         "adb-mcp": "adb-mcp",
         "agenix": "agenix",
-        "agent-skills": "agent-skills",
+        "agentic-flake": "agentic-flake",
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
         "disko": "disko",
