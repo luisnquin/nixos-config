@@ -2,9 +2,10 @@
   programs.agents = {
     enable = true;
 
+    defaultScopes = ["common" "claude"];
+
     skills = with pkgs.agent-skills; [
       (official.encoredev.skills {
-        scopes = ["claude" "global"];
         plugins = [
           "encore-api"
           "encore-code-review"
@@ -16,7 +17,6 @@
       })
       (official.anthropics.skills {
         prefix = "anthropics-";
-        scopes = ["global"];
         plugins = [
           "pdf"
           "pptx"
@@ -24,13 +24,11 @@
         ];
       })
       (unofficial.daffy0208.ai-dev-standards {
-        scopes = ["global" "claude"];
         plugins = [
           "mobile-developer"
         ];
       })
       (unofficial.wshobson.agents {
-        scopes = ["global" "claude"];
         plugins = [
           "typescript-advanced-types"
           "e2e-testing-patterns"
