@@ -135,7 +135,10 @@
     };
     agentic-flake = {
       url = "github:0xc000022070/agentic-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        home-manager.follows = "home-manager";
+      };
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {

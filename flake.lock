@@ -72,7 +72,9 @@
     },
     "agentic-flake": {
       "inputs": {
-        "home-manager": "home-manager",
+        "home-manager": [
+          "home-manager"
+        ],
         "nixpkgs": [
           "nixpkgs"
         ]
@@ -317,27 +319,6 @@
       }
     },
     "home-manager": {
-      "inputs": {
-        "nixpkgs": [
-          "agentic-flake",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1775457580,
-        "narHash": "sha256-ikws/ssAmG20AGrEwBuwspwPlkubJu34mB+Uz2fJBJs=",
-        "owner": "nix-community",
-        "repo": "home-manager",
-        "rev": "5de7dbd151b0bd65d45785553d4a22d832733ffc",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-community",
-        "repo": "home-manager",
-        "type": "github"
-      }
-    },
-    "home-manager_2": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
@@ -1018,7 +999,7 @@
         "flake-programs-sqlite": "flake-programs-sqlite",
         "ghostty": "ghostty",
         "grub-themes": "grub-themes",
-        "home-manager": "home-manager_2",
+        "home-manager": "home-manager",
         "hyprdysmorphic": "hyprdysmorphic",
         "hyprstfu": "hyprstfu",
         "nao": "nao",
