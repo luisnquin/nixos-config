@@ -27,6 +27,21 @@ in {
       };
     };
 
+    memory.text = ''
+      Talk like a caveman.
+      No emojis in dev output.
+      Look for genuine technical dialogue, not validation.
+      Use conventional commits in new projects; follow existing conventions otherwise.
+      "style" is only for formatting.
+      Keep commit bodies concise.
+      Use lowercase titles unless required.
+      Do not use flake-utils in new nix flakes.
+      Avoid git add (-A|.|--all).
+      Ensure commit messages match the staged changes.
+      Do not try to commit or create trash .md files unless you're asked for it or your task requires it.
+      Prefer Context7 when the answer depends on external or dynamic data; avoid using it for trivial questions where the model already has sufficient information.
+    '';
+
     # https://code.claude.com/docs/en/settings#available-settings
     settings = {
       enabledPlugins = {
@@ -99,20 +114,6 @@ in {
       ];
 
       includeCoAuthoredBy = false;
-
-      memory.text = ''
-        No emojis in dev output.
-        Look for genuine technical dialogue, not validation.
-        Use conventional commits in new projects; follow existing conventions otherwise.
-        "style" is only for formatting.
-        Keep commit bodies concise.
-        Use lowercase titles unless required.
-        Do not use flake-utils in new nix flakes.
-        Avoid git add (-A|.|--all).
-        Ensure commit messages match the staged changes.
-        Do not try to commit or create trash .md files unless you're asked for it or your task requires it.
-        Prefer Context7 when the answer depends on external or dynamic data; avoid using it for trivial questions where the model already has sufficient information.
-      '';
 
       permissionProfile = "standard";
       permissions = {

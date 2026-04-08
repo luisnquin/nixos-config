@@ -32,7 +32,7 @@ in {
     enableMcpIntegration = true;
 
     custom-instructions = ''
-      ${config.programs.claude-code.settings.memory.text}
+      ${config.programs.claude-code.memory.text}
 
       @RTK.md
     '';
