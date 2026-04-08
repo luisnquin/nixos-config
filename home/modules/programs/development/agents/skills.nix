@@ -1,4 +1,10 @@
-{pkgs, ...}: {
+{
+  inputs,
+  pkgs,
+  ...
+}: let
+  inherit (inputs.agentic-flake.lib) mkSkill;
+in {
   programs.agents = {
     enable = true;
 
@@ -34,6 +40,16 @@
           "e2e-testing-patterns"
         ];
       })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "aia-11-hn-mib";
+            repo = "mib-mockinterviewaibot";
+            rev = "50ccfb29063bb6d64d049fc982ca53424d0ca3b1";
+            sha256 = "sha256-FdlbFVFSEtiFMiuisSLmgibFCro17jo3TjS9Oibx8F0=";
+          };
+        } {
+          plugins = ["imagemagick"];
+        })
     ];
   };
 }
