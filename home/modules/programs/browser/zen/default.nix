@@ -224,6 +224,23 @@
           id = "zen-copy-url";
           disabled = true;
         }
+        {
+          id = "addBookmarkAsKb";
+          disabled = true;
+        }
+        {
+          id = "key_reload";
+          key = "r";
+          modifiers.control = true;
+        }
+        {
+          id = "key_reload_skip_cache";
+          key = "r";
+          modifiers = {
+            control = true;
+            shift = true;
+          };
+        }
       ];
     };
   };
