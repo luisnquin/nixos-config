@@ -39,6 +39,7 @@
 
     sessionVariables = {
       inherit ANDROID_HOME;
+      ANDROID_SDK_ROOT = "${ANDROID_HOME}/sdk";
     };
   };
 }
