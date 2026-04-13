@@ -12,7 +12,7 @@
       userServices = true;
     };
 
-    allowInterfaces = ["wlo1" "eno2"];
+    allowInterfaces = ["eno2" "wlo1"];
 
     extraConfig = ''
       [publish]
