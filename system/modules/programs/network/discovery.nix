@@ -1,7 +1,7 @@
 {host, ...}: {
   services.avahi = {
     enable = true;
-    ipv6 = false;
+    ipv6 = true;
     nssmdns4 = true;
     openFirewall = true;
 
