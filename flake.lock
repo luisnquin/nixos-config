@@ -1010,7 +1010,6 @@
         "nixpkgs-extra": "nixpkgs-extra",
         "passgen": "passgen",
         "senv": "senv",
-        "spicetify-nix": "spicetify-nix",
         "systems": "systems",
         "zen-browser": "zen-browser"
       }
@@ -1032,29 +1031,6 @@
       "original": {
         "owner": "luisnquin",
         "repo": "senv",
-        "type": "github"
-      }
-    },
-    "spicetify-nix": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "systems": [
-          "systems"
-        ]
-      },
-      "locked": {
-        "lastModified": 1769986820,
-        "narHash": "sha256-O9OQ44dk9TJdtRIG828DUI54XdkfZET7AlN1RgTsPis=",
-        "owner": "Gerg-L",
-        "repo": "spicetify-nix",
-        "rev": "68de6434cfaa8983f3775b858b8b76e7c5dbd29c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Gerg-L",
-        "repo": "spicetify-nix",
         "type": "github"
       }
     },

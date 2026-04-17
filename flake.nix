@@ -54,13 +54,6 @@
         systems.follows = "systems";
       };
     };
-    spicetify-nix = {
-      url = "github:Gerg-L/spicetify-nix";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
 
     hyprdysmorphic = {
       url = "github:0xc000022070/hyprdysmorphic";
@@ -235,7 +228,6 @@
 
       homeModules = [
         inputs.battery-notifier.homeManagerModule.default
-        inputs.spicetify-nix.homeManagerModules.default
         inputs.black-terminal.homeModules.default
         inputs.agentic-flake.homeModules.default
         inputs.nao.homeManagerModules.default
