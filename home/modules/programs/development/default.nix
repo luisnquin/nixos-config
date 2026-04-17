@@ -9,6 +9,7 @@
     ./ops
     ./pwn
 
+    ./burning.nix
     ./ee.nix
     ./encore.nix
     ./etc.nix
