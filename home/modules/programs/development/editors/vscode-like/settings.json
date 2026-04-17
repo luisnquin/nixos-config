@@ -162,6 +162,10 @@
 		"editor.tabSize": 2
 	},
 
+	"[shellscript]": {
+		"editor.defaultFormatter": "mads-hartmann.bash-ide-vscode"
+	},
+
 	"[terraform]": {
 		"editor.defaultFormatter": "hashicorp.terraform",
 		"editor.tabSize": 2
