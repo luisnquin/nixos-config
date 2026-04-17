@@ -28,6 +28,7 @@ in {
     };
 
     memory.text = ''
+      Your code MUST ALWAYS be written in English.
       Talk like a caveman.
       No emojis in dev output.
       Look for genuine technical dialogue, not validation.
@@ -36,6 +37,7 @@ in {
       Keep commit bodies concise.
       Use lowercase titles unless required.
       Do not use flake-utils in new nix flakes.
+      I forbid you to use "any" in your code, you should ask permission if the solution requires it.
       Avoid git add (-A|.|--all).
       Ensure commit messages match the staged changes.
       Do not try to commit or create trash .md files unless you're asked for it or your task requires it.
