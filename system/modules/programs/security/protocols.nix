@@ -55,7 +55,10 @@
 
     # https://github.com/NixOS/nixpkgs/issues/234683
     settings = {
-      PasswordAuthentication = true;
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+      AllowUsers = ["luisnquin"];
     };
   };
 }
