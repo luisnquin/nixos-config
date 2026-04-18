@@ -76,7 +76,7 @@ in {
     custom-instructions = ''
       ${config.programs.claude-code.memory.text}
 
-      @RTK.md
+      ~/.codex/RTK.md
     '';
 
     settings = {
