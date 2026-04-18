@@ -23,8 +23,50 @@
 
   inherit (agent.assets) sounds images;
 in {
-  home.file.".codex/RTK.md" = {
-    source = "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-codex.md";
+  home.file = {
+    ".codex/RTK.md" = {
+      source = "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-codex.md";
+    };
+
+    ".codex/hooks.json" = {
+      source = (pkgs.formats.json {}).generate "codex-hooks" {
+        hooks = {
+          SessionStart = [
+            {
+              matcher = "startup";
+              hooks = mkAudioHook [sounds.ifarm];
+            }
+          ];
+          PreToolUse = [
+            {
+              matcher = "Bash";
+              hooks = mkAudioHook [sounds.ifrtho];
+            }
+          ];
+          PostToolUse = [
+            {
+              matcher = "Bash";
+              hooks = mkAudioHook [sounds.ifrtfy];
+            }
+          ];
+          UserPromptSubmit = [
+            {
+              hooks = mkAudioHook [sounds.ifrsig];
+            }
+          ];
+          Stop = [
+            {
+              hooks = mkAudioHook [sounds.ifdarm];
+            }
+          ];
+          PermissionRequest = [
+            {
+              hooks = (mkNotificationHook images.codex "Codex" "Permission required") ++ mkAudioHook [sounds.ifdngr sounds.permission-required];
+            }
+          ];
+        };
+      };
+    };
   };
 
   programs.codex = {
@@ -68,48 +110,16 @@ in {
         };
       };
 
+      features = {
+        codex_hooks = true;
+      };
+
       tools = {
         view_image = true;
         web_search = {
           context_size = "medium";
           allowed_domains = agent.domains;
         };
-      };
-
-      hooks = {
-        SessionStart = [
-          {
-            matcher = "startup";
-            hooks = mkAudioHook [sounds.ifarm];
-          }
-        ];
-        PreToolUse = [
-          {
-            matcher = "Bash";
-            hooks = mkAudioHook [sounds.ifrtho];
-          }
-        ];
-        PostToolUse = [
-          {
-            matcher = "Bash";
-            hooks = mkAudioHook [sounds.ifrtfy];
-          }
-        ];
-        UserPromptSubmit = [
-          {
-            hooks = mkAudioHook [sounds.ifrsig];
-          }
-        ];
-        Stop = [
-          {
-            hooks = mkAudioHook [sounds.ifdarm];
-          }
-        ];
-        PermissionRequest = [
-          {
-            hooks = (mkNotificationHook images.codex "Codex" "Permission required") ++ mkAudioHook [sounds.ifdngr sounds.permission-required];
-          }
-        ];
       };
     };
   };
