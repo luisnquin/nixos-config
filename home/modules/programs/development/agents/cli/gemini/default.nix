@@ -1,6 +1,7 @@
 {
   config,
   agent,
+  pkgs,
   ...
 }: let
   inherit (agent) mkAudioHook mkNotificationHook;
@@ -20,6 +21,7 @@ in {
 
   programs.gemini-cli = {
     enable = true;
+    package = pkgs.llm-agents.gemini-cli;
     defaultModel = "gemini-2.5-flash";
 
     context = {

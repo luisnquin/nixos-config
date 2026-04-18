@@ -16,6 +16,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     systems.url = "github:nix-systems/default";
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
 
     disko = {
       url = "github:nix-community/disko";
@@ -126,6 +130,15 @@
         systems.follows = "systems";
       };
     };
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        bun2nix.follows = "";
+      };
+    };
     agentic-flake = {
       url = "github:0xc000022070/agentic-flake";
       inputs = {
@@ -140,6 +153,11 @@
     };
   };
 
+  nixConfig = {
+    extra-substituters = ["https://cache.numtide.com"];
+    extra-trusted-public-keys = ["niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="];
+  };
+
   outputs = inputs @ {
     hyprdysmorphic,
     nixpkgs-extra,
@@ -147,6 +165,7 @@
     agentic-flake,
     nix-scripts,
     grub-themes,
+    llm-agents,
     hyprstfu,
     nixpkgs,
     passgen,
@@ -172,6 +191,7 @@
             agentic-flake.overlays.default
             grub-themes.overlays.default
             nix-scripts.overlays.default
+            llm-agents.overlays.default
             hyprstfu.overlays.default
             passgen.overlays.default
             senv.overlays.default

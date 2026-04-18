@@ -17,6 +17,8 @@
 
   programs.antigravity = {
     enable = true;
+    # package = pkgs.llm-agents.antigravity;
+    package = pkgs.antigravity;
     mutableExtensionsDir = true;
 
     profiles.default = {

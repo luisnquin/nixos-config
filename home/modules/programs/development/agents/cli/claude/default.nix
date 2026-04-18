@@ -9,13 +9,14 @@
 in {
   programs.claude-code = {
     enable = true;
+    package = pkgs.llm-agents.claude-code;
     enableMcpIntegration = true;
     mcpServers = builtins.removeAttrs config.programs.mcp.servers [
       "supabase"
     ];
 
     hooks = {
-      "rtk-rewrite.sh" = builtins.readFile "${pkgs.rtk}/share/rtk/hooks/rtk-rewrite.sh";
+      "rtk-rewrite.sh" = builtins.readFile "${pkgs.rtk}/share/rtk/hooks/claude/rtk-rewrite.sh";
     };
 
     marketplaces = {

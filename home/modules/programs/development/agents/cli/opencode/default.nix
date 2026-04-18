@@ -2,6 +2,7 @@
   # https://opencode.ai/config.json
   programs.opencode = {
     enable = true;
+    package = pkgs.llm-agents.opencode;
 
     plugins = {
       "rtk" = "${pkgs.rtk}/share/rtk/hooks/opencode-rtk.ts";
