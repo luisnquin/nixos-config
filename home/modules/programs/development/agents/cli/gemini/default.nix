@@ -23,7 +23,7 @@ in {
     defaultModel = "gemini-2.5-flash";
 
     context = {
-      GEMINI = config.programs.claude-code.memory.text;
+      GEMINI = agent.memories;
     };
 
     settings = {

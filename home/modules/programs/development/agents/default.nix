@@ -14,6 +14,8 @@
           lib.strings.splitString "\n" allowedDomains
         );
 
+      memories = builtins.readFile ./.well-known/memories.txt;
+
       mkAudioHook = files: {
         matcher = "";
         hooks = [

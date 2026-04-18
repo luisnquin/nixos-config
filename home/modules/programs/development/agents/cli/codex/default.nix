@@ -70,7 +70,7 @@ in {
     enableMcpIntegration = true;
 
     custom-instructions = ''
-      ${config.programs.claude-code.memory.text}
+      ${agent.memories}
 
       ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-codex.md"}
     '';
