@@ -24,10 +24,6 @@
   inherit (agent.assets) sounds images;
 in {
   home.file = {
-    ".codex/RTK.md" = {
-      source = "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-codex.md";
-    };
-
     ".codex/hooks.json" = {
       source = (pkgs.formats.json {}).generate "codex-hooks" {
         hooks = {
@@ -76,7 +72,7 @@ in {
     custom-instructions = ''
       ${config.programs.claude-code.memory.text}
 
-      ~/.codex/RTK.md
+      ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-codex.md"}
     '';
 
     settings = {
