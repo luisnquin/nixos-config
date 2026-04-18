@@ -51,10 +51,6 @@
         path = "/home/${user.alias}/.ssh/id_ed25519";
         type = "ed25519";
       }
-      {
-        path = "/home/${user.alias}/.ssh/id_ed25520";
-        type = "ed25519";
-      }
     ];
 
     # https://github.com/NixOS/nixpkgs/issues/234683
