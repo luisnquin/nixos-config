@@ -114,6 +114,13 @@
             version = "0.20260329.1";
             sha256 = "sha256-sKePls4n8bgYtSRXLvSTK8bamN/4CVqD2SBcMpytJZg=";
           }
+          {
+            # it's not working
+            name = "maestro-workbench";
+            publisher = "Mastersam";
+            version = "0.9.4";
+            sha256 = "sha256-yiVsyZKCXrjNsM1c3oCb+BLO14IW06DOesem0AfZqsw=";
+          }
         ];
     };
   };
