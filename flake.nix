@@ -257,10 +257,7 @@
       perSystem = {system, ...}: let
         pkgs = mkPkgs system;
       in {
-        packages = rec {
-          default = pkgs.callPackage ./installer {};
-          setup = default;
-        };
+        packages.setup = pkgs.callPackage ./installer {};
       };
 
       flake = rec {
