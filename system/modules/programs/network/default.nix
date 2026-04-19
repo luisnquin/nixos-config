@@ -8,7 +8,19 @@
   ];
 
   networking = {
-    networkmanager.enable = true;
+    networkmanager = {
+      enable = true;
+      unmanaged = [
+        "interface-name:tailscale*"
+        "interface-name:br-*"
+        "interface-name:docker*"
+        "interface-name:virbr*"
+        "interface-name:vboxnet*"
+        "interface-name:waydroid*"
+        "type:bridge"
+      ];
+    };
+
     firewall = let
       ports = [5900 8081];
     in {
