@@ -3,9 +3,40 @@
   pkgs,
   lib,
   ...
-}: {
+}: let
+  zaread = pkgs.stdenvNoCC.mkDerivation {
+    pname = "zaread";
+    version = "1.5.0-035b476";
+
+    src = pkgs.fetchurl {
+      url = "https://raw.githubusercontent.com/paoloap/zaread/035b476f8a64627f047f710bb04cadb3aa696b4d/zaread";
+      hash = "sha256-naZG3YJSTlqt9t1RzIcDtzga5wnMwkNqnBnmJ7rqxY8=";
+    };
+
+    dontUnpack = true;
+    nativeBuildInputs = [pkgs.makeWrapper];
+
+    installPhase = ''
+      runHook preInstall
+
+      install -Dm755 "$src" "$out/bin/zaread"
+      wrapProgram "$out/bin/zaread" \
+        --prefix PATH : ${lib.makeBinPath [
+        pkgs.coreutils
+        pkgs.file
+        pkgs.libreoffice
+        pkgs.zathura
+      ]}
+
+      runHook postInstall
+    '';
+
+    meta.mainProgram = "zaread";
+  };
+in {
   home.packages = [
     pkgs.nautilus
+    zaread
   ];
 
   programs.ranger = {
@@ -27,6 +58,10 @@
       {
         condition = "ext ico";
         command = "${lib.getExe pkgs.feh} \"$@\"";
+      }
+      {
+        condition = "ext csv|doc|docm|docx|dotx|odp|ods|odt|pps|ppsx|ppt|pptm|pptx|rtf|xls|xlsb|xlsm|xlsx";
+        command = "${lib.getExe zaread} \"$@\"";
       }
     ];
   };
