@@ -1,9 +1,100 @@
-{pkgs, ...}: let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
+  spotatuiClass = "spotatui";
+  spotatuiSession = pkgs.writeShellApplication {
+    name = "spotatui-session";
+    runtimeInputs = [
+      pkgs.spotatui
+      pkgs.util-linux
+    ];
+    text = ''
+      lock_dir="''${XDG_RUNTIME_DIR:-/tmp}"
+      lock_file="$lock_dir/spotatui-runtime.lock"
+
+      exec 8>"$lock_file"
+      flock -n 8 || exit 0
+
+      exec spotatui
+    '';
+  };
+  spotatuiLauncher = pkgs.writeShellApplication {
+    name = "spotatui-launcher";
+    runtimeInputs = [
+      config.programs.ghostty.package
+      pkgs.coreutils
+      pkgs.hyprland
+      pkgs.spotatui
+      pkgs.jq
+      pkgs.procps
+      pkgs.util-linux
+    ];
+    text = ''
+      class="${spotatuiClass}"
+      lock_dir="''${XDG_RUNTIME_DIR:-/tmp}"
+      lock_file="$lock_dir/spotatui-launcher.lock"
+
+      focus_spotatui() {
+        clients_json="$(hyprctl clients -j 2>/dev/null || true)"
+        address=""
+
+        if [ -n "$clients_json" ]; then
+          address="$(
+            printf '%s\n' "$clients_json" \
+              | jq -r --arg class "$class" 'first(.[] | select(.class == $class) | .address) // empty'
+          )"
+        fi
+
+        if [ -n "$address" ]; then
+          hyprctl dispatch focuswindow "address:$address"
+          return 0
+        fi
+
+        return 1
+      }
+
+      focus_spotatui && exit 0
+
+      if pgrep -u "$(id -u)" -x spotatui >/dev/null; then
+        focus_spotatui || true
+        exit 0
+      fi
+
+      exec 9>"$lock_file"
+      if ! flock -n 9; then
+        attempts=0
+        while [ "$attempts" -lt 20 ]; do
+          focus_spotatui && exit 0
+          attempts=$((attempts + 1))
+          sleep 0.1
+        done
+
+        exit 0
+      fi
+
+      focus_spotatui && exit 0
+
+      exec ghostty --class="$class" -e ${lib.getExe spotatuiSession}
+    '';
+  };
   yamlFormat = pkgs.formats.yaml {};
 in {
   home.packages = [
     pkgs.spotatui
   ];
+
+  xdg.desktopEntries.spotatui = {
+    name = "spotatui";
+    type = "Application";
+    comment = "Spotify terminal client";
+    exec = lib.getExe spotatuiLauncher;
+    terminal = false;
+    categories = ["Audio" "Music" "Player"];
+    startupNotify = false;
+  };
 
   # https://github.com/LargeModGames/spotatui/wiki/Configuration#configuration
   xdg.configFile."spotatui/config.yml".source = yamlFormat.generate "spotatui-config.yml" {
