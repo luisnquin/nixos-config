@@ -1,17 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}: let
-  mysql-client = (
-    pkgs.linkFarm "mysql-client" [
-      {
-        name = "bin/mysql";
-        path = "${pkgs.mariadb}/bin/mysql";
-      }
-    ]
-  );
-
+{pkgs, ...}: let
   postgresql-client = (
     pkgs.linkFarm "postgresql-client" [
       {
@@ -31,20 +18,8 @@
   );
 in {
   home.packages = with pkgs; [
-    mysql-client # I prefer containers
     postgresql-client # for server stuff
     redis-cli
-    mongosh
-    litecli
     sqlite
-    pgcli
-    sqlc
   ];
-
-  programs.zsh.initContent = let
-    # TODO: try to directly add to the path
-    inherit (config.home) homeDirectory;
-  in ''
-    export PATH="${homeDirectory}/.turso:$PATH"
-  '';
 }
