@@ -6,7 +6,7 @@
   ...
 }: {
   programs.ssh.extraConfig = ''
-    Host mac
+    Host mac-local
       HostName dyx.local
   '';
 
