@@ -22,7 +22,7 @@
           {
             type = "command";
             command = builtins.concatStringsSep " && " (
-              map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
+              map (mp3: "${pkgs.pulseaudio}/bin/paplay --volume=32768 ${mp3}") files
             );
           }
         ];
