@@ -173,15 +173,16 @@
     senv,
     ...
   }: let
-    system = "x86_64-linux";
+    defaultSystem = "x86_64-linux";
+    systems = [defaultSystem];
 
-    pkgs = let
+    mkPkgs = system: let
       config = {
         allowBroken = false;
         allowUnfree = true;
       };
 
-      default = import nixpkgs {
+      pkgs = import nixpkgs {
         overlays =
           (import ./overlays/nixpkgs.nix {
             inherit inputs system;
@@ -201,7 +202,9 @@
         inherit config system;
       };
     in
-      default;
+      pkgs;
+
+    pkgs = mkPkgs defaultSystem;
 
     libx = import ./lib {
       inherit pkgs;
@@ -213,49 +216,77 @@
       isTiling = true;
       isWayland = true;
 
-      inherit inputs system libx;
+      inherit inputs libx;
+      system = defaultSystem;
     };
 
-    forAllSystems = function:
-      nixpkgs.lib.genAttrs ["x86_64-linux"] (
-        system: function nixpkgs.legacyPackages.${system}
-      );
+    configArgs =
+      specialArgs
+      // {
+        inherit (metadata) host user nix;
+      };
+
+    nixosModules = [
+      inputs.disko.nixosModules.default
+      inputs.flake-programs-sqlite.nixosModules.programs-sqlite
+      inputs.black-terminal.nixosModules.default
+      inputs.home-manager.nixosModules.default
+      (import ./secrets {
+        inherit (inputs) agenix;
+        system = defaultSystem;
+      })
+      inputs.agenix.nixosModules.default
+      (./system/hosts + "/${metadata.host.name}")
+    ];
+
+    homeModules = [
+      inputs.battery-notifier.homeManagerModule.default
+      inputs.black-terminal.homeModules.default
+      inputs.agentic-flake.homeModules.default
+      inputs.nao.homeManagerModules.default
+      inputs."3mf2stl".homeModules.default
+      inputs.nixcord.homeModules.nixcord
+      inputs.encore.homeModules.default
+      ./home/options
+      (./home/profiles + "/${metadata.user.alias}")
+    ];
   in
-    {
-      packages = forAllSystems (pkgs: rec {
-        default = pkgs.callPackage ./installer {};
-        setup = default;
-      });
-    }
-    // libx.mkSetup {
-      inherit (metadata) user host nix;
-      inherit pkgs specialArgs;
+    inputs.flake-parts.lib.mkFlake {inherit inputs;} {
+      inherit systems;
 
-      flakes = {inherit nixpkgs home-manager;};
-      profilesPath = ./home/profiles;
-      hostsPath = ./system/hosts;
+      perSystem = {system, ...}: let
+        pkgs = mkPkgs system;
+      in {
+        packages = rec {
+          default = pkgs.callPackage ./installer {};
+          setup = default;
+        };
+      };
 
-      nixosModules = [
-        inputs.disko.nixosModules.default
-        inputs.flake-programs-sqlite.nixosModules.programs-sqlite
-        inputs.black-terminal.nixosModules.default
-        inputs.home-manager.nixosModules.default
-        (import ./secrets {
-          inherit (inputs) agenix;
-          inherit system;
-        })
-        inputs.agenix.nixosModules.default
-      ];
+      flake = rec {
+        nixosConfigurations."${metadata.host.name}" = nixpkgs.lib.nixosSystem {
+          inherit pkgs;
+          system = defaultSystem;
 
-      homeModules = [
-        inputs.battery-notifier.homeManagerModule.default
-        inputs.black-terminal.homeModules.default
-        inputs.agentic-flake.homeModules.default
-        inputs.nao.homeManagerModules.default
-        inputs."3mf2stl".homeModules.default
-        inputs.nixcord.homeModules.nixcord
-        inputs.encore.homeModules.default
-        ./home/options
-      ];
+          modules = nixosModules;
+          specialArgs =
+            configArgs
+            // {
+              hmConfig = homeConfigurations."${metadata.user.alias}".config;
+            };
+        };
+
+        homeConfigurations."${metadata.user.alias}" = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+
+          modules = homeModules;
+          extraSpecialArgs =
+            configArgs
+            // {
+              system = defaultSystem;
+              nixosConfig = nixosConfigurations."${metadata.host.name}".config;
+            };
+        };
+      };
     };
 }

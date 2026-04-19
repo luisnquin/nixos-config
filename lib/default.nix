@@ -10,4 +10,3 @@ in
     fs = ./fs.nix;
   }
   // import ./metadata.nix {inherit lib;}
-  // import ./machine.nix
