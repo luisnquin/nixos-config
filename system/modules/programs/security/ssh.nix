@@ -38,29 +38,24 @@
           path = "/etc/ssh/ssh_host_ed25519_key";
           type = "ed25519";
         }
-        {
-          path = "/home/${user.alias}/.ssh/id_ed25519";
-          type = "ed25519";
-        }
       ];
 
-      # https://github.com/NixOS/nixpkgs/issues/234683
       settings = {
         PasswordAuthentication = false;
         KbdInteractiveAuthentication = false;
         PermitRootLogin = "no";
-        AllowUsers = ["luisnquin"];
+        MaxAuthTries = 3;
+        AllowUsers = [user.alias];
       };
 
       extraConfig = ''
-        MaxAuthTries 3
         PerSourcePenalties crash:3600s authfail:3600s max:86400s
       '';
     };
 
     endlessh = {
       enable = true;
-      port = 357;
+      port = 22;
       openFirewall = true;
     };
 
