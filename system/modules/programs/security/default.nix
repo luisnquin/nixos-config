@@ -1,5 +1,6 @@
 {
   imports = [
+    ./apparmor.nix
     ./gnupg.nix
     ./keyring.nix
     ./groups.nix
