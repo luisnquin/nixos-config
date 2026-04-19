@@ -56,8 +56,16 @@ in {
         command = "${pkgs.pulseaudio}/bin/paplay \"$@\"";
       }
       {
-        condition = "ext ico";
+        condition = "ext ico|bmp|gif|jpeg|jpg|png|svg|webp";
         command = "${lib.getExe pkgs.feh} \"$@\"";
+      }
+      {
+        condition = "ext pdf";
+        command = "${lib.getExe pkgs.zathura} --fork \"$@\"";
+      }
+      {
+        condition = "ext avi|m4v|mkv|mov|mp4|webm";
+        command = "${lib.getExe pkgs.vlc} \"$@\"";
       }
       {
         condition = "ext csv|doc|docm|docx|dotx|odp|ods|odt|pps|ppsx|ppt|pptm|pptx|rtf|xls|xlsb|xlsm|xlsx";
