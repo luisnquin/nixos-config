@@ -109,6 +109,12 @@
           folderParentId = pins."CCD".id;
           position = 203;
         };
+        "Tailscale" = {
+          id = "972bc7e3-a228-452d-8680-1088c6eb2ecf";
+          url = "https://login.tailscale.com/admin/machines";
+          workspace = spaces."Rendezvous".id;
+          position = 300;
+        };
       };
 
       containersForce = true;
