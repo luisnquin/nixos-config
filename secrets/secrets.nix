@@ -1,5 +1,11 @@
 let
   luisnquin = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIXW6vsDRgI/AiOdGnQOTyiz1uLFL0o66u0Ahcw9VWyd luis@quinones.pro";
+
+  defaultKeys = [luisnquin];
 in {
-  "tailscale/auth-key.age".publicKeys = [luisnquin];
+  "certs/ccd/rootCA.crt.age".publicKeys = defaultKeys;
+  "certs/ccd/rootCA.key.age".publicKeys = defaultKeys;
+  "certs/ccd/wildcard.crt.age".publicKeys = defaultKeys;
+  "certs/ccd/wildcard.key.age".publicKeys = defaultKeys;
+  "tailscale/auth-key.age".publicKeys = defaultKeys;
 }
