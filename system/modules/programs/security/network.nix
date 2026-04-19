@@ -6,7 +6,7 @@
     bantime-increment = {
       enable = true;
       formula = "ban.Time * math.exp(float(ban.Count+1)*banFactor)/math.exp(1*banFactor)";
-      maxtime = "168h";
+      maxtime = "192h";
       overalljails = true;
     };
   };
