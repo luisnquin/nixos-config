@@ -112,6 +112,7 @@
         flake-compat.follows = "";
         nixpkgs.follows = "nixpkgs";
         nixpkgs-nixcord.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
       };
     };
     ghostty = {
