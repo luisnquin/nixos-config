@@ -31,9 +31,15 @@
       settings = {
         PasswordAuthentication = false;
         KbdInteractiveAuthentication = false;
+        AuthenticationMethods = "publickey";
+        PubkeyAuthentication = "yes";
+        ChallengeResponseAuthentication = "no";
         PermitRootLogin = "no";
         MaxAuthTries = 3;
         AllowUsers = [user.alias];
+        X11Forwarding = false;
+        ClientAliveCountMax = 3;
+        ClientAliveInterval = 60;
       };
 
       extraConfig = ''
