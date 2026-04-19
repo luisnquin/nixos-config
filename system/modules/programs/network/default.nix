@@ -1,9 +1,9 @@
 {host, ...}: {
   imports = [
-    ./caddy.nix
+    ./caddy
     ./discovery.nix
     ./hosts.nix
-    ./tailscale.nix
+    ./vpn.nix
     ./tools.nix
   ];
 
@@ -18,8 +18,6 @@
     };
 
     hostName = host.name;
-
-    wireguard.enable = true;
   };
 
   # most systems doesn't need this enabled
@@ -31,6 +29,4 @@
   });
 
   programs.wireshark.enable = true;
-
-  services.mullvad-vpn.enable = true;
 }

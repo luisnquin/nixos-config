@@ -4,7 +4,7 @@
   ...
 }: {
   imports = [
-    ./caddy-options.nix
+    ./options.nix
   ];
 
   security.pki.certificates = [

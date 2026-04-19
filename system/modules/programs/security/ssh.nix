@@ -4,15 +4,10 @@
   libx,
   ...
 }: {
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
-    settings = {
-      # this is your vector attack
-      default-cache-ttl = 60 * 15;
-      max-cache-ttl = 60 * 20;
-    };
-  };
+  programs.ssh.extraConfig = ''
+    Host mac
+      HostName dyx.local
+  '';
 
   environment = {
     systemPackages = with pkgs; [
@@ -23,11 +18,6 @@
       fssh = "fast-ssh";
     };
   };
-
-  programs.ssh.extraConfig = ''
-    Host mac
-      HostName dyx.local
-  '';
 
   services = {
     openssh = {
@@ -72,6 +62,18 @@
       enable = true;
       port = 357;
       openFirewall = true;
+    };
+
+    fail2ban = {
+      enable = true;
+      maxretry = 5;
+      bantime = "24h";
+      bantime-increment = {
+        enable = true;
+        formula = "ban.Time * math.exp(float(ban.Count+1)*banFactor)/math.exp(1*banFactor)";
+        maxtime = "192h";
+        overalljails = true;
+      };
     };
   };
 }

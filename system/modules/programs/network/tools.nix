@@ -1,6 +1,5 @@
 {pkgs, ...}: let
   tools = with pkgs; [
-    wireshark
     nload
     netcat
   ];
