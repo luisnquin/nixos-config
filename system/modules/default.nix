@@ -11,7 +11,7 @@
     ./programs/peripherals
     ./programs/security
     ./programs/shell
-    ./programs/vm
+    # ./programs/vm
     ./hardware
     ./boot
     ./fs
