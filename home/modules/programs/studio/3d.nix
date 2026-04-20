@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   ...
@@ -22,9 +23,8 @@
         ];
       }
     ))
+    config.programs."3mf2stl".package
   ];
-
-  programs."3mf2stl".enable = true;
 
   xdg.mimeApps = let
     associationsFor = value:

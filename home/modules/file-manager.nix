@@ -71,6 +71,10 @@ in {
         condition = "ext csv|doc|docm|docx|dotx|odp|ods|odt|pps|ppsx|ppt|pptm|pptx|rtf|xls|xlsb|xlsm|xlsx";
         command = "${lib.getExe zaread} \"$@\"";
       }
+      {
+        condition = "ext 3mf";
+        command = ''${lib.getExe config.programs."3mf2stl".package} "$1" "''${1%.3mf}.stl" && ${pkgs.xdg-utils}/bin/xdg-open "''${1%.3mf}.stl"'';
+      }
     ];
   };
 
