@@ -55,6 +55,7 @@
           christian-kohler.path-intellisense
           docker.docker
           eamodio.gitlens
+          esbenp.prettier-vscode
           golang.go
           hashicorp.terraform
           irongeek.vscode-env
@@ -70,9 +71,9 @@
           ritwickdey.liveserver
           rust-lang.rust-analyzer
           streetsidesoftware.code-spell-checker
+          sumneko.lua
           usernamehw.errorlens
           wmaurer.change-case
-          esbenp.prettier-vscode
           yoavbls.pretty-ts-errors
           zhuangtongfa.material-theme
           ziglang.vscode-zig
