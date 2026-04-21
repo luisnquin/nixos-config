@@ -32,6 +32,15 @@
     hostName = host.name;
   };
 
+  boot.kernel.sysctl = {
+    "net.core.rmem_default" = 262144;
+    "net.core.wmem_default" = 262144;
+    "net.core.rmem_max" = 7500000;
+    "net.core.wmem_max" = 7500000;
+    "net.ipv4.udp_rmem_min" = 16384;
+    "net.ipv4.udp_wmem_min" = 16384;
+  };
+
   # most systems doesn't need this enabled
   systemd.services.NetworkManager-wait-online.enable = false;
 
