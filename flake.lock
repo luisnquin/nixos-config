@@ -292,6 +292,26 @@
         "type": "github"
       }
     },
+    "flake-utils": {
+      "inputs": {
+        "systems": [
+          "systems"
+        ]
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "ghostty": {
       "inputs": {
         "flake-compat": [],
@@ -1029,6 +1049,29 @@
         "type": "github"
       }
     },
+    "roborev": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1776817957,
+        "narHash": "sha256-Etjhrlz9xnvtvycz43nwkKeUbxjqF/LTeJTYPyMPQAc=",
+        "owner": "roborev-dev",
+        "repo": "roborev",
+        "rev": "e71a50e17830d530eb24901f648b4febf3dffd08",
+        "type": "github"
+      },
+      "original": {
+        "owner": "roborev-dev",
+        "repo": "roborev",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "3mf2stl": "3mf2stl",
@@ -1041,6 +1084,7 @@
         "encore": "encore",
         "flake-parts": "flake-parts",
         "flake-programs-sqlite": "flake-programs-sqlite",
+        "flake-utils": "flake-utils",
         "ghostty": "ghostty",
         "grub-themes": "grub-themes",
         "home-manager": "home-manager",
@@ -1054,6 +1098,7 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
         "passgen": "passgen",
+        "roborev": "roborev",
         "senv": "senv",
         "systems": "systems",
         "zen-browser": "zen-browser"

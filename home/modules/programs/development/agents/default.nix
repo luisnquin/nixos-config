@@ -47,6 +47,7 @@
     ./cli/claude
     ./cli/opencode
     ./mcp.nix
+    ./roborev.nix
     ./skills.nix
     ./tools.nix
   ];

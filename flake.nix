@@ -20,6 +20,10 @@
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
+    flake-utils = {
+      url = "github:numtide/flake-utils";
+      inputs.systems.follows = "systems";
+    };
 
     disko = {
       url = "github:nix-community/disko";
@@ -145,6 +149,13 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         home-manager.follows = "home-manager";
+      };
+    };
+    roborev = {
+      url = "github:roborev-dev/roborev";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils"; # TODO: ask them to remove this ponpon shit
       };
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
