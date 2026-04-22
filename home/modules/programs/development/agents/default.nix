@@ -4,7 +4,7 @@
   ...
 }: {
   _module.args = {
-    agent = {
+    agent = rec {
       assets = import ./assets;
 
       domains = let
@@ -16,24 +16,29 @@
 
       memories = builtins.readFile ./.well-known/memories.txt;
 
+      mkAudioCmd = files:
+        builtins.concatStringsSep " && " (
+          map (mp3: "${pkgs.pulseaudio}/bin/paplay --volume=32768 ${mp3}") files
+        );
+
       mkAudioHook = files: {
         matcher = "";
         hooks = [
           {
             type = "command";
-            command = builtins.concatStringsSep " && " (
-              map (mp3: "${pkgs.pulseaudio}/bin/paplay --volume=32768 ${mp3}") files
-            );
+            command = mkAudioCmd files;
           }
         ];
       };
+
+      mkNotificationCmd = image: title: message: ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${image}" "${title}" "${message}"'';
 
       mkNotificationHook = image: title: message: {
         matcher = "";
         hooks = [
           {
             type = "command";
-            command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${image}" "${title}" "${message}"'';
+            command = mkNotificationCmd image title message;
           }
         ];
       };

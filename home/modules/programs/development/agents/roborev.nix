@@ -1,9 +1,12 @@
 {
   inputs,
   system,
+  agent,
   pkgs,
   ...
-}: {
+}: let
+  inherit (agent.assets) images;
+in {
   home.packages = [
     inputs.roborev.packages.${system}.default
   ];
@@ -122,7 +125,13 @@
     pi_cmd = "pi";
     opencode_cmd = "opencode";
     anthropic_api_key = "";
-    hooks = [];
+
+    hooks = [
+      {
+        event = "review.completed";
+        command = agent.mkNotificationCmd images.roborev "Review completed" "Review done for {repo_name}: {verdict}";
+      }
+    ];
 
     # Filenames or glob patterns to exclude from review diffs globally.
     exclude_patterns = [];
