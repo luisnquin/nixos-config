@@ -2,7 +2,7 @@
   programs.vnc = {
     enable = true;
     entries.mac = {
-      host = "dyx.local";
+      host = "rose.local";
       fullScreen = true;
       encoding = "Tight";
     };

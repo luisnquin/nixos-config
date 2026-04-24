@@ -34,7 +34,7 @@
           npm = "@ai-sdk/openai-compatible";
           name = "LiteLLM";
           options = {
-            "baseURL" = "http://dyx.local:4000/v1";
+            "baseURL" = "http://rose.local:4000/v1";
             "apiKey" = "dummy";
           };
           models = {
