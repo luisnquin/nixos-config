@@ -45,10 +45,10 @@
       };
 
       # github.command = lib.getExe pkgs.github-mcp-server;
-      nixos = {
-        type = "stdio";
-        command = lib.getExe pkgs.mcp-nixos;
-      };
+      # nixos = {
+      #   type = "stdio";
+      #   command = lib.getExe pkgs.mcp-nixos;
+      # };
 
       supabase = rec {
         type = "http";

@@ -8,7 +8,7 @@
     gofumpt # gofmt but better
     golangci-lint # linter
     gopls # Go language server
-    gotools # useful stuff for go
+    # gotools # useful stuff for go
     govulncheck # audit dependencies
     grpc-tools
     panicparse # to help to debug panic errors
