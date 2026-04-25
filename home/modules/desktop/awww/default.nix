@@ -8,10 +8,10 @@
   xdg.configFile = let
     wallpaperFiles = libx.fs.getFilesInDirectory ./wallpapers;
 
-    inherit (pkgs.scripts) swww-switcher;
+    inherit (pkgs.scripts) awww-switcher;
   in {
     "hypr/hyprland.conf".text = ''
-      bind = $mainMod, L, exec, ${swww-switcher}/bin/cli ${builtins.concatStringsSep " " (wallpaperFiles
+      bind = $mainMod, L, exec, ${awww-switcher}/bin/cli ${builtins.concatStringsSep " " (wallpaperFiles
         ++ [
           ./background.gif
         ])}
