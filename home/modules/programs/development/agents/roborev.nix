@@ -1,6 +1,10 @@
 {agent, ...}: let
   inherit (agent.assets) images;
 in {
+  home.sessionVariables = {
+    ROBOREV_COLOR_MODE = "dark";
+  };
+
   programs.roborev = {
     enable = true;
     settings = {
