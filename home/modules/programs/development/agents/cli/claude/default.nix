@@ -28,7 +28,7 @@ in {
       };
     };
 
-    memory.text = agent.memories;
+    context = agent.memories;
 
     # https://code.claude.com/docs/en/settings#available-settings
     settings = {

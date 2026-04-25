@@ -70,7 +70,7 @@ in {
     package = pkgs.llm-agents.codex;
     enableMcpIntegration = true;
 
-    custom-instructions = ''
+    context = ''
       ${agent.memories}
 
       ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/codex/rtk-awareness.md"}
