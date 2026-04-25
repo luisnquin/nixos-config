@@ -1,7 +1,6 @@
 {
   pkgs,
   user,
-  libx,
   lib,
   ...
 }: {
@@ -20,16 +19,20 @@
     };
   };
 
+  environment.etc."ssh/ssh-banner".text = ''
+    It's true, you can never eat a pet you name
+  '';
+
   services = {
     openssh = {
       enable = true;
-      banner = libx.base64.decode "SXQncyB0cnVlLCB5b3UgY2FuIG5ldmVyIGVhdCBhIHBldCB5b3UgbmFtZQ==";
       ports = [
         357
       ];
       openFirewall = true;
 
       settings = {
+        Banner = "/etc/ssh/ssh-banner";
         PasswordAuthentication = false;
         KbdInteractiveAuthentication = false;
         AuthenticationMethods = "publickey";
