@@ -18,7 +18,7 @@
         command = lib.getExe pkgs.context7-mcp;
       };
 
-      encore = {
+      encore = rec {
         type = "stdio";
         command = "encore";
         args = ["mcp" "run" "--app=gate-k9-mzni"];
@@ -26,9 +26,10 @@
           "query_database"
           "get_secrets"
         ];
+        disabled_tools = disabledTools;
       };
 
-      filesystem = {
+      filesystem = rec {
         type = "stdio";
         command = "npx";
         args = [
@@ -41,6 +42,8 @@
           "list_allowed_directories"
           "list_directory"
         ];
+        disabled_tools = disabledTools;
+        startup_timeout_sec = 5;
       };
 
       # github.command = lib.getExe pkgs.github-mcp-server;
@@ -49,7 +52,7 @@
         command = lib.getExe pkgs.mcp-nixos;
       };
 
-      supabase = {
+      supabase = rec {
         type = "http";
         url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
         disabledTools = [
@@ -66,6 +69,7 @@
           "list_edge_functions"
           "execute_sql"
         ];
+        disabled_tools = disabledTools;
       };
     };
   };
