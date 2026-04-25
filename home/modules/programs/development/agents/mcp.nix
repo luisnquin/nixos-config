@@ -31,10 +31,8 @@
 
       filesystem = rec {
         type = "stdio";
-        command = "npx";
+        command = lib.getExe pkgs.mcp-server-filesystem;
         args = [
-          "-y"
-          "@modelcontextprotocol/server-filesystem"
           "/tmp"
         ];
         disabledTools = [
