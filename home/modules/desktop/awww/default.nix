@@ -3,7 +3,7 @@
   libx,
   ...
 }: {
-  services.swww.enable = true;
+  services.awww.enable = true;
 
   xdg.configFile = let
     wallpaperFiles = libx.fs.getFilesInDirectory ./wallpapers;

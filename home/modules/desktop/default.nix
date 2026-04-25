@@ -2,7 +2,7 @@
   imports = [
     ./hyprland
     ./waybar
-    ./swww
+    ./awww
     ./rofi
 
     ./color-picker.nix
