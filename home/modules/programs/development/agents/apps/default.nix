@@ -1,6 +1,5 @@
 {
   imports = [
-    ./opencode.nix
     ./roborev.nix
   ];
 }

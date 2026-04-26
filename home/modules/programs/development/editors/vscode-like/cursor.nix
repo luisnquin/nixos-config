@@ -1,10 +1,15 @@
 {
+  mkAgentKit,
   config,
   pkgs,
   lib,
   ...
-}: {
-  home.file.".cursor/mcp.json".text = builtins.toJSON config.programs.mcp.vendorServers;
+}: let
+  kit = mkAgentKit {};
+in {
+  home.file.".cursor/mcp.json".text = builtins.toJSON (kit.mkMcpServers {
+    normalizeServerUrl = true;
+  });
 
   home.activation.copyCursorSettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p ~/.config/Cursor/User

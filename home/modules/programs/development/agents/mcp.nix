@@ -50,25 +50,25 @@
       #   command = lib.getExe pkgs.mcp-nixos;
       # };
 
-      supabase = rec {
-        type = "http";
-        url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
-        disabledTools = [
-          "reset_branch"
-          "rebase_branch"
-          "delete_branch"
-          "merge_branch"
-          "list_migrations"
-          "apply_migration"
-          "list_branches"
-          "create_branch"
-          "deploy_edge_function"
-          "get_edge_function"
-          "list_edge_functions"
-          "execute_sql"
-        ];
-        disabled_tools = disabledTools;
-      };
+      # supabase = rec {
+      #   type = "http";
+      #   url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
+      #   disabledTools = [
+      #     "reset_branch"
+      #     "rebase_branch"
+      #     "delete_branch"
+      #     "merge_branch"
+      #     "list_migrations"
+      #     "apply_migration"
+      #     "list_branches"
+      #     "create_branch"
+      #     "deploy_edge_function"
+      #     "get_edge_function"
+      #     "list_edge_functions"
+      #     "execute_sql"
+      #   ];
+      #   disabled_tools = disabledTools;
+      # };
     };
   };
 }

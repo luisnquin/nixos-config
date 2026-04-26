@@ -1,0 +1,25 @@
+# Lines starting with
+# "+" are allowed.
+# "-" are denied.
+# "?" are asked.
+#
++ Glob(*)
++ Grep(*)
++ LS(*)
++ Read(*)
++ Search(*)
++ Task(*)
++ TodoWrite(*)
+? Bash(*)
++ WebFetch(*)
++ mcp__*
++ Bash(psql:*)
+- Bash(rm -rf /*)
+- Bash(rm -rf /)
+- Bash(dd:*)
+- Bash(mkfs:*)
+- Bash(npx prisma migrate reset)
+- Bash(npx prisma studio)
+- Bash(npx prisma dev)
+- Bash(encore secret set:*)
+- Bash(encore secret delete:*)

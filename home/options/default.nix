@@ -1,8 +1,8 @@
 {
   imports = [
-    ./ntfy-sh.nix
     ./github.nix
-    ./mcp.nix
+    ./ntfy-sh.nix
+    ./raffi.nix
     ./vnc.nix
     ./zig.nix
   ];

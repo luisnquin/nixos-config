@@ -1,64 +1,52 @@
 {
-  config,
-  agent,
+  mkAgentKit,
   pkgs,
-  lib,
   ...
 }: let
-  mkAudioHook = files: [
-    {
-      type = "command";
-      command = builtins.concatStringsSep " && " (
-        map (mp3: "${pkgs.pulseaudio}/bin/paplay ${mp3}") files
-      );
-    }
-  ];
-
-  mkNotificationHook = image: title: message: [
-    {
-      type = "command";
-      command = ''${lib.getExe pkgs.libnotify} -a "${title}" -i "${image}" "${title}" "${message}"'';
-    }
-  ];
-
-  inherit (agent.assets) sounds images;
+  kit = mkAgentKit {};
+  permissions = kit.mkAgentPermissions "codex";
 in {
   home.file = {
     ".codex/hooks.json" = {
       source = (pkgs.formats.json {}).generate "codex-hooks" {
         hooks = {
           SessionStart = [
-            {
+            (kit.mkAudioEntry {
               matcher = "startup";
-              hooks = mkAudioHook [sounds.ifarm];
-            }
+              files = [kit.sounds.ifdarm];
+            })
           ];
           PreToolUse = [
-            {
+            (kit.mkAudioEntry {
               matcher = "Bash";
-              hooks = mkAudioHook [sounds.ifrtho];
-            }
+              files = [kit.sounds.ifrtho];
+            })
           ];
           PostToolUse = [
-            {
+            (kit.mkAudioEntry {
               matcher = "Bash";
-              hooks = mkAudioHook [sounds.ifrtfy];
-            }
+              files = [kit.sounds.ifrtfy];
+            })
           ];
           UserPromptSubmit = [
-            {
-              hooks = mkAudioHook [sounds.ifrsig];
-            }
+            (kit.mkAudioEntry {
+              files = [kit.sounds.ifrsig];
+            })
           ];
           Stop = [
-            {
-              hooks = mkAudioHook [sounds.ifdarm];
-            }
+            (kit.mkAudioEntry {
+              files = [kit.sounds.ifdarm];
+            })
           ];
           PermissionRequest = [
-            {
-              hooks = (mkNotificationHook images.codex "Codex" "Permission required") ++ mkAudioHook [sounds.ifdngr sounds.permission-required];
-            }
+            (kit.mkNotificationEntry {
+              image = kit.images.codex;
+              title = "Codex";
+              message = "Permission required";
+              extraHooks = [
+                (kit.mkAudioHook [kit.sounds.ifdngr kit.sounds.permission-required])
+              ];
+            })
           ];
         };
       };
@@ -71,7 +59,7 @@ in {
     enableMcpIntegration = true;
 
     context = ''
-      ${agent.memories}
+      ${kit.memories}
 
       ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/codex/rtk-awareness.md"}
     '';
@@ -79,9 +67,9 @@ in {
     settings = {
       analytics.enabled = true;
       feedback.enabled = true;
-      mcp_servers = builtins.removeAttrs config.programs.mcp.servers [
-        "supabase"
-      ];
+      mcp_servers = kit.mkMcpServers {
+        snakeCase = true;
+      };
 
       agents = {
         job_max_runtime_seconds = 3600;
@@ -89,9 +77,9 @@ in {
         max_threads = 10;
       };
 
-      approval_policy = "untrusted";
+      approval_policy = permissions.approval_policy;
+      sandbox_mode = permissions.sandbox_mode;
       approvals_reviewer = "user";
-      sandbox_mode = "workspace-write";
 
       profiles = {
         coding = {
@@ -113,10 +101,7 @@ in {
 
       tools = {
         view_image = true;
-        web_search = {
-          context_size = "medium";
-          allowed_domains = agent.domains;
-        };
+        web_search = permissions.web_search;
       };
     };
   };

@@ -1,10 +1,14 @@
 {
-  config,
+  mkAgentKit,
   pkgs,
   lib,
   ...
-}: {
-  home.file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON config.programs.mcp.vendorServers;
+}: let
+  kit = mkAgentKit {};
+in {
+  home.file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON (kit.mkMcpServers {
+    normalizeServerUrl = true;
+  });
 
   home.activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p ~/.config/Antigravity/User

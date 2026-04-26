@@ -1,11 +1,10 @@
 {
+  mkAgentKit,
   config,
-  agent,
   pkgs,
   ...
 }: let
-  inherit (agent) mkAudioHook mkNotificationHook;
-  inherit (agent.assets) sounds images;
+  kit = mkAgentKit {};
 
   rtkPath = ".gemini/hooks/rtk-hook-gemini.sh";
 in {
@@ -25,7 +24,7 @@ in {
     defaultModel = "gemini-2.5-flash";
 
     context = {
-      GEMINI = agent.memories;
+      GEMINI = kit.memories;
     };
 
     settings = {
@@ -36,24 +35,42 @@ in {
       secureModeEnabled = false;
       security.auth.selectedType = "oauth-personal";
 
+      tools = kit.mkAgentPermissions "gemini";
+
       hooks = {
         SessionStart = [
-          (mkAudioHook [sounds.ifarm])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifarm];
+          })
         ];
 
         SessionEnd = [
-          (mkAudioHook [sounds.ifdarm])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifdarm];
+          })
         ];
+
         BeforeAgent = [
-          (mkAudioHook [sounds.ifrsig])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifrsig];
+          })
         ];
 
         PreCompress = [
-          (mkAudioHook [sounds.ifrsig])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifrsig];
+          })
         ];
+
         Notification = [
-          (mkNotificationHook images.gemini "Gemini" "Awaiting your input")
-          (mkAudioHook [sounds.buzact])
+          (kit.mkNotificationEntry {
+            image = kit.images.gemini;
+            title = "Gemini";
+            message = "Awaiting your input";
+            extraHooks = [
+              (kit.mkAudioHook [kit.sounds.buzact])
+            ];
+          })
         ];
 
         BeforeTool = [

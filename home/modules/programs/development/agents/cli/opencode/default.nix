@@ -1,4 +1,10 @@
-{pkgs, ...}: {
+{
+  pkgs,
+  mkAgentKit,
+  ...
+}: let
+  kit = mkAgentKit {};
+in {
   # https://opencode.ai/config.json
   programs.opencode = {
     enable = true;
@@ -11,21 +17,7 @@
     settings = {
       server.port = 4096;
 
-      permission = {
-        read = "allow";
-        glob = "allow";
-        grep = "allow";
-        list = "allow";
-        lsp = "allow";
-
-        edit = "allow";
-        write = "allow";
-
-        bash = "ask";
-
-        webfetch = "allow";
-        websearch = "ask";
-      };
+      permission = kit.mkAgentPermissions "opencode";
 
       model = "litellm/qwen2.5-coder:7b";
 

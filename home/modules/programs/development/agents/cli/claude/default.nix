@@ -1,19 +1,16 @@
 {
   config,
-  agent,
+  mkAgentKit,
   pkgs,
   ...
 }: let
-  inherit (agent) mkAudioHook mkNotificationHook;
-  inherit (agent.assets) sounds images;
+  kit = mkAgentKit {};
 in {
   programs.claude-code = {
     enable = true;
     package = pkgs.llm-agents.claude-code;
     enableMcpIntegration = true;
-    mcpServers = builtins.removeAttrs config.programs.mcp.servers [
-      "supabase"
-    ];
+    mcpServers = kit.mkMcpServers {};
 
     hooks = {
       "rtk-rewrite.sh" = builtins.readFile "${pkgs.rtk}/share/rtk/hooks/claude/rtk-rewrite.sh";
@@ -28,7 +25,7 @@ in {
       };
     };
 
-    context = agent.memories;
+    context = kit.memories;
 
     # https://code.claude.com/docs/en/settings#available-settings
     settings = {
@@ -50,36 +47,64 @@ in {
 
       hooks = {
         Notification = [
-          (mkNotificationHook images.claude "Claude Code" "Awaiting your input")
-          (mkAudioHook [sounds.buzact])
+          (kit.mkNotificationEntry {
+            image = kit.images.claude;
+            title = "Claude Code";
+            message = "Awaiting your input";
+            extraHooks = [
+              (kit.mkAudioHook [kit.sounds.buzact])
+            ];
+          })
         ];
         SessionStart = [
-          (mkAudioHook [sounds.ifarm])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifarm];
+          })
         ];
         Elicitation = [
-          (mkAudioHook [sounds.ifrtho])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifrtho];
+          })
         ];
         ElicitationResult = [
-          (mkAudioHook [sounds.ifrtfy])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifrtfy];
+          })
         ];
         PostToolUseFailure = [
-          (mkAudioHook [sounds.ifdngr sounds.ifvfrs])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifvfrs];
+          })
         ];
         UserPromptSubmit = [
-          (mkAudioHook [sounds.ifrsig])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifrsig];
+          })
         ];
         TaskCompleted = [
-          (mkAudioHook [sounds.ifgood sounds.ifrtho])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifrtho];
+          })
         ];
         StopFailure = [
-          (mkAudioHook [sounds.ifdngr sounds.ifrsis])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifdngr kit.sounds.ifrsis];
+          })
         ];
         PermissionDenied = [
-          (mkAudioHook [sounds.ifdngr sounds.permission-denied])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifdngr kit.sounds.permission-denied];
+          })
         ];
         PermissionRequest = [
-          (mkNotificationHook images.claude "Claude Code" "Permission required")
-          (mkAudioHook [sounds.ifdngr sounds.permission-required])
+          (kit.mkNotificationEntry {
+            image = kit.images.claude;
+            title = "Claude Code";
+            message = "Permission required";
+            extraHooks = [
+              (kit.mkAudioHook [kit.sounds.ifdngr kit.sounds.permission-required])
+            ];
+          })
         ];
         PreToolUse = [
           {
@@ -93,7 +118,9 @@ in {
           }
         ];
         SessionEnd = [
-          (mkAudioHook [sounds.ifdarm])
+          (kit.mkAudioEntry {
+            files = [kit.sounds.ifdarm];
+          })
         ];
       };
 
@@ -103,11 +130,7 @@ in {
 
       includeCoAuthoredBy = false;
 
-      permissionProfile = "standard";
-      permissions = {
-        defaultMode = pkgs.lib.mkForce "acceptEdits";
-        disableBypassPermissionsMode = "disable";
-      };
+      permissions = kit.mkAgentPermissions "claude";
     };
   };
 }

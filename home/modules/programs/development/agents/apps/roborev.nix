@@ -1,12 +1,19 @@
-{agent, ...}: let
-  inherit (agent.assets) images;
-in {
-  home.sessionVariables = {
-    ROBOREV_COLOR_MODE = "dark";
+{
+  mkAgentKit,
+  pkgs,
+  ...
+}: let
+  kit = mkAgentKit {
+    isRoborev = true;
   };
-
+in {
   programs.roborev = {
     enable = true;
+    env = {
+      ROBOREV_COLOR_MODE = "dark";
+      ROBOREV = "1";
+    };
+
     settings = {
       server_addr = "127.0.0.1:7373";
       max_workers = 4;
@@ -115,17 +122,20 @@ in {
       fix_min_severity = "";
 
       disable_codex_sandbox = false;
-      codex_cmd = "codex";
-      claude_code_cmd = "claude";
-      cursor_cmd = "agent";
-      pi_cmd = "pi";
+      codex_cmd = "${pkgs.coreutils}/bin/false";
+      claude_code_cmd = "${pkgs.coreutils}/bin/false";
+      cursor_cmd = "${pkgs.coreutils}/bin/false";
+      pi_cmd = "${pkgs.coreutils}/bin/false";
       opencode_cmd = "opencode";
-      anthropic_api_key = "";
 
       hooks = [
         {
           event = "review.completed";
-          command = agent.mkNotificationCmd images.roborev "Review completed" "Review done for {repo_name}: {verdict}";
+          command = kit.mkNotificationCmd kit.images.roborev "Review completed" "[{repo_name}] Review done for {sha}: {verdict}";
+        }
+        {
+          event = "review.failed";
+          command = kit.mkNotificationCmd kit.images.roborev "Review failed" "[{repo_name}] Error on {sha}: run roborev show {job_id}";
         }
       ];
 
