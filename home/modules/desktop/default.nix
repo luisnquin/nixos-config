@@ -7,11 +7,12 @@
 
     ./color-picker.nix
     ./gsimplecal.nix
-    ./hyprlauncher.nix
     ./gtk.nix
+    ./hyprlauncher.nix
     ./mako.nix
     ./mouse.nix
     ./notifications.nix
+    ./raffi.nix
     ./xdg.nix
   ];
 

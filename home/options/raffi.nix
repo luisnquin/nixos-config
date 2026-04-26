@@ -11,7 +11,7 @@
 
   nullOr = type:
     mkOption {
-      inherit type;
+      type = types.nullOr type;
       default = null;
     };
 

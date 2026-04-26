@@ -101,14 +101,7 @@
     }
     {
       "mod+key" = "${mainMod}, X";
-      "dispatcher" = ''
-        exec, bash -c '
-          val="$(raffi -pI)"
-          if [ -n "$val" ]; then
-            ${pkgs.hyprland}/bin/hyprctl dispatch exec "$val"
-          fi
-        '
-      '';
+      "dispatcher" = "exec, bash -c 'val=\"$(raffi -pI)\"; [ -n \"$val\" ] && ${pkgs.hyprland}/bin/hyprctl dispatch exec \"$val\"'";
     }
     {
       "mod+key" = "${mainMod}, Q";

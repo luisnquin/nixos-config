@@ -8,14 +8,14 @@
       general = {
         ui_type = "native";
         default_script_shell = "bash";
-        no_icons = false;
+        no_icons = true;
         max_history = 10;
         theme = "dark";
-        font_size = 20.0;
-        font_family = "Inter";
-        window_width = 800.0;
-        window_height = 600.0;
-        padding = 20.0;
+        font_size = 15.0;
+        font_family = "Inconsolata";
+        window_width = 420.0;
+        window_height = 320.0;
+        padding = 5.0;
         sort_mode = "hybrid";
 
         fallbacks = [
@@ -67,7 +67,7 @@
 
         currency = {
           enabled = true;
-          currencies = ["USD" "EUR" "GBP"];
+          currencies = ["USD" "EUR" "PEN"];
           default_currency = "USD";
           trigger = "curr";
         };
