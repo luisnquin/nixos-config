@@ -100,6 +100,17 @@
       "dispatcher" = "exec, ${lib.getExe pkgs.rofi} -show window";
     }
     {
+      "mod+key" = "${mainMod}, X";
+      "dispatcher" = ''
+        exec, bash -c '
+          val="$(raffi -pI)"
+          if [ -n "$val" ]; then
+            ${pkgs.hyprland}/bin/hyprctl dispatch exec "$val"
+          fi
+        '
+      '';
+    }
+    {
       "mod+key" = "${mainMod}, Q";
       "dispatcher" = "exec, ${lib.getExe pkgs.hyprlauncher}";
     }

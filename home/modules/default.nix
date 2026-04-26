@@ -14,6 +14,7 @@
     ./programs/studio
     ./programs/terminal.nix
     ./programs/vnc.nix
+    ./programs/raffi.nix
 
     ./file-manager.nix
   ];
