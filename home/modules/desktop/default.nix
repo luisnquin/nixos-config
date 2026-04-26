@@ -3,12 +3,11 @@
     ./hyprland
     ./waybar
     ./awww
-    ./rofi
+    ./fuzzel.nix
 
     ./color-picker.nix
     ./gsimplecal.nix
     ./gtk.nix
-    ./hyprlauncher.nix
     ./mako.nix
     ./mouse.nix
     ./notifications.nix

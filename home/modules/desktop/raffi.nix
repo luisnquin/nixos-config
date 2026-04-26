@@ -11,8 +11,8 @@
         no_icons = true;
         max_history = 10;
         theme = "dark";
-        font_size = 15.0;
-        font_family = "Inconsolata";
+        font_size = 10.0;
+        font_family = "Cascadia Code";
         window_width = 420.0;
         window_height = 320.0;
         padding = 5.0;

@@ -97,7 +97,7 @@
     }
     {
       "mod+key" = "SUPER_SHIFT, Q";
-      "dispatcher" = "exec, ${lib.getExe pkgs.rofi} -show window";
+      "dispatcher" = "exec, ${lib.getExe pkgs.fuzzel} --dmenu";
     }
     {
       "mod+key" = "${mainMod}, X";
@@ -105,7 +105,7 @@
     }
     {
       "mod+key" = "${mainMod}, Q";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprlauncher}";
+      "dispatcher" = "exec, ${lib.getExe pkgs.fuzzel}";
     }
     {
       "mod+key" = "SUPER_SHIFT, E";
@@ -148,8 +148,6 @@
         '';
       });
     in (getExe package);
-
-    rofiCall = name: cmd: ''${getExe pkgs.rofi} -modi "${name}:${cmd}" -show ${name}'';
   in [
     {
       "mod+key" = "SUPER_SHIFT, Print";
@@ -172,7 +170,7 @@
     }
     {
       "mod+key" = "SUPER_SHIFT, C";
-      "dispatcher" = "exec, ${rofiCall "clipboard" "${getExe pkgs.scripts.cliphist-rofi}"}";
+      "dispatcher" = "exec, bash -c '${getExe pkgs.scripts.cliphist-rofi} | ${getExe pkgs.fuzzel} --dmenu | cliphist decode | wl-copy'";
     }
   ];
 
