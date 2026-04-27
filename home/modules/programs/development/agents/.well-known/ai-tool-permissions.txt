@@ -3,6 +3,8 @@
 # "-" are denied.
 # "?" are asked.
 #
++ Edit
++ Write
 + Glob(*)
 + Grep(*)
 + LS(*)
@@ -10,10 +12,12 @@
 + Search(*)
 + Task(*)
 + TodoWrite(*)
-? Bash(*)
 + WebFetch(*)
 + mcp__*
 + Bash(psql:*)
++ Bash(sed:*)
++ Bash(find:*)
+? Bash(*)
 - Bash(rm -rf /*)
 - Bash(rm -rf /)
 - Bash(dd:*)
