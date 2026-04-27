@@ -78,12 +78,6 @@
               key = "AAAAC3NzaC1lZDI1NTE5AAAAIHnYnozNaCKhAsIL0vWc4NEW1XoPXS98pMFivH+PRzwr";
             }
           ];
-          "rose.local" = [
-            {
-              type = "ed25519";
-              key = "AAAAC3NzaC1lZDI1NTE5AAAAIFlkqZgum152rLBvU5STLmN1Jvao+iJpE0vKdli/QaPc";
-            }
-          ];
         };
     };
 
