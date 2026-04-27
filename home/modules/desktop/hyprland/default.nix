@@ -104,8 +104,6 @@ args @ {
       };
 
       dwindle = {
-        # See https://wiki.hyprland.org/Configuring/Dwindle-Layout/ for more
-        pseudotile = true;
         preserve_split = true;
       };
 
