@@ -27,13 +27,13 @@
       };
 
       colors = {
-        background = "1e1e2eff";
-        text = "cdd6f4ff";
-        match = "f38ba8ff";
-        selection = "585b70ff";
-        selection-match = "f38ba8ff";
-        selection-text = "cdd6f4ff";
-        border = "b4befeff";
+        background = "161616ff";
+        text = "ffffffff";
+        match = "ee5396ff";
+        selection-match = "ee5396ff";
+        selection = "262626ff";
+        selection-text = "33b1ffff";
+        border = "525252ff";
       };
 
       border = {
