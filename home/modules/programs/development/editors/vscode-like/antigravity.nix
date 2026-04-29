@@ -44,6 +44,10 @@ in {
           key = "ctrl+space";
           command = "workbench.action.terminal.toggleTerminal";
         }
+        {
+          key = "insert";
+          command = "-toggleOverwriteMode";
+        }
       ];
 
       extensions = with pkgs.vscode-extensions;
