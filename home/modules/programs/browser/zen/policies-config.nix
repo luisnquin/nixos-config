@@ -44,10 +44,6 @@ in {
     Cache = true;
   };
   ExtensionSettings = mkExtensionSettings {
-    "wappalyzer@crunchlabz.com" = mkExtensionEntry {
-      id = "wappalyzer";
-      pinned = true;
-    };
     "uBlock0@raymondhill.net" = mkExtensionEntry {
       id = "ublock-origin";
       pinned = true;
@@ -62,14 +58,12 @@ in {
     "{861a3982-bb3b-49c6-bc17-4f50de104da1}" = "custom-user-agent-revived";
     "{a4c4eda4-fb84-4a84-b4a1-f7c1cbf2a1ad}" = "refined-github-";
     "{ef9e884b-b6d8-4544-b0de-82c46c5e95de}" = "sponsorblock";
-    "{f52149fe-80cc-4d07-868d-c0e4a85453a0}" = "page-screenshot";
     "{fef652df-dd80-450e-b64a-567abeb3aa4b}" = "youtube-cards";
     "@searchengineadremover" = "searchengineadremover";
     "firefox-extension@steamdb.info" = "steam-database";
     "github-no-more@ihatereality.space" = "github-no-more";
     "github-repository-size@pranavmangal" = "gh-repo-size";
     "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
-    # "trackmenot@mrl.nyu.edu" = "trackmenot";
   };
   Preferences = mkLockedAttrs {
     "browser.aboutConfig.showWarning" = false;
