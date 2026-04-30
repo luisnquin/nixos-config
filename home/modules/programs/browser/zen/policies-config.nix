@@ -83,10 +83,6 @@ in {
     "browser.topsites.contile.enabled" = false;
     "browser.translations.enable" = false;
 
-    # Enable performance settings recommended by Firefox
-    "layers.acceleration.disabled" = false;
-    "layers.acceleration.force-enabled" = true;
-
     "privacy.resistFingerprinting" = true;
     "privacy.resistFingerprinting.randomization.canvas.use_siphash" = true;
     "privacy.resistFingerprinting.randomization.daily_reset.enabled" = true;
