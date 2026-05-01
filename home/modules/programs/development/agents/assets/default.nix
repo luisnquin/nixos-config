@@ -1,23 +1,21 @@
-{
-  images = {
-    claude = ./images/claude.ico;
-    codex = ./images/codex.svg;
-    gemini = ./images/gemini.png;
-    roborev = ./images/roborev.png;
+{lib}: let
+  root = builtins.path {
+    name = "claude-agent-assets";
+    path = ./.;
   };
 
-  sounds = {
-    buzact = ./sounds/buzact.wav;
-    ifarm = ./sounds/ifarm.wav;
-    ifrtho = ./sounds/ifrtho.wav;
-    ifdarm = ./sounds/ifdarm.wav;
-    ifdngr = ./sounds/ifdngr.wav;
-    ifgood = ./sounds/ifgood.wav;
-    ifrsig = ./sounds/ifrsig.wav;
-    ifrsis = ./sounds/ifrsis.wav;
-    ifrtfy = ./sounds/ifrtfy.wav;
-    ifvfrs = ./sounds/ifvfrs.wav;
-    permission-denied = ./sounds/permission-denied.mp3;
-    permission-required = ./sounds/permission-required.opus;
-  };
+  stripExt = name: let
+    m = builtins.match "(.+)\\.[^.]+$" name;
+  in
+    if m == null
+    then name
+    else builtins.head m;
+
+  read = subdir:
+    lib.mapAttrs'
+    (name: _: lib.nameValuePair (stripExt name) "${root}/${subdir}/${name}")
+    (builtins.readDir (./. + "/${subdir}"));
+in {
+  sounds = read "sounds";
+  images = read "images";
 }

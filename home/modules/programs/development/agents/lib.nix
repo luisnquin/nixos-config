@@ -174,7 +174,7 @@
         (lib.escapeShellArg message)
       ];
   in rec {
-    inherit (import ./assets) sounds images;
+    inherit (import ./assets {inherit lib;}) sounds images;
     inherit memories allowedDomains;
     inherit mkAgentPermissions;
 
