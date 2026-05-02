@@ -1,6 +1,9 @@
 {
+  inputs,
+  system,
   pkgs,
   user,
+  lib,
   ...
 }: {
   nix = {
@@ -47,7 +50,10 @@
     };
   };
 
-  programs.command-not-found.enable = true;
+  programs.command-not-found = {
+    enable = true;
+    dbPath = lib.mkForce inputs.flake-programs-sqlite.packages.${system}.programs-sqlite;
+  };
 
   environment = {
     systemPackages = with pkgs; [

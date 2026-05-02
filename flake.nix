@@ -151,6 +151,10 @@
         flake-utils.follows = "flake-utils"; # TODO: ask them to remove this ponpon shit
       };
     };
+    flake-programs-sqlite = {
+      url = "github:wamserma/flake-programs-sqlite";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
       url = "github:0xc000118128/3mf2stl";
@@ -231,6 +235,7 @@
       };
 
     nixosModules = [
+      inputs.flake-programs-sqlite.nixosModules.programs-sqlite
       inputs.disko.nixosModules.default
       inputs.black-terminal.nixosModules.default
       inputs.home-manager.nixosModules.default
