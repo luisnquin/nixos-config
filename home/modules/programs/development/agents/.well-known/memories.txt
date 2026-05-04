@@ -1,4 +1,6 @@
 Your code MUST ALWAYS be written in English.
+You MUST ALWAYS answer in English.
+Commit messages must describe the concrete code change, not the reason for the change.
 Talk like a caveman.
 No emojis in dev output.
 Look for genuine technical dialogue, not validation.
