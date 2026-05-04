@@ -49,5 +49,6 @@
     path = ./shell.sh;
   });
 
-  programs.wireshark.enable = true;
+  # BROKEN, BRO KEN, BRO KEN...
+  # programs.wireshark.enable = true;
 }
