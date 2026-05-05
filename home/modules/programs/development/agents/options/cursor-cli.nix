@@ -9,7 +9,7 @@ let
   jsonFormat = pkgs.formats.json { };
   transformedMcpServers = lib.optionalAttrs (cfg.enableMcpIntegration && config.programs.mcp.enable) (
     lib.mapAttrs (
-      name: server:
+      _name: server:
       (removeAttrs server [ "disabled" ])
       // (lib.optionalAttrs (server ? url) { type = "http"; })
       // (lib.optionalAttrs (server ? command) { type = "stdio"; })
