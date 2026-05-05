@@ -32,11 +32,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777950810,
-        "narHash": "sha256-BTfTOPzg820q8V7S2RCXid7GZQ/gsM4BPEYjhOFHc18=",
+        "lastModified": 1778015020,
+        "narHash": "sha256-/xdA417jJeEQ67JY5+oE4CnxwmkBURaEev/9yJhz//U=",
         "owner": "cuentacero",
         "repo": "adb-mcp",
-        "rev": "f458d7d88cedf5c79995adbf90df610deba70f6d",
+        "rev": "c1dd52d6ef17e9d9f13b2a831559064fa9a56aba",
         "type": "github"
       },
       "original": {
@@ -1029,11 +1029,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777995357,
-        "narHash": "sha256-BN3lBRSyT0FVmDdfLiMsp8qMULFfA9sv6M8Ga8Mnq1U=",
+        "lastModified": 1778015078,
+        "narHash": "sha256-NO5MQggD6zioFla0XD24Jfd9sUbyU4k+RNzm4L2odBQ=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "9a7ee898e3314fc887f830b2532e3a144a37800f",
+        "rev": "2db7200ae533e505387a2fdd3378aac5eeaa70bf",
         "type": "github"
       },
       "original": {
