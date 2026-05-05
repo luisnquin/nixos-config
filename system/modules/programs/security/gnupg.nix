@@ -5,8 +5,8 @@
     pinentryPackage = pkgs.pinentry-curses;
     settings = {
       # this is your vector attack
-      default-cache-ttl = 60 * 15;
-      max-cache-ttl = 60 * 20;
+      default-cache-ttl = 60 * 30;
+      max-cache-ttl = 60 * 40;
     };
   };
 }
