@@ -13,6 +13,7 @@
     ./cli/gemini
     ./cli/claude
     ./cli/opencode
+    ./cli/cursor-cli
     ./hooks
     ./mcp.nix
     ./skills.nix
