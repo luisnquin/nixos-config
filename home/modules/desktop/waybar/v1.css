@@ -180,3 +180,30 @@
  #bluetooth.connected {
      color: rgba(154, 68, 235, 0.61);
  }
+
+#custom-ssh-label {
+    color: rgb(245, 194, 231);
+    padding-left: 8px;
+    font-size: 25px;
+}
+
+#custom-ssh-inbound {
+    color: rgb(181, 232, 224);
+    padding-left: 8px;
+    padding-right: 2px;
+}
+
+#custom-ssh-outbound {
+    color: rgb(245, 194, 231);
+    padding-left: 2px;
+    padding-right: 8px;
+}
+
+#custom-tailscale {
+    color: rgb(181, 232, 224);
+    padding: 0 8px;
+}
+
+#custom-tailscale.disconnected {
+    color: rgba(156, 152, 148, 0.75);
+}

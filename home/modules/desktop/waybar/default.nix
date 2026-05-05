@@ -13,6 +13,54 @@
     style = builtins.readFile ./v1.css;
     settings = let
       runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop";
+
+      sshInboundWaybar = pkgs.writeShellApplication {
+        name = "ssh-inbound-waybar";
+        runtimeInputs = with pkgs; [coreutils gawk jq];
+
+        text = ''
+          inbound="$(who | awk '$2 ~ /^pts\// && $NF ~ /^\(/ { n++ } END { print n+0 }')"
+
+          jq -cn \
+            --arg text "↓ $inbound" \
+            --arg tooltip "SSH inbound: $inbound" \
+            '{text: $text, tooltip: $tooltip}'
+        '';
+      };
+
+      sshOutboundWaybar = pkgs.writeShellApplication {
+        name = "ssh-outbound-waybar";
+        runtimeInputs = with pkgs; [coreutils jq procps];
+
+        text = ''
+          outbound="$( (pgrep -u "$USER" -x ssh 2>/dev/null || true) | wc -l)"
+
+          jq -cn \
+            --arg text "↑ $outbound" \
+            --arg tooltip "SSH outbound: $outbound" \
+            '{text: $text, tooltip: $tooltip}'
+        '';
+      };
+
+      tailscaleWaybar = pkgs.writeShellApplication {
+        name = "tailscale-waybar";
+        runtimeInputs = with pkgs; [jq tailscale];
+        text = ''
+          if ! json="$(tailscale status --json 2>/dev/null)"; then
+            printf '{"text":"󰖂 off","class":"disconnected"}\n'
+            exit 0
+          fi
+
+          online="$(printf '%s' "$json" | jq '[.Peer[]? | select(.Online == true)] | length')"
+          total="$(printf '%s' "$json" | jq '[.Peer[]?] | length')"
+
+          # tooltip=$(tailscale status)
+          tooltip="$online/$total"
+
+          printf '{"text":"󰇢 %s/%s","tooltip":"%s"}\n' \
+            "$online" "$total" "$tooltip"
+        '';
+      };
     in [
       {
         "position" = "top";
@@ -32,16 +80,16 @@
         ];
 
         modules-right = [
-          # "pulseaudio"
-          # "backlight"
-          # "custom/mullvad"
-          # "bluetooth"
+          "custom/tailscale"
+          "custom/ssh-label"
+          "custom/ssh-inbound"
+          "custom/ssh-outbound"
           "cpu"
           "memory"
           "battery"
           "network"
           "custom/network-scan"
-          "custom/power"
+          # "custom/power"
         ];
 
         "hyprland/workspaces" = {
@@ -109,6 +157,32 @@
           "interval" = 1;
           "tooltip-format" = "Scan wifi networks nearby";
           "on-click" = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
+        };
+
+        "custom/ssh-label" = {
+          format = "󰣀";
+          tooltip = false;
+        };
+
+        "custom/ssh-inbound" = {
+          exec = "${lib.getExe sshInboundWaybar}";
+          return-type = "json";
+          interval = 2;
+          tooltip = true;
+        };
+
+        "custom/ssh-outbound" = {
+          exec = "${lib.getExe sshOutboundWaybar}";
+          return-type = "json";
+          interval = 2;
+          tooltip = true;
+        };
+
+        "custom/tailscale" = {
+          exec = "${lib.getExe tailscaleWaybar}";
+          return-type = "json";
+          interval = 5;
+          tooltip = true;
         };
 
         "custom/clock" = {
