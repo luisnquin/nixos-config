@@ -423,6 +423,12 @@ in {
 
         Restart = "on-failure";
         RestartSec = 3;
+
+        TimeoutStopSec = "1s";
+        KillMode = "control-group";
+        KillSignal = "SIGTERM";
+        FinalKillSignal = "SIGKILL";
+        SendSIGKILL = true;
       };
 
       Install = {
