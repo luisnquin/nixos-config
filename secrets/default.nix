@@ -2,6 +2,8 @@
   system,
   agenix,
 }: {
+  age.identityPaths = ["/home/luisnquin/.ssh/id_ed25519"];
+
   age.secrets = {
     "certs/ccd/rootCA.crt" = {
       file = ./certs/ccd/rootCA.crt.age;
