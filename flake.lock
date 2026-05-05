@@ -1013,11 +1013,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777945367,
-        "narHash": "sha256-w4R8pUCTgU6kFA4eMbJ/dP9cK2ZSb2gtBqZrW6fN+FU=",
+        "lastModified": 1777945515,
+        "narHash": "sha256-zvaBcQ4F5lMKM4Zij7fxh04OG70cg8qpavNeIejGSuc=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "dcd9921db162accd883d41e13b4c06b6de03a152",
+        "rev": "c96f92360d5253cd9cf948c228d0008939c314f9",
         "type": "github"
       },
       "original": {
