@@ -8,6 +8,8 @@
   ];
 
   networking = {
+    interfaces."eno2".wakeOnLan.enable = true;
+
     networkmanager = {
       enable = true;
       unmanaged = [
