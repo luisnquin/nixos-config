@@ -9,6 +9,9 @@
         "160"
         "--enable-oauth"
       ];
+      settings = {
+        initial-volume = 100;
+      };
     };
     playerctld.enable = true;
   };
