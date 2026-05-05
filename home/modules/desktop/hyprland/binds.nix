@@ -176,7 +176,7 @@
 
   playerctl = let
     pctlCmd = pkgs.lib.getExe pkgs.playerctl;
-    pctlFallback = cmd: "bash -c 'if ${pctlCmd} --player=spotatui status 2>/dev/null | grep -q Playing; then ${pctlCmd} ${cmd} --player=spotatui; else ${pctlCmd} ${cmd}; fi'";
+    pctlFallback = cmd: "bash -c 'if ${pctlCmd} --player=go-librespot status 2>/dev/null | grep -q Playing; then ${pctlCmd} ${cmd} --player=go-librespot; else ${pctlCmd} ${cmd}; fi'";
   in [
     {
       "mod+key" = "CTRL_SHIFT, braceleft";
@@ -196,11 +196,11 @@
     }
     {
       "mod+key" = "${mainMod}, Pause";
-      "dispatcher" = "exec, ${pctlCmd} play-pause --player=spotatui";
+      "dispatcher" = "exec, ${pctlCmd} play-pause --player=go-librespot";
     }
     {
       "mod+key" = "${mainMod}, Delete";
-      "dispatcher" = "exec, ${pctlCmd} play-pause --all-players --ignore-player=spotatui";
+      "dispatcher" = "exec, ${pctlCmd} play-pause --all-players --ignore-player=go-librespot";
     }
   ];
 in
