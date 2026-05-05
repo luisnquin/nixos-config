@@ -1,4 +1,8 @@
-{host, ...}: {
+{
+  pkgs,
+  host,
+  ...
+}: {
   imports = [
     ./caddy
     ./discovery.nix
@@ -46,11 +50,17 @@
   # most systems doesn't need this enabled
   systemd.services.NetworkManager-wait-online.enable = false;
 
-  environment.interactiveShellInit = builtins.readFile (builtins.path {
-    name = "network-module-sh-script";
-    path = ./shell.sh;
-  });
+  environment = {
+    systemPackages = [
+      pkgs.wakeonlan
+    ];
 
-  # BROKEN, BRO KEN, BRO KEN...
+    interactiveShellInit = builtins.readFile (builtins.path {
+      name = "netutils.sh";
+      path = ./netutils.sh;
+    });
+  };
+
+  # BROKEN, BROKEN, BROKEN...
   # programs.wireshark.enable = true;
 }
