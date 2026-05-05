@@ -34,7 +34,7 @@
         modules-right = [
           # "pulseaudio"
           # "backlight"
-          "custom/mullvad"
+          # "custom/mullvad"
           # "bluetooth"
           "cpu"
           "memory"
