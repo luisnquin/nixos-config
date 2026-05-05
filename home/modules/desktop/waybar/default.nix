@@ -10,7 +10,7 @@
       enable = false;
       targets = ["graphical-session.target"];
     };
-    style = builtins.readFile ./v1.css;
+    style = builtins.readFile ./foe.css;
     settings = let
       runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop";
 
@@ -108,9 +108,6 @@
 
         "custom/launcher" = {
           "format" = " ";
-          "on-click" = "pkill rofi || rofi2";
-          "on-click-middle" = "exec default_wall";
-          "on-click-right" = "exec wallpaper_random";
           "tooltip" = false;
         };
 
@@ -119,13 +116,13 @@
           "return-type" = "json";
           "tooltip" = true;
           "interval" = 1;
-          "tooltip-format" = "Scan wifi networks nearby";
+          "tooltip-format" = "Scan Wi-Fi networks nearby";
           "on-click" = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
         };
 
         "custom/ssh-label" = {
           format = "󰣀";
-          tooltip = false;
+          tooltip = "SSH sessions";
         };
 
         "custom/ssh-inbound" = {
@@ -177,12 +174,15 @@
             "warning" = config.services.battery-notifier.settings.warn.threshold;
             "critical" = config.services.battery-notifier.settings.threat.threshold;
           };
+
           "interval" = 3;
-          "format" = "{icon} {capacity}%";
-          "format-charging" = "󰂄 {capacity}%";
-          "format-plugged" = "󱟠 {capacity}%";
+
+          "format" = "{icon}";
+          "format-charging" = "󰂄";
+          "format-plugged" = "󱟠";
           "format-alt" = "{time} {icon}";
-          "format-full" = "󱟢 {capacity}%";
+          "format-full" = "󱟢";
+
           "format-icons" = ["󰁺" "󰁻" "󰁽" "󰁿" "󰂀" "󰂂"];
         };
 

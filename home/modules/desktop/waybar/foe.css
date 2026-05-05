@@ -1,0 +1,311 @@
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 10pt;
+    font-weight: bold;
+    border-radius: 8px;
+    transition-property: background-color, color;
+    transition-duration: 0.12s;
+}
+
+@keyframes blink_red {
+    to {
+        background-color: rgb(242, 143, 173);
+        color: rgb(26, 24, 38);
+    }
+}
+
+.warning,
+.critical,
+.urgent {
+    animation-name: blink_red;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+/* Bar shell */
+
+window#waybar {
+    background-color: transparent;
+}
+
+window > box {
+    margin-left: 5px;
+    margin-right: 5px;
+    margin-top: 5px;
+    padding: 3px 8px;
+    background-color: rgba(41, 20, 84, 0.42);
+    border: 1px solid rgba(181, 232, 224, 0.08);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Common modules: no bags, just spacing */
+
+#custom-launcher,
+#workspaces,
+#tray,
+#custom-clock,
+#custom-tailscale,
+#custom-ssh-label,
+#custom-ssh-inbound,
+#custom-ssh-outbound,
+#cpu,
+#memory,
+#battery,
+#network,
+#custom-network-scan,
+#custom-wall,
+#temperature,
+#pulseaudio,
+#custom-power,
+#user,
+#mode,
+#mpd {
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+    min-height: 24px;
+}
+
+/* Left */
+
+#custom-launcher {
+    font-size: 20px;
+    padding-left: 8px;
+    padding-right: 9px;
+    color: #7ebae4;
+    background-color: transparent;
+}
+
+#custom-launcher:hover {
+    color: #7ebae4;
+    background-color: transparent;
+}
+
+#tray {
+    padding-left: 10px;
+    padding-right: 8px;
+}
+
+/* Workspaces */
+
+#workspaces {
+    padding-left: 0;
+    padding-right: 5px;
+}
+
+#workspaces button {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 7px;
+    padding-right: 7px;
+    margin-left: 1px;
+    margin-right: 1px;
+    color: rgba(255, 255, 255, 0.72);
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+    transition: none;
+}
+
+#workspaces button.active {
+    background-color: rgb(181, 232, 224);
+    color: rgba(26, 24, 38, 0.9);
+}
+
+#workspaces button.urgent {
+    background-color: rgb(242, 143, 173);
+    color: rgba(26, 24, 38, 0.9);
+}
+
+#workspaces button:hover,
+#workspaces button:focus,
+#workspaces button:active {
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.72);
+    box-shadow: none;
+    border: 0;
+    transition: none;
+}
+
+#workspaces button.active:hover,
+#workspaces button.active:focus,
+#workspaces button.active:active {
+    background-color: rgb(181, 232, 224);
+    color: rgba(26, 24, 38, 0.9);
+}
+
+#workspaces button.urgent:hover,
+#workspaces button.urgent:focus,
+#workspaces button.urgent:active {
+    background-color: rgb(242, 143, 173);
+    color: rgba(26, 24, 38, 0.9);
+}
+
+/* Center */
+
+#custom-clock {
+    color: #e8cef5;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+#custom-clock:hover {
+    background-color: rgba(232, 206, 245, 0.10);
+}
+
+/* Right side */
+
+#custom-tailscale,
+#cpu,
+#memory,
+#battery,
+#network,
+#custom-network-scan {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Tailscale */
+
+#custom-tailscale {
+    color: #a6c1ff;
+}
+
+#custom-tailscale.disconnected {
+    color: rgba(156, 152, 148, 0.70);
+}
+
+/* SSH */
+
+#custom-ssh-label {
+    color: #cba6f7;
+    padding-left: 8px;
+    padding-right: 5px;
+    font-size: 20px;
+}
+
+#custom-ssh-inbound {
+    color: rgb(181, 232, 224);
+    padding-left: 2px;
+    padding-right: 3px;
+}
+
+#custom-ssh-outbound {
+    color: #d8b4fe;
+    padding-left: 3px;
+    padding-right: 8px;
+}
+
+/* System metrics */
+
+#cpu {
+    color: rgb(245, 194, 231);
+}
+
+#memory {
+    color: rgb(181, 232, 224);
+}
+
+#battery {
+    color: #ffffff;
+}
+
+#battery.warning {
+    color: rgb(248, 189, 150);
+}
+
+#battery.critical {
+    color: rgb(242, 143, 173);
+}
+
+#network {
+    color: #facaf4;
+}
+
+#network.disconnected {
+    color: rgba(255, 255, 255, 0.62);
+}
+
+/* Scan */
+
+#custom-network-scan {
+    color: #795ee6;
+    padding-left: 7px;
+    padding-right: 5px;
+    font-size: 21px;
+}
+
+#custom-network-scan.scanning {
+    color: #f26411;
+}
+
+/* Other modules from your original CSS */
+
+#custom-wall {
+    color: #33ccff;
+    padding: 0 8px;
+}
+
+#temperature {
+    color: rgb(150, 205, 251);
+    padding: 0 8px;
+}
+
+#backlight {
+    color: rgb(248, 189, 150);
+}
+
+#pulseaudio {
+    color: rgb(245, 224, 220);
+    padding: 0 8px;
+}
+
+#custom-power {
+    color: rgb(242, 143, 173);
+    padding-left: 8px;
+    padding-right: 15px;
+}
+
+#bluetooth {
+    color: rgba(119, 119, 119, 0.69);
+    padding: 0 15px;
+}
+
+#bluetooth.connected {
+    color: rgba(154, 68, 235, 0.61);
+}
+
+/* Hover only for actually actionable modules */
+#custom-launcher:hover,
+#tray:hover,
+#cpu:hover,
+#memory:hover,
+#battery:hover,
+#network:hover,
+#custom-network-scan:hover,
+#custom-clock:hover {
+    background-color: rgba(255, 255, 255, 0.045);
+}
+
+/* Passive status modules: no hover container */
+#custom-tailscale:hover,
+#custom-ssh-label:hover,
+#custom-ssh-inbound:hover,
+#custom-ssh-outbound:hover {
+    background-color: transparent;
+    box-shadow: none;
+    border: 0;
+}
+
+/* Tooltip */
+
+tooltip {
+    background: rgba(48, 45, 65, 0.96);
+    border: 1px solid rgba(181, 232, 224, 0.14);
+}
+
+tooltip label {
+    color: rgb(217, 224, 238);
+}
