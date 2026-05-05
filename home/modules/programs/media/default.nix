@@ -1,5 +1,6 @@
 {
   imports = [
+    ./options
     ./image.nix
     ./spotify.nix
     ./video.nix

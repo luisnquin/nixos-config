@@ -1,18 +1,31 @@
-{pkgs, ...}: {
+{
+  nixosConfig,
+  pkgs,
+  ...
+}: {
   services = {
-    librespot = {
+    go-librespot = {
       enable = true;
-      args = [
-        "-n"
-        "Librespot Speaker"
-        "-b"
-        "160"
-        "--enable-oauth"
-      ];
       settings = {
-        initial-volume = 100;
+        log_level = "info";
+        device_name = nixosConfig.networking.hostName;
+        device_type = "speaker";
+        audio_backend = "pulseaudio";
+
+        zeroconf_enabled = false;
+
+        credentials = {
+          type = "interactive";
+        };
+
+        bitrate = 160;
+        initial_volume = 100;
+        ignore_last_volume = true;
+        disable_autoplay = false;
+        mpris_enabled = true;
       };
     };
+
     playerctld.enable = true;
   };
 
