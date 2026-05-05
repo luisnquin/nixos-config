@@ -73,7 +73,7 @@
       '';
     };
 
-    nixos.tags = ["hyprland" "yay"];
+    nixos.tags = ["yay"];
 
     inherit (nix) stateVersion;
     autoUpgrade.enable = false;
