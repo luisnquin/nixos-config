@@ -65,8 +65,7 @@
       nurl
       nil # lsp
       nvd # package diff
-
-      scripts.nixgrep
+      nixgrep
 
       nixpkgs-review
       nixpkgs-lint
