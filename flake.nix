@@ -117,7 +117,7 @@
       url = "github:wamserma/flake-programs-sqlite";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        utils.inputs.systems.follows = "systems";
+        utils.follows = "flake-utils";
       };
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
