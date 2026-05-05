@@ -1,6 +1,4 @@
 {
-  inputs,
-  system,
   pkgs,
   lib,
   ...
@@ -10,7 +8,7 @@
     servers = {
       adb = {
         type = "stdio";
-        command = lib.getExe inputs.adb-mcp.packages.${system}.default;
+        command = lib.getExe pkgs.adb-mcp;
       };
 
       context7 = {

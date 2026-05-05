@@ -24,11 +24,11 @@
       url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
-
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     battery-notifier = {
       url = "github:luisnquin/battery-notifier";
       inputs = {
@@ -36,32 +36,8 @@
         systems.follows = "systems";
       };
     };
-    grub-themes = {
-      url = "github:luisnquin/grub-themes";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
-    hyprstfu = {
-      url = "github:luisnquin/hyprstfu";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
-    senv = {
-      url = "github:luisnquin/senv";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+
     black-terminal.url = "github:luisnquin/black-terminal";
-    nao = {
-      url = "github:luisnquin/nao";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
 
     hyprdysmorphic = {
       url = "github:0xc000022070/hyprdysmorphic";
@@ -78,20 +54,6 @@
       url = "github:ryantm/agenix";
       inputs = {
         home-manager.follows = "home-manager";
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
-    passgen = {
-      url = "github:0xc000022070/passgen";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
-    nix-scripts = {
-      url = "github:0xc000022070/nix-scripts";
-      inputs = {
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
       };
@@ -121,13 +83,6 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    adb-mcp = {
-      url = "github:chanchitaapp/adb-mcp";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-    };
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
       inputs = {
@@ -135,6 +90,13 @@
         systems.follows = "systems";
         flake-parts.follows = "flake-parts";
         bun2nix.follows = "";
+      };
+    };
+    nao = {
+      url = "github:luisnquin/nao";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
       };
     };
     agentic-flake = {
@@ -175,13 +137,8 @@
     nixpkgs-extra,
     home-manager,
     agentic-flake,
-    nix-scripts,
-    grub-themes,
     llm-agents,
-    hyprstfu,
     nixpkgs,
-    passgen,
-    senv,
     ...
   }: let
     defaultSystem = "x86_64-linux";
@@ -205,12 +162,7 @@
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
-            grub-themes.overlays.default
-            nix-scripts.overlays.default
             llm-agents.overlays.default
-            hyprstfu.overlays.default
-            passgen.overlays.default
-            senv.overlays.default
           ];
 
         inherit config system;

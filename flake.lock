@@ -23,22 +23,24 @@
     "adb-mcp": {
       "inputs": {
         "nixpkgs": [
+          "nixpkgs-extra",
           "nixpkgs"
         ],
         "systems": [
+          "nixpkgs-extra",
           "systems"
         ]
       },
       "locked": {
-        "lastModified": 1775088700,
-        "narHash": "sha256-Xx5WC//vzxtkyzsY/mnlCWMfGS2TLoJYnhaNKwVLvDg=",
-        "owner": "chanchitaapp",
+        "lastModified": 1777950810,
+        "narHash": "sha256-BTfTOPzg820q8V7S2RCXid7GZQ/gsM4BPEYjhOFHc18=",
+        "owner": "cuentacero",
         "repo": "adb-mcp",
-        "rev": "8c499e5eccbc0c03bf84cdf6813576f77178d3ad",
+        "rev": "f458d7d88cedf5c79995adbf90df610deba70f6d",
         "type": "github"
       },
       "original": {
-        "owner": "chanchitaapp",
+        "owner": "cuentacero",
         "repo": "adb-mcp",
         "type": "github"
       }
@@ -345,9 +347,11 @@
     "grub-themes": {
       "inputs": {
         "nixpkgs": [
+          "nixpkgs-extra",
           "nixpkgs"
         ],
         "systems": [
+          "nixpkgs-extra",
           "systems"
         ]
       },
@@ -704,9 +708,11 @@
     "hyprstfu": {
       "inputs": {
         "nixpkgs": [
+          "nixpkgs-extra",
           "nixpkgs"
         ],
         "systems": [
+          "nixpkgs-extra",
           "systems"
         ]
       },
@@ -887,11 +893,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1727742887,
-        "narHash": "sha256-V1lNKQInq851yVnnJOkgIOMeFd74IiUWwNd0CJYjvec=",
+        "lastModified": 1773996955,
+        "narHash": "sha256-t4FVYsD6XEoBrYe6J+vcKMztEbLjXXMvHEk3B5M7EHk=",
         "owner": "luisnquin",
         "repo": "nao",
-        "rev": "a7ef4a17e634a4a5e38b840ff5f89467be345973",
+        "rev": "a7e42cd82c5077500fe87700262e7f5325df9b76",
         "type": "github"
       },
       "original": {
@@ -919,9 +925,11 @@
     "nix-scripts": {
       "inputs": {
         "nixpkgs": [
+          "nixpkgs-extra",
           "nixpkgs"
         ],
         "systems": [
+          "nixpkgs-extra",
           "systems"
         ]
       },
@@ -1004,20 +1012,26 @@
     },
     "nixpkgs-extra": {
       "inputs": {
+        "adb-mcp": "adb-mcp",
+        "grub-themes": "grub-themes",
+        "hyprstfu": "hyprstfu",
+        "nix-scripts": "nix-scripts",
         "nixgrep": "nixgrep",
         "nixpkgs": [
           "nixpkgs"
         ],
+        "passgen": "passgen",
+        "senv": "senv",
         "systems": [
           "systems"
         ]
       },
       "locked": {
-        "lastModified": 1777945515,
-        "narHash": "sha256-zvaBcQ4F5lMKM4Zij7fxh04OG70cg8qpavNeIejGSuc=",
+        "lastModified": 1777951130,
+        "narHash": "sha256-9QzJNlOkmI+gBe2o4kU4BzcheLCHnzGDUaNDvyvVT8Q=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "c96f92360d5253cd9cf948c228d0008939c314f9",
+        "rev": "c4877beb0258e1e163fdf14f38b999f5035d0c49",
         "type": "github"
       },
       "original": {
@@ -1029,9 +1043,11 @@
     "passgen": {
       "inputs": {
         "nixpkgs": [
+          "nixpkgs-extra",
           "nixpkgs"
         ],
         "systems": [
+          "nixpkgs-extra",
           "systems"
         ]
       },
@@ -1075,7 +1091,6 @@
     "root": {
       "inputs": {
         "3mf2stl": "3mf2stl",
-        "adb-mcp": "adb-mcp",
         "agenix": "agenix",
         "agentic-flake": "agentic-flake",
         "battery-notifier": "battery-notifier",
@@ -1086,20 +1101,15 @@
         "flake-programs-sqlite": "flake-programs-sqlite",
         "flake-utils": "flake-utils",
         "ghostty": "ghostty",
-        "grub-themes": "grub-themes",
         "home-manager": "home-manager",
         "hyprdysmorphic": "hyprdysmorphic",
-        "hyprstfu": "hyprstfu",
         "llm-agents": "llm-agents",
         "nao": "nao",
         "nix-flatpak": "nix-flatpak",
-        "nix-scripts": "nix-scripts",
         "nixcord": "nixcord",
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
-        "passgen": "passgen",
         "roborev": "roborev",
-        "senv": "senv",
         "systems": "systems",
         "zen-browser": "zen-browser"
       }
@@ -1107,6 +1117,7 @@
     "senv": {
       "inputs": {
         "nixpkgs": [
+          "nixpkgs-extra",
           "nixpkgs"
         ]
       },
