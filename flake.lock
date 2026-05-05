@@ -1029,11 +1029,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777951130,
-        "narHash": "sha256-9QzJNlOkmI+gBe2o4kU4BzcheLCHnzGDUaNDvyvVT8Q=",
+        "lastModified": 1777995357,
+        "narHash": "sha256-BN3lBRSyT0FVmDdfLiMsp8qMULFfA9sv6M8Ga8Mnq1U=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "c4877beb0258e1e163fdf14f38b999f5035d0c49",
+        "rev": "9a7ee898e3314fc887f830b2532e3a144a37800f",
         "type": "github"
       },
       "original": {
