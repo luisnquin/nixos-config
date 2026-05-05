@@ -70,7 +70,6 @@
 
         modules-left = [
           "custom/launcher"
-          # "user"
           "hyprland/workspaces"
           "tray"
         ];
@@ -89,7 +88,6 @@
           "battery"
           "network"
           "custom/network-scan"
-          # "custom/power"
         ];
 
         "hyprland/workspaces" = {
@@ -106,10 +104,6 @@
             "9" = "九";
             "10" = "十";
           };
-          # "persistent-workspaces" = {
-          #   "*" = 10;
-          # };
-          # "active-only" = true;
         };
 
         "custom/launcher" = {
@@ -118,36 +112,6 @@
           "on-click-middle" = "exec default_wall";
           "on-click-right" = "exec wallpaper_random";
           "tooltip" = false;
-        };
-
-        "bluetooth" = {
-          # "controller": "controller1"; # specify the alias of the controller if there are more than 1 on the system
-          "format" = "";
-          "format-disabled" = ""; # an empty format will hide the module
-          "format-connected" = " {num_connections}";
-          "format-connected-battery" = " {num_connections} [{device_battery_percentage}%]";
-          "tooltip-format" = "{controller_alias}\t{controller_address}";
-          "tooltip-format-connected" = "{controller_alias}\t{controller_address}\n\n{device_enumerate}";
-          "tooltip-format-enumerate-connected" = "{device_alias}\t{device_address}";
-          "on-click" = "${lib.getExe config.programs.ghostty.package} -e ${lib.getExe pkgs.bluetuith}";
-        };
-
-        "pulseaudio" = {
-          "scroll-step" = 1;
-          "format" = "{icon}  {volume}%";
-          "format-muted" = "󰖁 Muted";
-          "format-icons" = {
-            "default" = ["" "" ""];
-          };
-          "on-click" = "pamixer -t";
-          "tooltip" = false;
-        };
-
-        "custom/mullvad" = {
-          "exec" = "${lib.getExe pkgs.scripts.mullvad-status} --waybar \"{{emoji}}  {{relay-id}}\"";
-          "interval" = 2;
-          "return-type" = "json";
-          "on-click" = "${lib.getExe pkgs.scripts.mullvad-status} --toggle-connection";
         };
 
         "custom/network-scan" = {
@@ -233,23 +197,9 @@
           "on-click" = "${lib.getExe config.programs.ghostty.package} --class=waybar.nmtui -e ${pkgs.networkmanager}/bin/nmtui connect";
         };
 
-        "custom/power" = {
-          "format" = "";
-          "on-click" = ''${pkgs.rofi}/bin/rofi -modi "power-menu:${pkgs.rofi-power-menu}/bin/rofi-power-menu" -show power-menu'';
-          "tooltip" = false;
-        };
-
         "tray" = {
           "icon-size" = 15;
           "spacing" = 10;
-        };
-
-        "user" = {
-          "format" = "{avatar}";
-          "interval" = 60;
-          "height" = 30;
-          "width" = 30;
-          "icon" = true;
         };
       }
     ];
