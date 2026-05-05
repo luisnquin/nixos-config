@@ -6,7 +6,6 @@
     ./fuzzel.nix
 
     ./color-picker.nix
-    ./gsimplecal.nix
     ./gtk.nix
     ./mako.nix
     ./mouse.nix

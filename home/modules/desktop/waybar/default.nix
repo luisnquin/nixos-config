@@ -75,7 +75,7 @@
         ];
 
         modules-center = [
-          "custom/clock"
+          "clock"
         ];
 
         modules-right = [
@@ -146,11 +146,22 @@
           tooltip = true;
         };
 
-        "custom/clock" = {
-          "exec" = "date +' %H:%M'";
-          "interval" = 2;
-          "tooltip" = false;
-          "on-click" = "${pkgs.gsimplecal}/bin/gsimplecal";
+        "clock" = {
+          interval = 60;
+          format = " {:%H:%M}";
+          tooltip = true;
+          tooltip-format = "<tt>{calendar}</tt>";
+
+          calendar = {
+            mode = "month";
+            weeks-pos = "";
+            format = {
+              months = "<span color='#e8cef5'><b>{}</b></span>";
+              days = "<span color='#cdd6f4'><b>{}</b></span>";
+              weekdays = "<span color='#b5e8e0'><b>{}</b></span>";
+              today = "<span color='#f28fad'><b><u>{}</u></b></span>";
+            };
+          };
         };
 
         "cpu" = {

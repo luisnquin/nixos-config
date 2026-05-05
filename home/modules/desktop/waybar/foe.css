@@ -45,7 +45,7 @@ window > box {
 #custom-launcher,
 #workspaces,
 #tray,
-#custom-clock,
+#clock,
 #custom-tailscale,
 #custom-ssh-label,
 #custom-ssh-inbound,
@@ -145,15 +145,6 @@ window > box {
 
 /* Center */
 
-#custom-clock {
-    color: #e8cef5;
-    padding-left: 12px;
-    padding-right: 12px;
-}
-
-#custom-clock:hover {
-    background-color: rgba(232, 206, 245, 0.10);
-}
 
 /* Right side */
 
@@ -199,6 +190,17 @@ window > box {
 }
 
 /* System metrics */
+
+#clock {
+    color: #e8cef5;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-feature-settings: "tnum";
+}
+
+#clock:hover {
+    background-color: rgba(232, 206, 245, 0.10);
+}
 
 #cpu {
     color: rgb(245, 194, 231);
@@ -284,8 +286,7 @@ window > box {
 #memory:hover,
 #battery:hover,
 #network:hover,
-#custom-network-scan:hover,
-#custom-clock:hover {
+#custom-network-scan:hover {
     background-color: rgba(255, 255, 255, 0.045);
 }
 
