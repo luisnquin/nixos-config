@@ -123,7 +123,7 @@
       spaces = {
         "Rendezvous" = {
           id = "572910e1-4468-4832-a869-0b3a93e2f165";
-          icon = "🎭";
+          icon = "chrome://browser/skin/zen-icons/selectable/navigate.svg";
           position = 1000;
           theme = {
             type = "gradient";
@@ -171,7 +171,7 @@
         };
         "Research" = {
           id = "ec287d7f-d910-4860-b400-513f269dee77";
-          icon = "💌";
+          icon = "chrome://browser/skin/zen-icons/selectable/logo-rss.svg";
           position = 1001;
           theme = {
             type = "gradient";
