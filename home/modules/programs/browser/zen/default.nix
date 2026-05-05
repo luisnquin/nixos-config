@@ -118,13 +118,6 @@
       };
 
       containersForce = true;
-      containers = {
-        Shopping = {
-          color = "yellow";
-          icon = "dollar";
-          id = 2;
-        };
-      };
 
       spacesForce = true;
       spaces = {
@@ -194,12 +187,6 @@
             opacity = 0.2;
             texture = 0.5;
           };
-        };
-        "Shopping" = {
-          id = "2441acc9-79b1-4afb-b582-ee88ce554ec0";
-          icon = "💸";
-          container = containers."Shopping".id;
-          position = 1002;
         };
       };
 
