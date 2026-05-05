@@ -153,7 +153,10 @@
     };
     flake-programs-sqlite = {
       url = "github:wamserma/flake-programs-sqlite";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        utils.inputs.systems.follows = "systems";
+      };
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
