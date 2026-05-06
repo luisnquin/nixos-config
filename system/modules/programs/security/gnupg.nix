@@ -9,4 +9,12 @@
       max-cache-ttl = 60 * 40;
     };
   };
+
+  environment.interactiveShellInit = ''
+    gpg_unlock() {
+      export GPG_TTY="$(tty)"
+      gpg-connect-agent updatestartuptty /bye >/dev/null
+      printf 'test' | gpg --clearsign >/dev/null
+    }
+  '';
 }
