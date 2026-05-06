@@ -8,14 +8,10 @@
 
   imports = [
     ./apps
-    ./options
-    ./cli/codex
-    ./cli/gemini
-    ./cli/claude
-    ./cli/opencode
-    ./cli/cursor-cli
+    ./cli
     ./hooks
     ./mcp.nix
+    ./options
     ./skills.nix
   ];
 }
