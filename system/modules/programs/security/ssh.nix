@@ -17,6 +17,23 @@
     shellAliases = {
       fssh = "fast-ssh";
     };
+
+    interactiveShellInit = ''
+      ssh_count() {
+        local inbound outbound
+
+        inbound="$(
+          who | awk '$2 ~ /^pts\// && $NF ~ /^\(/ { n++ } END { print n+0 }'
+        )"
+
+        outbound="$(
+          pgrep -u "$USER" -x ssh | wc -l
+        )"
+
+        printf "SSH inbound : %s\n" "$inbound"
+        printf "SSH outbound: %s\n" "$outbound"
+      }
+    '';
   };
 
   environment.etc."ssh/ssh-banner".text = ''
