@@ -41,6 +41,10 @@
         gpg-connect-agent updatestartuptty /bye >/dev/null
         printf 'test' | gpg --clearsign >/dev/null
       }
+
+      gpg_forget() {
+        gpgconf --kill gpg-agent
+      }
     '';
   };
 }
