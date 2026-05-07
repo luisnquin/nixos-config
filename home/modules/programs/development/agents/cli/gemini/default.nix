@@ -12,23 +12,39 @@
 
   mkPolicy = decision: rule: let
     match = builtins.match "([A-Za-z_]+)\\((.*)\\)" rule;
-    toolName = if match != null then builtins.elemAt match 0 else rule;
-    args = if match != null then builtins.elemAt match 1 else "*";
+    toolName =
+      if match != null
+      then builtins.elemAt match 0
+      else rule;
+    args =
+      if match != null
+      then builtins.elemAt match 1
+      else "*";
     hasArgs = args != "*";
     prefixRaw = pkgs.lib.removeSuffix "*" args;
-  in ''
-    [[rule]]
-    toolName = "${toolName}"
-    decision = "${if decision == "ask" then "ask_user" else decision}"
-    priority = ${if decision == "deny" then "200" else "100"}
-  '' + pkgs.lib.optionalString (hasArgs && toolName == "run_shell_command") ''
-    commandPrefix = "${prefixRaw}"
-  '';
+  in
+    ''
+      [[rule]]
+      toolName = "${toolName}"
+      decision = "${
+        if decision == "ask"
+        then "ask_user"
+        else decision
+      }"
+      priority = ${
+        if decision == "deny"
+        then "200"
+        else "100"
+      }
+    ''
+    + pkgs.lib.optionalString (hasArgs && toolName == "run_shell_command") ''
+      commandPrefix = "${prefixRaw}"
+    '';
 
   policyToml = pkgs.lib.concatStringsSep "\n" (
-    (map (mkPolicy "allow") geminiTools.allowed) ++
-    (map (mkPolicy "ask") geminiTools.confirmationRequired) ++
-    (map (mkPolicy "deny") geminiTools.exclude)
+    (map (mkPolicy "allow") geminiTools.allowed)
+    ++ (map (mkPolicy "ask") geminiTools.confirmationRequired)
+    ++ (map (mkPolicy "deny") geminiTools.exclude)
   );
 in {
   home.file = {
