@@ -20,6 +20,12 @@
 
         text = ''
           inbound="$(who | awk '$2 ~ /^pts\// && $NF ~ /^\(/ { n++ } END { print n+0 }')"
+          inbound="''${inbound:-0}"
+
+          if [ "$inbound" -eq 0 ]; then
+            jq -cn '{text: "", tooltip: ""}'
+            exit 0
+          fi
 
           jq -cn \
             --arg text "↓ $inbound" \
@@ -34,6 +40,12 @@
 
         text = ''
           outbound="$( (pgrep -u "$USER" -x ssh 2>/dev/null || true) | wc -l)"
+          outbound="''${outbound// /}"
+
+          if [ "$outbound" -eq 0 ]; then
+            jq -cn '{text: "", tooltip: ""}'
+            exit 0
+          fi
 
           jq -cn \
             --arg text "↑ $outbound" \
@@ -130,6 +142,7 @@
           return-type = "json";
           interval = 2;
           tooltip = true;
+          hide-empty-text = true;
         };
 
         "custom/ssh-outbound" = {
@@ -137,6 +150,7 @@
           return-type = "json";
           interval = 2;
           tooltip = true;
+          hide-empty-text = true;
         };
 
         "custom/tailscale" = {
