@@ -40,6 +40,10 @@ in {
       executable = true;
     };
     ".gemini/policies/nix-rules.toml".text = policyToml;
+
+    ".gemini/.env".text = ''
+      PINENTRY_USER_DATA=gui
+    '';
   };
 
   programs.gemini-cli = {

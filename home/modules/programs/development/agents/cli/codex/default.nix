@@ -85,6 +85,7 @@ in {
         "inherit" = "core";
         set = {
           CODEX_AGENT = "1";
+          PINENTRY_USER_DATA = "gui";
         };
       };
 
