@@ -53,7 +53,7 @@ in {
       package = let
         inherit (config.boot.kernelPackages) nvidiaPackages;
       in
-        nvidiaPackages.beta;
+        nvidiaPackages.production;
     };
   };
 }
