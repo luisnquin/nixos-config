@@ -231,6 +231,58 @@ in
       '';
       example = lib.literalExpression "./skills";
     };
+
+    hookScripts = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
+      default = { };
+      description = ''
+        Executable hook scripts installed under {file}`~/.cursor/hooks/`.
+        Declare {option}`programs.cursor-agent.hookEvents` with commands relative to
+        {file}`~/.cursor/` (for example {verbatim}`./hooks/my-script.sh`).
+
+        See <https://cursor.com/docs/hooks>.
+      '';
+      example = lib.literalExpression ''
+        {
+          format.sh = ./hooks/format.sh;
+          audit.sh = '''
+            #!/usr/bin/env bash
+            cat >/dev/null
+            exit 0
+          ''';
+        }
+      '';
+    };
+
+    hooksDir = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      description = ''
+        Directory symlinked to {file}`~/.cursor/hooks/` (entire hooks tree).
+        Use either this or {option}`programs.cursor-agent.hookScripts`, not both.
+      '';
+      example = lib.literalExpression "./hooks";
+    };
+
+    hookEvents = lib.mkOption {
+      inherit (jsonFormat) type;
+      default = { };
+      description = ''
+        Entries for the `hooks` field in {file}`~/.cursor/hooks.json`
+        ({constant}`sessionStart`, {constant}`afterFileEdit`,
+        {constant}`beforeShellExecution`, …).
+        Omit {constant}`version`; it is set to `1` automatically.
+
+        See <https://cursor.com/docs/hooks>.
+      '';
+      example = lib.literalExpression ''
+        {
+          afterFileEdit = [
+            { command = "./hooks/format.sh"; }
+          ];
+        }
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -250,6 +302,10 @@ in
       {
         assertion = !(cfg.skills != { } && cfg.skillsDir != null);
         message = "Cannot specify both `programs.cursor-agent.skills` and `programs.cursor-agent.skillsDir`";
+      }
+      {
+        assertion = !(cfg.hookScripts != { } && cfg.hooksDir != null);
+        message = "Cannot specify both `programs.cursor-agent.hookScripts` and `programs.cursor-agent.hooksDir`";
       }
     ];
 
@@ -274,6 +330,18 @@ in
 
         ".cursor/skills" = lib.mkIf (cfg.skillsDir != null) {
           source = cfg.skillsDir;
+          recursive = true;
+        };
+
+        ".cursor/hooks.json" = lib.mkIf (cfg.hookEvents != { }) {
+          source = jsonFormat.generate "cursor-hooks.json" ({
+            version = 1;
+            hooks = cfg.hookEvents;
+          });
+        };
+
+        ".cursor/hooks" = lib.mkIf (cfg.hooksDir != null) {
+          source = cfg.hooksDir;
           recursive = true;
         };
 
@@ -313,7 +381,22 @@ in
           lib.nameValuePair ".cursor/skills/${name}/SKILL.md" (
             if lib.isPath content then { source = content; } else { text = content; }
           )
-      ) cfg.skills;
+      ) cfg.skills
+      // lib.mapAttrs' (
+        name: content:
+        lib.nameValuePair ".cursor/hooks/${name}" (
+          if lib.isPath content then
+            {
+              source = content;
+              executable = true;
+            }
+          else
+            {
+              text = content;
+              executable = true;
+            }
+        )
+      ) cfg.hookScripts;
 
       activation = lib.mkIf (cfg.settings != { }) {
         cursorAgentCliConfig =
