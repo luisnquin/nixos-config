@@ -1,4 +1,6 @@
 {
+  config,
+  libx,
   pkgs,
   user,
   lib,
@@ -36,9 +38,37 @@
     '';
   };
 
-  environment.etc."ssh/ssh-banner".text = ''
-    It's true, you can never eat a pet you name
-  '';
+  environment.etc = {
+    "ssh/ssh-banner".text = ''
+      It's true, you can never eat a pet you name
+    '';
+
+    "ssh/sshrc" = {
+      mode = "0755";
+      text = ''
+        #!${pkgs.runtimeShell}
+
+        client_ip="''${SSH_CONNECTION%% *}"
+        state_dir="''${XDG_RUNTIME_DIR:-/tmp}/sshrc-ntfy"
+        stamp="$state_dir/$client_ip"
+
+        mkdir -p "$state_dir"
+
+        now="$(date +%s)"
+        last="$(cat "$stamp" 2>/dev/null || echo 0)"
+
+        if [ "$((now - last))" -ge 10 ]; then
+          echo "$now" > "$stamp"
+
+          ${libx.comms.mkNtfy config.services.ntfy-sh.settings.base-url {
+          topic = "ssh";
+          title = config.networking.hostName;
+          message = "New SSH connection!";
+        }}
+        fi
+      '';
+    };
+  };
 
   services = {
     openssh = {
