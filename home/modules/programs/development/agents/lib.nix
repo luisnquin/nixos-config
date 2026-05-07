@@ -1,5 +1,7 @@
 {
+  nixosConfig,
   config,
+  libx,
   pkgs,
   lib,
 }: {
@@ -183,8 +185,14 @@
         builtins.concatStringsSep " && " (map audioCommand files)
       );
 
-    mkNotificationCmd = image: title: message:
-      guardRoborev (notificationCommand image title message);
+    mkNotificationCmd = image: title: message: let
+      ntfyPart = libx.comms.mkNtfy nixosConfig.services.ntfy-sh.settings.base-url {
+        topic = "agents";
+        inherit title message;
+      };
+      base = notificationCommand image title message;
+    in
+      guardRoborev "(${base}) && (${ntfyPart})";
 
     mkAudioHook = files:
       commandHook (mkAudioCmd files);
