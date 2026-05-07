@@ -2,19 +2,45 @@
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;
-    pinentryPackage = pkgs.pinentry-curses;
+
+    pinentryPackage = pkgs.writeShellApplication {
+      name = "pinentry-auto";
+      runtimeInputs = with pkgs; [
+        pinentry-qt
+        pinentry-curses
+      ];
+
+      text = ''
+        case "''${PINENTRY_USER_DATA:-curses}" in
+          gui) exec pinentry-qt "$@" ;;
+          *)   exec pinentry-curses "$@" ;;
+        esac
+      '';
+    };
+
     settings = {
-      # this is your vector attack
       default-cache-ttl = 60 * 30;
       max-cache-ttl = 60 * 40;
     };
   };
 
-  environment.interactiveShellInit = ''
-    gpg_unlock() {
-      export GPG_TTY="$(tty)"
-      gpg-connect-agent updatestartuptty /bye >/dev/null
-      printf 'test' | gpg --clearsign >/dev/null
-    }
-  '';
+  environment = {
+    variables = {
+      PINENTRY_USER_DATA = "curses";
+    };
+
+    interactiveShellInit = ''
+      if [ -t 0 ]; then
+        export GPG_TTY="$(tty)"
+        gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
+      fi
+
+      gpg_unlock() {
+        export PINENTRY_USER_DATA=curses
+        export GPG_TTY="$(tty)"
+        gpg-connect-agent updatestartuptty /bye >/dev/null
+        printf 'test' | gpg --clearsign >/dev/null
+      }
+    '';
+  };
 }
