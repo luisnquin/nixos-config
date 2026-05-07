@@ -7,6 +7,7 @@
     ./caddy
     ./discovery.nix
     ./hosts.nix
+    ./ntfy.nix
     ./vpn.nix
     ./tools.nix
   ];
