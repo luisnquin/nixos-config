@@ -1,6 +1,7 @@
 args @ {
   pkgs,
   lib,
+  config,
   ...
 }: {
   home.sessionVariables = {
@@ -144,9 +145,9 @@ args @ {
         "${lib.getExe pkgs.grim}, screencopy, allow"
         "/nix/store/*-zen*/bin/(zen|zen-beta|zen-twilight), screencopy, allow"
         "${lib.getExe pkgs.brave}, screencopy, allow"
-        "${lib.getExe pkgs.discord-canary}, screencopy, allow"
         "${lib.getExe pkgs.obs-studio}, screencopy, allow"
         "/nix/store/[a-z0-9]{32}-xdg-desktop-portal-hyprland-*/libexec/.xdg-desktop-portal-hyprland-wrapped, screencopy, allow"
+        "${lib.getExe config.programs.nixcord.finalPackage.discord}, screencopy, allow"
       ];
     };
 

@@ -148,9 +148,6 @@
       config = {
         allowBroken = false;
         allowUnfree = true;
-        permittedInsecurePackages = [
-          "openssl-1.1.1w"
-        ];
       };
 
       pkgs = import nixpkgs {
