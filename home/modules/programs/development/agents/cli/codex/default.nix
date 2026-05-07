@@ -81,6 +81,13 @@ in {
       sandbox_mode = permissions.sandbox_mode;
       approvals_reviewer = "user";
 
+      shell_environment_policy = {
+        "inherit" = "core";
+        set = {
+          CODEX_AGENT = "1";
+        };
+      };
+
       profiles = {
         coding = {
           personality = "pragmatic";
