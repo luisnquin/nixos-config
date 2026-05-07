@@ -21,7 +21,8 @@ in {
       NODE_OPTIONS = "--disable-warning=ExperimentalWarning";
     };
 
-    sessionPath = ["${NPM_GLOBAL_DIR}/bin" "${BUN_GLOBAL_DIR}/bin"];
+    # sessionPath managed by home/modules/path.nix
+    # sessionPath = ["${NPM_GLOBAL_DIR}/bin" "${BUN_GLOBAL_DIR}/bin"];
 
     activation.init = lib.hm.dag.entryAfter ["writeBoundary"] ''
       mkdir -p {${NPM_GLOBAL_DIR},${BUN_GLOBAL_DIR}}/{bin,lib}

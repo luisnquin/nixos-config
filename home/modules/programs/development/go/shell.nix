@@ -1,5 +1,6 @@
 {pkgs, ...}: {
-  home.sessionPath = ["$GORROT" "$GOPATH/bin"];
+  # sessionPath managed by home/modules/path.nix
+  # home.sessionPath = ["$GORROT" "$GOPATH/bin"];
 
   programs.zsh = {
     shellAliases = {

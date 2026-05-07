@@ -14,9 +14,5 @@
     };
   };
 
-  home = {
-    sessionPath = [
-      "$HOME/.local/bin"
-    ];
-  };
+  # cursor is trying to autoupdate _._
 }

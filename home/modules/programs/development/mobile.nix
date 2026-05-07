@@ -32,10 +32,11 @@
       '';
     };
 
-    sessionPath = [
-      "${ANDROID_HOME}/platform-tools"
-      "${ANDROID_HOME}/emulator"
-    ];
+    # sessionPath managed by home/modules/path.nix
+    # sessionPath = [
+    #   "${ANDROID_HOME}/platform-tools"
+    #   "${ANDROID_HOME}/emulator"
+    # ];
 
     sessionVariables = {
       inherit ANDROID_HOME;
