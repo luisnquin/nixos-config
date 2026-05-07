@@ -38,7 +38,14 @@
     };
 
     black-terminal.url = "github:luisnquin/black-terminal";
-
+    nix-cachyos-kernel = {
+      url = "github:xddxdd/nix-cachyos-kernel/release";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        flake-compat.follows = "";
+      };
+    };
     hyprdysmorphic = {
       url = "github:0xc000022070/hyprdysmorphic";
       inputs = {
@@ -128,15 +135,22 @@
   };
 
   nixConfig = {
-    extra-substituters = ["https://cache.numtide.com"];
-    extra-trusted-public-keys = ["niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="];
+    extra-substituters = [
+      "https://cache.numtide.com"
+      "https://attic.xuyh0120.win/lantian"
+    ];
+    extra-trusted-public-keys = [
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+      "lantian:EeAUQ+W+6r7EtwnmYjeVwx5kOGEBpjlBfPlzGlTNvHc="
+    ];
   };
 
   outputs = inputs @ {
+    nix-cachyos-kernel,
+    agentic-flake,
     hyprdysmorphic,
     nixpkgs-extra,
     home-manager,
-    agentic-flake,
     llm-agents,
     nixpkgs,
     ...
@@ -156,6 +170,7 @@
             inherit inputs system;
           })
           ++ [
+            nix-cachyos-kernel.overlays.default
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
