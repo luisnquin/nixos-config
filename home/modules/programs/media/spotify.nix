@@ -22,7 +22,7 @@
         initial_volume = 100;
         ignore_last_volume = true;
         disable_autoplay = false;
-        mpris_enabled = true;
+        mpris_enabled = false;
       };
     };
 
