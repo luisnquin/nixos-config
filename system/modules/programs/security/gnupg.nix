@@ -6,13 +6,13 @@
     pinentryPackage = pkgs.writeShellApplication {
       name = "pinentry-auto";
       runtimeInputs = with pkgs; [
-        pinentry-qt
+        pinentry-gnome3
         pinentry-curses
       ];
 
       text = ''
         case "''${PINENTRY_USER_DATA:-curses}" in
-          gui) exec pinentry-qt "$@" ;;
+          gui) exec pinentry-gnome3 "$@" ;;
           *)   exec pinentry-curses "$@" ;;
         esac
       '';
