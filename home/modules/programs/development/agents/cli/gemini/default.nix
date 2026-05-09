@@ -81,50 +81,51 @@ in {
 
       hooks = {
         SessionStart = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifarm];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifarm])];
           })
         ];
 
         SessionEnd = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifdarm];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
           })
         ];
 
         BeforeAgent = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifrsig];
+          (kit.mkCmdEntry {
+            commands = [
+              (kit.mkCancelNotificationCmd {sequenceId = "gemini-awaiting-input";})
+              (kit.mkAudioCmd [kit.sounds.ifrsig])
+            ];
           })
         ];
 
         PreCompress = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifrsig];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifrsig])];
           })
         ];
 
         Notification = [
-          (kit.mkNotificationEntry {
-            image = kit.images.gemini;
-            title = "Gemini";
-            message = "Awaiting your input";
-            extraHooks = [
-              (kit.mkAudioHook [kit.sounds.buzact])
+          (kit.mkCmdEntry {
+            commands = [
+              (kit.mkNotificationCmd kit.images.gemini "Gemini" "Awaiting your input" {
+                ntfy = {
+                  delay = "10s";
+                  sequenceId = "gemini-awaiting-input";
+                };
+              })
+              (kit.mkAudioCmd [kit.sounds.buzact])
             ];
           })
         ];
 
         BeforeTool = [
-          {
+          (kit.mkCmdEntry {
             matcher = "run_shell_command";
-            hooks = [
-              {
-                type = "command";
-                command = "${config.home.homeDirectory}/${rtkPath}";
-              }
-            ];
-          }
+            commands = ["${config.home.homeDirectory}/${rtkPath}"];
+          })
         ];
       };
     };

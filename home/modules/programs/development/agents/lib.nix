@@ -158,11 +158,6 @@
       ''
       else command;
 
-    commandHook = command: {
-      type = "command";
-      inherit command;
-    };
-
     audioCommand = file: "${pkgs.pulseaudio}/bin/paplay ${audioArgsPart}${lib.escapeShellArg file}";
 
     notificationCommand = image: title: message:
@@ -205,65 +200,16 @@
         }
       );
 
-    mkAudioHook = files:
-      commandHook (mkAudioCmd files);
-
-    mkNotificationHook = {
-      image,
-      title,
-      message,
-      ntfy ? {},
-    }:
-      commandHook (mkNotificationCmd image title message {inherit ntfy;});
-
-    mkCancelNotificationHook = args:
-      commandHook (mkCancelNotificationCmd args);
-
-    mkHookEntry = {
+    mkCmdEntry = {
       matcher ? null,
-      hooks,
+      commands,
     }:
-      {inherit hooks;}
+      {hooks = map (command: {
+        type = "command";
+        inherit command;
+      }) commands;}
       // lib.optionalAttrs (matcher != null) {
         inherit matcher;
-      };
-
-    mkAudioEntry = {
-      matcher ? null,
-      files,
-    }:
-      mkHookEntry {
-        inherit matcher;
-        hooks = [(mkAudioHook files)];
-      };
-
-    mkNotificationEntry = {
-      matcher ? null,
-      image,
-      title,
-      message,
-      extraHooks ? [],
-      ntfy ? {},
-    }:
-      mkHookEntry {
-        inherit matcher;
-        hooks =
-          [(mkNotificationHook {inherit image title message ntfy;})]
-          ++ extraHooks;
-      };
-
-    mkCancelNotificationEntry = {
-      matcher ? null,
-      topic ? "agents",
-      sequenceId,
-    }:
-      mkHookEntry {
-        inherit matcher;
-        hooks = [
-          (mkCancelNotificationHook {
-            inherit topic sequenceId;
-          })
-        ];
       };
 
     mkMcpServers = let

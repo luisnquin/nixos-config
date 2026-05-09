@@ -11,40 +11,38 @@ in {
       source = (pkgs.formats.json {}).generate "codex-hooks" {
         hooks = {
           SessionStart = [
-            (kit.mkAudioEntry {
+            (kit.mkCmdEntry {
               matcher = "startup";
-              files = [kit.sounds.ifdarm];
+              commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
             })
           ];
           PreToolUse = [
-            (kit.mkAudioEntry {
+            (kit.mkCmdEntry {
               matcher = "Bash";
-              files = [kit.sounds.ifrtho];
+              commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
             })
           ];
           PostToolUse = [
-            (kit.mkAudioEntry {
+            (kit.mkCmdEntry {
               matcher = "Bash";
-              files = [kit.sounds.ifrtfy];
+              commands = [(kit.mkAudioCmd [kit.sounds.ifrtfy])];
             })
           ];
           UserPromptSubmit = [
-            (kit.mkAudioEntry {
-              files = [kit.sounds.ifrsig];
+            (kit.mkCmdEntry {
+              commands = [(kit.mkAudioCmd [kit.sounds.ifrsig])];
             })
           ];
           Stop = [
-            (kit.mkAudioEntry {
-              files = [kit.sounds.ifdarm];
+            (kit.mkCmdEntry {
+              commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
             })
           ];
           PermissionRequest = [
-            (kit.mkNotificationEntry {
-              image = kit.images.codex;
-              title = "Codex";
-              message = "Permission required";
-              extraHooks = [
-                (kit.mkAudioHook [kit.sounds.ifdngr kit.sounds.permission-required])
+            (kit.mkCmdEntry {
+              commands = [
+                (kit.mkNotificationCmd kit.images.codex "Codex" "Permission required" {})
+                (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
               ];
             })
           ];

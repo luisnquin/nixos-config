@@ -48,105 +48,81 @@ in {
 
       hooks = {
         Notification = [
-          (kit.mkNotificationEntry {
-            image = kit.images.claude;
-            title = "Claude Code";
-            message = "Awaiting your input";
-            ntfy = {
-              delay = "10s";
-              sequenceId = "claude-awaiting-input";
-            };
-            extraHooks = [
-              (kit.mkAudioHook [kit.sounds.buzact])
+          (kit.mkCmdEntry {
+            commands = [
+              (kit.mkNotificationCmd kit.images.claude "Claude Code" "Awaiting your input" {
+                ntfy = {
+                  delay = "10s";
+                  sequenceId = "claude-awaiting-input";
+                };
+              })
+              (kit.mkAudioCmd [kit.sounds.buzact])
             ];
           })
         ];
         SessionStart = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifarm];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifarm])];
           })
         ];
         Elicitation = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifrtho];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
           })
         ];
         ElicitationResult = [
-          (kit.mkHookEntry {
-            hooks = [
-              {
-                type = "command";
-                command = ''
-                  ${kit.mkCancelNotificationCmd {
-                    sequenceId = "claude-awaiting-input";
-                  }}
-
-                  ${kit.mkAudioCmd [kit.sounds.ifrtfy]}
-                '';
-              }
+          (kit.mkCmdEntry {
+            commands = [
+              (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
+              (kit.mkAudioCmd [kit.sounds.ifrtfy])
             ];
           })
         ];
         PostToolUseFailure = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifvfrs];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifvfrs])];
           })
         ];
         UserPromptSubmit = [
-          (kit.mkHookEntry {
-            hooks = [
-              {
-                type = "command";
-                command = ''
-                  ${kit.mkCancelNotificationCmd {
-                    sequenceId = "claude-awaiting-input";
-                  }}
-
-                  ${kit.mkAudioCmd [kit.sounds.ifrsig]}
-                '';
-              }
+          (kit.mkCmdEntry {
+            commands = [
+              (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
+              (kit.mkAudioCmd [kit.sounds.ifrsig])
             ];
           })
         ];
         TaskCompleted = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifrtho];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
           })
         ];
         StopFailure = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifdngr kit.sounds.ifrsis];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.ifrsis])];
           })
         ];
         PermissionDenied = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifdngr kit.sounds.permission-denied];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-denied])];
           })
         ];
         PermissionRequest = [
-          (kit.mkNotificationEntry {
-            image = kit.images.claude;
-            title = "Claude Code";
-            message = "Permission required";
-            extraHooks = [
-              (kit.mkAudioHook [kit.sounds.ifdngr kit.sounds.permission-required])
+          (kit.mkCmdEntry {
+            commands = [
+              (kit.mkNotificationCmd kit.images.claude "Claude Code" "Permission required" {})
+              (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
             ];
           })
         ];
         PreToolUse = [
-          {
+          (kit.mkCmdEntry {
             matcher = "Bash";
-            hooks = [
-              {
-                type = "command";
-                command = config.programs.claude-code.hooks."rtk-rewrite.sh";
-              }
-            ];
-          }
+            commands = [config.programs.claude-code.hooks."rtk-rewrite.sh"];
+          })
         ];
         SessionEnd = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifdarm];
+          (kit.mkCmdEntry {
+            commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
           })
         ];
       };
