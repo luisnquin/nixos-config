@@ -11,9 +11,9 @@
       ];
 
       text = ''
-        case "''${PINENTRY_USER_DATA:-curses}" in
-          gui) exec pinentry-gnome3 "$@" ;;
-          *)   exec pinentry-curses "$@" ;;
+        case "''${PINENTRY_USER_DATA:-gui}" in
+          curses) exec pinentry-curses "$@" ;;
+          *)      exec pinentry-gnome3 "$@" ;;
         esac
       '';
     };
@@ -26,12 +26,13 @@
 
   environment = {
     variables = {
-      PINENTRY_USER_DATA = "curses";
+      PINENTRY_USER_DATA = "gui";
     };
 
     interactiveShellInit = ''
       if [ -t 0 ]; then
         export GPG_TTY="$(tty)"
+        export PINENTRY_USER_DATA=curses
         gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
       fi
 
