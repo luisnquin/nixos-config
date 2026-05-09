@@ -53,40 +53,62 @@
       search = import ./search-config.nix {inherit pkgs;};
 
       pinsForce = true;
-      pins = {
-        "GitHub" = {
-          id = "48e8a119-5a14-4826-9545-91c8e8dd3bf6";
-          workspace = spaces."Rendezvous".id;
-          url = "https://github.com";
-          position = 101;
-          isEssential = false;
+      pins = let
+        stateDir = {
+          "State" = {
+            id = "482bc905-c00c-4c49-8a56-367668bf70b9";
+            workspace = spaces."Rendezvous".id;
+            folderIcon = "chrome://browser/skin/zen-icons/selectable/eye.svg";
+            isGroup = true;
+            isFolderCollapsed = true;
+            editedTitle = true;
+            position = 200;
+          };
+          "Cursor" = {
+            id = "384413fa-89aa-408c-b7bb-260e49dea3d3";
+            url = "https://cursor.com/dashboard/spending";
+            workspace = spaces."Rendezvous".id;
+            folderParentId = pins."State".id;
+            position = 201;
+          };
+          "Tailscale" = {
+            id = "4398f631-714c-450f-9b10-eb69ab27244a";
+            url = "https://login.tailscale.com/admin/machines";
+            workspace = spaces."Rendezvous".id;
+            folderParentId = pins."State".id;
+            position = 202;
+          };
         };
-        "WhatsApp Web" = {
-          id = "1eabb6a3-911b-4fa9-9eaf-232a3703db19";
-          workspace = spaces."Rendezvous".id;
-          url = "https://web.whatsapp.com/";
-          position = 102;
-          isEssential = false;
-        };
-        "Telegram Web" = {
-          id = "5065293b-1c04-40ee-ba1d-99a231873864";
-          url = "https://web.telegram.org/k/";
-          position = 103;
-          isEssential = true;
-        };
-        "PairDrop" = {
-          id = "c70a0cd7-6ee8-470f-85c6-85a73a7a6196";
-          url = "https://pairdrop.net/";
-          position = 104;
-          isEssential = true;
-        };
-        "Tailscale" = {
-          id = "972bc7e3-a228-452d-8680-1088c6eb2ecf";
-          url = "https://login.tailscale.com/admin/machines";
-          workspace = spaces."Rendezvous".id;
-          position = 300;
-        };
-      };
+      in
+        {
+          "GitHub" = {
+            id = "48e8a119-5a14-4826-9545-91c8e8dd3bf6";
+            workspace = spaces."Rendezvous".id;
+            url = "https://github.com";
+            position = 101;
+            isEssential = false;
+          };
+          "WhatsApp Web" = {
+            id = "1eabb6a3-911b-4fa9-9eaf-232a3703db19";
+            workspace = spaces."Rendezvous".id;
+            url = "https://web.whatsapp.com/";
+            position = 102;
+            isEssential = false;
+          };
+          "Telegram Web" = {
+            id = "5065293b-1c04-40ee-ba1d-99a231873864";
+            url = "https://web.telegram.org/k/";
+            position = 103;
+            isEssential = true;
+          };
+          "PairDrop" = {
+            id = "c70a0cd7-6ee8-470f-85c6-85a73a7a6196";
+            url = "https://pairdrop.net/";
+            position = 104;
+            isEssential = true;
+          };
+        }
+        // stateDir;
 
       containersForce = true;
 
