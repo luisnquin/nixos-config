@@ -153,11 +153,11 @@
     },
     "black-terminal": {
       "locked": {
-        "lastModified": 1778114611,
-        "narHash": "sha256-1us/PKSTY2cgVUUBuKUUn1ausWjZD0QvRSYitbnRpDQ=",
+        "lastModified": 1778303852,
+        "narHash": "sha256-K4/SsakcF5ndhYFYcH3dKgNmTfdu8fxuVLObh04cNVw=",
         "owner": "luisnquin",
         "repo": "black-terminal",
-        "rev": "b1bfa68119e13c6ff17f81a557a1585c7f62318f",
+        "rev": "b5cb6f93127884e2e1a54f08cddd2978a61c4fc2",
         "type": "github"
       },
       "original": {
