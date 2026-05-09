@@ -53,6 +53,7 @@
       search = import ./search-config.nix {inherit pkgs;};
 
       pinsForce = true;
+      pinsForceAction = "demote";
       pins = let
         stateDir = {
           "State" = {
