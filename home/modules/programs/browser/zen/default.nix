@@ -80,35 +80,6 @@
           position = 104;
           isEssential = true;
         };
-        "CCD" = {
-          id = "f70b6a94-a473-44b4-9e34-a47ffd4af371";
-          workspace = spaces."Rendezvous".id;
-          isGroup = true;
-          isFolderCollapsed = true;
-          editedTitle = true;
-          position = 200;
-        };
-        "ccd.com.pe" = {
-          id = "0bcd1581-49bd-4d1e-869b-26ffb6e5c15d";
-          url = "https://ccd.com.pe";
-          workspace = spaces."Rendezvous".id;
-          folderParentId = pins."CCD".id;
-          position = 201;
-        };
-        "ccd.app" = {
-          id = "b6f19ca8-d14e-477f-8c37-cb4f35e641f8";
-          url = "https://ccd.app";
-          workspace = spaces."Rendezvous".id;
-          folderParentId = pins."CCD".id;
-          position = 202;
-        };
-        "magic.ccd.app" = {
-          id = "33756cf5-3489-4f59-a561-6233fde0c26b";
-          url = "https://magic.ccd.app";
-          workspace = spaces."Rendezvous".id;
-          folderParentId = pins."CCD".id;
-          position = 203;
-        };
         "Tailscale" = {
           id = "972bc7e3-a228-452d-8680-1088c6eb2ecf";
           url = "https://login.tailscale.com/admin/machines";
