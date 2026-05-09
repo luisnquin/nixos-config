@@ -52,6 +52,10 @@ in {
             image = kit.images.claude;
             title = "Claude Code";
             message = "Awaiting your input";
+            ntfy = {
+              delay = "10s";
+              sequenceId = "claude-awaiting-input";
+            };
             extraHooks = [
               (kit.mkAudioHook [kit.sounds.buzact])
             ];
@@ -68,8 +72,19 @@ in {
           })
         ];
         ElicitationResult = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifrtfy];
+          (kit.mkHookEntry {
+            hooks = [
+              {
+                type = "command";
+                command = ''
+                  ${kit.mkCancelNotificationCmd {
+                    sequenceId = "claude-awaiting-input";
+                  }}
+
+                  ${kit.mkAudioCmd [kit.sounds.ifrtfy]}
+                '';
+              }
+            ];
           })
         ];
         PostToolUseFailure = [
@@ -78,8 +93,19 @@ in {
           })
         ];
         UserPromptSubmit = [
-          (kit.mkAudioEntry {
-            files = [kit.sounds.ifrsig];
+          (kit.mkHookEntry {
+            hooks = [
+              {
+                type = "command";
+                command = ''
+                  ${kit.mkCancelNotificationCmd {
+                    sequenceId = "claude-awaiting-input";
+                  }}
+
+                  ${kit.mkAudioCmd [kit.sounds.ifrsig]}
+                '';
+              }
+            ];
           })
         ];
         TaskCompleted = [

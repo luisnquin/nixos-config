@@ -185,20 +185,39 @@
         builtins.concatStringsSep " && " (map audioCommand files)
       );
 
-    mkNotificationCmd = image: title: message: let
-      ntfyPart = libx.comms.mkNtfy nixosConfig.services.ntfy-sh.settings.base-url {
-        topic = "agents";
-        inherit title message;
-      };
+    mkNotificationCmd = image: title: message: {ntfy ? {}}: let
+      ntfyPart = libx.comms.mkNtfy nixosConfig.services.ntfy-sh.settings.base-url ({
+          topic = "agents";
+          inherit title message;
+        }
+        // ntfy);
       base = notificationCommand image title message;
     in
       guardRoborev "(${base}) && (${ntfyPart})";
 
+    mkCancelNotificationCmd = {
+      topic ? "agents",
+      sequenceId,
+    }:
+      guardRoborev (
+        libx.comms.cancelNtfy nixosConfig.services.ntfy-sh.settings.base-url {
+          inherit topic sequenceId;
+        }
+      );
+
     mkAudioHook = files:
       commandHook (mkAudioCmd files);
 
-    mkNotificationHook = image: title: message:
-      commandHook (mkNotificationCmd image title message);
+    mkNotificationHook = {
+      image,
+      title,
+      message,
+      ntfy ? {},
+    }:
+      commandHook (mkNotificationCmd image title message {inherit ntfy;});
+
+    mkCancelNotificationHook = args:
+      commandHook (mkCancelNotificationCmd args);
 
     mkHookEntry = {
       matcher ? null,
@@ -224,10 +243,27 @@
       title,
       message,
       extraHooks ? [],
+      ntfy ? {},
     }:
       mkHookEntry {
         inherit matcher;
-        hooks = [(mkNotificationHook image title message)] ++ extraHooks;
+        hooks =
+          [(mkNotificationHook {inherit image title message ntfy;})]
+          ++ extraHooks;
+      };
+
+    mkCancelNotificationEntry = {
+      matcher ? null,
+      topic ? "agents",
+      sequenceId,
+    }:
+      mkHookEntry {
+        inherit matcher;
+        hooks = [
+          (mkCancelNotificationHook {
+            inherit topic sequenceId;
+          })
+        ];
       };
 
     mkMcpServers = let

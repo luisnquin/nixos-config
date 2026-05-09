@@ -131,11 +131,11 @@ in {
       hooks = [
         {
           event = "review.completed";
-          command = kit.mkNotificationCmd kit.images.roborev "Review completed" "[{repo_name}] Review done for {sha}: {verdict}";
+          command = kit.mkNotificationCmd kit.images.roborev "Review completed" "[{repo_name}] Review done for {sha}: {verdict}" {};
         }
         {
           event = "review.failed";
-          command = kit.mkNotificationCmd kit.images.roborev "Review failed" "[{repo_name}] Error on {sha}: run roborev show {job_id}";
+          command = kit.mkNotificationCmd kit.images.roborev "Review failed" "[{repo_name}] Error on {sha}: run roborev show {job_id}" {};
         }
       ];
 

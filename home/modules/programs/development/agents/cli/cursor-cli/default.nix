@@ -72,8 +72,13 @@ in {
       "session-end-audio.sh" =
         mkHookScript (kit.mkAudioCmd [kit.sounds.ifdarm]);
 
-      "submit-prompt-audio.sh" =
-        mkHookScript (kit.mkAudioCmd [kit.sounds.ifrsig]);
+      "submit-prompt-audio.sh" = mkHookScript ''
+        ${kit.mkCancelNotificationCmd {
+          sequenceId = "cursor-awaiting-input";
+        }}
+
+        ${kit.mkAudioCmd [kit.sounds.ifrsig]}
+      '';
 
       "subagent-start-audio.sh" =
         mkHookScript (kit.mkAudioCmd [kit.sounds.ifrtho]);
@@ -104,7 +109,12 @@ in {
       '';
 
       "awaiting-input-notify.sh" = mkHookScript (
-        (kit.mkNotificationCmd kit.images.cursor "Cursor" "Awaiting your input")
+        (kit.mkNotificationCmd kit.images.cursor "Cursor" "Awaiting your input" {
+          ntfy = {
+            delay = "10s";
+            sequenceId = "cursor-awaiting-input";
+          };
+        })
         + " && "
         + (kit.mkAudioCmd [kit.sounds.buzact])
       );
