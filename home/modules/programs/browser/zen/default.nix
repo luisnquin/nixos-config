@@ -52,6 +52,32 @@
 
       search = import ./search-config.nix {inherit pkgs;};
 
+      # liveFolders = {
+      #   "Prisma blog" = {
+      #     workspace = spaces."Rendezvous".id;
+      #     kind = "rss";
+      #     title = "Prisma blog";
+      #     feedUrl = "https://www.prisma.io/blog/rss.xml";
+      #     folderIcon = "https://www.prisma.io/favicon.ico";
+      #     position = 400;
+      #     maxItems = 3;
+      #     collapsed = true;
+      #     timeRange = 0;
+      #   };
+
+      #   "Oscar Liang" = {
+      #     workspace = spaces."Rendezvous".id;
+      #     kind = "rss";
+      #     title = "Oscar Liang";
+      #     feedUrl = "https://oscarliang.com/feed";
+      #     folderIcon = "https://oscarliang.com/wp-content/uploads/2021/06/favicon.ico";
+      #     position = 401;
+      #     maxItems = 5;
+      #     collapsed = true;
+      #     timeRange = 0;
+      #   };
+      # };
+
       pinsForce = true;
       pinsForceAction = "demote";
       pins = let
