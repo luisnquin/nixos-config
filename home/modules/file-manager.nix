@@ -52,7 +52,7 @@
         command = "${pkgs.pulseaudio}/bin/paplay \"$@\"";
       }
       {
-        condition = "ext ico|bmp|gif|jpeg|jpg|png|svg|webp";
+        condition = "ext ico|bmp|gif|jpeg|jpg|png|svg|webp|heic";
         command = "${lib.getExe pkgs.feh} \"$@\"";
       }
       {
