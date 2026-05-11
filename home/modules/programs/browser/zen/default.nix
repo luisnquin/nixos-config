@@ -137,6 +137,15 @@
         }
         // stateDir;
 
+      joinedTabs."Inside state" = {
+        id = "inside-state";
+        gridType = "vsep";
+        tabs = [
+          pins."Cursor".id
+          pins."Tailscale".id
+        ];
+      };
+
       containersForce = true;
 
       spacesForce = true;
