@@ -102,7 +102,7 @@ in {
       };
 
       features = {
-        codex_hooks = true;
+        hooks = true;
       };
 
       tools = {
