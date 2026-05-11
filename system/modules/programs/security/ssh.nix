@@ -35,6 +35,15 @@
         printf "SSH inbound : %s\n" "$inbound"
         printf "SSH outbound: %s\n" "$outbound"
       }
+
+      ssh_unlock() {
+        export PINENTRY_USER_DATA=curses
+        export GPG_TTY="$(tty)"
+        gpg-connect-agent updatestartuptty /bye
+        gpg-connect-agent 'OPTION pinentry-user-data=curses' /bye
+
+        ssh -T git@github.com
+      }
     '';
   };
 
