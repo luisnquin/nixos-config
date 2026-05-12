@@ -97,6 +97,8 @@
             workspace = spaces."Rendezvous".id;
             folderParentId = pins."State".id;
             position = 201;
+            editedTitle = true;
+            title = "Cursor usage";
           };
           "Tailscale" = {
             id = "4398f631-714c-450f-9b10-eb69ab27244a";
