@@ -136,6 +136,24 @@
             position = 104;
             isEssential = true;
           };
+          "Linux kernel" = {
+            id = "9d67cbc8-dd87-4c57-a274-9dab12a94429";
+            url = "https://www.kernel.org/";
+            workspace = spaces."Rendezvous".id;
+            position = 150;
+          };
+          "NixOS.org" = {
+            id = "d8494475-ed8d-4746-a867-54fa7700faf4";
+            url = "https://nixos.org/";
+            workspace = spaces."Rendezvous".id;
+            position = 151;
+          };
+          "GrapheneOS" = {
+            id = "19266f40-575f-49f8-8fe0-ac13659a4242";
+            url = "https://grapheneos.org/";
+            workspace = spaces."Rendezvous".id;
+            position = 152;
+          };
         }
         // stateDir;
 
@@ -146,6 +164,18 @@
           pins."Cursor".id
           pins."Tailscale".id
         ];
+        sizes = [50 50];
+      };
+
+      joinedTabs."Kernel and NixOS" = {
+        id = "kernel-nix-docs";
+        gridType = "vsep";
+        tabs = [
+          pins."Linux kernel".id
+          pins."NixOS.org".id
+          pins."GrapheneOS".id
+        ];
+        sizes = [40 20 40];
       };
 
       containersForce = true;

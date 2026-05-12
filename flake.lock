@@ -1290,16 +1290,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1778544741,
-        "narHash": "sha256-RLpmdBq2BG1WOxdXPZnb7AHJOfrJ0ShuxcQi7rUbsqU=",
+        "lastModified": 1778585655,
+        "narHash": "sha256-yfxy9aTlIgU2Z36H8cJURgYLgjT4qvFeOzoAC/HXcKM=",
         "owner": "0xc000022070",
         "repo": "zen-browser-flake",
-        "rev": "62cda12b67e59d42f92034e86cb62a091f5c9d5d",
+        "rev": "42f41abcef13dc81c85407b57aa1fd1bde46e46c",
         "type": "github"
       },
       "original": {
         "owner": "0xc000022070",
-        "ref": "feat/joined-tabs-folder-session",
+        "ref": "beta",
         "repo": "zen-browser-flake",
         "type": "github"
       }
