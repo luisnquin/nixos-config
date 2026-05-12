@@ -98,14 +98,32 @@
             folderParentId = pins."State".id;
             position = 201;
             editedTitle = true;
-            title = "Cursor usage";
+            title = "Cursor Usage";
+          };
+          "Codex" = {
+            id = "0dc25f8f-a801-46ed-853b-6d866622bc18";
+            url = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
+            workspace = spaces."Rendezvous".id;
+            folderParentId = pins."State".id;
+            position = 201;
+            editedTitle = true;
+            title = "Codex Usage";
+          };
+          "Claude" = {
+            id = "b9852a90-794e-4692-989b-bd2fb376bc54";
+            url = "https://platform.claude.com/usage";
+            workspace = spaces."Rendezvous".id;
+            folderParentId = pins."State".id;
+            position = 201;
+            editedTitle = true;
+            title = "Claude Usage";
           };
           "Tailscale" = {
             id = "4398f631-714c-450f-9b10-eb69ab27244a";
             url = "https://login.tailscale.com/admin/machines";
             workspace = spaces."Rendezvous".id;
             folderParentId = pins."State".id;
-            position = 202;
+            position = 153;
           };
         };
       in
@@ -162,9 +180,9 @@
         gridType = "vsep";
         tabs = [
           pins."Cursor".id
-          pins."Tailscale".id
+          pins."Codex".id
+          pins."Claude".id
         ];
-        sizes = [50 50];
       };
 
       joinedTabs."Kernel and NixOS" = {
