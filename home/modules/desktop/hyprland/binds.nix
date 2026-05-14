@@ -1,207 +1,138 @@
-# https://wiki.hyprland.org/Configuring/Keywords/
+# https://wiki.hypr.land/Configuring/Basics/Binds/
 {
   config,
   pkgs,
+  lib,
   ...
 }: let
+  inherit (lib.generators) mkLuaInline;
+
   mainMod = "SUPER";
-
-  window = [
-    "${mainMod}, left, movefocus, l"
-    "${mainMod}, right, movefocus, r"
-    "${mainMod}, up, movefocus, u"
-    "${mainMod}, down, movefocus, d"
-  ];
-
-  workspaces = [
-    # Go-to
-    "${mainMod}, 1, workspace, 1"
-    "${mainMod}, 2, workspace, 2"
-    "${mainMod}, 3, workspace, 3"
-    "${mainMod}, 4, workspace, 4"
-    "${mainMod}, 5, workspace, 5"
-    "${mainMod}, 6, workspace, 6"
-    "${mainMod}, 7, workspace, 7"
-    "${mainMod}, 8, workspace, 8"
-    "${mainMod}, 9, workspace, 9"
-    "${mainMod}, 0, workspace, 10"
-
-    # Move window
-    "${mainMod} SHIFT, 1, movetoworkspace, 1"
-    "${mainMod} SHIFT, 2, movetoworkspace, 2"
-    "${mainMod} SHIFT, 3, movetoworkspace, 3"
-    "${mainMod} SHIFT, 4, movetoworkspace, 4"
-    "${mainMod} SHIFT, 5, movetoworkspace, 5"
-    "${mainMod} SHIFT, 6, movetoworkspace, 6"
-    "${mainMod} SHIFT, 7, movetoworkspace, 7"
-    "${mainMod} SHIFT, 8, movetoworkspace, 8"
-    "${mainMod} SHIFT, 9, movetoworkspace, 9"
-    "${mainMod} SHIFT, 0, movetoworkspace, 10"
-
-    # Resize window
-    "${mainMod} SHIFT, h, resizeactive, -40 0"
-    "${mainMod} SHIFT, l, resizeactive, 40 0"
-    "${mainMod} SHIFT, k, resizeactive, 0 -40"
-    "${mainMod} SHIFT, j, resizeactive, 0 40"
-
-    # Scroll
-    "${mainMod}, mouse_down, workspace, e+1"
-    "${mainMod}, mouse_up, workspace, e-1"
-
-    # Other actionsss
-    "${mainMod}, SPACE, togglefloating"
-    "${mainMod}, S, layoutmsg, togglesplit"
-
-    "SUPER_SHIFT, W, exec, ${./kill-active.sh}"
-    "SUPER_SHIFT, MINUS, pseudo"
-    "${mainMod}, F, fullscreen"
-  ];
-
   hyprctlCmd = "${pkgs.hyprland}/bin/hyprctl";
 
-  generic = let
-    inherit (pkgs.scripts) sys-sound sys-brightness;
-    inherit (pkgs) lib;
-  in [
-    {
-      "mod+key" = "${mainMod}, RETURN";
-      "dispatcher" = "exec, ${pkgs.lib.getExe config.programs.ghostty.package}";
-    }
-    {
-      "mod+key" = ",XF86AudioMicMute";
-      "dispatcher" = "exec, ${lib.getExe sys-sound} --toggle-mic";
-    }
-    {
-      "mod+key" = ",XF86AudioMute";
-      "dispatcher" = "exec, ${lib.getExe sys-sound} --toggle-vol";
-    }
-    {
-      "mod+key" = ",XF86AudioLowerVolume";
-      "dispatcher" = "exec, ${lib.getExe sys-sound} --dec";
-    }
-    {
-      "mod+key" = ",XF86AudioRaiseVolume";
-      "dispatcher" = "exec, ${lib.getExe sys-sound} --inc";
-    }
-    {
-      "mod+key" = "SUPER, XF86AudioRaiseVolume";
-      "dispatcher" = "exec, ${lib.getExe sys-sound} --inc --unleashed";
-    }
-    {
-      "mod+key" = ",XF86MonBrightnessDown";
-      "dispatcher" = "exec, ${lib.getExe sys-brightness} --dec";
-    }
-    {
-      "mod+key" = ",XF86MonBrightnessUp";
-      "dispatcher" = "exec, ${lib.getExe sys-brightness} --inc";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, Q";
-      "dispatcher" = "exec, ${lib.getExe pkgs.fuzzel} --dmenu";
-    }
-    {
-      "mod+key" = "${mainMod}, X";
-      "dispatcher" = "exec, bash -c 'val=\"$(raffi -pI)\"; [ -n \"$val\" ] && ${pkgs.hyprland}/bin/hyprctl dispatch exec \"$val\"'";
-    }
-    {
-      "mod+key" = "${mainMod}, Q";
-      "dispatcher" = "exec, ${lib.getExe pkgs.fuzzel}";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, E";
-      "dispatcher" = "exec, ${lib.getExe pkgs.bemoji}";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, R";
-      "dispatcher" = "exec, ${hyprctlCmd} reload";
-    }
-    {
-      # toggle audio of active window
-      "mod+key" = "${mainMod}, M";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu}";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, M";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu} -unmute-all";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, XF86AudioLowerVolume";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu} -volume 5-";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, XF86AudioRaiseVolume";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprstfu} -volume 5+";
-    }
-    {
-      "mod+key" = "${mainMod}, K";
-      "dispatcher" = "exec, ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop 'ghostty --class=ghostty.hyprdrop'";
-    }
-  ];
+  raffiExec = pkgs.writeShellScript "hypr-raffi-exec" ''
+    val="$(raffi -pI)"
+    [ -n "$val" ] && exec ${hyprctlCmd} dispatch exec "$val"
+  '';
 
-  clipboard = let
+  cliphistFuzzel = pkgs.writeShellScript "hypr-cliphist-fuzzel" ''
+    ${lib.getExe pkgs.scripts.cliphist-rofi} | ${lib.getExe pkgs.fuzzel} --dmenu | cliphist decode | wl-copy
+  '';
+
+  grimblastCmd = let
     inherit (pkgs.lib) getExe;
+    package = pkgs.grimblast.overrideAttrs (_oldAttrs: {
+      prePatch = ''
+        substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
+      '';
+    });
+  in
+    getExe package;
 
-    grimblastCmd = let
-      package = pkgs.grimblast.overrideAttrs (_oldAttrs: {
-        prePatch = ''
-          substituteInPlace ./grimblast --replace '-t 3000' '-t 3000 -i ${./crop.512.png}'
-        '';
-      });
-    in (getExe package);
-  in [
-    {
-      "mod+key" = "SUPER_SHIFT, Print";
-      "dispatcher" = "exec, ${grimblastCmd} --freeze --notify copy area";
-    }
-    {
-      "mod+key" = "${mainMod}, Print";
-      "dispatcher" = "exec, ${grimblastCmd} --notify copy active";
-    }
-    {
-      # only copy one monitor at a time
-      "mod+key" = ",Print";
-      "dispatcher" = (
-        let
-          askTargetCmd = "${getExe pkgs.hyprshot} -m output --clipboard-only";
-          allTargetsCmd = "${grimblastCmd} --notify copy screen";
-          eval = "${hyprctlCmd} monitors all -j | ${getExe pkgs.jq} \". | length\"";
-        in "exec, bash -c 'if [ \"$(${eval})\" -eq 1 ]; then ${allTargetsCmd}; else ${askTargetCmd}; fi'"
-      );
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, C";
-      "dispatcher" = "exec, bash -c '${getExe pkgs.scripts.cliphist-rofi} | ${getExe pkgs.fuzzel} --dmenu | cliphist decode | wl-copy'";
-    }
-  ];
+  hyprPrintScreen = let
+    inherit (pkgs.lib) getExe;
+    askTargetCmd = "${getExe pkgs.hyprshot} -m output --clipboard-only";
+    allTargetsCmd = "${grimblastCmd} --notify copy screen";
+    evalCmd = "${hyprctlCmd} monitors all -j | ${getExe pkgs.jq} \". | length\"";
+  in
+    pkgs.writeShellScript "hypr-print-screen" ''
+      if [ "$(${evalCmd})" -eq 1 ]; then
+        exec ${allTargetsCmd}
+      else
+        exec ${askTargetCmd}
+      fi
+    '';
 
-  playerctl = let
-    pctlCmd = pkgs.lib.getExe pkgs.playerctl;
-    pctlFallback = cmd: "bash -c 'if ${pctlCmd} --player=spotify status 2>/dev/null | grep -q Playing; then ${pctlCmd} ${cmd} --player=spotify; else ${pctlCmd} ${cmd}; fi'";
-  in [
-    {
-      "mod+key" = "CTRL_SHIFT, braceleft";
-      "dispatcher" = "exec, ${pctlFallback "position 5-"}";
-    }
-    {
-      "mod+key" = "CTRL_SHIFT, braceright";
-      "dispatcher" = "exec, ${pctlFallback "position 5+"}";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, braceright";
-      "dispatcher" = "exec, ${pctlFallback "next"}";
-    }
-    {
-      "mod+key" = "SUPER_SHIFT, braceleft";
-      "dispatcher" = "exec, ${pctlFallback "previous"}";
-    }
-    {
-      "mod+key" = "${mainMod}, Pause";
-      "dispatcher" = "exec, ${pctlCmd} play-pause --player=spotify";
-    }
-    {
-      "mod+key" = "${mainMod}, Delete";
-      "dispatcher" = "exec, ${pctlCmd} play-pause --all-players --ignore-player=spotify";
-    }
-  ];
-in
-  window ++ workspaces ++ builtins.map (b: b."mod+key" + ", " + b.dispatcher) (generic ++ clipboard ++ playerctl)
+  pctlCmd = lib.getExe pkgs.playerctl;
+  pctlFallback = cmd: "bash -c 'if ${pctlCmd} --player=spotify status 2>/dev/null | grep -q Playing; then ${pctlCmd} ${cmd} --player=spotify; else ${pctlCmd} ${cmd}; fi'";
+
+  inherit (pkgs.scripts) sys-sound sys-brightness;
+
+  toLua' = lib.generators.toLua {};
+
+  dspExec = cmd: mkLuaInline ("hl.dsp.exec_cmd(" + toLua' cmd + ")");
+
+  b = keys: dsp: {
+    _args = [keys dsp];
+  };
+
+  bm = keys: dsp: {
+    _args = [keys dsp {mouse = true;}];
+  };
+in [
+  (b "${mainMod} + left" (mkLuaInline "hl.dsp.focus({ direction = \"left\" })"))
+  (b "${mainMod} + right" (mkLuaInline "hl.dsp.focus({ direction = \"right\" })"))
+  (b "${mainMod} + up" (mkLuaInline "hl.dsp.focus({ direction = \"up\" })"))
+  (b "${mainMod} + down" (mkLuaInline "hl.dsp.focus({ direction = \"down\" })"))
+
+  (b "${mainMod} + 1" (mkLuaInline "hl.dsp.focus({ workspace = 1 })"))
+  (b "${mainMod} + 2" (mkLuaInline "hl.dsp.focus({ workspace = 2 })"))
+  (b "${mainMod} + 3" (mkLuaInline "hl.dsp.focus({ workspace = 3 })"))
+  (b "${mainMod} + 4" (mkLuaInline "hl.dsp.focus({ workspace = 4 })"))
+  (b "${mainMod} + 5" (mkLuaInline "hl.dsp.focus({ workspace = 5 })"))
+  (b "${mainMod} + 6" (mkLuaInline "hl.dsp.focus({ workspace = 6 })"))
+  (b "${mainMod} + 7" (mkLuaInline "hl.dsp.focus({ workspace = 7 })"))
+  (b "${mainMod} + 8" (mkLuaInline "hl.dsp.focus({ workspace = 8 })"))
+  (b "${mainMod} + 9" (mkLuaInline "hl.dsp.focus({ workspace = 9 })"))
+  (b "${mainMod} + 0" (mkLuaInline "hl.dsp.focus({ workspace = 10 })"))
+
+  (b "${mainMod} + SHIFT + 1" (mkLuaInline "hl.dsp.window.move({ workspace = 1 })"))
+  (b "${mainMod} + SHIFT + 2" (mkLuaInline "hl.dsp.window.move({ workspace = 2 })"))
+  (b "${mainMod} + SHIFT + 3" (mkLuaInline "hl.dsp.window.move({ workspace = 3 })"))
+  (b "${mainMod} + SHIFT + 4" (mkLuaInline "hl.dsp.window.move({ workspace = 4 })"))
+  (b "${mainMod} + SHIFT + 5" (mkLuaInline "hl.dsp.window.move({ workspace = 5 })"))
+  (b "${mainMod} + SHIFT + 6" (mkLuaInline "hl.dsp.window.move({ workspace = 6 })"))
+  (b "${mainMod} + SHIFT + 7" (mkLuaInline "hl.dsp.window.move({ workspace = 7 })"))
+  (b "${mainMod} + SHIFT + 8" (mkLuaInline "hl.dsp.window.move({ workspace = 8 })"))
+  (b "${mainMod} + SHIFT + 9" (mkLuaInline "hl.dsp.window.move({ workspace = 9 })"))
+  (b "${mainMod} + SHIFT + 0" (mkLuaInline "hl.dsp.window.move({ workspace = 10 })"))
+
+  (b "${mainMod} + SHIFT + h" (mkLuaInline "hl.dsp.window.resize({ x = -40, y = 0, relative = true })"))
+  (b "${mainMod} + SHIFT + l" (mkLuaInline "hl.dsp.window.resize({ x = 40, y = 0, relative = true })"))
+  (b "${mainMod} + SHIFT + k" (mkLuaInline "hl.dsp.window.resize({ x = 0, y = -40, relative = true })"))
+  (b "${mainMod} + SHIFT + j" (mkLuaInline "hl.dsp.window.resize({ x = 0, y = 40, relative = true })"))
+
+  (b "${mainMod} + mouse_down" (mkLuaInline "hl.dsp.focus({ workspace = \"e+1\" })"))
+  (b "${mainMod} + mouse_up" (mkLuaInline "hl.dsp.focus({ workspace = \"e-1\" })"))
+
+  (b "${mainMod} + SPACE" (mkLuaInline "hl.dsp.window.float({ action = \"toggle\" })"))
+  (b "${mainMod} + S" (mkLuaInline "hl.dsp.layout(\"togglesplit\")"))
+
+  (b "${mainMod} + SHIFT + W" (dspExec "${./kill-active.sh}"))
+  (b "${mainMod} + SHIFT + MINUS" (mkLuaInline "hl.dsp.window.pseudo({ action = \"toggle\" })"))
+  (b "${mainMod} + F" (mkLuaInline "hl.dsp.window.fullscreen({ action = \"toggle\" })"))
+
+  (b "${mainMod} + RETURN" (dspExec (lib.getExe config.programs.ghostty.package)))
+  (b "XF86AudioMicMute" (dspExec "${lib.getExe sys-sound} --toggle-mic"))
+  (b "XF86AudioMute" (dspExec "${lib.getExe sys-sound} --toggle-vol"))
+  (b "XF86AudioLowerVolume" (dspExec "${lib.getExe sys-sound} --dec"))
+  (b "XF86AudioRaiseVolume" (dspExec "${lib.getExe sys-sound} --inc"))
+  (b "SUPER + XF86AudioRaiseVolume" (dspExec "${lib.getExe sys-sound} --inc --unleashed"))
+  (b "XF86MonBrightnessDown" (dspExec "${lib.getExe sys-brightness} --dec"))
+  (b "XF86MonBrightnessUp" (dspExec "${lib.getExe sys-brightness} --inc"))
+  (b "${mainMod} + SHIFT + Q" (dspExec "${lib.getExe pkgs.fuzzel} --dmenu"))
+  (b "${mainMod} + X" (dspExec (toString raffiExec)))
+  (b "${mainMod} + Q" (dspExec (lib.getExe pkgs.fuzzel)))
+  (b "${mainMod} + SHIFT + E" (dspExec (lib.getExe pkgs.bemoji)))
+  (b "${mainMod} + SHIFT + R" (dspExec "${hyprctlCmd} reload"))
+  (b "${mainMod} + M" (dspExec (lib.getExe pkgs.hyprstfu)))
+  (b "${mainMod} + SHIFT + M" (dspExec "${lib.getExe pkgs.hyprstfu} -unmute-all"))
+  (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
+  (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
+  (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop \"ghostty --class=ghostty.hyprdrop\""))
+
+  (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
+  (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
+  (b "Print" (dspExec (toString hyprPrintScreen)))
+  (b "${mainMod} + SHIFT + C" (dspExec (toString cliphistFuzzel)))
+
+  (b "CTRL + SHIFT + braceleft" (dspExec (pctlFallback "position 5-")))
+  (b "CTRL + SHIFT + braceright" (dspExec (pctlFallback "position 5+")))
+  (b "${mainMod} + SHIFT + braceright" (dspExec (pctlFallback "next")))
+  (b "${mainMod} + SHIFT + braceleft" (dspExec (pctlFallback "previous")))
+  (b "${mainMod} + Pause" (dspExec "${pctlCmd} play-pause --player=spotify"))
+  (b "${mainMod} + Delete" (dspExec "${pctlCmd} play-pause --all-players --ignore-player=spotify"))
+
+  (bm "${mainMod} + mouse:272" (mkLuaInline "hl.dsp.window.drag()"))
+  (bm "${mainMod} + mouse:273" (mkLuaInline "hl.dsp.window.resize()"))
+]

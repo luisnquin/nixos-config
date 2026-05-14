@@ -1,20 +1,17 @@
 {
   pkgs,
+  lib,
   libx,
+  config,
   ...
-}: {
+}: let
+  wallpaperFiles = libx.fs.getFilesInDirectory ./wallpapers;
+  inherit (pkgs.scripts) awww-switcher;
+  wallpaperArgs = builtins.concatStringsSep " " (map builtins.toString (wallpaperFiles ++ [./background.gif]));
+in {
   services.awww.enable = true;
 
-  xdg.configFile = let
-    wallpaperFiles = libx.fs.getFilesInDirectory ./wallpapers;
-
-    inherit (pkgs.scripts) awww-switcher;
-  in {
-    "hypr/hyprland.conf".text = ''
-      bind = $mainMod, L, exec, ${awww-switcher}/bin/cli ${builtins.concatStringsSep " " (wallpaperFiles
-        ++ [
-          ./background.gif
-        ])}
-    '';
-  };
+  wayland.windowManager.hyprland.extraConfig = lib.mkIf config.wayland.windowManager.hyprland.enable ''
+    hl.bind("SUPER + L", hl.dsp.exec_cmd("${awww-switcher}/bin/cli ${wallpaperArgs}"))
+  '';
 }
