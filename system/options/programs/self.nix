@@ -2,10 +2,13 @@
   lib,
   pkgs,
   config,
+  libx,
   ...
 }:
 with lib; let
   cfg = config.programs.self;
+
+  defaultNyxIcon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
 
   sys = {
     run = cmd: let
@@ -57,6 +60,47 @@ with lib; let
           else []
       )
       subNames;
+
+    /*
+    Runs steps under set -e; on success runs desktop + ntfy (same pattern as agent hooks),
+    on failure runs failure variant then exits 1. Notifications never flip the overall status.
+    */
+    withNotify = {
+      image ? defaultNyxIcon,
+      topic ? "nyx",
+      successTitle,
+      successBody,
+      failureTitle,
+      failureBody,
+      successNtfy ? {},
+      failureNtfy ? {},
+    }: steps: let
+      ntfyHost = config.services.ntfy-sh.settings.base-url or "";
+      okNotify = libx.notify.notifyShell ntfyHost image successTitle successBody ({
+          inherit topic;
+          tags = "white_check_mark";
+        }
+        // successNtfy);
+      errNotify = libx.notify.notifyShell ntfyHost image failureTitle failureBody ({
+          inherit topic;
+          tags = "x";
+          priority = 5;
+        }
+        // failureNtfy);
+      inner = concatStringsSep "\n" steps;
+    in [
+      ''
+        if (
+          set -e
+          ${inner}
+        ); then
+          ${okNotify} || true
+        else
+          ${errNotify} || true
+          exit 1
+        fi
+      ''
+    ];
   };
 
   renderSteps = cmd:

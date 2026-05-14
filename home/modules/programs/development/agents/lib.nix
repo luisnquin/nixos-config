@@ -159,17 +159,6 @@
       else command;
 
     audioCommand = file: "${pkgs.pulseaudio}/bin/paplay ${audioArgsPart}${lib.escapeShellArg file}";
-
-    notificationCommand = image: title: message:
-      lib.concatStringsSep " " [
-        (lib.getExe pkgs.libnotify)
-        "-a"
-        (lib.escapeShellArg title)
-        "-i"
-        (lib.escapeShellArg image)
-        (lib.escapeShellArg title)
-        (lib.escapeShellArg message)
-      ];
   in rec {
     inherit (import ./assets {inherit lib;}) sounds images;
     inherit memories allowedDomains;
@@ -180,15 +169,13 @@
         builtins.concatStringsSep " && " (map audioCommand files)
       );
 
-    mkNotificationCmd = image: title: message: {ntfy ? {}}: let
-      ntfyPart = libx.comms.mkNtfy nixosConfig.services.ntfy-sh.settings.base-url ({
-          topic = "agents";
-          inherit title message;
-        }
-        // ntfy);
-      base = notificationCommand image title message;
-    in
-      guardRoborev "(${base}) && (${ntfyPart})";
+    mkNotificationCmd = image: title: message: {ntfy ? {}}:
+      guardRoborev (
+        libx.notify.notifyShell nixosConfig.services.ntfy-sh.settings.base-url image title message (
+          {topic = "agents";}
+          // ntfy
+        )
+      );
 
     mkCancelNotificationCmd = {
       topic ? "agents",
@@ -204,10 +191,14 @@
       matcher ? null,
       commands,
     }:
-      {hooks = map (command: {
-        type = "command";
-        inherit command;
-      }) commands;}
+      {
+        hooks =
+          map (command: {
+            type = "command";
+            inherit command;
+          })
+          commands;
+      }
       // lib.optionalAttrs (matcher != null) {
         inherit matcher;
       };
