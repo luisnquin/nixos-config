@@ -75,6 +75,7 @@ in [
   (b "${mainMod} + 8" (mkLuaInline "hl.dsp.focus({ workspace = 8 })"))
   (b "${mainMod} + 9" (mkLuaInline "hl.dsp.focus({ workspace = 9 })"))
   (b "${mainMod} + 0" (mkLuaInline "hl.dsp.focus({ workspace = 10 })"))
+  (b "${mainMod} + apostrophe" (mkLuaInline "hl.dsp.focus({ workspace = \"name:~\" })"))
 
   (b "${mainMod} + SHIFT + 1" (mkLuaInline "hl.dsp.window.move({ workspace = 1 })"))
   (b "${mainMod} + SHIFT + 2" (mkLuaInline "hl.dsp.window.move({ workspace = 2 })"))
@@ -86,6 +87,7 @@ in [
   (b "${mainMod} + SHIFT + 8" (mkLuaInline "hl.dsp.window.move({ workspace = 8 })"))
   (b "${mainMod} + SHIFT + 9" (mkLuaInline "hl.dsp.window.move({ workspace = 9 })"))
   (b "${mainMod} + SHIFT + 0" (mkLuaInline "hl.dsp.window.move({ workspace = 10 })"))
+  (b "${mainMod} + SHIFT + apostrophe" (mkLuaInline "hl.dsp.window.move({ workspace = \"name:~\" })"))
 
   (b "${mainMod} + SHIFT + h" (mkLuaInline "hl.dsp.window.resize({ x = -40, y = 0, relative = true })"))
   (b "${mainMod} + SHIFT + l" (mkLuaInline "hl.dsp.window.resize({ x = 40, y = 0, relative = true })"))
