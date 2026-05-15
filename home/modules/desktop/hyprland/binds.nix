@@ -119,7 +119,7 @@ in [
   (b "${mainMod} + SHIFT + M" (dspExec "${lib.getExe pkgs.hyprstfu} -unmute-all"))
   (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
   (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
-  (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} ${lib.getExe config.programs.ghostty.package} -i ghostty.hyprdrop"))
+  (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop \"ghostty --class=ghostty.hyprdrop\""))
 
   (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
   (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))

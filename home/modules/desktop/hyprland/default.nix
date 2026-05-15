@@ -20,12 +20,11 @@ args @ {
     hl.exec_cmd("${waybarRestart}")
     hl.exec_cmd("[workspace 2 silent] ${lib.getExe config.programs.ghostty.package}")
     hl.exec_cmd("${pkgs.writeShellScript "hypr-ghostty-drop" ''
-      ghostty_exe=${lib.getExe config.programs.ghostty.package}
-      ${lib.getExe pkgs.hyprdrop} "$ghostty_exe" -i ghostty.hyprdrop
+      ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
       while [ -z "$ADDRESS" ]; do
         ADDRESS=$(${hyprctlCmd} clients -j | ${lib.getExe pkgs.jq} -r '.[] | select(.class == "ghostty.hyprdrop") | .address')
       done
-      exec ${lib.getExe pkgs.hyprdrop} "$ghostty_exe" -i ghostty.hyprdrop
+      exec ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
     ''}")
   '';
 
