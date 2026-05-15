@@ -98,7 +98,7 @@ in [
   (b "${mainMod} + SPACE" (mkLuaInline "hl.dsp.window.float({ action = \"toggle\" })"))
   (b "${mainMod} + S" (mkLuaInline "hl.dsp.layout(\"togglesplit\")"))
 
-  (b "${mainMod} + SHIFT + W" (mkLuaInline "hl.dsp.window.kill()"))
+  (b "${mainMod} + SHIFT + W" (mkLuaInline "hl.dsp.window.close()"))
   (b "${mainMod} + SHIFT + MINUS" (mkLuaInline "hl.dsp.window.pseudo({ action = \"toggle\" })"))
   (b "${mainMod} + F" (mkLuaInline "hl.dsp.window.fullscreen({ action = \"toggle\" })"))
 
