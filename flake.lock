@@ -751,11 +751,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1774001993,
-        "narHash": "sha256-Gzy9UjyBXtyNmPaBYqHruNAf9MYAKlIyDPafeY491c8=",
+        "lastModified": 1778909122,
+        "narHash": "sha256-wOg6lhMPlsBZX35e4fB3JzdyVfQo9xWuiWr9gBx5g0c=",
         "owner": "luisnquin",
         "repo": "hyprstfu",
-        "rev": "1b1119236b189a4a6bf9c490cc29c584528947cf",
+        "rev": "7af12f826cc6a99630b286bc50a98d383729a0e7",
         "type": "github"
       },
       "original": {
@@ -927,11 +927,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1773996955,
-        "narHash": "sha256-t4FVYsD6XEoBrYe6J+vcKMztEbLjXXMvHEk3B5M7EHk=",
+        "lastModified": 1778909592,
+        "narHash": "sha256-/GZvHfQOPbgq7RAMia28ycjKSNf6nUCxNCfiwPN1gUY=",
         "owner": "luisnquin",
         "repo": "nao",
-        "rev": "a7e42cd82c5077500fe87700262e7f5325df9b76",
+        "rev": "699e191ce9017d3072fa1085dbd31e522bcc407b",
         "type": "github"
       },
       "original": {
@@ -1088,11 +1088,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1778806937,
-        "narHash": "sha256-sn7GkHkWADa8UmQm2X9Fusw6Fu2dtpOrLdg4HJzmu44=",
+        "lastModified": 1778909620,
+        "narHash": "sha256-3y+7xkCj0RBxIMorV8GPXz19q7m+YpdxQkjiRi4Lpt8=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "ae301fe1f4427fed5fa062319be109ea4da8b018",
+        "rev": "4de031e11ee5e0ba0064a4bc4a321cab62f7b0bf",
         "type": "github"
       },
       "original": {
@@ -1113,11 +1113,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1773998531,
-        "narHash": "sha256-ix06qDh9GB4EvlwJR/VHHNlx185Z3QEbBHbJBQr97JQ=",
+        "lastModified": 1778909340,
+        "narHash": "sha256-WzE947hzFqTU2kRA1GE/GPY7ZF8Wbv4UJW3AnYNM6mU=",
         "owner": "0xc000022070",
         "repo": "passgen",
-        "rev": "89442d26422264e32d27b003977316e6e80ee017",
+        "rev": "c89b2e6b51014414e4ed8ce7e0170235d923b8b5",
         "type": "github"
       },
       "original": {
@@ -1184,11 +1184,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1778518835,
-        "narHash": "sha256-sAkBEZLDZbLA3jOYZ7dVHzE+PIooNU0UWxtaFAOIfeM=",
+        "lastModified": 1778909585,
+        "narHash": "sha256-+4enkk9BMQRp2ILXRct30GGgEh5bZXmAyfcLX1eIz4g=",
         "owner": "luisnquin",
         "repo": "senv",
-        "rev": "516822465cc0cd75c5f5f0e7ea08f5c7852f918a",
+        "rev": "c9a6d645d56edf6607fd7bd2ffbf6c5c48548600",
         "type": "github"
       },
       "original": {
