@@ -3,29 +3,28 @@
   lib,
   pkgs,
   ...
-}:
-let
+}: let
   cfg = config.programs.cursor-agent;
-  jsonFormat = pkgs.formats.json { };
+  jsonFormat = pkgs.formats.json {};
   transformedMcpServers = lib.optionalAttrs (cfg.enableMcpIntegration && config.programs.mcp.enable) (
     lib.mapAttrs (
       _name: server:
-      (removeAttrs server [ "disabled" ])
-      // (lib.optionalAttrs (server ? url) { type = "http"; })
-      // (lib.optionalAttrs (server ? command) { type = "stdio"; })
-      // {
-        enabled = !(server.disabled or false);
-      }
-    ) config.programs.mcp.servers
+        (removeAttrs server ["disabled"])
+        // (lib.optionalAttrs (server ? url) {type = "http";})
+        // (lib.optionalAttrs (server ? command) {type = "stdio";})
+        // {
+          enabled = !(server.disabled or false);
+        }
+    )
+    config.programs.mcp.servers
   );
 
   mergedMcpServers = transformedMcpServers // cfg.mcpServers;
-in
-{
+in {
   options.programs.cursor-agent = {
     enable = lib.mkEnableOption "Cursor Agent, Cursor's agentic coding CLI";
 
-    package = lib.mkPackageOption pkgs "cursor-cli" { nullable = true; };
+    package = lib.mkPackageOption pkgs "cursor-cli" {nullable = true;};
 
     enableMcpIntegration = lib.mkOption {
       type = lib.types.bool;
@@ -43,7 +42,7 @@ in
 
     settings = lib.mkOption {
       inherit (jsonFormat) type;
-      default = { };
+      default = {};
       example = {
         editor.vimMode = false;
         permissions = {
@@ -73,7 +72,7 @@ in
 
     mcpServers = lib.mkOption {
       type = lib.types.attrsOf jsonFormat.type;
-      default = { };
+      default = {};
       description = "MCP (Model Context Protocol) servers configuration";
       example = {
         context7 = {
@@ -93,7 +92,7 @@ in
 
     rules = lib.mkOption {
       type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
-      default = { };
+      default = {};
       description = ''
         Rule files for Cursor Agent.
         The attribute name becomes the rule filename, and the value is either:
@@ -128,7 +127,7 @@ in
 
     agents = lib.mkOption {
       type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
-      default = { };
+      default = {};
       description = ''
         Custom agents for Cursor Agent.
         The attribute name becomes the agent filename, and the value is either:
@@ -165,7 +164,7 @@ in
 
     commands = lib.mkOption {
       type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
-      default = { };
+      default = {};
       description = ''
         Custom commands for Cursor Agent.
         The attribute name becomes the command filename, and the value is either:
@@ -196,7 +195,7 @@ in
 
     skills = lib.mkOption {
       type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
-      default = { };
+      default = {};
       description = ''
         Custom skills for Cursor Agent.
         The attribute name becomes the skill directory name, and the value is either:
@@ -232,26 +231,48 @@ in
       example = lib.literalExpression "./skills";
     };
 
-    hookScripts = lib.mkOption {
-      type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
-      default = { };
-      description = ''
-        Executable hook scripts installed under {file}`~/.cursor/hooks/`.
-        Declare {option}`programs.cursor-agent.hookEvents` with commands relative to
-        {file}`~/.cursor/` (for example {verbatim}`./hooks/my-script.sh`).
+    hooks = {
+      scripts = lib.mkOption {
+        type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
+        default = {};
+        description = ''
+          Executable hook scripts installed under {file}`~/.cursor/hooks/`.
+          Declare {option}`programs.cursor-agent.hooks.events` with commands relative to
+          {file}`~/.cursor/` (for example {verbatim}`./hooks/my-script.sh`).
 
-        See <https://cursor.com/docs/hooks>.
-      '';
-      example = lib.literalExpression ''
-        {
-          format.sh = ./hooks/format.sh;
-          audit.sh = '''
-            #!/usr/bin/env bash
-            cat >/dev/null
-            exit 0
-          ''';
-        }
-      '';
+          See <https://cursor.com/docs/hooks>.
+        '';
+        example = lib.literalExpression ''
+          {
+            format.sh = ./hooks/format.sh;
+            audit.sh = '''
+              #!/usr/bin/env bash
+              cat >/dev/null
+              exit 0
+            ''';
+          }
+        '';
+      };
+
+      events = lib.mkOption {
+        inherit (jsonFormat) type;
+        default = {};
+        description = ''
+          Entries for the `hooks` field in {file}`~/.cursor/hooks.json`
+          ({constant}`sessionStart`, {constant}`afterFileEdit`,
+          {constant}`beforeShellExecution`, …).
+          Omit {constant}`version`; it is set to `1` automatically.
+
+          See <https://cursor.com/docs/hooks>.
+        '';
+        example = lib.literalExpression ''
+          {
+            afterFileEdit = [
+              { command = "./hooks/format.sh"; }
+            ];
+          }
+        '';
+      };
     };
 
     hooksDir = lib.mkOption {
@@ -259,157 +280,149 @@ in
       default = null;
       description = ''
         Directory symlinked to {file}`~/.cursor/hooks/` (entire hooks tree).
-        Use either this or {option}`programs.cursor-agent.hookScripts`, not both.
+        Use either this or {option}`programs.cursor-agent.hooks.scripts`, not both.
       '';
       example = lib.literalExpression "./hooks";
-    };
-
-    hookEvents = lib.mkOption {
-      inherit (jsonFormat) type;
-      default = { };
-      description = ''
-        Entries for the `hooks` field in {file}`~/.cursor/hooks.json`
-        ({constant}`sessionStart`, {constant}`afterFileEdit`,
-        {constant}`beforeShellExecution`, …).
-        Omit {constant}`version`; it is set to `1` automatically.
-
-        See <https://cursor.com/docs/hooks>.
-      '';
-      example = lib.literalExpression ''
-        {
-          afterFileEdit = [
-            { command = "./hooks/format.sh"; }
-          ];
-        }
-      '';
     };
   };
 
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = !(cfg.rules != { } && cfg.rulesDir != null);
+        assertion = !(cfg.rules != {} && cfg.rulesDir != null);
         message = "Cannot specify both `programs.cursor-agent.rules` and `programs.cursor-agent.rulesDir`";
       }
       {
-        assertion = !(cfg.agents != { } && cfg.agentsDir != null);
+        assertion = !(cfg.agents != {} && cfg.agentsDir != null);
         message = "Cannot specify both `programs.cursor-agent.agents` and `programs.cursor-agent.agentsDir`";
       }
       {
-        assertion = !(cfg.commands != { } && cfg.commandsDir != null);
+        assertion = !(cfg.commands != {} && cfg.commandsDir != null);
         message = "Cannot specify both `programs.cursor-agent.commands` and `programs.cursor-agent.commandsDir`";
       }
       {
-        assertion = !(cfg.skills != { } && cfg.skillsDir != null);
+        assertion = !(cfg.skills != {} && cfg.skillsDir != null);
         message = "Cannot specify both `programs.cursor-agent.skills` and `programs.cursor-agent.skillsDir`";
       }
       {
-        assertion = !(cfg.hookScripts != { } && cfg.hooksDir != null);
-        message = "Cannot specify both `programs.cursor-agent.hookScripts` and `programs.cursor-agent.hooksDir`";
+        assertion = !(cfg.hooks.scripts != {} && cfg.hooksDir != null);
+        message = "Cannot specify both `programs.cursor-agent.hooks.scripts` and `programs.cursor-agent.hooksDir`";
       }
     ];
 
     home = {
-      packages = lib.mkIf (cfg.package != null) [ cfg.package ];
+      packages = lib.mkIf (cfg.package != null) [cfg.package];
 
-      file = {
-        ".cursor/rules" = lib.mkIf (cfg.rulesDir != null) {
-          source = cfg.rulesDir;
-          recursive = true;
-        };
-
-        ".cursor/agents" = lib.mkIf (cfg.agentsDir != null) {
-          source = cfg.agentsDir;
-          recursive = true;
-        };
-
-        ".cursor/commands" = lib.mkIf (cfg.commandsDir != null) {
-          source = cfg.commandsDir;
-          recursive = true;
-        };
-
-        ".cursor/skills" = lib.mkIf (cfg.skillsDir != null) {
-          source = cfg.skillsDir;
-          recursive = true;
-        };
-
-        ".cursor/hooks.json" = lib.mkIf (cfg.hookEvents != { }) {
-          source = jsonFormat.generate "cursor-hooks.json" ({
-            version = 1;
-            hooks = cfg.hookEvents;
-          });
-        };
-
-        ".cursor/hooks" = lib.mkIf (cfg.hooksDir != null) {
-          source = cfg.hooksDir;
-          recursive = true;
-        };
-
-        ".cursor/mcp.json" = lib.mkIf (mergedMcpServers != { }) {
-          source = jsonFormat.generate "cursor-mcp.json" {
-            mcpServers = mergedMcpServers;
-          };
-        };
-
-      }
-      // lib.mapAttrs' (
-        name: content:
-        lib.nameValuePair ".cursor/rules/${name}" (
-          if lib.isPath content then { source = content; } else { text = content; }
-        )
-      ) cfg.rules
-      // lib.mapAttrs' (
-        name: content:
-        lib.nameValuePair ".cursor/agents/${name}" (
-          if lib.isPath content then { source = content; } else { text = content; }
-        )
-      ) cfg.agents
-      // lib.mapAttrs' (
-        name: content:
-        lib.nameValuePair ".cursor/commands/${name}" (
-          if lib.isPath content then { source = content; } else { text = content; }
-        )
-      ) cfg.commands
-      // lib.mapAttrs' (
-        name: content:
-        if lib.isPath content && lib.pathIsDirectory content then
-          lib.nameValuePair ".cursor/skills/${name}" {
-            source = content;
+      file =
+        {
+          ".cursor/rules" = lib.mkIf (cfg.rulesDir != null) {
+            source = cfg.rulesDir;
             recursive = true;
-          }
-        else
-          lib.nameValuePair ".cursor/skills/${name}/SKILL.md" (
-            if lib.isPath content then { source = content; } else { text = content; }
-          )
-      ) cfg.skills
-      // lib.mapAttrs' (
-        name: content:
-        lib.nameValuePair ".cursor/hooks/${name}" (
-          if lib.isPath content then
-            {
-              source = content;
-              executable = true;
-            }
-          else
-            {
-              text = content;
-              executable = true;
-            }
-        )
-      ) cfg.hookScripts;
+          };
 
-      activation = lib.mkIf (cfg.settings != { }) {
-        cursorAgentCliConfig =
-          let
-            staticSettings = jsonFormat.generate "cursor-cli-config.json" (
-              {
-                version = 1;
+          ".cursor/agents" = lib.mkIf (cfg.agentsDir != null) {
+            source = cfg.agentsDir;
+            recursive = true;
+          };
+
+          ".cursor/commands" = lib.mkIf (cfg.commandsDir != null) {
+            source = cfg.commandsDir;
+            recursive = true;
+          };
+
+          ".cursor/skills" = lib.mkIf (cfg.skillsDir != null) {
+            source = cfg.skillsDir;
+            recursive = true;
+          };
+
+          ".cursor/hooks.json" = lib.mkIf (cfg.hooks.events != {}) {
+            source = jsonFormat.generate "cursor-hooks.json" {
+              version = 1;
+              hooks = cfg.hooks.events;
+            };
+          };
+
+          ".cursor/hooks" = lib.mkIf (cfg.hooksDir != null) {
+            source = cfg.hooksDir;
+            recursive = true;
+          };
+
+          ".cursor/mcp.json" = lib.mkIf (mergedMcpServers != {}) {
+            source = jsonFormat.generate "cursor-mcp.json" {
+              mcpServers = mergedMcpServers;
+            };
+          };
+        }
+        // lib.mapAttrs' (
+          name: content:
+            lib.nameValuePair ".cursor/rules/${name}" (
+              if lib.isPath content
+              then {source = content;}
+              else {text = content;}
+            )
+        )
+        cfg.rules
+        // lib.mapAttrs' (
+          name: content:
+            lib.nameValuePair ".cursor/agents/${name}" (
+              if lib.isPath content
+              then {source = content;}
+              else {text = content;}
+            )
+        )
+        cfg.agents
+        // lib.mapAttrs' (
+          name: content:
+            lib.nameValuePair ".cursor/commands/${name}" (
+              if lib.isPath content
+              then {source = content;}
+              else {text = content;}
+            )
+        )
+        cfg.commands
+        // lib.mapAttrs' (
+          name: content:
+            if lib.isPath content && lib.pathIsDirectory content
+            then
+              lib.nameValuePair ".cursor/skills/${name}" {
+                source = content;
+                recursive = true;
               }
-              // cfg.settings
-            );
-            jq = lib.getExe pkgs.jq;
-          in
-          lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+            else
+              lib.nameValuePair ".cursor/skills/${name}/SKILL.md" (
+                if lib.isPath content
+                then {source = content;}
+                else {text = content;}
+              )
+        )
+        cfg.skills
+        // lib.mapAttrs' (
+          name: content:
+            lib.nameValuePair ".cursor/hooks/${name}" (
+              if lib.isPath content
+              then {
+                source = content;
+                executable = true;
+              }
+              else {
+                text = content;
+                executable = true;
+              }
+            )
+        )
+        cfg.hooks.scripts;
+
+      activation = lib.mkIf (cfg.settings != {}) {
+        cursorAgentCliConfig = let
+          staticSettings = jsonFormat.generate "cursor-cli-config.json" (
+            {
+              version = 1;
+            }
+            // cfg.settings
+          );
+          jq = lib.getExe pkgs.jq;
+        in
+          lib.hm.dag.entryAfter ["linkGeneration"] ''
             config_path="${config.home.homeDirectory}/.cursor/cli-config.json"
             mkdir -p "$(dirname "$config_path")"
             if [ ! -e "$config_path" ]; then
@@ -424,6 +437,5 @@ in
           '';
       };
     };
-
   };
 }

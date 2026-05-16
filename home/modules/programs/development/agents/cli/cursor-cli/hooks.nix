@@ -25,8 +25,8 @@
 
   kit = mkAgentKit {};
 in {
-  programs.cursor-agent = {
-    hookScripts = {
+  programs.cursor-agent.hooks = {
+    scripts = {
       "audit.sh" = ''
         #!/usr/bin/env bash
         set -euo pipefail
@@ -92,7 +92,7 @@ in {
       );
     };
 
-    hookEvents = {
+    events = {
       sessionStart = [
         {command = "./hooks/audit.sh";}
         {command = "./hooks/session-start-audio.sh";}
