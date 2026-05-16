@@ -1,6 +1,5 @@
 {
   mkAgentKit,
-  config,
   pkgs,
   ...
 }: let
@@ -115,56 +114,6 @@ in {
       autoAccept = false;
       secureModeEnabled = false;
       security.auth.selectedType = "oauth-personal";
-
-      hooks = {
-        SessionStart = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifarm])];
-          })
-        ];
-
-        SessionEnd = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
-          })
-        ];
-
-        BeforeAgent = [
-          (kit.mkCmdEntry {
-            commands = [
-              (kit.mkCancelNotificationCmd {sequenceId = "gemini-awaiting-input";})
-              (kit.mkAudioCmd [kit.sounds.ifrsig])
-            ];
-          })
-        ];
-
-        PreCompress = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifrsig])];
-          })
-        ];
-
-        Notification = [
-          (kit.mkCmdEntry {
-            commands = [
-              (kit.mkNotificationCmd kit.images.gemini "Gemini" "Awaiting your input" {
-                ntfy = {
-                  delay = "10s";
-                  sequenceId = "gemini-awaiting-input";
-                };
-              })
-              (kit.mkAudioCmd [kit.sounds.buzact])
-            ];
-          })
-        ];
-
-        BeforeTool = [
-          (kit.mkCmdEntry {
-            matcher = "run_shell_command";
-            commands = ["${config.home.homeDirectory}/${rtkPath}"];
-          })
-        ];
-      };
     };
   };
 }

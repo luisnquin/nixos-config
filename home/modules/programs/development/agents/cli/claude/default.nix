@@ -1,11 +1,14 @@
 {
-  config,
   mkAgentKit,
   pkgs,
   ...
 }: let
   kit = mkAgentKit {};
 in {
+  imports = [
+    ./hooks.nix
+  ];
+
   home.file.".claude/commands/commit.md".text = ''
     ---
     allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git config:*), Bash(git submodule:*), Bash(git add:*), Bash(git commit:*)
@@ -80,93 +83,13 @@ in {
         "DISABLE_AUTOUPDATER" = "1";
         "PINENTRY_USER_DATA" = "gui";
       };
+
       # commands = rec {
       #   commit = ''
 
       #   '';
       #   ac = commit;
       # };
-
-      hooks = {
-        Notification = [
-          (kit.mkCmdEntry {
-            commands = [
-              (kit.mkNotificationCmd kit.images.claude "Claude Code" "Awaiting your input" {
-                ntfy = {
-                  delay = "10s";
-                  sequenceId = "claude-awaiting-input";
-                };
-              })
-              (kit.mkAudioCmd [kit.sounds.buzact])
-            ];
-          })
-        ];
-        SessionStart = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifarm])];
-          })
-        ];
-        Elicitation = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
-          })
-        ];
-        ElicitationResult = [
-          (kit.mkCmdEntry {
-            commands = [
-              (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
-              (kit.mkAudioCmd [kit.sounds.ifrtfy])
-            ];
-          })
-        ];
-        PostToolUseFailure = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifvfrs])];
-          })
-        ];
-        UserPromptSubmit = [
-          (kit.mkCmdEntry {
-            commands = [
-              (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
-              (kit.mkAudioCmd [kit.sounds.ifrsig])
-            ];
-          })
-        ];
-        TaskCompleted = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
-          })
-        ];
-        StopFailure = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.ifrsis])];
-          })
-        ];
-        PermissionDenied = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-denied])];
-          })
-        ];
-        PermissionRequest = [
-          (kit.mkCmdEntry {
-            commands = [
-              (kit.mkNotificationCmd kit.images.claude "Claude Code" "Permission required" {})
-              (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
-            ];
-          })
-        ];
-        PreToolUse = [
-          (kit.mkCmdEntry {
-            matcher = "Bash";
-            commands = [config.programs.claude-code.hooks."rtk-rewrite.sh"];
-          })
-        ];
-        SessionEnd = [
-          (kit.mkCmdEntry {
-            commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
-          })
-        ];
-      };
 
       companyAnnouncements = [
         "Reminder: you're in solo mode"
