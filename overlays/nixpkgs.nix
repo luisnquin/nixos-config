@@ -30,4 +30,30 @@
       '';
     });
   })
+  (_self: super: let
+    libcavaSrc = super.fetchFromGitHub {
+      owner = "LukashonakV";
+      repo = "cava";
+      rev = "0.10.7";
+      hash = "sha256-zkyj1vBzHtoypX4Bxdh1Vmwh967DKKxN751v79hzmgQ=";
+    };
+  in {
+    waybar = super.waybar.overrideAttrs (_oldAttrs: {
+      version = "0.15.0";
+
+      src = super.fetchFromGitHub {
+        owner = "Alexays";
+        repo = "Waybar";
+        rev = "05945748dccce28bf96d26d8f64a9e69a8dd49ba";
+        hash = "sha256-51R3mIt8cLNvh/X5qe9vOqeJCj0U9KRyemVE5y+OhiU=";
+      };
+
+      postUnpack = ''
+        pushd "$sourceRoot"
+        cp -R --no-preserve=mode,ownership ${libcavaSrc} subprojects/cava-0.10.7
+        patchShebangs .
+        popd
+      '';
+    });
+  })
 ]
