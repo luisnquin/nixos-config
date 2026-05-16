@@ -26,6 +26,8 @@ in {
             rwajk54dm1wa3iqg0mahpv7bxhjyapfk-nao-3.3.0-go-modules.drv
           '';
         };
+      } {
+        plugins = ["nixgrep"];
       })
       (official.encoredev.skills {
         plugins = [
