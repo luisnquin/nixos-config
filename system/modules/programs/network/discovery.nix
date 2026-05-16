@@ -1,4 +1,8 @@
-{host, pkgs, ...}: {
+{
+  host,
+  pkgs,
+  ...
+}: {
   # stale pid after switch/restart makes avahi refuse to start (file exists)
   systemd.services.avahi-daemon.preStart = ''
     ${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid
