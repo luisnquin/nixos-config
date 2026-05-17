@@ -21,10 +21,32 @@
     permissionLines = let
       f = builtins.readFile ./.well-known/ai-tool-permissions.txt;
       lines = lib.strings.splitString "\n" f;
+
       cleanLine = line: lib.strings.trim line;
       isRule = line: line != "" && !(lib.hasPrefix "#" line);
+
+      baseLines = builtins.filter isRule (map cleanLine lines);
+      isBashRule = line:
+        builtins.match "[+?-][[:space:]]+Bash\\(.*\\)" line != null;
+
+      isRtkBashRule = line:
+        builtins.match "[+?-][[:space:]]+Bash\\(rtk .*\\)" line != null;
+      mkRtkBashRule = line: let
+        sign = builtins.substring 0 1 line;
+        body = lib.strings.trim (
+          builtins.substring 1 ((builtins.stringLength line) - 1) line
+        );
+
+        match = builtins.match "Bash\\((.*)\\)" body;
+        command = builtins.elemAt match 0;
+      in "${sign} Bash(rtk ${command})";
+
+      expandLine = line:
+        if isBashRule line && !(isRtkBashRule line)
+        then [line (mkRtkBashRule line)]
+        else [line];
     in
-      builtins.filter isRule (map cleanLine lines);
+      lib.unique (lib.flatten (map expandLine baseLines));
 
     parsedPermissions = map (line: let
       sign = builtins.substring 0 1 line;
