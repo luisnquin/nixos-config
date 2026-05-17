@@ -19,6 +19,8 @@
 + Bash(file:*)
 + Bash(find:*)
 + Bash(read:*)
++ Bash(zig version)
++ Bash(zig build *)
 + Bash(git status:*)
 + Bash(git log:*)
 + Bash(git diff:*)
