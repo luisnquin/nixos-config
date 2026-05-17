@@ -15,8 +15,12 @@
     [ -n "$val" ] && exec ${hyprctlCmd} dispatch exec "$val"
   '';
 
-  cliphistFuzzel = pkgs.writeShellScript "hypr-cliphist-fuzzel" ''
-    ${lib.getExe pkgs.scripts.cliphist-rofi} | ${lib.getExe pkgs.fuzzel} --dmenu | cliphist decode | wl-copy
+  cliphiztFuzzel = pkgs.writeShellScript "hypr-cliphizt-fuzzel" ''
+    selected="$(${lib.getExe config.programs.cliphizt.package} list | ${lib.getExe pkgs.fuzzel} --dmenu)"
+
+    if [ -n "$selected" ]; then
+      ${lib.getExe config.programs.cliphizt.package} decode <<<"$selected" | ${lib.getExe' pkgs.wl-clipboard "wl-copy"}
+    fi
   '';
 
   grimblastCmd = let
@@ -126,7 +130,7 @@ in [
   (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
   (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
   (b "Print" (dspExec (toString hyprPrintScreen)))
-  (b "${mainMod} + SHIFT + C" (dspExec (toString cliphistFuzzel)))
+  (b "${mainMod} + SHIFT + C" (dspExec (toString cliphiztFuzzel)))
 
   (b "CTRL + SHIFT + braceleft" (dspExec (pctlFallback "position 5-")))
   (b "CTRL + SHIFT + braceright" (dspExec (pctlFallback "position 5+")))

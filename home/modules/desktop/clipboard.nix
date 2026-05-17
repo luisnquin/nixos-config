@@ -1,0 +1,3 @@
+{
+  programs.cliphizt.enable = true;
+}

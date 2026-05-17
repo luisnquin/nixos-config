@@ -5,6 +5,7 @@
     ./awww
     ./fuzzel.nix
 
+    ./clipboard.nix
     ./color-picker.nix
     ./gtk.nix
     ./mako.nix

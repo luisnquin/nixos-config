@@ -1,8 +1,8 @@
 # Hyprland 0.55+ reads hyprland.lua; bump wayland.windowManager.hyprland.package if yours is older.
 args @ {
+  config,
   pkgs,
   lib,
-  config,
   ...
 }: let
   inherit (lib.generators) mkLuaInline;
@@ -15,7 +15,7 @@ args @ {
   '';
 
   startupBody = ''
-    hl.exec_cmd("${pkgs.wl-clipboard}/bin/wl-paste --watch ${pkgs.cliphist}/bin/cliphist store -max-items 200")
+    hl.exec_cmd("${pkgs.wl-clipboard}/bin/wl-paste --watch ${lib.getExe config.programs.cliphizt.package} store --max-items 200")
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("${waybarRestart}")
     hl.exec_cmd("[workspace 2 silent] ${lib.getExe config.programs.ghostty.package}")
