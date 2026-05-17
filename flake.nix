@@ -72,6 +72,10 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    cliphizt = {
+      url = "github:luisnquin/cliphizt";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixcord = {
       url = "github:FlameFlag/nixcord";
       inputs = {
@@ -220,6 +224,7 @@
       inputs.black-terminal.homeModules.default
       inputs.agentic-flake.homeModules.default
       inputs.nao.homeManagerModules.default
+      inputs.cliphizt.homeManagerModules.default
       inputs."3mf2stl".homeModules.default
       inputs.nixcord.homeModules.nixcord
       inputs.encore.homeModules.default
