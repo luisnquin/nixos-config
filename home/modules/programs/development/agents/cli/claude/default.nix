@@ -97,7 +97,11 @@ in {
 
       includeCoAuthoredBy = false;
 
-      permissions = kit.mkAgentPermissions "claude" {};
+      permissions = kit.mkAgentPermissions "claude" {
+        allow = [
+          "mcp__plugin_claude-code-home-manager_filesystem__read_text_file"
+        ];
+      };
     };
   };
 }
