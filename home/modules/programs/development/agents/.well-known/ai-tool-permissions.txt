@@ -16,7 +16,9 @@
 + mcp__*
 + Bash(psql:*)
 + Bash(sed:*)
++ Bash(file:*)
 + Bash(find:*)
++ Bash(read:*)
 + Bash(git status:*)
 + Bash(git log:*)
 + Bash(git diff:*)
