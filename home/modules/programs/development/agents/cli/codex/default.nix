@@ -4,7 +4,7 @@
   ...
 }: let
   kit = mkAgentKit {};
-  permissions = kit.mkAgentPermissions "codex";
+  permissions = kit.mkAgentPermissions "codex" {};
 in {
   imports = [
     ./hooks.nix

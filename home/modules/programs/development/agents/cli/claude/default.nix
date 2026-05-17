@@ -97,7 +97,7 @@ in {
 
       includeCoAuthoredBy = false;
 
-      permissions = kit.mkAgentPermissions "claude";
+      permissions = kit.mkAgentPermissions "claude" {};
     };
   };
 }

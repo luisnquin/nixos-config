@@ -7,7 +7,7 @@
 
   rtkPath = ".gemini/hooks/rtk-hook-gemini.sh";
 
-  geminiTools = kit.mkAgentPermissions "gemini";
+  geminiTools = kit.mkAgentPermissions "gemini" {};
 
   mkPolicy = decision: rule: let
     match = builtins.match "([A-Za-z_]+)\\((.*)\\)" rule;

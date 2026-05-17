@@ -89,33 +89,54 @@
         else "${geminiTool}(${args})"
       else rule;
 
-    mkAgentPermissions = target: let
+    mkAgentPermissions = target: extra: let
+      extraAllow = extra.allow or [];
+      extraAsk = extra.ask or [];
+      extraDeny = extra.deny or [];
+
       # We check if we're in autonomous mode to adjust defaults
       isAutonomous = (config.agents.permissions.profile or "standard") == "autonomous";
     in
       if target == "claude"
       then {
-        allow = toolPermissions.allow ++ builtins.map (d: "WebFetch(domain:${d})") allowedDomains;
-        ask = toolPermissions.ask;
-        deny = toolPermissions.deny;
+        allow =
+          toolPermissions.allow
+          ++ builtins.map (d: "WebFetch(domain:${d})") allowedDomains
+          ++ extraAllow;
+
+        ask = toolPermissions.ask ++ extraAsk;
+        deny = toolPermissions.deny ++ extraDeny;
+
         defaultMode =
           if isAutonomous
           then "acceptEdits"
           else "default";
+
         disableBypassPermissionsMode = "disable";
       }
       else if target == "gemini"
       then {
-        allowed = map translateGeminiRule toolPermissions.allow;
-        confirmationRequired = map translateGeminiRule toolPermissions.ask;
-        exclude = map translateGeminiRule toolPermissions.deny;
+        allowed =
+          map translateGeminiRule (toolPermissions.allow ++ extraAllow);
+
+        confirmationRequired =
+          map translateGeminiRule (toolPermissions.ask ++ extraAsk);
+
+        exclude =
+          map translateGeminiRule (toolPermissions.deny ++ extraDeny);
       }
       else if target == "opencode"
       then let
+        mergedPermissions = {
+          allow = toolPermissions.allow ++ extraAllow;
+          ask = toolPermissions.ask ++ extraAsk;
+          deny = toolPermissions.deny ++ extraDeny;
+        };
+
         status = tool:
-          if builtins.any (r: lib.hasPrefix "${tool}" r) toolPermissions.allow
+          if builtins.any (r: lib.hasPrefix "${tool}" r) mergedPermissions.allow
           then "allow"
-          else if builtins.any (r: lib.hasPrefix "${tool}" r) toolPermissions.ask
+          else if builtins.any (r: lib.hasPrefix "${tool}" r) mergedPermissions.ask
           then "ask"
           else "deny";
       in {
@@ -131,15 +152,16 @@
       }
       else if target == "codex"
       then {
-        # Restore the safer logic for Codex
         approval_policy =
           if isAutonomous
           then "never"
           else "untrusted";
+
         sandbox_mode =
           if isAutonomous
           then "danger-full-access"
           else "workspace-write";
+
         web_search = {
           context_size = "medium";
           allowed_domains = allowedDomains;
@@ -159,7 +181,7 @@
       else command;
 
     audioCommand = file: "${pkgs.pulseaudio}/bin/paplay ${audioArgsPart}${lib.escapeShellArg file}";
-  in rec {
+  in {
     inherit (import ./assets {inherit lib;}) sounds images;
     inherit memories allowedDomains;
     inherit mkAgentPermissions;

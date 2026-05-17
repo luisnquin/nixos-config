@@ -51,7 +51,7 @@ in {
     settings = {
       server.port = 4096;
 
-      permission = kit.mkAgentPermissions "opencode";
+      permission = kit.mkAgentPermissions "opencode" {};
 
       model = "litellm/qwen2.5-coder:7b";
 
