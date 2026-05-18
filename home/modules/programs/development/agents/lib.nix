@@ -215,10 +215,17 @@
 
     mkNotificationCmd = image: title: message: {ntfy ? {}}:
       guardRoborev (
-        libx.notify.notifyShell nixosConfig.services.ntfy-sh.settings.base-url image title message (
-          {topic = "agents";}
-          // ntfy
-        )
+        libx.notify.send {
+          desktop = {
+            inherit image title message;
+          };
+          ntfy =
+            {
+              host = nixosConfig.services.ntfy-sh.settings.base-url;
+              topic = "agents";
+            }
+            // ntfy;
+        }
       );
 
     mkCancelNotificationCmd = {
@@ -226,7 +233,8 @@
       sequenceId,
     }:
       guardRoborev (
-        libx.comms.cancelNtfy nixosConfig.services.ntfy-sh.settings.base-url {
+        libx.notify.ntfy.cancel {
+          host = nixosConfig.services.ntfy-sh.settings.base-url;
           inherit topic sequenceId;
         }
       );

@@ -5,7 +5,14 @@
   user,
   lib,
   ...
-}: {
+}: let
+  sshNotify = libx.notify.ntfy.send {
+    host = config.services.ntfy-sh.settings.base-url;
+    topic = "ssh";
+    title = config.networking.hostName;
+    message = "New SSH connection!";
+  };
+in {
   programs.ssh.extraConfig = ''
     Host mac-local
       HostName rose.local
@@ -69,11 +76,7 @@
         if [ "$((now - last))" -ge 10 ]; then
           echo "$now" > "$stamp"
 
-          ${libx.comms.mkNtfy config.services.ntfy-sh.settings.base-url {
-          topic = "ssh";
-          title = config.networking.hostName;
-          message = "New SSH connection!";
-        }}
+          ${sshNotify}
         fi
       '';
     };

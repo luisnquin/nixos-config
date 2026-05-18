@@ -8,7 +8,6 @@ in
     formats = ./formats.nix;
     base64 = ./base64.nix;
     fs = ./fs.nix;
-    comms = ./comms.nix;
     notify = ./notify.nix;
   }
   // import ./metadata.nix {inherit lib;}

@@ -76,17 +76,35 @@ with lib; let
       failureNtfy ? {},
     }: steps: let
       ntfyHost = config.services.ntfy-sh.settings.base-url or "";
-      okNotify = libx.notify.notifyShell ntfyHost image successTitle successBody ({
-          inherit topic;
-          tags = "white_check_mark";
-        }
-        // successNtfy);
-      errNotify = libx.notify.notifyShell ntfyHost image failureTitle failureBody ({
-          inherit topic;
-          tags = "x";
-          priority = 5;
-        }
-        // failureNtfy);
+      okNotify = libx.notify.send {
+        desktop = {
+          inherit image;
+          title = successTitle;
+          message = successBody;
+        };
+        ntfy =
+          {
+            host = ntfyHost;
+            inherit topic;
+            tags = "white_check_mark";
+          }
+          // successNtfy;
+      };
+      errNotify = libx.notify.send {
+        desktop = {
+          inherit image;
+          title = failureTitle;
+          message = failureBody;
+        };
+        ntfy =
+          {
+            host = ntfyHost;
+            inherit topic;
+            tags = "x";
+            priority = 5;
+          }
+          // failureNtfy;
+      };
       inner = concatStringsSep "\n" steps;
     in [
       ''

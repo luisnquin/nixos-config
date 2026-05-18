@@ -26,7 +26,12 @@
 
   cliphiztToggle = pkgs.writeShellScript "hypr-cliphizt-toggle" (
     let
-      notify = libx.notify.desktopNotifyCmd ./crop.512.png "Clipboard";
+      notify = message:
+        libx.notify.desktop {
+          image = ./crop.512.png;
+          title = "Clipboard";
+          inherit message;
+        };
     in ''
       mode="$(${lib.getExe config.programs.cliphizt.package} mode toggle)"
       case "$mode" in

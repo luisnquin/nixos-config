@@ -2,40 +2,98 @@
   lib,
   pkgs,
 }: let
-  comms = import ./comms.nix {inherit lib;};
-in rec {
-  /*
-  Single notify-send invocation (summary + body), same shape as agent hooks.
-  */
-  desktopNotifyCmd = image: title: message:
+  desktopCommand = {
+    image,
+    title,
+    message,
+    appName ? title,
+  }:
     lib.concatStringsSep " " [
       (lib.getExe pkgs.libnotify)
       "-a"
-      (lib.escapeShellArg title)
+      (lib.escapeShellArg appName)
       "-i"
       (lib.escapeShellArg image)
       (lib.escapeShellArg title)
       (lib.escapeShellArg message)
     ];
 
-  /*
-  Desktop notification plus optional ntfy curl (background), matching agents/roborev hooks.
-  mergedNtfy is merged into mkNtfy args (topic, title, message, delay, tags, ...).
-  */
-  notifyShell = ntfyHost: image: title: message: mergedNtfy: let
-    base = desktopNotifyCmd image title message;
-    merged =
-      {
-        topic = "notifications";
-        inherit title message;
-      }
-      // mergedNtfy;
-    ntfyPart =
-      if (ntfyHost == null) || (ntfyHost == "")
+  ntfySend = {
+    host,
+    topic,
+    message,
+    title ? null,
+    tags ? null,
+    priority ? 3,
+    delay ? null,
+    sequenceId ? null,
+  }: let
+    cleanHost = lib.removeSuffix "/" host;
+
+    tagValue =
+      if tags == null
+      then null
+      else if builtins.isList tags
+      then lib.concatStringsSep "," tags
+      else tags;
+
+    headers =
+      [
+        "-H ${lib.escapeShellArg "Priority: ${toString priority}"}"
+      ]
+      ++ lib.optional (title != null)
+      "-H ${lib.escapeShellArg "Title: ${title}"}"
+      ++ lib.optional (tagValue != null)
+      "-H ${lib.escapeShellArg "Tags: ${tagValue}"}"
+      ++ lib.optional (delay != null)
+      "-H ${lib.escapeShellArg "In: ${delay}"}";
+
+    curlHeaders = lib.concatStringsSep " " headers;
+    data = lib.escapeShellArg message;
+    url = lib.escapeShellArg (
+      if sequenceId != null
+      then "${cleanHost}/${topic}/${sequenceId}"
+      else "${cleanHost}/${topic}"
+    );
+  in ''
+    curl -fsS ${curlHeaders} -d ${data} ${url} >/dev/null 2>&1 &
+  '';
+
+  ntfyCancel = {
+    host,
+    topic,
+    sequenceId,
+  }: let
+    cleanHost = lib.removeSuffix "/" host;
+    url = lib.escapeShellArg "${cleanHost}/${topic}/${sequenceId}";
+  in ''
+    curl -fsS -X DELETE ${url} >/dev/null 2>&1 &
+  '';
+in {
+  desktop = desktopCommand;
+
+  ntfy = {
+    send = ntfySend;
+    cancel = ntfyCancel;
+  };
+
+  send = {
+    desktop,
+    ntfy ? null,
+  }: let
+    renderedDesktop = desktopCommand desktop;
+    ntfyCommand =
+      if (ntfy == null) || ((ntfy.host or "") == "")
       then ""
-      else comms.mkNtfy ntfyHost merged;
+      else
+        ntfySend ({
+            topic = "notifications";
+            title = desktop.title;
+            message = desktop.message;
+          }
+          // ntfy);
   in
-    if ntfyPart == ""
-    then base
-    else "(${base}) && (${ntfyPart})";
+    if ntfyCommand == ""
+    then renderedDesktop
+    else "(${renderedDesktop}) && (${ntfyCommand})";
 }
