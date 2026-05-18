@@ -2,6 +2,7 @@
 {
   config,
   pkgs,
+  libx,
   lib,
   ...
 }: let
@@ -22,6 +23,28 @@
       ${lib.getExe config.programs.cliphizt.package} decode <<<"$selected" | ${lib.getExe' pkgs.wl-clipboard "wl-copy"}
     fi
   '';
+
+  cliphiztToggle = pkgs.writeShellScript "hypr-cliphizt-toggle" (
+    let
+      notify = libx.notify.desktopNotifyCmd ./crop.512.png "Clipboard";
+    in ''
+      mode="$(${lib.getExe config.programs.cliphizt.package} mode toggle)"
+      case "$mode" in
+        normal)
+          ${notify "Entries will be kept forever."}
+          ;;
+        ephemeral)
+          ${notify "Entries will expire after the configured TTL."}
+          ;;
+        single-use)
+          ${notify "Entries will be deleted after first use."}
+          ;;
+        *)
+          ${notify "Mode changed: $mode"}
+          ;;
+      esac
+    ''
+  );
 
   grimblastCmd = let
     inherit (pkgs.lib) getExe;
@@ -130,6 +153,7 @@ in [
   (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
   (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
   (b "Print" (dspExec (toString hyprPrintScreen)))
+  (b "${mainMod} + SHIFT + O" (dspExec (toString cliphiztToggle)))
   (b "${mainMod} + SHIFT + C" (dspExec (toString cliphiztFuzzel)))
 
   (b "CTRL + SHIFT + braceleft" (dspExec (pctlFallback "position 5-")))
