@@ -77,17 +77,29 @@
   xdg.configFile."ranger/scope.sh" = {
     source = pkgs.writeShellScript "ranger-scope.sh" ''
       call_bat () {
-        ${lib.getExe pkgs.bat} --color=always --paging=never --style=plain "$1"
+        if [ -n "$2" ]; then
+          ${lib.getExe pkgs.bat} --color=always --paging=never --style=plain --language="$2" "$1"
+        else
+          ${lib.getExe pkgs.bat} --color=always --paging=never --style=plain "$1"
+        fi
       }
 
       FILE_PATH="''${1}"
       PV_WIDTH="''${2}"
       PV_HEIGHT="''${3}"
       FILE_EXTENSION="''${FILE_PATH##*.}"
+      FILE_EXTENSION_LOWER=$(printf '%s' "$FILE_EXTENSION" | tr '[:upper:]' '[:lower:]')
       FILE_MIMETYPE=$(${lib.getExe pkgs.file} -b --mime-type "''${FILE_PATH}")
 
+      case "$FILE_EXTENSION_LOWER" in
+        tsx)  call_bat "$FILE_PATH" tsx;  exit 0 ;;
+        ts|mts|cts) call_bat "$FILE_PATH" ts; exit 0 ;;
+        jsx)  call_bat "$FILE_PATH" jsx;  exit 0 ;;
+        js|mjs|cjs) call_bat "$FILE_PATH" js; exit 0 ;;
+      esac
+
       case "$FILE_MIMETYPE" in
-        text/*|application/json)
+        text/*|application/json|application/javascript|application/x-javascript|application/typescript|application/xml|application/x-shellscript|application/x-yaml)
           call_bat "$FILE_PATH"
           exit 0
           ;;
