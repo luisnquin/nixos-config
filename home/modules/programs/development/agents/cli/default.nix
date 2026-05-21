@@ -1,5 +1,6 @@
 {
   imports = [
+    ./agy
     ./claude
     ./codex
     ./cursor-cli
