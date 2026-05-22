@@ -1311,16 +1311,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1778799443,
-        "narHash": "sha256-lNFVDKuh5xJn+VrF8gI+EmFmUgRlmQZWxQHJGNLqcp0=",
+        "lastModified": 1779413231,
+        "narHash": "sha256-ftnbnhXGApHUX6qA9SE415raqGGRvlyd0esc4EhmTZo=",
         "owner": "0xc000022070",
         "repo": "zen-browser-flake",
-        "rev": "2a400947d9b911ab6b3073de7d6bb43f04cc0479",
+        "rev": "39b2c8f8ac6789267d0975365b2684104c05f86b",
         "type": "github"
       },
       "original": {
         "owner": "0xc000022070",
-        "ref": "beta",
+        "ref": "feat/modern-sine-support",
         "repo": "zen-browser-flake",
         "type": "github"
       }
