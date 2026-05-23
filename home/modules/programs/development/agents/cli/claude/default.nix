@@ -1,6 +1,7 @@
 {
   mkAgentKit,
   pkgs,
+  lib,
   ...
 }: let
   kit = mkAgentKit {};
@@ -8,6 +9,18 @@ in {
   imports = [
     ./hooks.nix
   ];
+
+  xdg.configFile."ccstatusline/settings.json" = let
+    settingsJson = builtins.fromJSON (builtins.readFile ./ccstatusline-settings.json);
+  in {
+    text = builtins.toJSON (settingsJson
+      // {
+        installation = {
+          method = "pinned";
+          installedVersion = pkgs.llm-agents.ccstatusline.version;
+        };
+      });
+  };
 
   home.file.".claude/commands/commit.md".text = ''
     ---
@@ -96,6 +109,13 @@ in {
       ];
 
       includeCoAuthoredBy = false;
+
+      statusLine = {
+        "type" = "command";
+        "command" = lib.getExe pkgs.llm-agents.ccstatusline;
+        "padding" = 0;
+        "refreshInterval" = 5;
+      };
 
       permissions = kit.mkAgentPermissions "claude" {
         allow = [
