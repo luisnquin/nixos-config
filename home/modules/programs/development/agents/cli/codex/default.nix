@@ -42,7 +42,12 @@ in {
         "inherit" = "core";
         set = {
           CODEX_AGENT = "1";
+          GIT_ASKPASS = "${pkgs.coreutils}/bin/false";
+          GIT_SSH_COMMAND = "ssh -o BatchMode=yes -o IdentityAgent=none";
+          GIT_TERMINAL_PROMPT = "0";
           PINENTRY_USER_DATA = "gui";
+          SSH_ASKPASS = "${pkgs.coreutils}/bin/false";
+          SSH_AUTH_SOCK = "";
         };
       };
 
