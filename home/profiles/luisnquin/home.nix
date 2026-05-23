@@ -15,6 +15,11 @@
     username = "${user.alias}";
 
     file.".face".source = ./.face;
+
+    sessionVariables = {
+      ENABLE_TELEMETRY = 0;
+      TELEMETRY_ENABLED = 0;
+    };
   };
 
   # disabledModules = ["misc/news.nix"];
