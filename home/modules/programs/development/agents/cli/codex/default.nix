@@ -46,6 +46,12 @@ in {
         };
       };
 
+      projects = {
+        "/home/luisnquin/.dotfiles" = {
+          trust_level = "trusted";
+        };
+      };
+
       profiles = {
         coding = {
           personality = "pragmatic";
