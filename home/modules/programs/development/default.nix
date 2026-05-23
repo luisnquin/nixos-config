@@ -6,6 +6,7 @@
     ./editors
     ./git
     ./go
+    ./mobile
     ./ops
     ./pwn
 
@@ -13,7 +14,6 @@
     ./ee.nix
     ./encore.nix
     ./etc.nix
-    ./mobile.nix
     ./node.nix
     ./processors.nix
     ./python.nix

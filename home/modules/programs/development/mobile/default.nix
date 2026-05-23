@@ -2,13 +2,15 @@
   config,
   pkgs,
   ...
-}: {
-  home = let
-    ANDROID_HOME = "${config.home.homeDirectory}/.android";
-  in {
+}: let
+  ANDROID_HOME = "${config.home.homeDirectory}/.android";
+  ANDROID_SDK_ROOT = "${ANDROID_HOME}/sdk";
+in {
+  home = {
     packages = with pkgs; [
       android-studio
       android-tools
+      (import ./android-cli.nix {inherit pkgs ANDROID_HOME ANDROID_SDK_ROOT;})
 
       scrcpy
 
@@ -32,15 +34,8 @@
       '';
     };
 
-    # sessionPath managed by home/modules/path.nix
-    # sessionPath = [
-    #   "${ANDROID_HOME}/platform-tools"
-    #   "${ANDROID_HOME}/emulator"
-    # ];
-
     sessionVariables = {
-      inherit ANDROID_HOME;
-      ANDROID_SDK_ROOT = "${ANDROID_HOME}/sdk";
+      inherit ANDROID_HOME ANDROID_SDK_ROOT;
     };
   };
 }
