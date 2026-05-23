@@ -71,7 +71,7 @@ in {
         "rust-analyzer-lsp@claude-plugins-official" = true;
       };
 
-      model = "claude-haiku-4-5-20251001";
+      model = "sonnet";
       effortLevel = "medium";
       outputStyle = "Explanatory";
       language = "english";
