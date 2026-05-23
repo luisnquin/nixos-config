@@ -14,19 +14,21 @@
       libbsd
       libdrm
       libGL
+      libice
       libpng
       libpulseaudio
+      libsm
       libuuid
       libX11
       libxcb
-      libxkbcommon
-      libxkbfile
       libXcomposite
       libXcursor
       libXdamage
       libXext
       libXfixes
       libXi
+      libxkbcommon
+      libxkbfile
       libXrandr
       libXrender
       libXtst
@@ -41,8 +43,6 @@
       xcbutilkeysyms
       xcbutilrenderutil
       xcbutilwm
-      xorg.libICE
-      xorg.libSM
       zlib
     ])
     ++ [p.pkgsi686Linux.zlib];
