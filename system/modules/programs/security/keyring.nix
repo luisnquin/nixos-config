@@ -1,7 +1,5 @@
-{pkgs, ...}: {
-  environment.systemPackages = with pkgs; [
-    seahorse
-  ];
+{
+  programs.seahorse.enable = true;
 
   services.gnome.gnome-keyring.enable = true;
 
