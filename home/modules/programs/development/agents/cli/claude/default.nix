@@ -82,6 +82,7 @@ in {
     settings = {
       enabledPlugins = {
         "rust-analyzer-lsp@claude-plugins-official" = true;
+        "swift-lsp@claude-plugins-official" = true;
       };
 
       model = "sonnet";
