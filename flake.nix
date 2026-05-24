@@ -66,7 +66,7 @@
       };
     };
     zen-browser = {
-      url = "github:0xc000022070/zen-browser-flake/feat/modern-sine-support"; # 1.130238β
+      url = "github:0xc000022070/zen-browser-flake/beta"; # 1.130238β
       inputs = {
         home-manager.follows = "home-manager";
         nixpkgs.follows = "nixpkgs";
