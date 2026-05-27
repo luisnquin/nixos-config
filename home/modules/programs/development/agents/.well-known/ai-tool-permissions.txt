@@ -21,6 +21,7 @@
 + Bash(find:*)
 + Bash(read:*)
 + Bash(grep:*)
++ Bash(xargs cat -n *)
 + Bash(zig version)
 + Bash(zig build *)
 + Bash(git status:*)
