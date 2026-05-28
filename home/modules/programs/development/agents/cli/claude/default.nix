@@ -122,6 +122,7 @@ in {
         allow = [
           "mcp__plugin_claude-code-home-manager_filesystem__read_text_file"
           "mcp__plugin_claude-code-home-manager_filesystem__read_multiple_files"
+          "mcp__plugin_claude-code-home-manager_filesystem__directory_tree"
           "mcp__plugin_claude-code-home-manager_filesystem__search_files"
           "mcp__plugin_claude-code-home-manager_filesystem__read_media_file"
           "mcp__plugin_claude-code-home-manager_filesystem__list_directory"
