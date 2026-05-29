@@ -1,4 +1,5 @@
 {
+  config,
   mkAgentKit,
   pkgs,
   ...
@@ -20,7 +21,7 @@ in {
       review_context_count = 3;
       reuse_review_session_lookback = 0;
       # Default agent when no workflow-specific agent is set.
-      default_agent = "gemini";
+      default_agent = "cursor";
       default_model = "";
       default_backup_agent = "";
       default_backup_model = "";
@@ -124,7 +125,7 @@ in {
       disable_codex_sandbox = false;
       codex_cmd = "${pkgs.coreutils}/bin/false";
       claude_code_cmd = "${pkgs.coreutils}/bin/false";
-      cursor_cmd = "${pkgs.coreutils}/bin/false";
+      cursor_cmd = "${config.programs.cursor-agent.package}/bin/agent";
       pi_cmd = "${pkgs.coreutils}/bin/false";
       opencode_cmd = "opencode";
 
