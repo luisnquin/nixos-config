@@ -100,7 +100,6 @@
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
         flake-parts.follows = "flake-parts";
-        bun2nix.follows = "";
       };
     };
     nao = {
