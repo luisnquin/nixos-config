@@ -55,6 +55,9 @@ in {
         "/home/luisnquin/.dotfiles" = {
           trust_level = "trusted";
         };
+        "/home/luisnquin/Projects" = {
+          trust_level = "trusted";
+        };
       };
 
       profiles = {
