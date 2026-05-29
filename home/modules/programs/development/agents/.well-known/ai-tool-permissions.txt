@@ -16,6 +16,7 @@
 + mcp__*
 + Bash(psql:*)
 + Bash(sed:*)
++ Bash(wc:*)
 + Bash(file:*)
 + Bash(ls:*)
 + Bash(find:*)
