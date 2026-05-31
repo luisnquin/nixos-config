@@ -31,7 +31,7 @@ in {
 
   programs.npm = {
     enable = true;
-    package = pkgs.nodejs_25;
+    package = pkgs.nodejs_26;
     settings = {
       audit = true;
       audit-level = "critical";
