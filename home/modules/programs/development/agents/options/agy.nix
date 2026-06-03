@@ -9,7 +9,7 @@ in {
   options.programs.agy = {
     enable = lib.mkEnableOption "Agy, agentic coding CLI";
 
-    package = lib.mkPackageOption pkgs "antigravity" {nullable = true;};
+    package = lib.mkPackageOption pkgs "antigravity-cli" {nullable = true;};
   };
 
   config = lib.mkIf cfg.enable {
