@@ -1,15 +1,7 @@
-{pkgs, ...}: let
-  kernel = pkgs.cachyosKernels.linux-cachyos-latest.override {
-    cpusched = "bore";
-    processorOpt = "x86_64-v3";
-    hzTicks = "1000";
-    bbr3 = true;
-    hardened = false;
-  };
-in {
+{pkgs, ...}: {
   boot = {
     kernelParams = ["i8042.reset=1"];
-    kernelPackages = pkgs.linuxKernel.packagesFor kernel;
+    kernelPackages = pkgs.linuxPackages;
     extraModprobeConfig = ''
       options snd-intel-dspcfg dsp_driver=1
     '';

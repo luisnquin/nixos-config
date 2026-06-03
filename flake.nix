@@ -38,14 +38,6 @@
     };
 
     black-terminal.url = "github:luisnquin/black-terminal";
-    nix-cachyos-kernel = {
-      url = "github:xddxdd/nix-cachyos-kernel/release";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-        flake-compat.follows = "";
-      };
-    };
     hyprdysmorphic = {
       url = "github:0xc000022070/hyprdysmorphic";
       inputs = {
@@ -147,7 +139,6 @@
   };
 
   outputs = inputs @ {
-    nix-cachyos-kernel,
     agentic-flake,
     hyprdysmorphic,
     nixpkgs-extra,
@@ -172,7 +163,6 @@
             inherit inputs system;
           })
           ++ [
-            nix-cachyos-kernel.overlays.default
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
