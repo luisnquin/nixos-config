@@ -21,15 +21,15 @@ in {
           )
           hashes)
     ) {
-      session_start = ["f574f1c60e3409b03f6d22fa466d6c4c8b5d8783e55c7dfe0f5f94e1dd3df5a0"];
-      pre_tool_use = ["3e8090a6213fd04f2f71889d0b9111b4efb3879e912ac4b3929b4e71da7b066a"];
-      post_tool_use = ["fffe40216f966649dd0558146a5d98948f2c93903862a01b5d4dfa57de068247"];
-      user_prompt_submit = ["bcef8000e08ab04a7130c6dde7ea3fbf613595edfcd140f5474d1100bdc5046f"];
-      stop = ["d2f96b3e97b03de19e8eb2c5c54ce4f411ab20f485136b5e23183b46f20c3e9c"];
       permission_request = [
-        "3526324033b32b0855b136f0e3e64c39446a3ed3a3d27ea04e18698932117c44"
-        "dc164b1f0b82ce6f30050ff282e1252420b637fbb93224c6811d61cac9142ccd"
+        "3b7a0db516ccf5e8d3e131909ca0f6fae17a5ae19c2d541399f9a26bf0da3d14"
+        "26488b1063551d9525386288cb681b118df136b1e85570b3711ae6b60a9f0e7f"
       ];
+      post_tool_use = ["5e1e3e34a75e7747c2a5253ded7fcb0e5013d0d7503ff9969ebece65265bf695"];
+      pre_tool_use = ["eb173c9f99fc39499606cf97d06de578695e67bdddd54651836e3efce7298fb6"];
+      session_start = ["eb2adfebfb6b4842ebf56365f362a0c39e42c2eb15199bb7aa5d97a9bd87d150"];
+      stop = ["48419fe79cf0e81e9efaf50b1981baf3da4de98ce15d15eecdc9d77f5c5cb492"];
+      user_prompt_submit = ["da4bfd1c28452c49ad0c46d0cdea3c69b9e05e0be57ee9d394ee497a4c7937aa"];
     };
 
   home.file = {

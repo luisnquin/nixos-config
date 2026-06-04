@@ -60,6 +60,10 @@ in {
         };
       };
 
+      tui.model_availability_nux = {
+        "gpt-5.5" = 1;
+      };
+
       profiles = {
         coding = {
           personality = "pragmatic";
