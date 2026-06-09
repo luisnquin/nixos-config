@@ -12,6 +12,11 @@
 
     vesktop.enable = false;
 
+    extraConfig.plugins = {
+      IloveSpam.enable = true;
+      PetPet.enable = true;
+    };
+
     config = {
       themeLinks = [
         "https://raw.githubusercontent.com/refact0r/system24/refs/heads/main/theme/system24.theme.css"
@@ -69,7 +74,6 @@
         gameActivityToggle.enable = true;
         gifPaste.enable = true;
         greetStickerPicker.enable = true;
-        iLoveSpam.enable = true;
         imageLink.enable = true;
         imageZoom = {
           enable = true;
@@ -113,7 +117,6 @@
         overrideForumDefaults.enable = true;
         permissionFreeWill.enable = true;
         permissionsViewer.enable = true;
-        petpet.enable = true;
         pictureInPicture.enable = true;
         # pinDMs.enable = true;
         platformIndicators.enable = true;
