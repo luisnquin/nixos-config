@@ -6,6 +6,8 @@
     ./tty.nix
   ];
 
+  programs.zsh.initContent = builtins.readFile ./.zshrc;
+
   shared = {
     bat.enable = true;
     btop.enable = true;
