@@ -5,6 +5,17 @@
 }: let
   kit = mkAgentKit {};
   permissions = kit.mkAgentPermissions "codex" {};
+
+  codex = pkgs.llm-agents.codex.overrideAttrs (old: {
+    preBuild =
+      (old.preBuild or "")
+      + ''
+        substituteInPlace tui/src/branch_summary.rs \
+          --replace-fail '&["remote", "show", remote]' '&["remote", "show", "-n", remote]'
+        substituteInPlace git-utils/src/info.rs \
+          --replace-fail '&["remote", "show", &remote]' '&["remote", "show", "-n", &remote]'
+      '';
+  });
 in {
   imports = [
     ./hooks.nix
@@ -12,7 +23,7 @@ in {
 
   programs.codex = {
     enable = true;
-    package = pkgs.llm-agents.codex;
+    package = codex;
     enableMcpIntegration = true;
 
     context = ''
