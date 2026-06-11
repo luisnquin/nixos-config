@@ -7,7 +7,7 @@
 
   kit = mkAgentKit {};
 in {
-  programs.gemini-cli.settings.hooks = {
+  programs.antigravity-cli.settings.hooks = {
     SessionStart = [
       (kit.mkCmdEntry {
         commands = [(kit.mkAudioCmd [kit.sounds.ifarm])];
@@ -38,7 +38,7 @@ in {
     Notification = [
       (kit.mkCmdEntry {
         commands = [
-          (kit.mkNotificationCmd kit.images.gemini "Gemini" "Awaiting your input" {
+          (kit.mkNotificationCmd kit.images.gemini "Antigravity" "Awaiting your input" {
             ntfy = {
               delay = "10s";
               sequenceId = "gemini-awaiting-input";

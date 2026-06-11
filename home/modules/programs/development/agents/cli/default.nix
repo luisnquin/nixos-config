@@ -1,10 +1,9 @@
 {
   imports = [
-    ./agy
+    ./antigravity
     ./claude
     ./codex
     ./cursor-cli
-    ./gemini
     ./opencode
   ];
 }
