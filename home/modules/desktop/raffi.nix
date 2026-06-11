@@ -6,7 +6,7 @@
       version = 1;
 
       general = {
-        ui_type = "fuzzel";
+        ui_type = "native";
         default_script_shell = "bash";
         no_icons = true;
         max_history = 10;
@@ -14,7 +14,6 @@
 
         fallbacks = [
           ''addons.web_searches."Google"''
-          ''addons.script_filters."Search Google"''
         ];
       };
 
