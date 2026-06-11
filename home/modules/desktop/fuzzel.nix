@@ -43,7 +43,8 @@
 
       dmenu = {
         mode = "text";
-        exit-immediately-if-empty = "yes";
+        # raffi spawns fuzzel before writing stdin; "yes" races and causes broken pipe
+        exit-immediately-if-empty = "no";
       };
 
       key-bindings = {
