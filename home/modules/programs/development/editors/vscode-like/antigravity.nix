@@ -1,29 +1,46 @@
 {
+  inputs,
   mkAgentKit,
   pkgs,
   lib,
   ...
 }: let
   kit = mkAgentKit {};
+
+  mkVscodeModule = import "${inputs.home-manager}/modules/programs/vscode/mkVscodeModule.nix";
 in {
+  disabledModules = [
+    "programs/antigravity.nix"
+  ];
+
+  imports = [
+    (mkVscodeModule {
+      modulePath = ["programs" "antigravity"];
+      name = "Antigravity IDE";
+      packageName = "antigravity";
+      nameShort = "Antigravity IDE";
+      dataFolderName = ".antigravity-ide";
+      skipVersionCheck = true;
+    })
+  ];
   home.file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON (kit.mkMcpServers {
     normalizeServerUrl = true;
   });
 
-  home.activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p ~/.config/Antigravity/User
-    rm -f ~/.config/Antigravity/User/settings.json
-    cp ${./settings.json} ~/.config/Antigravity/User/settings.json
-    chmod +w ~/.config/Antigravity/User/settings.json
-  '';
+  home.shellAliases."code" = "antigravity-ide";
 
-  home.shellAliases."code" = "antigravity";
+  home.activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    mkdir -p ~/.config/Antigravity\ IDE/User
+    rm -f ~/.config/Antigravity\ IDE/User/settings.json
+    cp ${./settings.json} ~/.config/Antigravity\ IDE/User/settings.json
+    chmod +w ~/.config/Antigravity\ IDE/User/settings.json
+  '';
 
   programs.antigravity = {
     enable = true;
     # package = pkgs.llm-agents.antigravity;
     package = pkgs.antigravity;
-    mutableExtensionsDir = true;
+    mutableExtensionsDir = false;
 
     profiles.default = {
       enableExtensionUpdateCheck = true;
@@ -52,7 +69,6 @@ in {
 
       extensions = with pkgs.vscode-extensions;
         [
-          # vira.vsc-vira-theme
           aaron-bond.better-comments
           arrterian.nix-env-selector
           astro-build.astro-vscode
@@ -87,6 +103,12 @@ in {
           ziglang.vscode-zig
         ]
         ++ pkgs.vscode-utils.extensionsFromVscodeMarketplace [
+          {
+            name = "vsc-vira-theme";
+            publisher = "vira";
+            version = "2026.5.5";
+            sha256 = "sha256-CWowBwqHc4tMB1ownZTL0t9SzX6lIcMhkyicPmoPqxw=";
+          }
           {
             name = "autopep8";
             publisher = "ms-python";

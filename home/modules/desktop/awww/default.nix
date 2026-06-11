@@ -7,13 +7,14 @@
   cfg = config.services.awww;
   inherit (pkgs.scripts) awww-switcher;
 
-  wallpapersPkg = pkgs.runCommand "hypr-wallpapers" {
-    preferLocalBuild = true;
-  } ''
-    mkdir -p $out
-    cp -r ${./wallpapers}/. $out/
-    cp ${./background.gif} $out/
-  '';
+  wallpapersPkg =
+    pkgs.runCommand "hypr-wallpapers" {
+      preferLocalBuild = true;
+    } ''
+      mkdir -p $out
+      cp -r ${./wallpapers}/. $out/
+      cp ${./background.gif} $out/
+    '';
 
   wallpaperNames = lib.naturalSort (
     lib.attrNames (lib.filterAttrs (_: t: t == "regular") (builtins.readDir ./wallpapers))
