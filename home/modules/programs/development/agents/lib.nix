@@ -287,8 +287,11 @@
             }
           );
 
+        cleanServer = server:
+          lib.filterAttrs (_: value: value != null && value != [] && value != {}) server;
+
         transformServer = name: server:
-          applyMappings (applyToolExclusions name server);
+          cleanServer (applyMappings (applyToolExclusions name server));
       in
         lib.mapAttrs transformServer (
           builtins.removeAttrs servers excludeServers
