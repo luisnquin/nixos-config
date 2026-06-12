@@ -23,18 +23,19 @@ in {
       skipVersionCheck = true;
     })
   ];
-  home.file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON (kit.mkMcpServers {
-    normalizeServerUrl = true;
-  });
 
-  home.shellAliases."code" = "antigravity-ide";
+  home = {
+    shellAliases."code" = "antigravity-ide";
 
-  home.activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p ~/.config/Antigravity\ IDE/User
-    rm -f ~/.config/Antigravity\ IDE/User/settings.json
-    cp ${./settings.json} ~/.config/Antigravity\ IDE/User/settings.json
-    chmod +w ~/.config/Antigravity\ IDE/User/settings.json
-  '';
+    activation.copyAntigravitySettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      install -Dm644 ${./settings.json} "$HOME/.config/Antigravity IDE/User/settings.json"
+      chmod u+w "$HOME/.config/Antigravity IDE/User/settings.json"
+    '';
+
+    file.".gemini/antigravity/mcp_config.json".text = builtins.toJSON (kit.mkMcpServers {
+      normalizeServerUrl = true;
+    });
+  };
 
   programs.antigravity = {
     enable = true;
