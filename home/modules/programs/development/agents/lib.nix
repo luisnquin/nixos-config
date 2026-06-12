@@ -105,7 +105,7 @@
         else if args == "*" || args == ""
         then lib.toLower tool
         else "${lib.toLower tool}(${cleanArgs})"
-      else if rule == "mcp__*"
+      else if lib.hasPrefix "mcp__" rule
       then "mcp(*)"
       else lib.toLower rule;
 
