@@ -6,7 +6,7 @@
 
     discord = {
       enable = true;
-      equicord.enable = false;
+      equicord.enable = true;
       vencord.enable = false;
     };
 
