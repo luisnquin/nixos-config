@@ -27,7 +27,6 @@
       warn-dirty = false;
       download-attempts = 3;
       experimental-features = ["nix-command" "flakes"];
-      # Required by cachix
       trusted-users = ["root" "${user.alias}"];
       allowed-users = trusted-users;
       # Defines the maximum number of jobs that Nix will try to build in parallel.
@@ -37,14 +36,11 @@
       # Number of seconds between checking free disk space.
       min-free-check-interval = 30;
       # https://nix.dev/recipes/faq#what-to-do-if-a-binary-cache-is-down-or-unreachable
-      trusted-public-keys = [
-        "ghostty.cachix.org-1:QB389yTa6gTyneehvqG58y0WnHjQOqgnA+wBnpWWxns="
-      ];
+
       trusted-substituters = [
         "https://cache.nixos.org"
       ];
       substituters = [
-        "https://ghostty.cachix.org"
         "https://cache.nixos.org"
       ];
     };
