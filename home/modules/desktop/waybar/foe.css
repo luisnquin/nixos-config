@@ -256,6 +256,7 @@ window > box {
 /* Hover only for actually actionable modules */
 #custom-launcher:hover,
 #tray:hover,
+#custom-tailscale:hover,
 #cpu:hover,
 #memory:hover,
 #battery:hover,
@@ -265,7 +266,6 @@ window > box {
 }
 
 /* Passive status modules: no hover container */
-#custom-tailscale:hover,
 #custom-ssh-label:hover,
 #custom-ssh-inbound:hover,
 #custom-ssh-outbound:hover {
