@@ -1,23 +1,38 @@
 # Grab the iPhone connected to the mac (rose) and put the PNG in the clipboard.
 #
 # iOS 17+ only exposes the screenshot service over a RemoteXPC tunnel, so rose
-# runs `pymobiledevice3 remote tunneld` as a root launchd daemon. Here we just
-# drive the unprivileged client over ssh and stream the PNG back into wl-copy.
+# runs `pymobiledevice3 remote tunneld` as a root launchd daemon that keeps a
+# tunnel up over whichever transport is available (USB or WiFi).
 #
-# pymobiledevice3 exits 0 even on some failures, so success is decided by
+# The client MUST be aimed at that tunnel with `--tunnel <UDID>`. The bare
+# `screenshot` command defaults to "the first USB device", so it dies with
+# "Device is not connected" whenever the phone is only reachable over WiFi
+# (e.g. right after a mac reboot, before USB re-enumerates) even though tunneld
+# already holds a working tunnel. Going through tunneld works on any transport
+# and needs no daemon restart. The UDID is the first key of tunneld's HTTP list.
+#
+# pymobiledevice3 can exit 0 even on some failures, so success is decided by
 # whether a non-empty PNG actually came back, not by the remote exit code.
 copy_ios_screenshot() {
-  local tmp
+  local tmp remote
   tmp="$(mktemp --suffix=.png)" || return 1
 
-  if ssh rose 'd="$(mktemp -d)"; f="$d/shot.png"; pymobiledevice3 developer dvt screenshot "$f" >/dev/null 2>&1 && cat "$f"; rm -rf "$d"' >"$tmp" && [ -s "$tmp" ]; then
+  remote='udid="$(curl -s http://127.0.0.1:49151/ | python3 -c "import sys,json;d=json.load(sys.stdin);print(next(iter(d)))" 2>/dev/null)"; [ -n "$udid" ] || exit 1; d="$(mktemp -d)"; pymobiledevice3 developer dvt screenshot --tunnel "$udid" "$d/shot.png" >/dev/null 2>&1; cat "$d/shot.png" 2>/dev/null; rm -rf "$d"'
+
+  ssh rose "$remote" >"$tmp" 2>/dev/null
+  if [ ! -s "$tmp" ]; then
+    # tunneld may still be bringing the tunnel up right after a mac reboot.
+    sleep 3
+    ssh rose "$remote" >"$tmp" 2>/dev/null
+  fi
+
+  if [ -s "$tmp" ]; then
     wl-copy --type image/png <"$tmp"
     print -r -- "iOS screenshot copied to clipboard"
+    rm -f "$tmp"
   else
-    print -ru2 -- "copy_ios_screenshot: capture failed (is the iOS device connected and unlocked?)"
+    print -ru2 -- "copy_ios_screenshot: capture failed (no tunnel; is the iPhone connected to rose and unlocked?)"
     rm -f "$tmp"
     return 1
   fi
-
-  rm -f "$tmp"
 }
