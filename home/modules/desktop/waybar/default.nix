@@ -158,6 +158,7 @@
           return-type = "json";
           interval = 5;
           tooltip = true;
+          on-click = "${lib.getExe' pkgs.xdg-utils "xdg-open"} https://login.tailscale.com/admin/machines";
         };
 
         "clock" = {
