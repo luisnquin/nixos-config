@@ -1,0 +1,161 @@
+diff --git a/tui/src/history_cell/session.rs b/tui/src/history_cell/session.rs
+index c63f6f746c..3d3247ebdb 100644
+--- a/tui/src/history_cell/session.rs
++++ b/tui/src/history_cell/session.rs
+@@ -332,16 +332,21 @@ impl HistoryCell for SessionHeaderHistoryCell {
+ 
+         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
+ 
+-        // Title line rendered inside the box: ">_ OpenAI Codex (vX)"
++        // Branded title rendered as two lines inside the box.
+         let title_spans: Vec<Span<'static>> = vec![
+             Span::from(">_ ").dim(),
+-            Span::from("OpenAI Codex").bold(),
+-            Span::from(" ").dim(),
+-            Span::from(format!("(v{})", self.version)).dim(),
++            Span::from("ϟ ").magenta().bold(),
++            Span::from("codex").bold(),
++            Span::from("@openai").dim(),
++        ];
++        let subtitle_spans: Vec<Span<'static>> = vec![
++            Span::from("   "),
++            Span::from("⛧ ").magenta(),
++            Span::from("unstoppable agent").italic(),
++            Span::from(" · ").dim(),
++            Span::from(format!("v{}", self.version)).dim(),
+         ];
+ 
+-        const CHANGE_MODEL_HINT_COMMAND: &str = "/model";
+-        const CHANGE_MODEL_HINT_EXPLANATION: &str = " to change";
+         const DIR_LABEL: &str = "directory:";
+         const PERMISSIONS_LABEL: &str = "permissions:";
+         let label_width = if self.yolo_mode {
+@@ -369,9 +374,6 @@ impl HistoryCell for SessionHeaderHistoryCell {
+                 spans.push("   ".into());
+                 spans.push(Span::styled("fast", self.model_style.magenta()));
+             }
+-            spans.push("   ".dim());
+-            spans.push(CHANGE_MODEL_HINT_COMMAND.cyan());
+-            spans.push(CHANGE_MODEL_HINT_EXPLANATION.dim());
+             spans
+         };
+ 
+@@ -384,6 +386,7 @@ impl HistoryCell for SessionHeaderHistoryCell {
+ 
+         let mut lines = vec![
+             make_row(title_spans),
++            make_row(subtitle_spans),
+             make_row(Vec::new()),
+             make_row(model_spans),
+             make_row(dir_spans),
+@@ -402,7 +405,8 @@ impl HistoryCell for SessionHeaderHistoryCell {
+ 
+     fn raw_lines(&self) -> Vec<Line<'static>> {
+         let mut lines = vec![
+-            Line::from(format!("OpenAI Codex (v{})", self.version)),
++            Line::from(">_ ϟ codex@openai"),
++            Line::from(format!("   ⛧ unstoppable agent · v{}", self.version)),
+             Line::from(format!(
+                 "model: {}{}",
+                 self.model,
+diff --git a/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_header_indicates_yolo_mode.snap b/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_header_indicates_yolo_mode.snap
+index 04f64584f6..7ee1958786 100644
+--- a/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_header_indicates_yolo_mode.snap
++++ b/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_header_indicates_yolo_mode.snap
+@@ -2,10 +2,11 @@
+ source: tui/src/history_cell.rs
+ expression: rendered
+ ---
+-╭───────────────────────────────────────╮
+-│ >_ OpenAI Codex (vtest)               │
+-│                                       │
+-│ model:       gpt-5   /model to change │
+-│ directory:   /tmp/project             │
+-│ permissions: YOLO mode                │
+-╰───────────────────────────────────────╯
++╭────────────────────────────────╮
++│ >_ ϟ codex@openai              │
++│    ⛧ unstoppable agent · vtest │
++│                                │
++│ model:       gpt-5             │
++│ directory:   /tmp/project      │
++│ permissions: YOLO mode         │
++╰────────────────────────────────╯
+diff --git a/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_info_availability_nux_tooltip_snapshot.snap b/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_info_availability_nux_tooltip_snapshot.snap
+index ad0fc4be1c..64702d0c81 100644
+--- a/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_info_availability_nux_tooltip_snapshot.snap
++++ b/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__session_info_availability_nux_tooltip_snapshot.snap
+@@ -2,11 +2,12 @@
+ source: tui/src/history_cell.rs
+ expression: rendered
+ ---
+-╭─────────────────────────────────────╮
+-│ >_ OpenAI Codex (v0.0.0)            │
+-│                                     │
+-│ model:     gpt-5   /model to change │
+-│ directory: /tmp/project             │
+-╰─────────────────────────────────────╯
++╭─────────────────────────────────╮
++│ >_ ϟ codex@openai               │
++│    ⛧ unstoppable agent · v0.0.0 │
++│                                 │
++│ model:     gpt-5                │
++│ directory: /tmp/project        │
++╰─────────────────────────────────╯
+ 
+   Tip: Model just became available
+diff --git a/tui/src/history_cell/tests.rs b/tui/src/history_cell/tests.rs
+index 4d23392128..49eb5faaaa 100644
+--- a/tui/src/history_cell/tests.rs
++++ b/tui/src/history_cell/tests.rs
+@@ -1491,7 +1491,7 @@ fn session_header_includes_reasoning_level_when_present() {
+         .expect("model line");
+ 
+     assert!(model_line.contains("gpt-4o high   fast"));
+-    assert!(model_line.contains("/model to change"));
++    assert!(!model_line.contains("/model to change"));
+ }
+ 
+ #[test]
+diff --git a/tui/src/snapshots/codex_tui__app__tests__clear_ui_after_long_transcript_fresh_header_only.snap b/tui/src/snapshots/codex_tui__app__tests__clear_ui_after_long_transcript_fresh_header_only.snap
+index 98d6015064..a9b10564b2 100644
+--- a/tui/src/snapshots/codex_tui__app__tests__clear_ui_after_long_transcript_fresh_header_only.snap
++++ b/tui/src/snapshots/codex_tui__app__tests__clear_ui_after_long_transcript_fresh_header_only.snap
+@@ -2,9 +2,10 @@
+ source: tui/src/app.rs
+ expression: rendered
+ ---
+-╭─────────────────────────────────────────────╮
+-│ >_ OpenAI Codex (v<VERSION>)                │
+-│                                             │
+-│ model:     gpt-test high   /model to change │
+-│ directory: /tmp/project                     │
+-╰─────────────────────────────────────────────╯
++╭─────────────────────────────────────╮
++│ >_ ϟ codex@openai                   │
++│    ⛧ unstoppable agent · v<VERSION> │
++│                                     │
++│ model:     gpt-test high            │
++│ directory: /tmp/project             │
++╰─────────────────────────────────────╯
+diff --git a/tui/src/snapshots/codex_tui__app__tests__clear_ui_header_fast_status_fast_capable_models.snap b/tui/src/snapshots/codex_tui__app__tests__clear_ui_header_fast_status_fast_capable_models.snap
+index 08afd027ac..e6b3c3fa8c 100644
+--- a/tui/src/snapshots/codex_tui__app__tests__clear_ui_header_fast_status_fast_capable_models.snap
++++ b/tui/src/snapshots/codex_tui__app__tests__clear_ui_header_fast_status_fast_capable_models.snap
+@@ -2,9 +2,10 @@
+ source: tui/src/app.rs
+ expression: rendered
+ ---
+-╭────────────────────────────────────────────────────╮
+-│ >_ OpenAI Codex (v<VERSION>)                       │
+-│                                                    │
+-│ model:     gpt-5.4 xhigh   fast   /model to change │
+-│ directory: /tmp/project                            │
+-╰────────────────────────────────────────────────────╯
++╭─────────────────────────────────────╮
++│ >_ ϟ codex@openai                   │
++│    ⛧ unstoppable agent · v<VERSION> │
++│                                     │
++│ model:     gpt-5.4 xhigh   fast     │
++│ directory: /tmp/project             │
++╰─────────────────────────────────────╯
