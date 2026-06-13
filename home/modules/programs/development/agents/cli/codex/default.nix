@@ -8,16 +8,10 @@
   permissions = kit.mkAgentPermissions "codex" {};
 
   codex = pkgs.llm-agents.codex.overrideAttrs (old: {
-    patches = (old.patches or []) ++ [./recursive-project-trust.patch];
-
-    preBuild =
-      (old.preBuild or "")
-      + ''
-        substituteInPlace tui/src/branch_summary.rs \
-          --replace-fail '&["remote", "show", remote]' '&["remote", "show", "-n", remote]'
-        substituteInPlace git-utils/src/info.rs \
-          --replace-fail '&["remote", "show", &remote]' '&["remote", "show", "-n", &remote]'
-      '';
+    patches = (old.patches or []) ++ [
+      ./recursive-project-trust.patch
+      ./git-remote-show-no-fetch.patch
+    ];
   });
 in {
   imports = [

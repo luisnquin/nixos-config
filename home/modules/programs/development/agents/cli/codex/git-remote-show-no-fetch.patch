@@ -1,0 +1,26 @@
+diff --git a/git-utils/src/info.rs b/git-utils/src/info.rs
+index 48d229df8d..737d159f8b 100644
+--- a/git-utils/src/info.rs
++++ b/git-utils/src/info.rs
+@@ -501,7 +501,7 @@ async fn get_default_branch(cwd: &Path) -> Option<String> {
+ 
+         // Fall back to parsing `git remote show <remote>` output
+         if let Some(show_output) =
+-            run_git_command_with_timeout(&["remote", "show", &remote], cwd).await
++            run_git_command_with_timeout(&["remote", "show", "-n", &remote], cwd).await
+             && show_output.status.success()
+             && let Ok(text) = String::from_utf8(show_output.stdout)
+         {
+diff --git a/tui/src/branch_summary.rs b/tui/src/branch_summary.rs
+index 4698dc96e5..1fbb76fd0a 100644
+--- a/tui/src/branch_summary.rs
++++ b/tui/src/branch_summary.rs
+@@ -275,7 +275,7 @@ async fn get_remote_default_branch_from_remote_show(
+     cwd: &Path,
+     remote: &str,
+ ) -> Option<DefaultBranch> {
+-    let output = run_git_command(runner, cwd, &["remote", "show", remote])
++    let output = run_git_command(runner, cwd, &["remote", "show", "-n", remote])
+         .await
+         .ok()?;
+     if !output.success() {
