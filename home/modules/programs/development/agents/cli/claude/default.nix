@@ -85,8 +85,8 @@ in {
         "swift-lsp@claude-plugins-official" = true;
       };
 
-      model = "sonnet";
-      effortLevel = "medium";
+      model = "opus";
+      effortLevel = "high";
       outputStyle = "Explanatory";
       language = "english";
       cleanupPeriodDays = 20;
