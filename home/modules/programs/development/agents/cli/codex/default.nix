@@ -11,6 +11,7 @@
     patches = (old.patches or []) ++ [
       ./recursive-project-trust.patch
       ./git-remote-show-no-fetch.patch
+      ./curated-plugins-disable-sync.patch
     ];
   });
 in {

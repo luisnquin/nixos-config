@@ -1,0 +1,23 @@
+--- a/core-plugins/src/manager.rs
++++ b/core-plugins/src/manager.rs
+@@ -81,6 +81,10 @@
+ use tracing::warn;
+ 
+ static CURATED_REPO_SYNC_STARTED: AtomicBool = AtomicBool::new(false);
++// Disabled: the curated plugins sync runs a startup `git ls-remote`/`fetch` against
++// github.com, which a user `url."ssh://...".insteadOf "https://..."` rewrite turns into
++// an SSH connection and prompts to unlock the SSH key. We do not use curated plugins.
++const CURATED_REPO_SYNC_ENABLED: bool = false;
+ const FEATURED_PLUGIN_IDS_CACHE_TTL: std::time::Duration =
+     std::time::Duration::from_secs(60 * 60 * 3);
+ 
+@@ -1650,6 +1654,9 @@
+     }
+ 
+     fn start_curated_repo_sync(self: &Arc<Self>) {
++        if !CURATED_REPO_SYNC_ENABLED {
++            return;
++        }
+         if CURATED_REPO_SYNC_STARTED.swap(true, Ordering::SeqCst) {
+             return;
+         }
