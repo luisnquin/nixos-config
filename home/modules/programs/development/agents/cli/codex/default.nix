@@ -8,6 +8,8 @@
   permissions = kit.mkAgentPermissions "codex" {};
 
   codex = pkgs.llm-agents.codex.overrideAttrs (old: {
+    patches = (old.patches or []) ++ [./recursive-project-trust.patch];
+
     preBuild =
       (old.preBuild or "")
       + ''

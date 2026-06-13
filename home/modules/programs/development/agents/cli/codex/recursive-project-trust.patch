@@ -1,0 +1,40 @@
+diff --git a/config/src/config_toml.rs b/config/src/config_toml.rs
+index 7270c3f329..e2029b8ad3 100644
+--- a/config/src/config_toml.rs
++++ b/config/src/config_toml.rs
+@@ -862,6 +862,15 @@ fn normalize_project_lookup_key(key: String) -> String {
+ fn project_config_for_lookup_key(
+     projects: &HashMap<String, ProjectConfig>,
+     lookup_key: &str,
++) -> Option<ProjectConfig> {
++    Path::new(lookup_key)
++        .ancestors()
++        .find_map(|path| project_config_for_exact_lookup_key(projects, &path.to_string_lossy()))
++}
++
++fn project_config_for_exact_lookup_key(
++    projects: &HashMap<String, ProjectConfig>,
++    lookup_key: &str,
+ ) -> Option<ProjectConfig> {
+     if let Some(project_config) = projects.get(lookup_key) {
+         return Some(project_config.clone());
+diff --git a/config/src/loader/mod.rs b/config/src/loader/mod.rs
+index d154f87e1d..14bfde2a4e 100644
+--- a/config/src/loader/mod.rs
++++ b/config/src/loader/mod.rs
+@@ -1052,6 +1052,15 @@ fn normalize_project_trust_lookup_key(key: String) -> String {
+ fn project_trust_for_lookup_key(
+     projects_trust: &std::collections::HashMap<String, TrustLevel>,
+     lookup_key: &str,
++) -> Option<(String, TrustLevel)> {
++    Path::new(lookup_key).ancestors().find_map(|path| {
++        project_trust_for_exact_lookup_key(projects_trust, &path.to_string_lossy())
++    })
++}
++
++fn project_trust_for_exact_lookup_key(
++    projects_trust: &std::collections::HashMap<String, TrustLevel>,
++    lookup_key: &str,
+ ) -> Option<(String, TrustLevel)> {
+     if let Some(trust_level) = projects_trust.get(lookup_key).copied() {
+         return Some((lookup_key.to_string(), trust_level));
