@@ -1,10 +1,6 @@
 {...}: [
   (
     _self: super: {
-      openldap = super.openldap.overrideAttrs (_oldAttrs: {
-        doCheck = false;
-      });
-
       waybar = super.waybar.overrideAttrs (_oldAttrs: let
         libcavaVersion = "0.10.7";
         libcavaSrc = super.fetchFromGitHub {
