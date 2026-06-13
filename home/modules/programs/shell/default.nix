@@ -1,5 +1,6 @@
 {
   imports = [
+    ./iphone.nix
     ./man.nix
     ./nao.nix
     ./translate.nix
