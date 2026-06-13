@@ -2,6 +2,7 @@
   imports = [
     ./hyprland
     ./waybar
+    ./eww
     ./awww
     ./fuzzel.nix
 

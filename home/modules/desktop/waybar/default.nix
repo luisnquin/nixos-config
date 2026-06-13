@@ -14,6 +14,18 @@
     settings = let
       runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop";
 
+      ewwToggleCalendar = pkgs.writeShellApplication {
+        name = "waybar-eww-toggle-calendar";
+        runtimeInputs = [config.programs.eww.package];
+        text = ''
+          if eww active-windows 2>/dev/null | grep -qx "calendar"; then
+            eww close calendar
+          else
+            eww open calendar
+          fi
+        '';
+      };
+
       sshInboundWaybar = pkgs.writeShellApplication {
         name = "ssh-inbound-waybar";
         runtimeInputs = with pkgs; [coreutils gawk jq];
@@ -165,18 +177,8 @@
           interval = 60;
           format = " {:%H:%M}";
           tooltip = true;
-          tooltip-format = "<tt>{calendar}</tt>";
-
-          calendar = {
-            mode = "month";
-            weeks-pos = "";
-            format = {
-              months = "<span color='#e8cef5'><b>{}</b></span>";
-              days = "<span color='#cdd6f4'><b>{}</b></span>";
-              weekdays = "<span color='#b5e8e0'><b>{}</b></span>";
-              today = "<span color='#f28fad'><b><u>{}</u></b></span>";
-            };
-          };
+          tooltip-format = "{:%A, %B %d %Y}";
+          on-click = "${lib.getExe ewwToggleCalendar}";
         };
 
         "cpu" = {
