@@ -25,8 +25,6 @@
     title ? null,
     tags ? null,
     priority ? 3,
-    delay ? null,
-    sequenceId ? null,
   }: let
     cleanHost = lib.removeSuffix "/" host;
 
@@ -44,37 +42,19 @@
       ++ lib.optional (title != null)
       "-H ${lib.escapeShellArg "Title: ${title}"}"
       ++ lib.optional (tagValue != null)
-      "-H ${lib.escapeShellArg "Tags: ${tagValue}"}"
-      ++ lib.optional (delay != null)
-      "-H ${lib.escapeShellArg "In: ${delay}"}";
+      "-H ${lib.escapeShellArg "Tags: ${tagValue}"}";
 
     curlHeaders = lib.concatStringsSep " " headers;
     data = lib.escapeShellArg message;
-    url = lib.escapeShellArg (
-      if sequenceId != null
-      then "${cleanHost}/${topic}/${sequenceId}"
-      else "${cleanHost}/${topic}"
-    );
+    url = lib.escapeShellArg "${cleanHost}/${topic}";
   in ''
     curl -fsS ${curlHeaders} -d ${data} ${url} >/dev/null 2>&1 &
-  '';
-
-  ntfyCancel = {
-    host,
-    topic,
-    sequenceId,
-  }: let
-    cleanHost = lib.removeSuffix "/" host;
-    url = lib.escapeShellArg "${cleanHost}/${topic}/${sequenceId}";
-  in ''
-    curl -fsS -X DELETE ${url} >/dev/null 2>&1 &
   '';
 in {
   desktop = desktopCommand;
 
   ntfy = {
     send = ntfySend;
-    cancel = ntfyCancel;
   };
 
   send = {

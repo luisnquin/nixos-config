@@ -199,6 +199,12 @@
       else command;
 
     audioCommand = file: "${pkgs.pulseaudio}/bin/paplay ${audioArgsPart}${lib.escapeShellArg file}";
+
+    agentNotify = pkgs.writeShellApplication {
+      name = "agent-notify";
+      runtimeInputs = [pkgs.curl pkgs.systemd pkgs.libnotify pkgs.coreutils];
+      text = builtins.readFile ./notify/agent-notify.sh;
+    };
   in {
     inherit (import ./assets {inherit lib;}) sounds images;
     inherit memories allowedDomains;
@@ -209,30 +215,63 @@
         builtins.concatStringsSep " && " (map audioCommand files)
       );
 
-    mkNotificationCmd = image: title: message: {ntfy ? {}}:
+    # A delay + sequenceId means the notification must be cancelable, so it is
+    # held in a local systemd timer via agent-notify. Without them it fires
+    # immediately through libx.notify (desktop + ntfy), unchanged.
+    mkNotificationCmd = image: title: message: {ntfy ? {}}: let
+      isScheduled = (ntfy ? delay) && (ntfy ? sequenceId);
+
+      host = nixosConfig.services.ntfy-sh.settings.base-url;
+      topic = ntfy.topic or "agents";
+      ntfyUrl =
+        if host == null || host == ""
+        then ""
+        else "${lib.removeSuffix "/" host}/${topic}";
+    in
       guardRoborev (
-        libx.notify.send {
-          desktop = {
-            inherit image title message;
-          };
-          ntfy =
-            {
-              host = nixosConfig.services.ntfy-sh.settings.base-url;
-              topic = "agents";
-            }
-            // ntfy;
-        }
+        if isScheduled
+        then
+          lib.concatStringsSep " " (
+            [
+              (lib.getExe agentNotify)
+              "schedule"
+              "--id"
+              (lib.escapeShellArg ntfy.sequenceId)
+              "--delay"
+              (lib.escapeShellArg ntfy.delay)
+              "--title"
+              (lib.escapeShellArg title)
+              "--message"
+              (lib.escapeShellArg message)
+              "--image"
+              (lib.escapeShellArg image)
+            ]
+            ++ lib.optionals (ntfyUrl != "") [
+              "--ntfy-url"
+              (lib.escapeShellArg ntfyUrl)
+            ]
+          )
+        else
+          libx.notify.send {
+            desktop = {
+              inherit image title message;
+            };
+            ntfy =
+              {
+                inherit host topic;
+              }
+              // builtins.removeAttrs ntfy ["delay" "sequenceId"];
+          }
       );
 
-    mkCancelNotificationCmd = {
-      topic ? "agents",
-      sequenceId,
-    }:
+    mkCancelNotificationCmd = {sequenceId, ...}:
       guardRoborev (
-        libx.notify.ntfy.cancel {
-          host = nixosConfig.services.ntfy-sh.settings.base-url;
-          inherit topic sequenceId;
-        }
+        lib.concatStringsSep " " [
+          (lib.getExe agentNotify)
+          "cancel"
+          "--id"
+          (lib.escapeShellArg sequenceId)
+        ]
       );
 
     mkCmdEntry = {
