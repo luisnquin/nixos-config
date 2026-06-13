@@ -62,8 +62,8 @@ with lib; let
       subNames;
 
     /*
-    Runs steps under set -e; on success runs desktop + ntfy (same pattern as agent hooks),
-    on failure runs failure variant then exits 1. Notifications never flip the overall status.
+    Runs steps under set -e and only notifies from the outermost wrapper. Nested
+    wrappers propagate their status so composed commands produce one final notification.
     */
     withNotify = {
       image ? defaultNyxIcon,
@@ -110,12 +110,21 @@ with lib; let
       ''
         if (
           set -e
+          export NYX_NOTIFY_DEPTH="$((NYX_NOTIFY_DEPTH + 1))"
           ${inner}
         ); then
-          ${okNotify} || true
+          if [ "''${NYX_NOTIFY_DEPTH:-0}" -eq 0 ]; then
+            ${okNotify} || true
+          fi
         else
-          ${errNotify} || true
-          exit 1
+          status=$?
+          if [ "$status" -eq 130 ]; then
+            exit "$status"
+          fi
+          if [ "''${NYX_NOTIFY_DEPTH:-0}" -eq 0 ]; then
+            ${errNotify} || true
+          fi
+          exit "$status"
         fi
       ''
     ];
@@ -184,9 +193,34 @@ with lib; let
     echo " -h, --help    Print help information"
   '';
 
+  interruptNotify = libx.notify.send {
+    desktop = {
+      image = defaultNyxIcon;
+      title = "${config.networking.hostName} command interrupted";
+      message = "The operation was stopped with Ctrl-C.";
+    };
+    ntfy = {
+      host = config.services.ntfy-sh.settings.base-url or "";
+      topic = "nyx";
+      tags = "warning";
+    };
+  };
+
   cliScript = ''
     #!/usr/bin/env bash
     set -e
+
+    NYX_ROOT_PID="$BASHPID"
+
+    notify_on_interrupt() {
+      status=$?
+      if [ "$status" -eq 130 ] && [ "$BASHPID" -eq "$NYX_ROOT_PID" ]; then
+        ${interruptNotify} || true
+      fi
+    }
+
+    trap 'exit 130' INT
+    trap notify_on_interrupt EXIT
 
     COMMAND="$1"
     shift || true
