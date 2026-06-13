@@ -5,12 +5,6 @@
         doCheck = false;
       });
 
-      panicparse = super.panicparse.overrideAttrs (_old: {
-        postInstall = ''
-          mv $out/bin/panicparse $out/bin/pp
-        '';
-      });
-
       waybar = super.waybar.overrideAttrs (_oldAttrs: let
         libcavaVersion = "0.10.7";
         libcavaSrc = super.fetchFromGitHub {
