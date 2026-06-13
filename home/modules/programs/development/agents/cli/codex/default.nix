@@ -1,5 +1,6 @@
 {
   mkAgentKit,
+  config,
   pkgs,
   ...
 }: let
@@ -62,14 +63,18 @@ in {
         };
       };
 
-      projects = {
-        "/home/luisnquin/.dotfiles" = {
-          trust_level = "trusted";
-        };
-        "/home/luisnquin/Projects" = {
-          trust_level = "trusted";
-        };
-      };
+      projects = let
+        trustAll = paths:
+          pkgs.lib.genAttrs (map (path: "${config.home.homeDirectory}/${path}") paths) (_: {
+            trust_level = "trusted";
+          });
+      in
+        trustAll [
+          ".dotfiles"
+          "Projects/github.com/luisnquin"
+          "Projects/github.com/cuentacero"
+          "Projects/github.com/0xc000022070"
+        ];
 
       tui.model_availability_nux = {
         "gpt-5.5" = 1;
