@@ -92,55 +92,29 @@ window > box {
 
 #workspaces {
     padding-left: 0;
-    padding-right: 5px;
+    padding-right: 4px;
 }
 
 #workspaces button {
     padding-top: 5px;
     padding-bottom: 5px;
-    padding-left: 7px;
-    padding-right: 7px;
-    margin-left: 1px;
-    margin-right: 1px;
+    padding-left: 6px;
+    padding-right: 6px;
     color: rgba(255, 255, 255, 0.72);
-    background-color: transparent;
-    border: 0;
-    box-shadow: none;
-    transition: none;
 }
 
 #workspaces button.active {
     background-color: rgb(181, 232, 224);
-    color: rgba(26, 24, 38, 0.9);
+    color: rgba(26, 24, 38, 0.8);
 }
 
 #workspaces button.urgent {
-    background-color: rgb(242, 143, 173);
-    color: rgba(26, 24, 38, 0.9);
+    color: rgba(26, 24, 38, 0.6);
 }
 
-#workspaces button:hover,
-#workspaces button:focus,
-#workspaces button:active {
-    background-color: transparent;
-    color: rgba(255, 255, 255, 0.72);
-    box-shadow: none;
-    border: 0;
-    transition: none;
-}
-
-#workspaces button.active:hover,
-#workspaces button.active:focus,
-#workspaces button.active:active {
-    background-color: rgb(181, 232, 224);
-    color: rgba(26, 24, 38, 0.9);
-}
-
-#workspaces button.urgent:hover,
-#workspaces button.urgent:focus,
-#workspaces button.urgent:active {
-    background-color: rgb(242, 143, 173);
-    color: rgba(26, 24, 38, 0.9);
+#workspaces button:hover {
+    background-color: rgba(26, 24, 38, 0.1);
+    color: rgb(181, 232, 224);
 }
 
 /* Center */
