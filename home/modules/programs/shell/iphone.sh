@@ -28,7 +28,6 @@ copy_ios_screenshot() {
 
   if [ -s "$tmp" ]; then
     wl-copy --type image/png <"$tmp"
-    print -r -- "iOS screenshot copied to clipboard"
     rm -f "$tmp"
   else
     print -ru2 -- "copy_ios_screenshot: capture failed (no tunnel; is the iPhone connected to rose and unlocked?)"
