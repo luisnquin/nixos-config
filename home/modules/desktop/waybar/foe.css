@@ -198,6 +198,8 @@ window > box {
 
 #network {
     color: #facaf4;
+    font-size: 19px;
+    padding-right: 4px;
 }
 
 #network.disconnected {

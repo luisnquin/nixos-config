@@ -16,6 +16,8 @@
 
       ewwToggleCalendar = "${lib.getExe config.programs.eww.package} open --toggle calendar";
 
+      ewwToggleNetwork = "${lib.getExe config.programs.eww.package} open --toggle network";
+
       sshInboundWaybar = pkgs.writeShellApplication {
         name = "ssh-inbound-waybar";
         runtimeInputs = with pkgs; [coreutils gawk jq];
@@ -205,14 +207,14 @@
         };
 
         "network" = {
-          "format-disconnected" = "󰯡 Disconnected";
-          "format-ethernet" = "↑ {bandwidthUpBytes} ↓ {bandwidthDownBytes} ({ifname})";
-          "format-linked" = "󰖪 {essid} (No IP)";
-          "format-wifi" = "↑ {bandwidthUpBytes} ↓ {bandwidthDownBytes} {ifname}";
-          "tooltip-format" = "{ifname} ^ {essid} ({frequency}MHz)";
-          "tooltip" = true;
-          "interval" = 1;
-          "on-click" = "${lib.getExe config.programs.ghostty.package} --class=waybar.nmtui -e ${pkgs.networkmanager}/bin/nmtui connect";
+          "format-wifi" = "{icon}";
+          "format-ethernet" = "󰈀";
+          "format-linked" = "󰤫";
+          "format-disconnected" = "󰤮";
+          "format-icons" = ["󰤯" "󰤟" "󰤢" "󰤥" "󰤨"];
+          "tooltip" = false;
+          "interval" = 5;
+          "on-click" = ewwToggleNetwork;
         };
 
         "tray" = {
