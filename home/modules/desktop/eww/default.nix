@@ -8,6 +8,8 @@
 
   nmtuiCmd = "${lib.getExe config.programs.ghostty.package} --class=eww.nmtui -e ${pkgs.networkmanager}/bin/nmtui connect";
 
+  scanCmd = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
+
   netInfo = pkgs.writeShellApplication {
     name = "eww-network-info";
     runtimeInputs = with pkgs; [iproute2 iw coreutils gawk jq];
@@ -91,17 +93,6 @@
     '';
   };
 
-  wifiToggle = pkgs.writeShellApplication {
-    name = "eww-wifi-toggle";
-    runtimeInputs = [pkgs.networkmanager];
-    text = ''
-      if [ "$(nmcli radio wifi)" = "enabled" ]; then
-        nmcli radio wifi off
-      else
-        nmcli radio wifi on
-      fi
-    '';
-  };
 in {
   programs.eww = {
     enable = true;
@@ -161,7 +152,7 @@ in {
             (label :class "net-down" :text {"↓ " + net.down}))
           (box :class "net-actions" :orientation "h" :space-evenly true :spacing 8
             (button :class "net-btn" :onclick "${eww} close network & ${nmtuiCmd}" "nmtui")
-            (button :class "net-btn" :onclick "${lib.getExe wifiToggle}" "toggle wifi"))))
+            (button :class "net-btn" :onclick "${scanCmd}" "force scan"))))
 
       (defwidget net-row [label value]
         (box :class "net-row" :orientation "h" :space-evenly false

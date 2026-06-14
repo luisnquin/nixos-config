@@ -54,7 +54,6 @@ window > box {
 #memory,
 #battery,
 #network,
-#custom-network-scan,
 #custom-wall,
 #temperature,
 #pulseaudio,
@@ -126,8 +125,7 @@ window > box {
 #cpu,
 #memory,
 #battery,
-#network,
-#custom-network-scan {
+#network {
     padding-left: 8px;
     padding-right: 8px;
 }
@@ -206,19 +204,6 @@ window > box {
     color: rgba(255, 255, 255, 0.62);
 }
 
-/* Scan */
-
-#custom-network-scan {
-    color: #795ee6;
-    padding-left: 7px;
-    padding-right: 5px;
-    font-size: 21px;
-}
-
-#custom-network-scan.scanning {
-    color: #f26411;
-}
-
 /* Other modules from your original CSS */
 
 #custom-wall {
@@ -262,8 +247,7 @@ window > box {
 #cpu:hover,
 #memory:hover,
 #battery:hover,
-#network:hover,
-#custom-network-scan:hover {
+#network:hover {
     background-color: rgba(255, 255, 255, 0.045);
 }
 

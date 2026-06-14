@@ -103,7 +103,6 @@
           "memory"
           "battery"
           "network"
-          "custom/network-scan"
         ];
 
         "hyprland/workspaces" = {
@@ -125,15 +124,6 @@
         "custom/launcher" = {
           "format" = " ";
           "tooltip" = false;
-        };
-
-        "custom/network-scan" = {
-          "exec" = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar}";
-          "return-type" = "json";
-          "tooltip" = true;
-          "interval" = 1;
-          "tooltip-format" = "Scan Wi-Fi networks nearby";
-          "on-click" = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
         };
 
         "custom/ssh-label" = {
