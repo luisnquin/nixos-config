@@ -1,0 +1,51 @@
+diff --git a/codex-rs/cli/src/doctor.rs b/codex-rs/cli/src/doctor.rs
+index c0f310e700..e0d41ebc4a 100644
+--- a/codex-rs/cli/src/doctor.rs
++++ b/codex-rs/cli/src/doctor.rs
+@@ -1976,14 +1976,18 @@ fn push_terminfo_details(details: &mut Vec<String>, inputs: &TerminalCheckInputs
+         has_warning |= warning;
+     }
+     if let Some(raw) = inputs.env_value("TERMINFO_DIRS") {
++        let mut has_readable_entry = false;
++        let mut has_unreadable_entry = false;
+         for path in env::split_paths(raw).filter(|path| !path.as_os_str().is_empty()) {
+             let (status, warning) = terminal_path_readiness(&path);
+             details.push(format!(
+                 "TERMINFO_DIRS entry: {} ({status})",
+                 path.display()
+             ));
+-            has_warning |= warning;
++            has_readable_entry |= !warning;
++            has_unreadable_entry |= warning;
+         }
++        has_warning |= has_unreadable_entry && !has_readable_entry;
+     } else if inputs.env_present("TERMINFO_DIRS") {
+         details.push("TERMINFO_DIRS: present".to_string());
+     }
+@@ -4081,6 +4085,26 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn terminal_check_accepts_partial_terminfo_dirs() {
++        let tempdir = tempfile::tempdir().expect("create tempdir");
++        let readable = tempdir.path().join("terminfo");
++        std::fs::create_dir(&readable).expect("create readable terminfo dir");
++        let missing = tempdir.path().join("missing-terminfo");
++        let dirs = std::env::join_paths([readable.as_path(), missing.as_path()])
++            .expect("join terminfo dirs");
++        let mut inputs = terminal_inputs();
++        set_terminal_env(&mut inputs, "TERMINFO_DIRS", &dirs.to_string_lossy());
++
++        let check = terminal_check_from_inputs(inputs);
++
++        assert_eq!(check.status, CheckStatus::Ok);
++        assert!(check.issues.is_empty());
++        assert!(check.details.iter().any(|detail| {
++            detail.starts_with("TERMINFO_DIRS entry: ") && detail.ends_with(" (missing)")
++        }));
++    }
++
+     #[test]
+     fn terminal_check_reports_remote_indicators_as_present_only() {
+         let mut inputs = terminal_inputs();

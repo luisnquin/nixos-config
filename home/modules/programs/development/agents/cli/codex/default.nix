@@ -13,6 +13,7 @@
       ./git-remote-show-no-fetch.patch
       ./curated-plugins-disable-sync.patch
       ./presentation-card.patch
+      ./terminal-terminfo-dirs.patch
     ];
   });
 in {
