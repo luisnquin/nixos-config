@@ -1,0 +1,47 @@
+diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_composer.rs
+index 2423647b38..8c60b1c6f8 100644
+--- a/tui/src/bottom_pane/chat_composer.rs
++++ b/tui/src/bottom_pane/chat_composer.rs
+@@ -427,6 +427,21 @@ fn plan_mode_nudge_line() -> Line<'static> {
+     ])
+ }
+ 
++fn render_claude_input_frame(area: Rect, buf: &mut Buffer) {
++    if area.width == 0 || area.height == 0 {
++        return;
++    }
++
++    let rail = "─".repeat(area.width as usize);
++    let rail_style = Style::default().fg(Color::DarkGray);
++    buf.set_string(area.x, area.y, &rail, rail_style);
++
++    if area.height > 1 {
++        let bottom_y = area.y.saturating_add(area.height.saturating_sub(1));
++        buf.set_string(area.x, bottom_y, &rail, rail_style);
++    }
++}
++
+ impl ChatComposer {
+     fn slash_input(&self) -> SlashInput<'_> {
+         SlashInput::new(
+@@ -4386,6 +4401,6 @@ impl ChatComposer {
+         }
+         let style = user_message_style();
+-        Block::default().style(style).render_ref(composer_rect, buf);
++        render_claude_input_frame(composer_rect, buf);
+         if !remote_images_rect.is_empty() {
+             Paragraph::new(self.attachments.remote_image_lines())
+                 .style(style)
+@@ -4396,10 +4412,10 @@ impl ChatComposer {
+                 if self.draft.is_bash_mode {
+                     Span::from("!").light_red().bold()
+                 } else {
+-                    "›".bold()
++                    Span::from("❯").light_cyan().bold()
+                 }
+             } else {
+-                "›".dim()
++                Span::from("❯").dim()
+             };
+             buf.set_span(
+                 textarea_rect.x - LIVE_PREFIX_COLS,
