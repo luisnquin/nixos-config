@@ -15,6 +15,7 @@
       ./presentation-card.patch
       ./terminal-terminfo-dirs.patch
       ./claude-input-bar.patch
+      ./disable-cloud-tasks.patch
     ];
   });
 in {
