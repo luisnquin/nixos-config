@@ -1,7 +1,7 @@
-diff --git a/codex-rs/cli/src/doctor.rs b/codex-rs/cli/src/doctor.rs
+diff --git a/cli/src/doctor.rs b/cli/src/doctor.rs
 index c0f310e700..e0d41ebc4a 100644
---- a/codex-rs/cli/src/doctor.rs
-+++ b/codex-rs/cli/src/doctor.rs
+--- a/cli/src/doctor.rs
++++ b/cli/src/doctor.rs
 @@ -1976,14 +1976,18 @@ fn push_terminfo_details(details: &mut Vec<String>, inputs: &TerminalCheckInputs
          has_warning |= warning;
      }

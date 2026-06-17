@@ -75,8 +75,20 @@ in {
           "Projects/github.com/0xc000022070"
         ];
 
-      tui.model_availability_nux = {
-        "gpt-5.5" = 1;
+      tui = {
+        show_tooltips = false;
+        status_line = [
+          "current-dir"
+          "model"
+          "reasoning"
+          "branch-changes"
+          "context-used"
+          "five-hour-limit"
+          "weekly-limit"
+        ];
+        model_availability_nux = {
+          "gpt-5.5" = 1;
+        };
       };
 
       profiles = {
