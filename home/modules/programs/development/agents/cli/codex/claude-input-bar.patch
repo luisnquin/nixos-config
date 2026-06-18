@@ -2,6 +2,14 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
 index 2423647b38..8c60b1c6f8 100644
 --- a/tui/src/bottom_pane/chat_composer.rs
 +++ b/tui/src/bottom_pane/chat_composer.rs
+@@ -150,7 +150,6 @@ use ratatui::style::Style;
+ use ratatui::style::Stylize;
+ use ratatui::text::Line;
+ use ratatui::text::Span;
+-use ratatui::widgets::Block;
+ use ratatui::widgets::Paragraph;
+ use ratatui::widgets::StatefulWidgetRef;
+ use ratatui::widgets::WidgetRef;
 @@ -427,6 +427,21 @@ fn plan_mode_nudge_line() -> Line<'static> {
      ])
  }
