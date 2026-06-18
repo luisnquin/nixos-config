@@ -29,9 +29,7 @@
       isBashRule = line:
         builtins.match "[+?-][[:space:]]+Bash\\(.*\\)" line != null;
 
-      isRtkBashRule = line:
-        builtins.match "[+?-][[:space:]]+Bash\\(rtk .*\\)" line != null;
-      mkRtkBashRule = line: let
+      mkWrappedBashRule = wrapper: line: let
         sign = builtins.substring 0 1 line;
         body = lib.strings.trim (
           builtins.substring 1 ((builtins.stringLength line) - 1) line
@@ -39,11 +37,44 @@
 
         match = builtins.match "Bash\\((.*)\\)" body;
         command = builtins.elemAt match 0;
-      in "${sign} Bash(rtk ${command})";
+      in "${sign} Bash(${wrapper command})";
+
+      bashWrappers = [
+        {
+          isWrapped = line:
+            builtins.match "[+?-][[:space:]]+Bash\\(rtk .*\\)" line != null;
+          wrap = command: "rtk ${command}";
+        }
+        {
+          isWrapped = line:
+            builtins.match "[+?-][[:space:]]+Bash\\(direnv exec .*\\)" line != null;
+          wrap = command: "direnv exec * ${command}";
+        }
+        {
+          isWrapped = line:
+            builtins.match "[+?-][[:space:]]+Bash\\(direnv exec .* rtk .*\\)" line != null;
+          wrap = command: "direnv exec * rtk ${command}";
+        }
+        {
+          isWrapped = line:
+            builtins.match "[+?-][[:space:]]+Bash\\(rtk direnv exec .*\\)" line != null;
+          wrap = command: "rtk direnv exec * ${command}";
+        }
+        {
+          isWrapped = line:
+            builtins.match "[+?-][[:space:]]+Bash\\(rtk direnv exec .* rtk .*\\)" line != null;
+          wrap = command: "rtk direnv exec * rtk ${command}";
+        }
+      ];
+
+      mkWrapperLine = line: wrapper:
+        if wrapper.isWrapped line
+        then []
+        else [(mkWrappedBashRule wrapper.wrap line)];
 
       expandLine = line:
-        if isBashRule line && !(isRtkBashRule line)
-        then [line (mkRtkBashRule line)]
+        if isBashRule line
+        then [line] ++ lib.flatten (map (mkWrapperLine line) bashWrappers)
         else [line];
     in
       lib.unique (lib.flatten (map expandLine baseLines));
