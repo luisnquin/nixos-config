@@ -91,6 +91,7 @@
 + Bash(nix --version)
 + Bash(nix develop:*)
 + Bash(nix build:*)
++ Bash(direnv allow)
 + Bash(npx astro check:*)
 + Bash(mkdir -p:*)
 + Bash(npm test:*)
