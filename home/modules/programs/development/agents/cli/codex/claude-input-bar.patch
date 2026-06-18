@@ -45,3 +45,42 @@ index 2423647b38..8c60b1c6f8 100644
              };
              buf.set_span(
                  textarea_rect.x - LIVE_PREFIX_COLS,
+diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
+index 3945d06f05..8d522ebed2 100644
+--- a/tui/src/history_cell/messages.rs
++++ b/tui/src/history_cell/messages.rs
+@@ -76,6 +76,10 @@ fn trim_trailing_blank_lines(mut lines: Vec<Line<'static>>) -> Vec<Line<'static>
+     lines
+ }
+ 
++fn claude_input_frame_line(width: u16) -> Line<'static> {
++    Line::from("─".repeat(usize::from(width))).style(Style::default().fg(Color::DarkGray))
++}
++
+ impl HistoryCell for UserHistoryCell {
+     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
+         let wrap_width = width
+@@ -129,7 +133,7 @@ impl HistoryCell for UserHistoryCell {
+             return Vec::new();
+         }
+ 
+-        let mut lines: Vec<Line<'static>> = vec![Line::from("").style(style)];
++        let mut lines: Vec<Line<'static>> = vec![claude_input_frame_line(width)];
+ 
+         if let Some(wrapped_remote_images) = wrapped_remote_images {
+             lines.extend(prefix_lines(
+@@ -146,12 +150,12 @@ impl HistoryCell for UserHistoryCell {
+         if let Some(wrapped_message) = wrapped_message {
+             lines.extend(prefix_lines(
+                 wrapped_message,
+-                "› ".bold().dim(),
++                Span::from("❯ ").light_cyan().bold(),
+                 "  ".into(),
+             ));
+         }
+ 
+-        lines.push(Line::from("").style(style));
++        lines.push(claude_input_frame_line(width));
+         lines
+     }
+ 
