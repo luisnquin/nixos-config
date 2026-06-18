@@ -2,7 +2,13 @@
 # "+" are allowed.
 # "-" are denied.
 # "?" are asked.
+# "@ BashPrefix(...)" prefixes every Bash rule.
 #
+@ BashPrefix(rtk)
+@ BashPrefix(direnv exec *)
+@ BashPrefix(direnv exec * rtk)
+@ BashPrefix(rtk direnv exec *)
+@ BashPrefix(rtk direnv exec * rtk)
 + Edit
 + Write
 + Glob(*)

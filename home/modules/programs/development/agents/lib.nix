@@ -28,8 +28,23 @@
       baseLines = builtins.filter isRule (map cleanLine lines);
       isBashRule = line:
         builtins.match "[+?-][[:space:]]+Bash\\(.*\\)" line != null;
+      isBashPrefix = line:
+        builtins.match "@[[:space:]]+BashPrefix\\(.*\\)" line != null;
 
-      mkWrappedBashRule = wrapper: line: let
+      parseBashPrefix = line: let
+        match = builtins.match "@[[:space:]]+BashPrefix\\((.*)\\)" line;
+      in
+        if match != null
+        then builtins.elemAt match 0
+        else throw "Invalid agent Bash prefix line: ${line}";
+
+      bashPrefixes = map parseBashPrefix (
+        builtins.filter isBashPrefix baseLines
+      );
+
+      permissionSourceLines = builtins.filter (line: !(isBashPrefix line)) baseLines;
+
+      mkPrefixedBashRule = prefix: line: let
         sign = builtins.substring 0 1 line;
         body = lib.strings.trim (
           builtins.substring 1 ((builtins.stringLength line) - 1) line
@@ -37,47 +52,15 @@
 
         match = builtins.match "Bash\\((.*)\\)" body;
         command = builtins.elemAt match 0;
-      in "${sign} Bash(${wrapper command})";
-
-      bashWrappers = [
-        {
-          isWrapped = line:
-            builtins.match "[+?-][[:space:]]+Bash\\(rtk .*\\)" line != null;
-          wrap = command: "rtk ${command}";
-        }
-        {
-          isWrapped = line:
-            builtins.match "[+?-][[:space:]]+Bash\\(direnv exec .*\\)" line != null;
-          wrap = command: "direnv exec * ${command}";
-        }
-        {
-          isWrapped = line:
-            builtins.match "[+?-][[:space:]]+Bash\\(direnv exec .* rtk .*\\)" line != null;
-          wrap = command: "direnv exec * rtk ${command}";
-        }
-        {
-          isWrapped = line:
-            builtins.match "[+?-][[:space:]]+Bash\\(rtk direnv exec .*\\)" line != null;
-          wrap = command: "rtk direnv exec * ${command}";
-        }
-        {
-          isWrapped = line:
-            builtins.match "[+?-][[:space:]]+Bash\\(rtk direnv exec .* rtk .*\\)" line != null;
-          wrap = command: "rtk direnv exec * rtk ${command}";
-        }
-      ];
-
-      mkWrapperLine = line: wrapper:
-        if wrapper.isWrapped line
-        then []
-        else [(mkWrappedBashRule wrapper.wrap line)];
+        prefixedCommand = "${prefix} ${command}";
+      in "${sign} Bash(${prefixedCommand})";
 
       expandLine = line:
         if isBashRule line
-        then [line] ++ lib.flatten (map (mkWrapperLine line) bashWrappers)
+        then [line] ++ map (prefix: mkPrefixedBashRule prefix line) bashPrefixes
         else [line];
     in
-      lib.unique (lib.flatten (map expandLine baseLines));
+      lib.unique (lib.flatten (map expandLine permissionSourceLines));
 
     parsedPermissions = map (line: let
       sign = builtins.substring 0 1 line;
