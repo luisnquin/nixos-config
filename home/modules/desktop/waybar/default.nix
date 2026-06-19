@@ -161,13 +161,13 @@
 
         modules-right = [
           "custom/tailscale"
+          "network"
           "custom/ssh-label"
           "custom/ssh-inbound"
           "custom/ssh-outbound"
           "cpu"
           "memory"
           "custom/battery"
-          "network"
         ];
 
         "hyprland/workspaces" = {
