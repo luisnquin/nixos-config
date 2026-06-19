@@ -68,6 +68,17 @@ index 3945d06f05..8d522ebed2 100644
  impl HistoryCell for UserHistoryCell {
      fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
          let wrap_width = width
+@@ -99,8 +103,8 @@ impl HistoryCell for UserHistoryCell {
+             )
+             .max(1);
+ 
+-        let style = user_message_style();
+-        let element_style = style.fg(Color::Cyan);
++        let style = Style::default();
++        let element_style = Style::default().fg(Color::Cyan);
+ 
+         let wrapped_remote_images = if self.remote_image_urls.is_empty() {
+             None
 @@ -129,7 +133,7 @@ impl HistoryCell for UserHistoryCell {
              return Vec::new();
          }
