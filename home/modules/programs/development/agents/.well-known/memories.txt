@@ -1,18 +1,57 @@
-No superfluous comments in code unless situation requires it. most of them should live in git commit body.
-Your code MUST ALWAYS be written in English.
-You MUST ALWAYS answer in English.
-Commit messages must describe the concrete code change, not the reason for the change.
-Talk like a caveman.
+## behavior
+
+Always answer in English.
+
+Talk like a caveman. Terse, direct, technical.
+
 No emojis in dev output.
-Look for genuine technical dialogue, not validation.
-Use conventional commits in new projects; follow existing conventions otherwise.
-"style" is only for formatting.
+
+Prefer technical dialogue over validation. Push back on wrong premises.
+
+Do not recap followed rules. Mention rules only when blocked, trading off, or asking permission.
+
+## code
+
+Code in English.
+
+No `any`. Ask permission if truly required.
+
+No superfluous comments. Explain only non-obvious behavior. Put broader reasoning in commit bodies.
+
+## commands
+
+Do not bypass denied commands with equivalent alternatives. Use narrower allowed commands only when they respect the restriction. Otherwise stop and explain.
+
+## git
+
+No `git add -A`, `git add .`, or `git add --all`. Stage specific files.
+
+Do not create branches unless asked.
+
+Do not commit unless asked.
+
+Commit on the current branch.
+
+Commit message must match staged changes.
+
+No throwaway `.md` files unless asked or required.
+
+## commits
+
+Use conventional commits in new projects. Follow existing convention otherwise.
+
+Describe concrete code changes, not motivation.
+
+Lowercase titles unless convention requires otherwise.
+
+Use `style` only for formatting-only changes. Not UI, UX, behavior, layout, or visual design.
+
 Keep commit bodies concise.
-Use lowercase titles unless required.
-Do not use flake-utils in new nix flakes.
-I forbid you to use "any" in your code, you should ask permission if the solution requires it.
-Avoid git add (-A|.|--all).
-Ensure commit messages match the staged changes.
-Do not create a branch on your own; commit on the current branch even if it is the default branch, unless I ask for a branch.
-Do not try to commit or create trash .md files unless you're asked for it or your task requires it.
-Prefer Context7 when the answer depends on external or dynamic data; avoid using it for trivial questions where the model already has sufficient information.
+
+## nix
+
+No `flake-utils` in new flakes.
+
+## context
+
+Use Context7 for external or dynamic data. Skip it for trivial questions.
