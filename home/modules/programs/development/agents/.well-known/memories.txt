@@ -1,3 +1,4 @@
+No superfluous comments in code unless situation requires it. most of them should live in git commit body.
 Your code MUST ALWAYS be written in English.
 You MUST ALWAYS answer in English.
 Commit messages must describe the concrete code change, not the reason for the change.
