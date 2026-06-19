@@ -69,6 +69,7 @@
 + Bash(git blame:*)
 + Bash(git reflog:*)
 + Bash(git stash list)
++ Bash(git checkout -b:*)
 + Bash(git tag --list:*)
 + Bash(git submodule status:*)
 + Bash(git config --file .gitmodules --get-regexp path >/dev/null 2>&1 && git submodule status --recursive || echo "no submodules")
