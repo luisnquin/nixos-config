@@ -53,6 +53,7 @@ window > box {
 #cpu,
 #memory,
 #battery,
+#custom-battery,
 #network,
 #custom-wall,
 #temperature,
@@ -125,6 +126,7 @@ window > box {
 #cpu,
 #memory,
 #battery,
+#custom-battery,
 #network {
     padding-left: 8px;
     padding-right: 8px;
@@ -186,11 +188,26 @@ window > box {
     color: #ffffff;
 }
 
+#custom-battery {
+    color: rgb(181, 232, 224);
+    font-family: "Cascadia Code NF", "Symbols Nerd Font", monospace;
+    font-size: 18px;
+    min-width: 18px;
+}
+
 #battery.warning {
     color: rgb(248, 189, 150);
 }
 
 #battery.critical {
+    color: rgb(242, 143, 173);
+}
+
+#custom-battery.warning {
+    color: rgb(248, 189, 150);
+}
+
+#custom-battery.critical {
     color: rgb(242, 143, 173);
 }
 
@@ -247,6 +264,7 @@ window > box {
 #cpu:hover,
 #memory:hover,
 #battery:hover,
+#custom-battery:hover,
 #network:hover {
     background-color: rgba(255, 255, 255, 0.045);
 }

@@ -16,6 +16,8 @@
 
       ewwToggleCalendar = "${lib.getExe config.programs.eww.package} open --toggle calendar";
 
+      ewwToggleBattery = "${lib.getExe config.programs.eww.package} open --toggle battery";
+
       ewwToggleNetwork = "${lib.getExe config.programs.eww.package} open --toggle network";
 
       sshInboundWaybar = pkgs.writeShellApplication {
@@ -77,6 +79,67 @@
             "$online" "$total" "$tooltip"
         '';
       };
+
+      batteryWaybar = pkgs.writeShellApplication {
+        name = "battery-waybar";
+        runtimeInputs = with pkgs; [coreutils gawk jq];
+        text = ''
+          bat=""
+          for path in /sys/class/power_supply/*; do
+            [ -r "$path/type" ] || continue
+            [ "$(cat "$path/type")" = "Battery" ] || continue
+            bat="$path"
+            break
+          done
+
+          if [ -z "$bat" ]; then
+            jq -cn '{text:"?", tooltip:"No battery", class:"missing"}'
+            exit 0
+          fi
+
+          status="$(cat "$bat/status" 2>/dev/null || echo Unknown)"
+          capacity="$(cat "$bat/capacity" 2>/dev/null || echo 0)"
+
+          ac_online=0
+          for path in /sys/class/power_supply/*; do
+            [ -r "$path/type" ] || continue
+            type="$(cat "$path/type")"
+            if [ "$type" = "Mains" ] || [ "$type" = "USB" ]; then
+              online="$(cat "$path/online" 2>/dev/null || echo 0)"
+              [ "$online" = "1" ] && ac_online=1
+            fi
+          done
+
+          read -r icon class <<EOF
+          $(awk -v status="$status" -v capacity="$capacity" -v ac_online="$ac_online" \
+            -v warn="${toString config.services.battery-notifier.settings.warn.threshold}" \
+            -v critical="${toString config.services.battery-notifier.settings.threat.threshold}" '
+            BEGIN {
+              class = "normal";
+              if (capacity <= critical) class = "critical";
+              else if (capacity <= warn) class = "warning";
+
+              if (status == "Charging") icon = "󰂄";
+              else if (status == "Full") icon = "󰂂";
+              else if (ac_online == 1) icon = "󰂄";
+              else if (capacity < 15) icon = "󰁺";
+              else if (capacity < 30) icon = "󰁻";
+              else if (capacity < 45) icon = "󰁽";
+              else if (capacity < 60) icon = "󰁿";
+              else if (capacity < 80) icon = "󰂀";
+              else icon = "󰂂";
+
+              print icon, class;
+            }')
+          EOF
+
+          jq -cn \
+            --arg text "$icon" \
+            --arg tooltip "$capacity% · $status" \
+            --arg class "$class" \
+            '{text:$text, tooltip:$tooltip, class:$class}'
+        '';
+      };
     in [
       {
         "position" = "top";
@@ -101,7 +164,7 @@
           "custom/ssh-outbound"
           "cpu"
           "memory"
-          "battery"
+          "custom/battery"
           "network"
         ];
 
@@ -179,21 +242,12 @@
           "on-click" = runBtop;
         };
 
-        "battery" = {
-          "states" = {
-            "warning" = config.services.battery-notifier.settings.warn.threshold;
-            "critical" = config.services.battery-notifier.settings.threat.threshold;
-          };
-
-          "interval" = 3;
-
-          "format" = "{icon}";
-          "format-charging" = "󰂄";
-          "format-plugged" = "󱟠";
-          "format-alt" = "{time} {icon}";
-          "format-full" = "󱟢";
-
-          "format-icons" = ["󰁺" "󰁻" "󰁽" "󰁿" "󰂀" "󰂂"];
+        "custom/battery" = {
+          exec = "${lib.getExe batteryWaybar}";
+          return-type = "json";
+          interval = 3;
+          tooltip = true;
+          on-click = ewwToggleBattery;
         };
 
         "network" = {
