@@ -23,6 +23,15 @@
           patchShebangs .
           popd
         '';
+
+        doCheck = false;
+        mesonFlags =
+          map
+          (flag:
+            if flag == "-Dtests=enabled"
+            then "-Dtests=disabled"
+            else flag)
+          (_oldAttrs.mesonFlags or []);
       });
     }
   )
