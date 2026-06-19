@@ -20,7 +20,6 @@
   );
 
   wallpaperFiles = map (name: "${wallpapersPkg}/${name}") wallpaperNames;
-  backgroundFile = "${wallpapersPkg}/background.gif";
   defaultWallpaper = lib.head wallpaperFiles;
 
   switchWallpaper = pkgs.writers.writePython3Bin "awww-switch-wallpaper" {} ''
