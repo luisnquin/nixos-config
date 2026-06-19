@@ -93,20 +93,6 @@ in {
         };
       };
 
-      profiles = {
-        coding = {
-          personality = "pragmatic";
-          features = {
-            code_mode = true;
-            apply_patch_freeform = true;
-          };
-        };
-        creative = {
-          personality = "friendly";
-          model_verbosity = "high";
-        };
-      };
-
       features = {
         hooks = true;
       };
@@ -114,6 +100,20 @@ in {
       tools = {
         view_image = true;
         web_search = permissions.web_search;
+      };
+    };
+
+    profiles = {
+      coding = {
+        personality = "pragmatic";
+        features = {
+          code_mode = true;
+          apply_patch_freeform = true;
+        };
+      };
+      creative = {
+        personality = "friendly";
+        model_verbosity = "high";
       };
     };
   };
