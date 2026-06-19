@@ -10,6 +10,106 @@
 
   scanCmd = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
 
+  systemInfo = pkgs.writeShellApplication {
+    name = "eww-system-info";
+    runtimeInputs = with pkgs; [coreutils gawk jq procps];
+    text = ''
+      state="/tmp/eww-system-info.state"
+
+      read -r _ user nice system idle iowait irq softirq steal guest guest_nice < /proc/stat
+      total=$((user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice))
+      idle_all=$((idle + iowait))
+
+      prev_total=0
+      prev_idle=0
+      if [ -r "$state" ]; then
+        read -r prev_total prev_idle < "$state" || true
+      fi
+      printf '%s %s\n' "$total" "$idle_all" > "$state"
+
+      cpu_percent="$(awk -v total="$total" -v idle="$idle_all" -v ptotal="$prev_total" -v pidle="$prev_idle" '
+        BEGIN {
+          dt = total - ptotal;
+          di = idle - pidle;
+          if (dt <= 0) print 0;
+          else printf "%d", ((dt - di) / dt) * 100 + 0.5;
+        }')"
+
+      cores="$(nproc)"
+      load="$(cut -d' ' -f1-3 /proc/loadavg)"
+      uptime_label="$(awk '{d=int($1 / 86400); h=int(($1 % 86400) / 3600); m=int(($1 % 3600) / 60); if (d > 0) printf "%dd %02dh", d, h; else printf "%dh %02dm", h, m}' /proc/uptime)"
+      freq_label="$(awk -F': ' '/cpu MHz/ {sum += $2; n++} END {if (n > 0) printf "%.2f GHz", (sum / n) / 1000; else print "—"}' /proc/cpuinfo)"
+      temp_label="$(awk '
+        function valid(path, value) {
+          getline value < path;
+          close(path);
+          return value != "" && value > 0;
+        }
+        BEGIN {
+          best = "";
+          for (i = 0; i < 32; i++) {
+            type = "/sys/class/thermal/thermal_zone" i "/type";
+            temp = "/sys/class/thermal/thermal_zone" i "/temp";
+            if ((getline name < type) > 0) {
+              close(type);
+              if (name ~ /x86_pkg_temp|k10temp|cpu|CPU|package|Package/) {
+                if (valid(temp, raw)) { best = raw; break; }
+              }
+            }
+          }
+          if (best == "") {
+            for (i = 0; i < 32; i++) {
+              temp = "/sys/class/thermal/thermal_zone" i "/temp";
+              if (valid(temp, raw)) { best = raw; break; }
+            }
+          }
+          if (best == "") print "—";
+          else printf "%.0f°C", best / 1000;
+        }')"
+
+      mem="$(awk '
+        function human(kb,   v, unit) {
+          v = kb / 1024 / 1024;
+          unit = "GiB";
+          return sprintf("%.1f %s", v, unit);
+        }
+        /^MemTotal:/ {total = $2}
+        /^MemAvailable:/ {avail = $2}
+        /^SwapTotal:/ {swap_total = $2}
+        /^SwapFree:/ {swap_free = $2}
+        END {
+          used = total - avail;
+          pct = total > 0 ? int((used / total) * 100 + 0.5) : 0;
+          swap_used = swap_total - swap_free;
+          swap_pct = swap_total > 0 ? int((swap_used / swap_total) * 100 + 0.5) : 0;
+          printf "%d\t%s\t%s\t%s\t%d", pct, human(used), human(total), human(swap_used), swap_pct;
+        }' /proc/meminfo)"
+      mem_percent="$(printf '%s' "$mem" | cut -f1)"
+      mem_used="$(printf '%s' "$mem" | cut -f2)"
+      mem_total="$(printf '%s' "$mem" | cut -f3)"
+      swap_used="$(printf '%s' "$mem" | cut -f4)"
+      swap_percent="$(printf '%s' "$mem" | cut -f5)"
+
+      top_cpu="$(ps -eo comm=,%cpu= --sort=-%cpu | awk 'NR == 1 {printf "%s %.1f%%", $1, $2}')"
+      top_mem="$(ps -eo comm=,%mem= --sort=-%mem | awk 'NR == 1 {printf "%s %.1f%%", $1, $2}')"
+      [ -z "$top_cpu" ] && top_cpu="—"
+      [ -z "$top_mem" ] && top_mem="—"
+
+      jq -cn \
+        --argjson cpu_percent "$cpu_percent" --arg cores "$cores" --arg load "$load" \
+        --arg uptime "$uptime_label" --arg freq "$freq_label" --arg temp "$temp_label" \
+        --argjson mem_percent "$mem_percent" --arg mem_used "$mem_used" --arg mem_total "$mem_total" \
+        --arg swap_used "$swap_used" --argjson swap_percent "$swap_percent" \
+        --arg top_cpu "$top_cpu" --arg top_mem "$top_mem" \
+        '{cpu_percent:$cpu_percent, cpu_label:($cpu_percent | tostring) + "%",
+          cores:$cores, load:$load, uptime:$uptime, freq:$freq, temp:$temp,
+          mem_percent:$mem_percent, mem_label:($mem_percent | tostring) + "%",
+          mem_used:$mem_used, mem_total:$mem_total, swap_used:$swap_used,
+          swap_percent:$swap_percent, swap_label:($swap_percent | tostring) + "%",
+          top_cpu:$top_cpu, top_mem:$top_mem}'
+    '';
+  };
+
   batteryInfo = pkgs.writeShellApplication {
     name = "eww-battery-info";
     runtimeInputs = with pkgs; [coreutils gawk jq];
@@ -220,6 +320,69 @@ in {
           (calendar :class "calendar"
                     :show-week-numbers false)))
 
+      (defpoll sys :interval "2s"
+        :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":"—","top_mem":"—"}'
+        `${lib.getExe systemInfo}`)
+
+      (defwindow cpu
+        :monitor 0
+        :geometry (geometry
+          :x "130px"
+          :y "35px"
+          :width "280px"
+          :anchor "top right")
+        :stacking "overlay"
+        :focusable false
+        (cpu-widget))
+
+      (defwindow memory
+        :monitor 0
+        :geometry (geometry
+          :x "88px"
+          :y "35px"
+          :width "280px"
+          :anchor "top right")
+        :stacking "overlay"
+        :focusable false
+        (mem-widget))
+
+      (defwidget cpu-widget []
+        (box :class "sys-box cpu-box" :orientation "v" :space-evenly false :spacing 12
+          (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
+            (box :class "sys-meter cpu-meter" :orientation "v" :space-evenly false :valign "center"
+              (label :class "sys-meter-icon" :text "󰍛")
+              (label :class "sys-meter-value" :text {sys.cpu_label}))
+            (box :orientation "v" :space-evenly false :hexpand true :halign "start"
+              (label :class "sys-title" :halign "start" :text "CPU")
+              (label :class "sys-subtitle" :halign "start" :text {sys.cores + " cores · " + sys.freq})
+              (progress :class "sys-bar cpu-bar" :value {sys.cpu_percent})))
+          (box :class "sys-grid" :orientation "v" :space-evenly false :spacing 4
+            (sys-row :label "Load" :value {sys.load})
+            (sys-row :label "Temp" :value {sys.temp})
+            (sys-row :label "Uptime" :value {sys.uptime})
+            (sys-row :label "Top" :value {sys.top_cpu}))))
+
+      (defwidget mem-widget []
+        (box :class "sys-box mem-box" :orientation "v" :space-evenly false :spacing 12
+          (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
+            (box :class "sys-meter mem-meter" :orientation "v" :space-evenly false :valign "center"
+              (label :class "sys-meter-icon" :text "󰻠")
+              (label :class "sys-meter-value" :text {sys.mem_label}))
+            (box :orientation "v" :space-evenly false :hexpand true :halign "start"
+              (label :class "sys-title" :halign "start" :text "Memory")
+              (label :class "sys-subtitle" :halign "start" :text {sys.mem_used + " / " + sys.mem_total})
+              (progress :class "sys-bar mem-bar" :value {sys.mem_percent})))
+          (box :class "sys-grid" :orientation "v" :space-evenly false :spacing 4
+            (sys-row :label "Used" :value {sys.mem_used})
+            (sys-row :label "Total" :value {sys.mem_total})
+            (sys-row :label "Swap" :value {sys.swap_used + " · " + sys.swap_label})
+            (sys-row :label "Top" :value {sys.top_mem}))))
+
+      (defwidget sys-row [label value]
+        (box :class "sys-row" :orientation "h" :space-evenly false
+          (label :class "sys-row-label" :halign "start" :hexpand true :text label)
+          (label :class "sys-row-value" :halign "end" :text value)))
+
       (defpoll bat :interval "3s"
         :initial '{"present":false,"icon":"󰂑","state_class":"missing","status":"loading","percent":0,"pct_label":"—","source":"—","health":"—","health_label":"Health","rate":"—","voltage":"—","eta":"—","capacity_level":"—","model":"Battery"}'
         `${lib.getExe batteryInfo}`)
@@ -387,6 +550,97 @@ in {
 
       calendar button label {
         color: inherit;
+      }
+
+      .sys-box {
+        background-color: rgba(29, 16, 58, 0.97);
+        border: 1px solid rgba(181, 232, 224, 0.12);
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+      }
+
+      .sys-meter {
+        background-color: rgba(205, 214, 244, 0.08);
+        border: 1px solid rgba(205, 214, 244, 0.12);
+        border-radius: 8px;
+        min-width: 64px;
+        min-height: 64px;
+        padding: 7px 8px;
+      }
+
+      .cpu-meter {
+        background-color: rgba(245, 194, 231, 0.14);
+        border-color: rgba(245, 194, 231, 0.28);
+      }
+
+      .mem-meter {
+        background-color: rgba(181, 232, 224, 0.14);
+        border-color: rgba(181, 232, 224, 0.28);
+      }
+
+      .sys-meter-icon {
+        font-size: 18pt;
+        color: #1a1826;
+      }
+
+      .cpu-meter .sys-meter-icon,
+      .cpu-meter .sys-meter-value {
+        color: #f5c2e7;
+      }
+
+      .mem-meter .sys-meter-icon,
+      .mem-meter .sys-meter-value {
+        color: #b5e8e0;
+      }
+
+      .sys-meter-value {
+        font-size: 13pt;
+      }
+
+      .sys-title {
+        font-size: 18pt;
+        color: #ffffff;
+      }
+
+      .sys-subtitle {
+        font-size: 8pt;
+        font-weight: normal;
+        color: rgba(205, 214, 244, 0.50);
+      }
+
+      .sys-bar trough {
+        background-color: rgba(205, 214, 244, 0.12);
+        border-radius: 999px;
+        min-height: 6px;
+        margin-top: 8px;
+      }
+
+      .sys-bar progress {
+        border-radius: 999px;
+        min-height: 6px;
+      }
+
+      .cpu-bar progress {
+        background-color: #f5c2e7;
+      }
+
+      .mem-bar progress {
+        background-color: #b5e8e0;
+      }
+
+      .sys-grid {
+        border-top: 1px solid rgba(181, 232, 224, 0.10);
+        padding-top: 10px;
+      }
+
+      .sys-row-label {
+        color: rgba(205, 214, 244, 0.55);
+        font-weight: normal;
+      }
+
+      .sys-row-value {
+        color: #cdd6f4;
       }
 
       .bat-box {

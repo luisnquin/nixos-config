@@ -12,9 +12,11 @@
     };
     style = builtins.readFile ./foe.css;
     settings = let
-      runBtop = "${pkgs.lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop";
-
       ewwToggleCalendar = "${lib.getExe config.programs.eww.package} open --toggle calendar";
+
+      ewwToggleCpu = "${lib.getExe config.programs.eww.package} open --toggle cpu";
+
+      ewwToggleMemory = "${lib.getExe config.programs.eww.package} open --toggle memory";
 
       ewwToggleBattery = "${lib.getExe config.programs.eww.package} open --toggle battery";
 
@@ -229,7 +231,7 @@
         "cpu" = {
           "interval" = 1;
           "format" = "󰍛 {usage}%";
-          "on-click" = runBtop;
+          "on-click" = ewwToggleCpu;
         };
 
         "memory" = {
@@ -239,7 +241,7 @@
             "warning" = 80;
             "critical" = 95;
           };
-          "on-click" = runBtop;
+          "on-click" = ewwToggleMemory;
         };
 
         "custom/battery" = {
