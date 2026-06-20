@@ -1,13 +1,12 @@
-{
+{config, ...}: {
   home.sessionPath = [
-    "$HOME/.cargo/bin"
-    "$HOME/.npm-global/bin"
-    "$HOME/.bun-global/bin"
-    "$GORROT"
-    "$GOPATH/bin"
-    "$HOME/.android/platform-tools"
-    "$HOME/.android/emulator"
+    "${config.home.homeDirectory}/.cargo/bin"
+    "${config.home.homeDirectory}/.npm-global/bin"
+    "${config.home.homeDirectory}/.bun-global/bin"
+    "${config.home.homeDirectory}/go/bin"
+    "${config.home.homeDirectory}/.android/platform-tools"
+    "${config.home.homeDirectory}/.android/emulator"
 
-    "$HOME/.local/share/flatpak/exports/bin"
+    "${config.home.homeDirectory}/.local/share/flatpak/exports/bin"
   ];
 }
