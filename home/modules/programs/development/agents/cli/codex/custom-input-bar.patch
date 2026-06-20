@@ -14,7 +14,7 @@ index 2423647b38..8c60b1c6f8 100644
      ])
  }
  
-+fn render_claude_input_frame(area: Rect, buf: &mut Buffer) {
++fn render_custom_input_bar(area: Rect, buf: &mut Buffer) {
 +    if area.width == 0 || area.height == 0 {
 +        return;
 +    }
@@ -36,7 +36,7 @@ index 2423647b38..8c60b1c6f8 100644
          }
          let style = user_message_style();
 -        Block::default().style(style).render_ref(composer_rect, buf);
-+        render_claude_input_frame(composer_rect, buf);
++        render_custom_input_bar(composer_rect, buf);
          if !remote_images_rect.is_empty() {
              Paragraph::new(self.attachments.remote_image_lines())
                  .style(style)
@@ -45,11 +45,11 @@ index 2423647b38..8c60b1c6f8 100644
                      Span::from("!").light_red().bold()
                  } else {
 -                    "›".bold()
-+                    Span::from("❯").light_cyan().bold()
++                    Span::from("λ").light_cyan().bold()
                  }
              } else {
 -                "›".dim()
-+                Span::from("❯").dim()
++                Span::from("λ").dim()
              };
              buf.set_span(
                  textarea_rect.x - LIVE_PREFIX_COLS,
@@ -61,7 +61,7 @@ index 3945d06f05..8d522ebed2 100644
      lines
  }
  
-+fn claude_input_frame_line(width: u16) -> Line<'static> {
++fn custom_input_bar_line(width: u16) -> Line<'static> {
 +    Line::from("─".repeat(usize::from(width))).style(Style::default().fg(Color::DarkGray))
 +}
 +
@@ -84,7 +84,7 @@ index 3945d06f05..8d522ebed2 100644
          }
  
 -        let mut lines: Vec<Line<'static>> = vec![Line::from("").style(style)];
-+        let mut lines: Vec<Line<'static>> = vec![claude_input_frame_line(width)];
++        let mut lines: Vec<Line<'static>> = vec![custom_input_bar_line(width)];
  
          if let Some(wrapped_remote_images) = wrapped_remote_images {
              lines.extend(prefix_lines(
@@ -93,13 +93,13 @@ index 3945d06f05..8d522ebed2 100644
              lines.extend(prefix_lines(
                  wrapped_message,
 -                "› ".bold().dim(),
-+                Span::from("❯ ").light_cyan().bold(),
++                Span::from("λ ").light_cyan().bold(),
                  "  ".into(),
              ));
          }
  
 -        lines.push(Line::from("").style(style));
-+        lines.push(claude_input_frame_line(width));
++        lines.push(custom_input_bar_line(width));
          lines
      }
  

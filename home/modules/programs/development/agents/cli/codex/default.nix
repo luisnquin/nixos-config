@@ -14,7 +14,7 @@
       ./curated-plugins-disable-sync.patch
       ./presentation-card.patch
       ./terminal-terminfo-dirs.patch
-      ./claude-input-bar.patch
+      ./custom-input-bar.patch
       ./disable-cloud-tasks.patch
     ];
   });
