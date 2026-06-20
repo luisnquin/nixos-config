@@ -1130,11 +1130,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1781119415,
-        "narHash": "sha256-XTGvqNEMZ486HuGzAqePrjSNH5zLRFSXNxayHrZN2eo=",
+        "lastModified": 1781896005,
+        "narHash": "sha256-f6RqAffRSKgq2oMWoCyBzMh3hp/Wg/mDxZwwtyKiwDI=",
         "owner": "roborev-dev",
         "repo": "roborev",
-        "rev": "27b1277a82bf520be15ea984e81cc45d8714af6f",
+        "rev": "6df332587b40e2f6f2c73286b9edd79faa4470c3",
         "type": "github"
       },
       "original": {
