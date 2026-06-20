@@ -32,6 +32,7 @@
 + mcp__plugin_claude-code-home-manager_filesystem__create_directory
 + mcp__plugin_claude-code-home-manager_filesystem__write_file
 + mcp__plugin_claude-code-home-manager_filesystem__edit_file
++ Skill(commit)
 + Bash(tailscale status:*)
 + Bash(psql:*)
 + Bash(sed -n:*)
