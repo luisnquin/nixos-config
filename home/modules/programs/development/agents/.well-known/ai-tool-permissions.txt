@@ -123,6 +123,7 @@
 ? Bash(find * -delete *)
 ? Bash(find * -exec *)
 ? Bash(sed:*)
+- Bash(npm lint:*)
 - Bash(./node_modules/.bin/tsgo:*)
 - Bash(./node_modules/.bin/tsc:*)
 - Bash(./node_modules/.bin/biome:*)
