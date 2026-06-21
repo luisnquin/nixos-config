@@ -34,11 +34,6 @@
           "."
           "/tmp"
         ];
-        disabledTools = [
-          "move_file"
-          "list_directory"
-        ];
-        disabled_tools = disabledTools;
         startup_timeout_sec = 5;
       };
 
