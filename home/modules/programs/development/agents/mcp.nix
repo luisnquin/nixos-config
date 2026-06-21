@@ -31,11 +31,11 @@
         type = "stdio";
         command = lib.getExe pkgs.mcp-server-filesystem;
         args = [
+          "."
           "/tmp"
         ];
         disabledTools = [
           "move_file"
-          "list_allowed_directories"
           "list_directory"
         ];
         disabled_tools = disabledTools;
