@@ -292,7 +292,6 @@
           freq_label:$freq_label, up:$up, down:$down}'
     '';
   };
-
 in {
   programs.eww = {
     enable = true;
