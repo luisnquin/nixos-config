@@ -53,6 +53,7 @@
 + Bash(zig version)
 + Bash(zig build *)
 + Bash(git status:*)
++ Bash(git commit:*)
 + Bash(git log:*)
 + Bash(git diff:*)
 + Bash(git diff HEAD:*)
