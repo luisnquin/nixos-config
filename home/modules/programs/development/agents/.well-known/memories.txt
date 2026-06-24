@@ -22,7 +22,7 @@ No superfluous comments. Explain only non-obvious behavior. Put broader reasonin
 
 Do not bypass denied commands with equivalent alternatives. Use narrower allowed commands only when they respect the restriction. Otherwise stop and explain.
 
-For file reads, prefer filesystem MCP tools (`read_text_file`, `read_multiple_files`, `directory_tree`, `search_files`) over shell commands when available. Use shell `rg` for broad search or when MCP search is insufficient. Avoid large `sed`, `cat`, or `nl` dumps; use small line windows only after locating the target.
+Use filesystem MCP for file reads and searches when available. Shell remains allowed for all other tooling.
 
 ## git
 
