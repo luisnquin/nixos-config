@@ -42,6 +42,11 @@
         command = lib.getExe pkgs.mcp-nixos;
       };
 
+      sequential-thinking = {
+        type = "stdio";
+        command = lib.getExe pkgs.mcp-server-sequential-thinking;
+      };
+
       # supabase = rec {
       #   type = "http";
       #   url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
