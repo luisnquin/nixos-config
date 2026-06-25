@@ -35,3 +35,22 @@ copy_ios_screenshot() {
     return 1
   fi
 }
+
+stream_ios_logs() {
+  local bundle_id remote
+  bundle_id="$1"
+
+  if [ -z "$bundle_id" ]; then
+    print -ru2 -- "usage: stream_ios_logs <bundle-id>"
+    return 2
+  fi
+
+  if [[ "$bundle_id" == *[^A-Za-z0-9._-]* ]]; then
+    print -ru2 -- "stream_ios_logs: invalid bundle ID"
+    return 2
+  fi
+
+  remote='udid="$(curl -s http://127.0.0.1:49151/ | python3 -c "import sys,json;d=json.load(sys.stdin);print(next(iter(d)))" 2>/dev/null)"; [ -n "$udid" ] || { echo "stream_ios_logs: no iPhone tunnel" >&2; exit 1; }; pid="$(pymobiledevice3 developer dvt process-id-for-bundle-id --tunnel "$udid" "$1" 2>/dev/null)"; case "$pid" in (""|*[!0-9]*) echo "stream_ios_logs: app is not running: $1" >&2; exit 1;; esac; exec pymobiledevice3 developer dvt oslog --tunnel "$udid" "$pid"'
+
+  ssh -t rose "sh -c '$remote' sh '$bundle_id'"
+}
