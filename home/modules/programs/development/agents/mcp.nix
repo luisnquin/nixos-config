@@ -1,4 +1,5 @@
 {
+  inputs,
   pkgs,
   lib,
   ...
@@ -45,6 +46,11 @@
       sequential-thinking = {
         type = "stdio";
         command = lib.getExe pkgs.mcp-server-sequential-thinking;
+      };
+
+      techdebt-mcp = {
+        type = "stdio";
+        command = lib.getExe inputs.techdebt-mcp.packages.${pkgs.stdenv.hostPlatform.system}.default;
       };
 
       # supabase = rec {
