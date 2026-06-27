@@ -1,6 +1,5 @@
 # https://wiki.hypr.land/Configuring/Basics/Binds/
 {
-  inputs,
   config,
   pkgs,
   libx,
