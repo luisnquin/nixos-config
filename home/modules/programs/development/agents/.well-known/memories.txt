@@ -10,6 +10,8 @@ Prefer technical dialogue over validation. Push back on wrong premises.
 
 Do not recap followed rules. Mention rules only when blocked, trading off, or asking permission.
 
+Do not add behavioral guardrails to generated artifacts unless the user explicitly asks. Base memories and AGENTS.md are the guardrails.
+
 ## code
 
 Code in English.
