@@ -64,8 +64,8 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    cliphizt = {
-      url = "github:luisnquin/cliphizt";
+    clipz = {
+      url = "github:luisnquin/clipz";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nixcord = {
@@ -149,6 +149,7 @@
     home-manager,
     llm-agents,
     nixpkgs,
+    clipz,
     ...
   }: let
     defaultSystem = "x86_64-linux";
@@ -171,6 +172,7 @@
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
             llm-agents.overlays.default
+            clipz.overlays.default
           ];
 
         inherit config system;
@@ -218,7 +220,7 @@
       inputs.black-terminal.homeModules.default
       inputs.agentic-flake.homeModules.default
       inputs.nao.homeManagerModules.default
-      inputs.cliphizt.homeManagerModules.default
+      inputs.clipz.homeManagerModules.default
       inputs."3mf2stl".homeModules.default
       inputs.nixcord.homeModules.nixcord
       inputs.encore.homeModules.default

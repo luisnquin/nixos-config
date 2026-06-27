@@ -224,23 +224,23 @@
         "type": "github"
       }
     },
-    "cliphizt": {
+    "clipz": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1779062008,
-        "narHash": "sha256-VP+f5GMbLYO/AQbomm5YH8g7JxhT3/SCUPVz5escChM=",
+        "lastModified": 1782569909,
+        "narHash": "sha256-g6HCsCYj+AyAsb2a6lr0z4PkPOR7UOxdwqRPvM7ve7k=",
         "owner": "luisnquin",
-        "repo": "cliphizt",
-        "rev": "1d169adf4afb178e8a80766fea4ac18ee60e894f",
+        "repo": "clipz",
+        "rev": "0380e3c5aac62557dad4d04475f0d717298828d7",
         "type": "github"
       },
       "original": {
         "owner": "luisnquin",
-        "repo": "cliphizt",
+        "repo": "clipz",
         "type": "github"
       }
     },
@@ -1150,7 +1150,7 @@
         "agentic-flake": "agentic-flake",
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
-        "cliphizt": "cliphizt",
+        "clipz": "clipz",
         "disko": "disko",
         "encore": "encore",
         "flake-parts": "flake-parts",
