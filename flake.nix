@@ -122,8 +122,8 @@
         utils.follows = "flake-utils";
       };
     };
-    techdebt-mcp = {
-      url = "github:0xc000022070/techdebt-mcp";
+    techdebt-cli = {
+      url = "github:0xc000022070/techdebt-cli";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";

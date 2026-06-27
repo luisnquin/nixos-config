@@ -1166,7 +1166,7 @@
         "nixpkgs-extra": "nixpkgs-extra",
         "roborev": "roborev",
         "systems": "systems",
-        "techdebt-mcp": "techdebt-mcp",
+        "techdebt-cli": "techdebt-cli",
         "zen-browser": "zen-browser"
       }
     },
@@ -1206,23 +1206,23 @@
         "type": "github"
       }
     },
-    "techdebt-mcp": {
+    "techdebt-cli": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1782532187,
-        "narHash": "sha256-Tj3MiKaDo8mLpmG7yYXY8R8SpVMHzV/ib7v68mTJyUw=",
+        "lastModified": 1782587308,
+        "narHash": "sha256-NrYdgqlSfQCGuUo+i2v2KO57oegE4PEUGeUuJmgqBhY=",
         "owner": "0xc000022070",
-        "repo": "techdebt-mcp",
-        "rev": "9b1d99794634bd9980f8c2a9a0cedf3633354eb2",
+        "repo": "techdebt-cli",
+        "rev": "c73a521d1c5b1b3512c4a9975fa95bb5260ac200",
         "type": "github"
       },
       "original": {
         "owner": "0xc000022070",
-        "repo": "techdebt-mcp",
+        "repo": "techdebt-cli",
         "type": "github"
       }
     },

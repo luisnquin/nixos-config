@@ -50,7 +50,7 @@
 
       techdebt-mcp = {
         type = "stdio";
-        command = lib.getExe inputs.techdebt-mcp.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        command = "${lib.getExe inputs.techdebt-cli.packages.${pkgs.stdenv.hostPlatform.system}.default} mcp";
       };
 
       # supabase = rec {
