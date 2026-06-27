@@ -20,4 +20,4 @@ jobs:
       - name: Run deadnix and publish changes if any
         uses: luisnquin/deadnix-action@main
         with:
-          commit_message: "deadnix: remove dead code"
+          commit_message: "chore: remove dead code"
