@@ -20,7 +20,7 @@
 + TodoWrite(*)
 + WebFetch(*)
 + mcp__plugin_claude-code-home-manager_adb__*
-+ mcp__plugin_claude-code-home-manager_codegraph__*
++ mcp__plugin_claude-code-home-manager_codebase-memory-mcp__*
 + mcp__plugin_claude-code-home-manager_context7__*
 + mcp__plugin_claude-code-home-manager_encore__*
 + mcp__plugin_claude-code-home-manager_filesystem__read_text_file

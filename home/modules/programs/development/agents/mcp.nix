@@ -4,7 +4,7 @@
   lib,
   ...
 }: {
-  home.packages = [pkgs.llm-agents.codegraph];
+  home.packages = [pkgs.codebase-memory-mcp];
 
   programs.mcp = {
     enable = true;
@@ -14,10 +14,9 @@
         command = lib.getExe pkgs.adb-mcp;
       };
 
-      codegraph = {
+      codebase-memory-mcp = {
         type = "stdio";
-        command = lib.getExe pkgs.llm-agents.codegraph;
-        args = ["serve" "--mcp"];
+        command = lib.getExe pkgs.codebase-memory-mcp;
       };
 
       context7 = {

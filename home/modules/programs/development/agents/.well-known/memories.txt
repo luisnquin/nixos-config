@@ -60,8 +60,8 @@ No `flake-utils` in new flakes.
 
 Use Context7 for external or dynamic data. Skip it for trivial questions.
 
-## codegraph
+## codebase-memory-mcp
 
-Project indexed (`.codegraph/` exists)? Use `codegraph_explore` MCP tool, or `codegraph explore <query>` in subagents, before Read/Grep. One call returns verbatim line-numbered source + call paths + blast radius. Trust results, do not re-verify with grep.
+Code intelligence over a tree-sitter knowledge graph. Use its MCP tools (search_graph, trace_call_path, get_code_snippet, get_architecture, impact analysis) before Read/Grep for structural questions. One graph query replaces dozens of grep/read cycles. Trust results, do not re-verify with grep.
 
-Not indexed? Skip codegraph for that project, use built-in tools. Mention `codegraph init` if relevant, do not run it.
+Not indexed for a project? Use built-in tools there instead.
