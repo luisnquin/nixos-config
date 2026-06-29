@@ -4,12 +4,20 @@
   lib,
   ...
 }: {
+  home.packages = [pkgs.llm-agents.codegraph];
+
   programs.mcp = {
     enable = true;
     servers = {
       adb = {
         type = "stdio";
         command = lib.getExe pkgs.adb-mcp;
+      };
+
+      codegraph = {
+        type = "stdio";
+        command = lib.getExe pkgs.llm-agents.codegraph;
+        args = ["serve" "--mcp"];
       };
 
       context7 = {

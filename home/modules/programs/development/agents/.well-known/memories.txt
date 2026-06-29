@@ -59,3 +59,9 @@ No `flake-utils` in new flakes.
 ## context
 
 Use Context7 for external or dynamic data. Skip it for trivial questions.
+
+## codegraph
+
+Project indexed (`.codegraph/` exists)? Use `codegraph_explore` MCP tool, or `codegraph explore <query>` in subagents, before Read/Grep. One call returns verbatim line-numbered source + call paths + blast radius. Trust results, do not re-verify with grep.
+
+Not indexed? Skip codegraph for that project, use built-in tools. Mention `codegraph init` if relevant, do not run it.

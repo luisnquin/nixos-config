@@ -35,3 +35,5 @@ setup.log
 _opam/
 
 **/.vscode/
+
+.codegraph/
