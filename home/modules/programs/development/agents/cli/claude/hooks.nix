@@ -1,9 +1,12 @@
 {
   mkAgentKit,
   config,
+  pkgs,
+  lib,
   ...
 }: let
   kit = mkAgentKit {};
+  cbm = lib.getExe pkgs.codebase-memory-mcp;
 in {
   programs.claude-code.settings.hooks = {
     Notification = [
@@ -77,6 +80,12 @@ in {
       (kit.mkCmdEntry {
         matcher = "Bash";
         commands = [config.programs.claude-code.hooks."rtk-rewrite.sh"];
+      })
+      # Injects codebase-memory-mcp graph context into Grep/Glob calls.
+      # Never blocks: forced exit 0 even when the project is unindexed.
+      (kit.mkCmdEntry {
+        matcher = "Grep|Glob";
+        commands = ["${cbm} hook-augment 2>/dev/null || true"];
       })
     ];
     SessionEnd = [
