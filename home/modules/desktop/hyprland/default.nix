@@ -22,6 +22,7 @@ args @ {
     hl.exec_cmd("${pkgs.writeShellScript "hypr-ghostty-drop" ''
       ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
       while [ -z "$ADDRESS" ]; do
+        sleep 0.1
         ADDRESS=$(${hyprctlCmd} clients -j | ${lib.getExe pkgs.jq} -r '.[] | select(.class == "ghostty.hyprdrop") | .address')
       done
       exec ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
@@ -55,15 +56,6 @@ in {
         {
           output = "DP-1";
           disabled = true;
-        }
-      ];
-
-      env = [
-        {
-          _args = ["XCURSOR_SIZE" "24"];
-        }
-        {
-          _args = ["HYPRCURSOR_SIZE" "24"];
         }
       ];
 
@@ -302,7 +294,5 @@ in {
         }
       ];
     };
-
-    extraConfig = "";
   };
 }
