@@ -24,7 +24,7 @@ No superfluous comments. Explain only non-obvious behavior. Put broader reasonin
 
 Do not bypass denied commands with equivalent alternatives. Use narrower allowed commands only when they respect the restriction. Otherwise stop and explain.
 
-Use filesystem MCP for file reads and searches when available. Shell remains allowed for all other tooling.
+Built-in Read/Grep and shell `sed`/`cat`/`read`/`head`/`tail` are not ideal for inspecting code — they burn context and miss structure. Prefer the MCPs, switching by need: codebase-memory-mcp for structural questions (see below), filesystem MCP for raw reads and searches. Reach for built-ins only when neither MCP fits, or to fill a gap they cannot answer. Shell stays allowed for all other tooling.
 
 ## git
 
