@@ -62,6 +62,12 @@ Use Context7 for external or dynamic data. Skip it for trivial questions.
 
 ## codebase-memory-mcp
 
-Code intelligence over a tree-sitter knowledge graph. Use its MCP tools (search_graph, trace_call_path, get_code_snippet, get_architecture, impact analysis) before Read/Grep for structural questions. One graph query replaces dozens of grep/read cycles. Trust results, do not re-verify with grep.
+Code intelligence over a tree-sitter knowledge graph. One graph query replaces dozens of grep/read cycles.
 
-Not indexed for a project? Use built-in tools there instead.
+Its tools are deferred — they fail if called before loading. So before your FIRST code search of a session (any Grep/Glob, or Read used to locate code):
+
+1. ToolSearch keyword "codebase-memory graph" to load search_graph, get_code_snippet, get_architecture, trace_path.
+2. Resolve the project: list_projects, match the working directory to its slug.
+3. search_graph({ project, query }).
+
+Then Grep/Read only to fill gaps the graph cannot answer (top-level wiring, exact full-file context) — or when search_graph returns nothing, or the project is not indexed. Trust results; do not re-verify with grep.
