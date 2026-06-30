@@ -3,7 +3,7 @@
 
   # welcome to my hell ;]
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-extra = {
       url = "github:0xc000022070/nixpkgs-extra";
       inputs = {
