@@ -1213,11 +1213,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1782785986,
-        "narHash": "sha256-1tDU+OVfKvqLDj1AhAvtddb69looA5uzk2jgByPCQKk=",
+        "lastModified": 1782851825,
+        "narHash": "sha256-4TrmWckuJVYYHlaqmDjW9elJdlhuYP5/8bHNsMcqYNM=",
         "owner": "0xc000022070",
         "repo": "techdebt-cli",
-        "rev": "441fe20c2b58a429bec55a359e49a13bf0f60062",
+        "rev": "fc5f7fdf52a2841a41b7c0003550b0e07826226c",
         "type": "github"
       },
       "original": {
