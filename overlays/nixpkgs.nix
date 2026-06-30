@@ -73,4 +73,21 @@
       '';
     });
   })
+  (_final: prev: {
+    # Temporary pin past upstream #510; drop once nixpkgs ships > 0.8.1.
+    codebase-memory-mcp = prev.codebase-memory-mcp.overrideAttrs (_old: rec {
+      version = "0.8.1-unstable-2026-06-29";
+      src = prev.fetchFromGitHub {
+        owner = "DeusData";
+        repo = "codebase-memory-mcp";
+        rev = "7824e505c192023a21b3e90bcb98ca6210629b64";
+        hash = "sha256-wAxnaSnZylJTbvV0rn+4mzDlKtJDaIipYoOdjdqTsLE=";
+      };
+      buildPhase = ''
+        runHook preBuild
+        make -j$NIX_BUILD_CORES -f Makefile.cbm cbm CFLAGS_EXTRA='-DCBM_VERSION=\"${version}\"'
+        runHook postBuild
+      '';
+    });
+  })
 ]
