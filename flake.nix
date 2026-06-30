@@ -224,6 +224,7 @@
       inputs."3mf2stl".homeModules.default
       inputs.nixcord.homeModules.nixcord
       inputs.encore.homeModules.default
+      inputs.techdebt-cli.homeModules.default
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")
     ];

@@ -1,10 +1,12 @@
 {
-  inputs,
+  config,
   pkgs,
   lib,
   ...
 }: {
   home.packages = [pkgs.codebase-memory-mcp];
+
+  programs.techdebt.enable = true;
 
   programs.mcp = {
     enable = true;
@@ -57,7 +59,7 @@
 
       techdebt-mcp = {
         type = "stdio";
-        command = lib.getExe inputs.techdebt-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        command = lib.getExe config.programs.techdebt.package;
         args = ["mcp"];
       };
 
