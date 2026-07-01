@@ -1215,11 +1215,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1782851825,
-        "narHash": "sha256-4TrmWckuJVYYHlaqmDjW9elJdlhuYP5/8bHNsMcqYNM=",
+        "lastModified": 1782917956,
+        "narHash": "sha256-VClVthTYdH9lHzDz73NVmgjldzIGJo2KLvC8SttALkA=",
         "owner": "0xc000022070",
         "repo": "techdebt-cli",
-        "rev": "fc5f7fdf52a2841a41b7c0003550b0e07826226c",
+        "rev": "b0630170d06535cd269f9554ad8e1127d00e0728",
         "type": "github"
       },
       "original": {
