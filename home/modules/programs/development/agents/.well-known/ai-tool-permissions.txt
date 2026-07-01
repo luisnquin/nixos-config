@@ -37,15 +37,7 @@
 + mcp__plugin_claude-code-home-manager_filesystem__move_file
 + mcp__plugin_claude-code-home-manager_filesystem__edit_file
 + mcp__plugin_claude-code-home-manager_sequential-thinking__sequential_thinking
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__record
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__list
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__scopes
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__get
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__search
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__edit
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__update
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__resolve
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__delete
++ mcp__plugin_claude-code-home-manager_techdebt-mcp__*
 + Skill(commit)
 + Bash(tailscale status:*)
 + Bash(psql:*)
