@@ -1,6 +1,5 @@
 {
   mkAgentKit,
-  config,
   pkgs,
   ...
 }: let
