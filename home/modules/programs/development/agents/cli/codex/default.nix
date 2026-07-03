@@ -21,6 +21,7 @@
         ./custom-input-bar.patch
         ./disable-cloud-tasks.patch
         ./default-bypass-hook-trust.patch
+        ./disable-update-advice.patch
       ];
 
     postPatch =
