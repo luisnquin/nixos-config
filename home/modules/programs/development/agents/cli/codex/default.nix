@@ -20,6 +20,7 @@
         ./terminal-terminfo-dirs.patch
         ./custom-input-bar.patch
         ./disable-cloud-tasks.patch
+        ./default-bypass-hook-trust.patch
       ];
 
     postPatch =
