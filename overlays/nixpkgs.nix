@@ -83,6 +83,11 @@
         rev = "7824e505c192023a21b3e90bcb98ca6210629b64";
         hash = "sha256-wAxnaSnZylJTbvV0rn+4mzDlKtJDaIipYoOdjdqTsLE=";
       };
+      npmDeps = prev.fetchNpmDeps {
+        inherit src;
+        sourceRoot = "${src.name}/graph-ui";
+        hash = "sha256-P1JVo+GFr+Gsq88dnn9OsedZqrTaj3DDGbej+nHbp4U=";
+      };
       buildPhase = ''
         runHook preBuild
         make -j$NIX_BUILD_CORES -f Makefile.cbm cbm CFLAGS_EXTRA='-DCBM_VERSION=\"${version}\"'
