@@ -166,12 +166,20 @@
             workspace = spaces."Rendezvous".id;
             position = 152;
           };
+          "Docs" = {
+            id = "69eaa2cc-172b-4311-bdbb-01ee499a9baa";
+            workspace = spaces."Rendezvous".id;
+            isGroup = true;
+            isFolderCollapsed = true;
+            position = 155;
+          };
         }
         // stateDir;
 
       joinedTabs."Inside state" = {
         id = "inside-state";
         gridType = "vsep";
+        folderParentId = pins."State".id;
         tabs = [
           pins."Cursor".id
           pins."Codex".id
@@ -182,6 +190,7 @@
       joinedTabs."Kernel and NixOS" = {
         id = "kernel-nix-docs";
         gridType = "vsep";
+        folderParentId = pins."Docs".id;
         tabs = [
           pins."Linux kernel".id
           pins."NixOS.org".id
