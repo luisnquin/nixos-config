@@ -10,7 +10,7 @@ in {
     packages = with pkgs; [
       android-studio
       android-tools
-      (import ./android-cli.nix {inherit pkgs ANDROID_HOME ANDROID_SDK_ROOT;})
+      android-cli
 
       scrcpy
 
