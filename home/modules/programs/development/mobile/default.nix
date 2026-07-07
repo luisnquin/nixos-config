@@ -62,16 +62,22 @@ in {
     ];
 
     file = {
-      ".android/advancedFeatures.ini".text = ''
-        QuickbootFileBacked = off
-      '';
+      ".android/advancedFeatures.ini" = {
+        text = ''
+          QuickbootFileBacked = off
+        '';
+        force = true;
+      };
 
-      ".gradle/gradle.properties".text = ''
-        org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
-        org.gradle.parallel=true
-        org.gradle.configureondemand=true
-        org.gradle.daemon=false
-      '';
+      ".gradle/gradle.properties" = {
+        text = ''
+          org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          org.gradle.daemon=false
+        '';
+        force = true;
+      };
     };
 
     sessionVariables = {
