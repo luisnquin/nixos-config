@@ -50,7 +50,7 @@
   android-bin = pkgs.runCommand "android-bin-0-unstable" {
     src = pkgs.fetchurl {
       url = "https://dl.google.com/android/cli/latest/linux_x86_64/android";
-      hash = "sha256-RwnFbpm+IkZSmfEDMUCsDFQIKL6gdRqg4CSZc40Mok4=";
+      hash = "sha256-JP87rF2xblvMX9KlTcWAQf0G2zczic1kQt7bAE/gkr4=";
     };
   } ''install -Dm755 "$src" "$out/bin/android"'';
 in
