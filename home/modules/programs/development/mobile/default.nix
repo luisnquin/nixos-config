@@ -3,12 +3,20 @@
   pkgs,
   ...
 }: let
-  ANDROID_HOME = "${config.home.homeDirectory}/.android";
-  ANDROID_SDK_ROOT = "${ANDROID_HOME}/sdk";
+  ANDROID_HOME = "${config.home.homeDirectory}/.android/sdk";
+  ANDROID_SDK_ROOT = ANDROID_HOME;
 in {
   imports = [
     ./options.nix
   ];
+
+  systemd.user.slices.android-emulator = {
+    Unit.Description = "Android emulator resource control";
+    Slice = {
+      IOWriteBandwidthMax = "/ 150M";
+      MemoryHigh = "12G";
+    };
+  };
 
   android.avds.galaxy-s26-plus = {
     displayName = "Galaxy S26+";
@@ -49,9 +57,9 @@ in {
     ];
 
     file = {
-      "${ANDROID_HOME}/platform-tools" = {
-        source = config.lib.file.mkOutOfStoreSymlink "${pkgs.android-tools}/bin";
-      };
+      ".android/advancedFeatures.ini".text = ''
+        QuickbootFileBacked = off
+      '';
 
       ".gradle/gradle.properties".text = ''
         org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8

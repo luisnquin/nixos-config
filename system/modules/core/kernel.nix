@@ -3,8 +3,8 @@
     kernelParams = ["i8042.reset=1"];
     kernelPackages = pkgs.linuxPackages;
     kernel.sysctl = {
-      "vm.dirty_background_bytes" = 67108864;
-      "vm.dirty_bytes" = 536870912;
+      "vm.dirty_background_bytes" = 268435456;
+      "vm.dirty_bytes" = 2147483648;
       "vm.dirty_writeback_centisecs" = 100;
       "vm.dirty_expire_centisecs" = 1000;
     };

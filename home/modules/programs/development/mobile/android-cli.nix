@@ -58,8 +58,8 @@ in
     name = "android-cli";
     targetPkgs = androidFhsLibs;
     runScript = pkgs.writeShellScript "android-cli-dispatcher" ''
-      export ANDROID_HOME="''${ANDROID_HOME:-${ANDROID_HOME}}"
-      export ANDROID_SDK_ROOT="''${ANDROID_SDK_ROOT:-${ANDROID_SDK_ROOT}}"
+      export ANDROID_HOME="${ANDROID_HOME}"
+      export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT}"
       export ANDROID_EMULATOR_USE_SYSTEM_LIBS=1
       cmd="$1"
       shift
@@ -72,10 +72,13 @@ in
     extraInstallCommands = ''
       mv $out/bin/android-cli $out/libexec-android-cli
       mkdir -p $out/bin
+
       for cmd in android emulator; do
         cat > $out/bin/$cmd <<EOF
       #!${pkgs.runtimeShell}
-      exec $out/libexec-android-cli $cmd "\$@"
+      exec ${pkgs.systemd}/bin/systemd-run --user --scope --quiet --collect \\
+        --slice=android-emulator.slice \\
+        $out/libexec-android-cli $cmd "\$@"
       EOF
         chmod +x $out/bin/$cmd
       done

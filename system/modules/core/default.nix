@@ -1,5 +1,6 @@
 {lib, ...}: {
   imports = [
+    ./cgroups.nix
     ./compat.nix
     ./dbus.nix
     ./kernel.nix
