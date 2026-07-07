@@ -1,7 +1,5 @@
 {
   imports = [
-    ./android.nix
-    ./iphone.nix
     ./man.nix
     ./nao.nix
     ./translate.nix

@@ -10,6 +10,11 @@ in {
     ./options.nix
   ];
 
+  programs.zsh.initContent = builtins.readFile (builtins.path {
+    name = "mobile-zshrc";
+    path = ./mobile.zsh;
+  });
+
   systemd.user.slices.android-emulator = {
     Unit.Description = "Android emulator resource control";
     Slice = {
