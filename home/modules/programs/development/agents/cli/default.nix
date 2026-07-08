@@ -5,5 +5,6 @@
     ./codex
     ./cursor-cli
     ./opencode
+    ./pi
   ];
 }
