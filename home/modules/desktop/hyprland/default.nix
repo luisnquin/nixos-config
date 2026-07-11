@@ -199,7 +199,7 @@ in {
       workspace_rule = map (workspace: {
         inherit workspace;
         layout = "scrolling";
-      }) ["2" "3" "name:~"];
+      }) ["2" "3" "10" "name:~"];
 
       window_rule = [
         {
