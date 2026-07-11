@@ -127,6 +127,14 @@ in {
           new_status = "master";
         };
 
+        scrolling = {
+          column_width = 0.5;
+          fullscreen_on_one_column = true;
+          focus_fit_method = 1;
+          explicit_column_widths = "0.333, 0.5, 0.667, 1.0";
+          direction = "right";
+        };
+
         ecosystem = {
           no_update_news = true;
           enforce_permissions = true;
@@ -187,6 +195,11 @@ in {
           bezier = "default";
         }
       ];
+
+      workspace_rule = map (workspace: {
+        inherit workspace;
+        layout = "scrolling";
+      }) ["2" "3" "name:~"];
 
       window_rule = [
         {

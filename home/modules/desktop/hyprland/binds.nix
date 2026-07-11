@@ -97,6 +97,8 @@
 
   dspExec = cmd: mkLuaInline ("hl.dsp.exec_cmd(" + toLua' cmd + ")");
 
+  layoutMsg = msg: mkLuaInline ("hl.dsp.layout(" + toLua' msg + ")");
+
   b = keys: dsp: {
     _args = [keys dsp];
   };
@@ -144,6 +146,16 @@ in [
 
   (b "${mainMod} + SPACE" (mkLuaInline "hl.dsp.window.float({ action = \"toggle\" })"))
   (b "${mainMod} + S" (mkLuaInline "hl.dsp.layout(\"togglesplit\")"))
+
+  # scrolling layout: https://wiki.hypr.land/Configuring/Layouts/Scrolling-Layout/
+  (b "${mainMod} + comma" (layoutMsg "move -col"))
+  (b "${mainMod} + period" (layoutMsg "move +col"))
+  (b "${mainMod} + SHIFT + comma" (layoutMsg "swapcol l"))
+  (b "${mainMod} + SHIFT + period" (layoutMsg "swapcol r"))
+  (b "${mainMod} + CTRL + comma" (layoutMsg "colresize -conf"))
+  (b "${mainMod} + CTRL + period" (layoutMsg "colresize +conf"))
+  (b "${mainMod} + E" (layoutMsg "consume_or_expel next"))
+  (b "${mainMod} + G" (layoutMsg "fit expand"))
 
   (b "${mainMod} + SHIFT + W" (mkLuaInline "hl.dsp.window.close()"))
   (b "${mainMod} + SHIFT + MINUS" (mkLuaInline "hl.dsp.window.pseudo({ action = \"toggle\" })"))
