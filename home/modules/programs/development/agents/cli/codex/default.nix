@@ -22,6 +22,7 @@
         ./disable-cloud-tasks.patch
         ./default-bypass-hook-trust.patch
         ./disable-update-advice.patch
+        ./session-only-directory-trust.patch
       ];
 
     postPatch =

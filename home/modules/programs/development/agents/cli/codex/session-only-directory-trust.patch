@@ -1,0 +1,86 @@
+diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboarding_screen.rs
+--- a/tui/src/onboarding/onboarding_screen.rs
++++ b/tui/src/onboarding/onboarding_screen.rs
+@@ -28,6 +28,4 @@ use crate::LoginStatus;
+ use crate::app_server_session::AppServerSession;
+-use crate::config_update::format_config_error;
+-use crate::config_update::write_trusted_project;
+ use crate::key_hint::KeyBindingListExt;
+ use crate::legacy_core::config::Config;
+ use crate::onboarding::auth::AuthModeWidget;
+@@ -577,5 +575,5 @@ async fn persist_selected_trust(
+     onboarding_screen: &mut OnboardingScreen,
+-    request_handle: Option<AppServerRequestHandle>,
++    _request_handle: Option<AppServerRequestHandle>,
+ ) -> bool {
+     let Some((trust_step_index, trust_target)) = onboarding_screen
+         .steps
+@@ -596,31 +594,14 @@ async fn persist_selected_trust(
+         return false;
+     };
+ 
+-    let result = match request_handle {
+-        Some(request_handle) => write_trusted_project(request_handle, &trust_target)
+-            .await
+-            .map(|_| ()),
+-        None => Err(color_eyre::eyre::eyre!("app server unavailable")),
+-    };
+-
+-    match result {
+-        Ok(()) => true,
+-        Err(error) => {
+-            let error = format_config_error(&error);
+-            tracing::error!(
+-                "failed to persist trusted project state for {}: {error}",
+-                trust_target.display()
+-            );
+-            if let Step::TrustDirectory(widget) = &mut onboarding_screen.steps[trust_step_index] {
+-                widget.selection = None;
+-                widget.error = Some(format!(
+-                    "Failed to set trust for {}: {error}",
+-                    trust_target.display()
+-                ));
+-            }
+-            false
+-        }
++    tracing::info!(
++        "skipping trusted project state persistence for {}; continuing with in-memory trust",
++        trust_target.display()
++    );
++    if let Step::TrustDirectory(widget) = &mut onboarding_screen.steps[trust_step_index] {
++        widget.error = None;
+     }
++    true
+ }
+ 
+ #[cfg(test)]
+@@ -690,6 +671,6 @@ mod tests {
+ 
+     #[tokio::test]
+-    async fn trust_persistence_failure_keeps_trust_step_in_progress() {
++    async fn trust_selection_skips_persistence_and_completes() {
+         let mut onboarding_screen = OnboardingScreen {
+             request_frame: FrameRequester::test_dummy(),
+             steps: vec![Step::TrustDirectory(TrustDirectoryWidget {
+@@ -709,17 +690,12 @@ mod tests {
+         let persisted =
+             persist_selected_trust(&mut onboarding_screen, /*request_handle*/ None).await;
+ 
+-        assert!(!persisted);
++        assert!(persisted);
+         let Step::TrustDirectory(widget) = &onboarding_screen.steps[0] else {
+             panic!("trust step should remain present");
+         };
+-        assert_eq!(widget.selection, None);
+-        assert_eq!(widget.get_step_state(), super::StepState::InProgress);
+-        assert!(
+-            widget
+-                .error
+-                .as_deref()
+-                .is_some_and(|error| error.contains("app server unavailable"))
+-        );
++        assert_eq!(widget.selection, Some(TrustDirectorySelection::Trust));
++        assert_eq!(widget.get_step_state(), super::StepState::Complete);
++        assert_eq!(widget.error, None);
+     }
+ }
