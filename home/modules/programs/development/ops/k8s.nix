@@ -9,7 +9,7 @@
 
     packages = with pkgs; [
       kubernetes
-      minikube
+      # minikube
       kubectl
     ];
   };
