@@ -386,11 +386,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1774002033,
-        "narHash": "sha256-NjOmeCZmne76oDS+eV0qqXWqZQ6SEtUYxXlzE9Ce2/0=",
+        "lastModified": 1783879196,
+        "narHash": "sha256-J+7hcAeSKpe3jogSIqSBcFUecamQuFmOCEk53ehA+dE=",
         "owner": "luisnquin",
         "repo": "grub-themes",
-        "rev": "b1e60fd6c3e8bc8381daeb279b6e02c7701d52da",
+        "rev": "61426f46b8a916a82455a806156efd76c86695b2",
         "type": "github"
       },
       "original": {
@@ -1057,11 +1057,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1778909620,
-        "narHash": "sha256-3y+7xkCj0RBxIMorV8GPXz19q7m+YpdxQkjiRi4Lpt8=",
+        "lastModified": 1783885071,
+        "narHash": "sha256-YG7vqizUOoUDKD9QPmxPw8p0omvSss+L6nrXCfTtTqA=",
         "owner": "0xc000022070",
         "repo": "nixpkgs-extra",
-        "rev": "4de031e11ee5e0ba0064a4bc4a321cab62f7b0bf",
+        "rev": "610c8531db31f5279aa268e155476d0e47434305",
         "type": "github"
       },
       "original": {
