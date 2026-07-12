@@ -171,7 +171,9 @@
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
-            llm-agents.overlays.default
+            (_final: _prev: {
+              llm-agents = llm-agents.packages.${system};
+            })
             clipz.overlays.default
           ];
 
