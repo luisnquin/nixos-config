@@ -174,7 +174,8 @@
             clipz.overlays.default
           ];
 
-        inherit config system;
+        inherit config;
+        localSystem.system = system;
       };
     in
       pkgs;
@@ -240,7 +241,6 @@
       flake = rec {
         nixosConfigurations."${metadata.host.name}" = nixpkgs.lib.nixosSystem {
           inherit pkgs;
-          system = defaultSystem;
 
           modules = nixosModules;
           specialArgs =
