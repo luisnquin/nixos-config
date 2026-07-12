@@ -110,10 +110,7 @@
     };
     roborev = {
       url = "github:roborev-dev/roborev";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils"; # TODO: ask them to remove this ponpon shit
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-programs-sqlite = {
       url = "github:wamserma/flake-programs-sqlite";
