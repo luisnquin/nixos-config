@@ -1097,19 +1097,16 @@
     },
     "roborev": {
       "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
         "nixpkgs": [
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1782094604,
-        "narHash": "sha256-6rBil6Ai3NPBAnISzuD7WDFdliiYbAzRmRA2oq6TCpc=",
+        "lastModified": 1783877821,
+        "narHash": "sha256-opynL2oJg+Ewt4+tqroQ37tJiRtz4qrM8nBRTZsNbaE=",
         "owner": "roborev-dev",
         "repo": "roborev",
-        "rev": "bd266d983297c65f0a765268ff3fa6cf028c8227",
+        "rev": "b97a3d836cb9a24c02d372981bd7e955106224e6",
         "type": "github"
       },
       "original": {
