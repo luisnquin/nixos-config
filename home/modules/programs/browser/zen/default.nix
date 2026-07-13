@@ -52,19 +52,6 @@
         ];
       };
 
-      #   "Oscar Liang" = {
-      #     workspace = spaces."Rendezvous".id;
-      #     kind = "rss";
-      #     title = "Oscar Liang";
-      #     feedUrl = "https://oscarliang.com/feed";
-      #     folderIcon = "https://oscarliang.com/wp-content/uploads/2021/06/favicon.ico";
-      #     position = 401;
-      #     maxItems = 5;
-      #     collapsed = true;
-      #     timeRange = 0;
-      #   };
-      # };
-
       pinsForce = true;
       pinsForceAction = "demote";
       pins = {
@@ -73,16 +60,6 @@
           url = "https://web.telegram.org/k/";
           position = 103;
           isEssential = true;
-        };
-
-        "State" = {
-          id = "482bc905-c00c-4c49-8a56-367668bf70b9";
-          workspace = spaces."Rendezvous".id;
-          folderIcon = "chrome://browser/skin/zen-icons/selectable/eye.svg";
-          isGroup = true;
-          isFolderCollapsed = true;
-          editedTitle = true;
-          position = 200;
         };
       };
 
@@ -117,35 +94,42 @@
               position = 102;
             };
 
-            "Cursor" = {
-              id = "384413fa-89aa-408c-b7bb-260e49dea3d3";
-              url = "https://cursor.com/dashboard/spending";
-              folderParentId = pins."State".id;
-              position = 201;
+            "State" = {
+              id = "482bc905-c00c-4c49-8a56-367668bf70b9";
+              folderIcon = "chrome://browser/skin/zen-icons/selectable/eye.svg";
+              isGroup = true;
+              isFolderCollapsed = true;
               editedTitle = true;
-              title = "Cursor Usage";
-            };
-            "Codex" = {
-              id = "0dc25f8f-a801-46ed-853b-6d866622bc18";
-              url = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
-              folderParentId = pins."State".id;
-              position = 201;
-              editedTitle = true;
-              title = "Codex Usage";
-            };
-            "Claude" = {
-              id = "b9852a90-794e-4692-989b-bd2fb376bc54";
-              url = "https://platform.claude.com/usage";
-              folderParentId = pins."State".id;
-              position = 201;
-              editedTitle = true;
-              title = "Claude Usage";
-            };
-            "Tailscale" = {
-              id = "4398f631-714c-450f-9b10-eb69ab27244a";
-              url = "https://login.tailscale.com/admin/machines";
-              folderParentId = pins."State".id;
-              position = 153;
+              position = 200;
+
+              pins = {
+                "Cursor" = {
+                  id = "384413fa-89aa-408c-b7bb-260e49dea3d3";
+                  url = "https://cursor.com/dashboard/spending";
+                  position = 201;
+                  editedTitle = true;
+                  title = "Cursor Usage";
+                };
+                "Codex" = {
+                  id = "0dc25f8f-a801-46ed-853b-6d866622bc18";
+                  url = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
+                  position = 201;
+                  editedTitle = true;
+                  title = "Codex Usage";
+                };
+                "Claude" = {
+                  id = "b9852a90-794e-4692-989b-bd2fb376bc54";
+                  url = "https://platform.claude.com/usage";
+                  position = 201;
+                  editedTitle = true;
+                  title = "Claude Usage";
+                };
+                "Tailscale" = {
+                  id = "4398f631-714c-450f-9b10-eb69ab27244a";
+                  url = "https://login.tailscale.com/admin/machines";
+                  position = 153;
+                };
+              };
             };
           };
 
