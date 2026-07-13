@@ -63,16 +63,18 @@
         };
       };
 
-      # joinedTabs."Inside state" = {
-      #   id = "inside-state";
-      #   gridType = "vsep";
-      #   folderParentId = pins."State".id;
-      #   tabs = [
-      #     pins."Cursor".id
-      #     pins."Codex".id
-      #     pins."Claude".id
-      #   ];
-      # };
+      joinedTabs."Inside state" = let
+        state = spaces."Rendezvous".pins."State";
+      in {
+        id = "inside-state";
+        gridType = "vsep";
+        folderParentId = state.id;
+        tabs = [
+          state.pins."Cursor".id
+          state.pins."Codex".id
+          state.pins."Claude".id
+        ];
+      };
 
       containersForce = true;
 
