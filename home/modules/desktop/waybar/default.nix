@@ -66,8 +66,10 @@
         name = "tailscale-waybar";
         runtimeInputs = with pkgs; [jq tailscale];
         text = ''
+          icon=$'\ue9ff'
+
           if ! json="$(tailscale status --json 2>/dev/null)"; then
-            printf '{"text":"󰖂 off","class":"disconnected"}\n'
+            printf '{"text":"%s off","class":"disconnected"}\n' "$icon"
             exit 0
           fi
 
@@ -77,8 +79,8 @@
           # tooltip=$(tailscale status)
           tooltip="$online/$total"
 
-          printf '{"text":"󰇢 %s/%s","tooltip":"%s"}\n' \
-            "$online" "$total" "$tooltip"
+          printf '{"text":"%s %s/%s","tooltip":"%s"}\n' \
+            "$icon" "$online" "$total" "$tooltip"
         '';
       };
 

@@ -9,7 +9,7 @@
   imports = [
     ./clipboard.nix
     ./hyprland.nix
-    ./fonts.nix
+    ./fonts
     ./thunar.nix
   ];
 
