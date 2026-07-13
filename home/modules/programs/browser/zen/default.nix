@@ -12,6 +12,7 @@
   programs.zen-browser = {
     enable = true;
     languagePacks = ["en-US"];
+
     policies = import ./policies-config.nix;
 
     setAsDefaultBrowser = true;
@@ -27,6 +28,9 @@
         "zen.welcome-screen.seen" = true;
         "zen.urlbar.behavior" = "float";
       };
+
+      bookmarks = import ./bookmarks-config.nix {inherit libx lib;};
+      search = import ./search-config.nix {inherit pkgs;};
 
       sine = {
         enable = true;
@@ -48,23 +52,6 @@
         ];
       };
 
-      bookmarks = import ./bookmarks-config.nix {inherit libx lib;};
-
-      search = import ./search-config.nix {inherit pkgs;};
-
-      # liveFolders = {
-      #   "Prisma blog" = {
-      #     workspace = spaces."Rendezvous".id;
-      #     kind = "rss";
-      #     title = "Prisma blog";
-      #     feedUrl = "https://www.prisma.io/blog/rss.xml";
-      #     folderIcon = "https://www.prisma.io/favicon.ico";
-      #     position = 400;
-      #     maxItems = 3;
-      #     collapsed = true;
-      #     timeRange = 0;
-      #   };
-
       #   "Oscar Liang" = {
       #     workspace = spaces."Rendezvous".id;
       #     kind = "rss";
@@ -80,124 +67,35 @@
 
       pinsForce = true;
       pinsForceAction = "demote";
-      pins = let
-        stateDir = {
-          "State" = {
-            id = "482bc905-c00c-4c49-8a56-367668bf70b9";
-            workspace = spaces."Rendezvous".id;
-            folderIcon = "chrome://browser/skin/zen-icons/selectable/eye.svg";
-            isGroup = true;
-            isFolderCollapsed = true;
-            editedTitle = true;
-            position = 200;
-          };
-          "Cursor" = {
-            id = "384413fa-89aa-408c-b7bb-260e49dea3d3";
-            url = "https://cursor.com/dashboard/spending";
-            workspace = spaces."Rendezvous".id;
-            folderParentId = pins."State".id;
-            position = 201;
-            editedTitle = true;
-            title = "Cursor Usage";
-          };
-          "Codex" = {
-            id = "0dc25f8f-a801-46ed-853b-6d866622bc18";
-            url = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
-            workspace = spaces."Rendezvous".id;
-            folderParentId = pins."State".id;
-            position = 201;
-            editedTitle = true;
-            title = "Codex Usage";
-          };
-          "Claude" = {
-            id = "b9852a90-794e-4692-989b-bd2fb376bc54";
-            url = "https://platform.claude.com/usage";
-            workspace = spaces."Rendezvous".id;
-            folderParentId = pins."State".id;
-            position = 201;
-            editedTitle = true;
-            title = "Claude Usage";
-          };
-          "Tailscale" = {
-            id = "4398f631-714c-450f-9b10-eb69ab27244a";
-            url = "https://login.tailscale.com/admin/machines";
-            workspace = spaces."Rendezvous".id;
-            folderParentId = pins."State".id;
-            position = 153;
-          };
+      pins = {
+        "Telegram Web" = {
+          id = "5065293b-1c04-40ee-ba1d-99a231873864";
+          url = "https://web.telegram.org/k/";
+          position = 103;
+          isEssential = true;
         };
-      in
-        {
-          "GitHub" = {
-            id = "48e8a119-5a14-4826-9545-91c8e8dd3bf6";
-            workspace = spaces."Rendezvous".id;
-            url = "https://github.com";
-            position = 101;
-            isEssential = false;
-          };
-          "WhatsApp Web" = {
-            id = "1eabb6a3-911b-4fa9-9eaf-232a3703db19";
-            workspace = spaces."Rendezvous".id;
-            url = "https://web.whatsapp.com/";
-            position = 102;
-            isEssential = false;
-          };
-          "Telegram Web" = {
-            id = "5065293b-1c04-40ee-ba1d-99a231873864";
-            url = "https://web.telegram.org/k/";
-            position = 103;
-            isEssential = true;
-          };
-          "Linux kernel" = {
-            id = "9d67cbc8-dd87-4c57-a274-9dab12a94429";
-            url = "https://www.kernel.org/";
-            workspace = spaces."Rendezvous".id;
-            position = 150;
-          };
-          "NixOS.org" = {
-            id = "d8494475-ed8d-4746-a867-54fa7700faf4";
-            url = "https://nixos.org/";
-            workspace = spaces."Rendezvous".id;
-            position = 151;
-          };
-          "GrapheneOS" = {
-            id = "19266f40-575f-49f8-8fe0-ac13659a4242";
-            url = "https://grapheneos.org/";
-            workspace = spaces."Rendezvous".id;
-            position = 152;
-          };
-          "Docs" = {
-            id = "69eaa2cc-172b-4311-bdbb-01ee499a9baa";
-            workspace = spaces."Rendezvous".id;
-            isGroup = true;
-            isFolderCollapsed = true;
-            position = 155;
-          };
-        }
-        // stateDir;
 
-      joinedTabs."Inside state" = {
-        id = "inside-state";
-        gridType = "vsep";
-        folderParentId = pins."State".id;
-        tabs = [
-          pins."Cursor".id
-          pins."Codex".id
-          pins."Claude".id
-        ];
+        "State" = {
+          id = "482bc905-c00c-4c49-8a56-367668bf70b9";
+          workspace = spaces."Rendezvous".id;
+          folderIcon = "chrome://browser/skin/zen-icons/selectable/eye.svg";
+          isGroup = true;
+          isFolderCollapsed = true;
+          editedTitle = true;
+          position = 200;
+        };
       };
 
-      joinedTabs."Kernel and NixOS" = {
-        id = "kernel-nix-docs";
-        gridType = "vsep";
-        folderParentId = pins."Docs".id;
-        tabs = [
-          pins."Linux kernel".id
-          pins."NixOS.org".id
-          pins."GrapheneOS".id
-        ];
-        sizes = [40 20 40];
-      };
+      # joinedTabs."Inside state" = {
+      #   id = "inside-state";
+      #   gridType = "vsep";
+      #   folderParentId = pins."State".id;
+      #   tabs = [
+      #     pins."Cursor".id
+      #     pins."Codex".id
+      #     pins."Claude".id
+      #   ];
+      # };
 
       containersForce = true;
 
@@ -207,6 +105,64 @@
           id = "572910e1-4468-4832-a869-0b3a93e2f165";
           icon = "chrome://browser/skin/zen-icons/selectable/navigate.svg";
           position = 1000;
+          pins = {
+            "GitHub" = {
+              id = "48e8a119-5a14-4826-9545-91c8e8dd3bf6";
+              url = "https://github.com";
+              position = 101;
+            };
+            "WhatsApp Web" = {
+              id = "1eabb6a3-911b-4fa9-9eaf-232a3703db19";
+              url = "https://web.whatsapp.com/";
+              position = 102;
+            };
+
+            "Cursor" = {
+              id = "384413fa-89aa-408c-b7bb-260e49dea3d3";
+              url = "https://cursor.com/dashboard/spending";
+              folderParentId = pins."State".id;
+              position = 201;
+              editedTitle = true;
+              title = "Cursor Usage";
+            };
+            "Codex" = {
+              id = "0dc25f8f-a801-46ed-853b-6d866622bc18";
+              url = "https://chatgpt.com/codex/cloud/settings/analytics#usage";
+              folderParentId = pins."State".id;
+              position = 201;
+              editedTitle = true;
+              title = "Codex Usage";
+            };
+            "Claude" = {
+              id = "b9852a90-794e-4692-989b-bd2fb376bc54";
+              url = "https://platform.claude.com/usage";
+              folderParentId = pins."State".id;
+              position = 201;
+              editedTitle = true;
+              title = "Claude Usage";
+            };
+            "Tailscale" = {
+              id = "4398f631-714c-450f-9b10-eb69ab27244a";
+              url = "https://login.tailscale.com/admin/machines";
+              folderParentId = pins."State".id;
+              position = 153;
+            };
+          };
+
+          liveFolders = {
+            "Prisma blog" = {
+              id = "4b552876-eb82-4e44-9ff9-8bd9cde6840b";
+              kind = "rss";
+              title = "Prisma blog";
+              feedUrl = "https://www.prisma.io/blog/rss.xml";
+              folderIcon = "https://www.prisma.io/favicon.ico";
+              position = 400;
+              maxItems = 3;
+              collapsed = true;
+              timeRange = 0;
+            };
+          };
+
           theme = {
             type = "gradient";
             colors = [
