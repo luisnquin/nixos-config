@@ -4,6 +4,7 @@
       nerd-fonts.fira-code
       nerd-fonts.symbols-only
       coders-crux
+      ioskeley-mono.normal-NF
       jetbrains-mono
       cascadia-code
       roboto-mono

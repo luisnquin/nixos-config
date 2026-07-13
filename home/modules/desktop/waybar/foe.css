@@ -1,5 +1,5 @@
 * {
-    font-family: "Cascadia Code NF", "Symbols Nerd Font", monospace;
+    font-family: "IoskeleyMono Nerd Font", "Symbols Nerd Font", monospace;
     font-size: 10pt;
     font-weight: 600;
     border-radius: 8px;
@@ -190,7 +190,7 @@ window > box {
 
 #custom-battery {
     color: rgb(181, 232, 224);
-    font-family: "Cascadia Code NF", "Symbols Nerd Font", monospace;
+    font-family: "IoskeleyMono Nerd Font", "Symbols Nerd Font", monospace;
     font-size: 18px;
     min-width: 18px;
 }
