@@ -466,9 +466,9 @@ in {
 
     scssConfig = ''
       * {
-        font-family: "JetBrainsMono Nerd Font";
+        font-family: "Cascadia Code NF", "Symbols Nerd Font", monospace;
         font-size: 10pt;
-        font-weight: bold;
+        font-weight: 600;
         color: #cdd6f4;
       }
 
