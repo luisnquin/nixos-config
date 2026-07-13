@@ -1,0 +1,40 @@
+diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
+--- a/tui/src/chatwidget/status_surfaces.rs
++++ b/tui/src/chatwidget/status_surfaces.rs
+@@ -20,6 +20,22 @@ use codex_utils_sandbox_summary::summarize_permission_profile;
+
+ use super::status_state::TerminalTitleStatusKind;
+
++/// Trailing path components kept by the `current-dir` status line item.
++const STATUS_LINE_CWD_COMPONENTS: usize = 2;
++
++/// Renders the working directory as its last [`STATUS_LINE_CWD_COMPONENTS`]
++/// components, falling back to the full display path for shallower paths.
++fn format_status_line_cwd(directory: &Path) -> String {
++    let formatted = format_directory_display(directory, /*max_width*/ None);
++    let separator = std::path::MAIN_SEPARATOR.to_string();
++    let components: Vec<&str> = formatted.split(&separator).collect();
++    let Some(start) = components.len().checked_sub(STATUS_LINE_CWD_COMPONENTS) else {
++        return formatted;
++    };
++
++    components[start..].join(&separator)
++}
++
+ /// Items shown in the terminal title when the user has not configured a
+ /// custom selection. Intentionally minimal: activity indicator + project name.
+ pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 2] = ["activity", "project-name"];
+@@ -657,12 +673,7 @@ impl ChatWidget<'_> {
+             StatusLineItem::ModelName => Some(self.model_display_name().to_string()),
+             StatusLineItem::ModelWithReasoning => Some(self.model_with_reasoning_display_name()),
+             StatusLineItem::Reasoning => Some(self.reasoning_display_name()),
+-            StatusLineItem::CurrentDir => {
+-                Some(format_directory_display(
+-                    self.status_line_cwd(),
+-                    /*max_width*/ None,
+-                ))
+-            }
++            StatusLineItem::CurrentDir => Some(format_status_line_cwd(self.status_line_cwd())),
+             StatusLineItem::ProjectRoot => self.status_line_project_root_name(),
+             StatusLineItem::GitBranch => self.status_line_branch.clone(),
+             StatusLineItem::PullRequestNumber => self
