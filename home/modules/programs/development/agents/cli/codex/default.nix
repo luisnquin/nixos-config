@@ -13,17 +13,17 @@
     patches =
       (old.patches or [])
       ++ [
-        ./recursive-project-trust.patch
-        ./git-remote-show-no-fetch.patch
-        ./curated-plugins-disable-sync.patch
-        ./presentation-card.patch
-        ./terminal-terminfo-dirs.patch
-        ./custom-input-bar.patch
-        ./disable-cloud-tasks.patch
-        ./default-bypass-hook-trust.patch
-        ./disable-update-advice.patch
-        ./session-only-directory-trust.patch
-        ./default-yolo.patch
+        ./patches/recursive-project-trust.patch
+        ./patches/git-remote-show-no-fetch.patch
+        ./patches/curated-plugins-disable-sync.patch
+        ./patches/presentation-card.patch
+        ./patches/terminal-terminfo-dirs.patch
+        ./patches/custom-input-bar.patch
+        ./patches/disable-cloud-tasks.patch
+        ./patches/default-bypass-hook-trust.patch
+        ./patches/disable-update-advice.patch
+        ./patches/session-only-directory-trust.patch
+        ./patches/default-yolo.patch
       ];
 
     postPatch =
