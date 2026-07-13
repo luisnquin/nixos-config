@@ -11,7 +11,7 @@
 
     ./hardware-configuration.nix
     ./disko-config.nix
-    ./self.nix
+    ./hostcmd.nix
   ];
 
   home-manager.useGlobalPkgs = true;

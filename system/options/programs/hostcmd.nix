@@ -6,7 +6,7 @@
   ...
 }:
 with lib; let
-  cfg = config.programs.self;
+  cfg = config.programs.hostcmd;
 
   defaultNyxIcon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
 
@@ -239,7 +239,7 @@ with lib; let
     esac
   '';
 in {
-  options.programs.self = {
+  options.programs.hostcmd = {
     enable = mkEnableOption "Declarative CLI tool";
 
     commands = mkOption {

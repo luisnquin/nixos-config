@@ -1,5 +1,5 @@
 {
   imports = [
-    ./programs/self.nix
+    ./programs/hostcmd.nix
   ];
 }

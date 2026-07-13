@@ -6,7 +6,7 @@
 }: let
   dotfilesPath = "${hmConfig.home.homeDirectory}/.dotfiles";
 in {
-  programs.self = {
+  programs.hostcmd = {
     enable = true;
 
     commands = {
