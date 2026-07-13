@@ -36,7 +36,7 @@
           fi
 
           jq -cn \
-            --arg text "↓ $inbound" \
+            --arg text "↓$inbound" \
             --arg tooltip "SSH inbound: $inbound" \
             '{text: $text, tooltip: $tooltip}'
         '';
@@ -56,7 +56,7 @@
           fi
 
           jq -cn \
-            --arg text "↑ $outbound" \
+            --arg text "↑$outbound" \
             --arg tooltip "SSH outbound: $outbound" \
             '{text: $text, tooltip: $tooltip}'
         '';

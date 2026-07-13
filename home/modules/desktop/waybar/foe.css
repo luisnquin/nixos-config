@@ -128,8 +128,8 @@ window > box {
 #battery,
 #custom-battery,
 #network {
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
 }
 
 /* Tailscale */
@@ -146,8 +146,8 @@ window > box {
 
 #custom-ssh-label {
     color: #cba6f7;
-    padding-left: 8px;
-    padding-right: 5px;
+    padding-left: 6px;
+    padding-right: 3px;
     font-size: 20px;
 }
 
@@ -160,7 +160,7 @@ window > box {
 #custom-ssh-outbound {
     color: #d8b4fe;
     padding-left: 3px;
-    padding-right: 8px;
+    padding-right: 6px;
 }
 
 /* System metrics */
@@ -213,7 +213,8 @@ window > box {
 
 #network {
     color: #facaf4;
-    font-size: 19px;
+    font-family: "Symbols Nerd Font Mono";
+    font-size: 18px;
     padding-right: 4px;
 }
 
