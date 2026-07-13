@@ -37,11 +37,11 @@
   )
   (_self: super: {
     antigravity = super.antigravity.overrideAttrs (oldAttrs: rec {
-      version = "2.0.4";
+      version = "2.1.1";
 
       src = super.fetchurl {
-        url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}-6381998290370560/linux-x64/Antigravity%20IDE.tar.gz";
-        sha256 = "sha256-ZjN9RfJHLOXonzlOd67HSQmqG+C7M8n3MpmpX0WOZ3A=";
+        url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}-6123990880747520/linux-x64/Antigravity%20IDE.tar.gz";
+        sha256 = "sha256-Wyzr99M6aNAD/Y8fqYjRYAkFrOIlBKCF5ThCFCkIeL0=";
       };
 
       sourceRoot = "Antigravity IDE";
