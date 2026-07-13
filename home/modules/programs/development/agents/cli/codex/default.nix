@@ -23,6 +23,7 @@
         ./default-bypass-hook-trust.patch
         ./disable-update-advice.patch
         ./session-only-directory-trust.patch
+        ./default-yolo.patch
       ];
 
     postPatch =
