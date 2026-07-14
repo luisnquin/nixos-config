@@ -22,9 +22,7 @@
     };
   };
 
-  # disabledModules = ["misc/news.nix"];
-
-  news.display = "silent";
+  disabledModules = ["misc/news.nix"];
 
   programs.home-manager.enable = true;
 }
