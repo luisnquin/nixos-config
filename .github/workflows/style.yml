@@ -1,4 +1,6 @@
 name: Check Nix formatting
+run-name: Nix formatting · ${{ github.event_name }} · ${{ github.ref_name }}
+
 on: [push, pull_request]
 
 jobs:
