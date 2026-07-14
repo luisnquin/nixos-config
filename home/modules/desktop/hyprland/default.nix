@@ -251,6 +251,15 @@ in {
           float = true;
           center = true;
         }
+        {
+          name = "color-picker-float";
+          match = {
+            class = "^(zenity|org\\.gnome\\.Zenity)$";
+            title = "^Copy color to Clipboard$";
+          };
+          float = true;
+          center = true;
+        }
       ];
 
       device = {
