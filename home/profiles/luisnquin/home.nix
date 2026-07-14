@@ -1,4 +1,5 @@
 {
+  pkgs,
   user,
   nix,
   ...
@@ -14,6 +15,8 @@
     homeDirectory = "/home/${user.alias}";
     username = "${user.alias}";
 
+    packages = [pkgs.home-manager];
+
     file.".face".source = ./.face;
 
     sessionVariables = {
@@ -22,7 +25,7 @@
     };
   };
 
-  disabledModules = ["misc/news.nix"];
+  news.display = "silent";
 
-  programs.home-manager.enable = true;
+  programs.home-manager.enable = false;
 }
