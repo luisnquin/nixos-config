@@ -25,6 +25,7 @@
         ./patches/session-only-directory-trust.patch
         ./patches/default-yolo.patch
         ./patches/status-line-short-cwd.patch
+        ./patches/status-line-effective-reasoning.patch
       ];
 
     postPatch =

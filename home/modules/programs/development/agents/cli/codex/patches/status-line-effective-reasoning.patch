@@ -1,0 +1,42 @@
+diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
+index 7120462330..8a47348cbb 100644
+--- a/tui/src/chatwidget/status_surfaces.rs
++++ b/tui/src/chatwidget/status_surfaces.rs
+@@ -866,7 +866,15 @@ impl ChatWidget {
+     }
+ 
+     fn reasoning_display_name(&self) -> String {
+-        let effort = self.effective_reasoning_effort();
++        let effort = self.effective_reasoning_effort().or_else(|| {
++            let model = self.current_model();
++            self.model_catalog
++                .try_list_models()
++                .ok()?
++                .into_iter()
++                .find(|preset| preset.model == model)
++                .map(|preset| preset.default_reasoning_effort)
++        });
+         Self::status_line_reasoning_effort_label(effort.as_ref())
+     }
+ 
+diff --git a/tui/src/chatwidget/tests/status_and_layout.rs b/tui/src/chatwidget/tests/status_and_layout.rs
+index fe17933f52..b4aaffcd59 100644
+--- a/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -23,6 +23,16 @@ fn take_workspace_headline_request_id(
+     }
+ }
+ 
++#[tokio::test]
++async fn status_line_reasoning_uses_model_default_without_override() {
++    let (mut chat, _rx, _ops) = make_chatwidget_manual(Some("gpt-5.4")).await;
++
++    assert_eq!(
++        chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::Reasoning),
++        Some("medium".to_string())
++    );
++}
++
+ /// Receiving a token usage update without usage clears the context indicator.
+ #[tokio::test]
+ async fn token_count_none_resets_context_indicator() {
