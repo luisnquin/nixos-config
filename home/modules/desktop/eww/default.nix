@@ -349,8 +349,8 @@ in {
         (box :class "sys-box cpu-box" :orientation "v" :space-evenly false :spacing 12
           (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
             (box :class "sys-meter cpu-meter" :orientation "v" :space-evenly false :valign "center"
-              (label :class "sys-meter-icon" :text "󰍛")
-              (label :class "sys-meter-value" :text {sys.cpu_label}))
+              (label :class "sys-meter-icon" :halign "center" :text "󰍛")
+              (label :class "sys-meter-value" :halign "center" :text {sys.cpu_label}))
             (box :orientation "v" :space-evenly false :hexpand true :halign "start"
               (label :class "sys-title" :halign "start" :text "CPU")
               (label :class "sys-subtitle" :halign "start" :text {sys.cores + " cores · " + sys.freq})
@@ -365,8 +365,8 @@ in {
         (box :class "sys-box mem-box" :orientation "v" :space-evenly false :spacing 12
           (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
             (box :class "sys-meter mem-meter" :orientation "v" :space-evenly false :valign "center"
-              (label :class "sys-meter-icon" :text "")
-              (label :class "sys-meter-value" :text {sys.mem_label}))
+              (label :class "sys-meter-icon" :halign "center" :text "")
+              (label :class "sys-meter-value" :halign "center" :text {sys.mem_label}))
             (box :orientation "v" :space-evenly false :hexpand true :halign "start"
               (label :class "sys-title" :halign "start" :text "Memory")
               (label :class "sys-subtitle" :halign "start" :text {sys.mem_used + " / " + sys.mem_total})
@@ -588,9 +588,17 @@ in {
         color: #f5c2e7;
       }
 
+      .cpu-meter .sys-meter-icon {
+        margin-right: 4px;
+      }
+
       .mem-meter .sys-meter-icon,
       .mem-meter .sys-meter-value {
         color: #b5e8e0;
+      }
+
+      .mem-meter .sys-meter-icon {
+        margin-right: 10px;
       }
 
       .sys-meter-value {
