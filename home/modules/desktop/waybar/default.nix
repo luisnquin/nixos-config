@@ -22,42 +22,38 @@
 
       ewwToggleNetwork = "${lib.getExe config.programs.eww.package} open --toggle network";
 
-      sshInboundWaybar = pkgs.writeShellApplication {
-        name = "ssh-inbound-waybar";
-        runtimeInputs = with pkgs; [coreutils gawk jq];
+      sshWaybar = pkgs.writeShellApplication {
+        name = "ssh-waybar";
+        runtimeInputs = with pkgs; [coreutils gawk jq procps];
 
         text = ''
           inbound="$(who | awk '$2 ~ /^pts\// && $NF ~ /^\(/ { n++ } END { print n+0 }')"
           inbound="''${inbound:-0}"
 
-          if [ "$inbound" -eq 0 ]; then
-            jq -cn '{text: "", tooltip: ""}'
-            exit 0
-          fi
-
-          jq -cn \
-            --arg text "↓$inbound" \
-            --arg tooltip "SSH inbound: $inbound" \
-            '{text: $text, tooltip: $tooltip}'
-        '';
-      };
-
-      sshOutboundWaybar = pkgs.writeShellApplication {
-        name = "ssh-outbound-waybar";
-        runtimeInputs = with pkgs; [coreutils jq procps];
-
-        text = ''
           outbound="$( (pgrep -u "$USER" -x ssh 2>/dev/null || true) | wc -l)"
           outbound="''${outbound// /}"
 
-          if [ "$outbound" -eq 0 ]; then
+          if [ "$inbound" -eq 0 ] && [ "$outbound" -eq 0 ]; then
             jq -cn '{text: "", tooltip: ""}'
             exit 0
           fi
 
+          text='<span color="#cba6f7" size="15pt">󰣀</span>'
+          tooltip=""
+
+          if [ "$inbound" -gt 0 ]; then
+            printf -v text '%s <span color="#b5e8e0">↓%s</span>' "$text" "$inbound"
+            tooltip="SSH inbound: $inbound"
+          fi
+
+          if [ "$outbound" -gt 0 ]; then
+            printf -v text '%s <span color="#d8b4fe">↑%s</span>' "$text" "$outbound"
+            tooltip="''${tooltip:+$tooltip · }SSH outbound: $outbound"
+          fi
+
           jq -cn \
-            --arg text "↑$outbound" \
-            --arg tooltip "SSH outbound: $outbound" \
+            --arg text "$text" \
+            --arg tooltip "$tooltip" \
             '{text: $text, tooltip: $tooltip}'
         '';
       };
@@ -164,9 +160,7 @@
         modules-right = [
           "custom/tailscale"
           "network"
-          "custom/ssh-label"
-          "custom/ssh-inbound"
-          "custom/ssh-outbound"
+          "custom/ssh"
           "cpu"
           "memory"
           "custom/battery"
@@ -193,22 +187,10 @@
           "tooltip" = false;
         };
 
-        "custom/ssh-label" = {
-          format = "󰣀";
-          tooltip = "SSH sessions";
-        };
-
-        "custom/ssh-inbound" = {
-          exec = "${lib.getExe sshInboundWaybar}";
+        "custom/ssh" = {
+          exec = "${lib.getExe sshWaybar}";
           return-type = "json";
-          interval = 2;
-          tooltip = true;
-          hide-empty-text = true;
-        };
-
-        "custom/ssh-outbound" = {
-          exec = "${lib.getExe sshOutboundWaybar}";
-          return-type = "json";
+          escape = false;
           interval = 2;
           tooltip = true;
           hide-empty-text = true;

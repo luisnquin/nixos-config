@@ -47,9 +47,7 @@ window > box {
 #tray,
 #clock,
 #custom-tailscale,
-#custom-ssh-label,
-#custom-ssh-inbound,
-#custom-ssh-outbound,
+#custom-ssh,
 #cpu,
 #memory,
 #battery,
@@ -144,22 +142,8 @@ window > box {
 
 /* SSH */
 
-#custom-ssh-label {
-    color: #cba6f7;
+#custom-ssh {
     padding-left: 6px;
-    padding-right: 3px;
-    font-size: 20px;
-}
-
-#custom-ssh-inbound {
-    color: rgb(181, 232, 224);
-    padding-left: 2px;
-    padding-right: 3px;
-}
-
-#custom-ssh-outbound {
-    color: #d8b4fe;
-    padding-left: 3px;
     padding-right: 6px;
 }
 
@@ -271,9 +255,7 @@ window > box {
 }
 
 /* Passive status modules: no hover container */
-#custom-ssh-label:hover,
-#custom-ssh-inbound:hover,
-#custom-ssh-outbound:hover {
+#custom-ssh:hover {
     background-color: transparent;
     box-shadow: none;
     border: 0;
