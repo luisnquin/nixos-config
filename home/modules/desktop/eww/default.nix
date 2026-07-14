@@ -365,7 +365,7 @@ in {
         (box :class "sys-box mem-box" :orientation "v" :space-evenly false :spacing 12
           (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
             (box :class "sys-meter mem-meter" :orientation "v" :space-evenly false :valign "center"
-              (label :class "sys-meter-icon" :text "󰻠")
+              (label :class "sys-meter-icon" :text "")
               (label :class "sys-meter-value" :text {sys.mem_label}))
             (box :orientation "v" :space-evenly false :hexpand true :halign "start"
               (label :class "sys-title" :halign "start" :text "Memory")

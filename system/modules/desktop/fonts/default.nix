@@ -1,13 +1,13 @@
 {pkgs, ...}: let
-  ioskeleyMonoTailscale = pkgs.runCommand "ioskeley-mono-tailscale" {
+  ioskeleyMonoCustom = pkgs.runCommand "ioskeley-mono-custom" {
     nativeBuildInputs = [pkgs.fontforge];
   } ''
     mkdir -p $out/share/fonts/truetype
 
     for font in ${pkgs.ioskeley-mono.normal-NF}/share/fonts/truetype/*.ttf; do
       output="$out/share/fonts/truetype/$(basename "$font")"
-      fontforge -lang=py -script ${./patch-tailscale.py} \
-        "$font" ${./tailscale.svg} "$output"
+      fontforge -lang=py -script ${./patch-custom-glyphs.py} \
+        "$font" ${./tailscale.svg} ${./memory.svg} "$output"
     done
   '';
 in {
@@ -16,7 +16,7 @@ in {
       nerd-fonts.fira-code
       nerd-fonts.symbols-only
       coders-crux
-      ioskeleyMonoTailscale
+      ioskeleyMonoCustom
       jetbrains-mono
       cascadia-code
       roboto-mono
