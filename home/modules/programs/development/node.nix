@@ -13,11 +13,6 @@ in {
       biome
     ];
 
-    sessionVariables = {
-      # https://github.com/npm/cli/issues/7857#issuecomment-2481331001
-      NODE_OPTIONS = "--disable-warning=ExperimentalWarning";
-    };
-
     # sessionPath managed by home/modules/path.nix
     # sessionPath = ["${NPM_GLOBAL_DIR}/bin" "${BUN_GLOBAL_DIR}/bin"];
 
