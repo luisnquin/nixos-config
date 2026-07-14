@@ -81,6 +81,7 @@ in {
           docker.docker
           eamodio.gitlens
           esbenp.prettier-vscode
+          github.vscode-github-actions
           golang.go
           hashicorp.terraform
           irongeek.vscode-env
