@@ -112,6 +112,13 @@
       url = "github:roborev-dev/roborev";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    hermes-agent = {
+      url = "github:NousResearch/hermes-agent";
+      inputs = {
+        flake-parts.follows = "flake-parts";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
     flake-programs-sqlite = {
       url = "github:wamserma/flake-programs-sqlite";
       inputs = {
@@ -168,6 +175,7 @@
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
+            inputs.hermes-agent.overlays.default
             (_final: _prev: {
               llm-agents = llm-agents.packages.${system};
             })
