@@ -292,6 +292,19 @@
           freq_label:$freq_label, up:$up, down:$down}'
     '';
   };
+
+  githubInfo = pkgs.writeShellApplication {
+    name = "eww-github-monitor";
+    runtimeInputs = with pkgs; [coreutils jq];
+    text = ''
+      cache=${lib.escapeShellArg "${config.xdg.cacheHome}/github-monitor/state.json"}
+      if [ -r "$cache" ]; then
+        cat "$cache"
+      else
+        jq -cn '{workflows:[],issues:[],errors:[],workflow_count:0,failed_count:0,issue_count:0,updated_at:"waiting for first refresh"}'
+      fi
+    '';
+  };
 in {
   programs.eww = {
     enable = true;
@@ -462,6 +475,47 @@ in {
         (box :class "net-row" :orientation "h" :space-evenly false
           (label :class "net-row-label" :halign "start" :hexpand true :text label)
           (label :class "net-row-value" :halign "end" :text value)))
+
+      (defpoll github_data :interval "30s"
+        :initial '{"workflows":[],"issues":[],"errors":[],"workflow_count":0,"failed_count":0,"issue_count":0,"updated_at":"loading"}'
+        `${lib.getExe githubInfo}`)
+
+      (defwindow github
+        :monitor 0
+        :geometry (geometry
+          :x "235px"
+          :y "35px"
+          :width "390px"
+          :anchor "top right")
+        :stacking "overlay"
+        :focusable false
+        (github-widget))
+
+      (defwidget github-widget []
+        (box :class "github-box" :orientation "v" :space-evenly false :spacing 12
+          (box :class "github-header" :orientation "h" :space-evenly false :spacing 10
+            (label :class "github-mark" :text "")
+            (box :orientation "v" :space-evenly false :hexpand true :halign "start"
+              (label :class "github-title" :halign "start" :text "GitHub watch")
+              (label :class "github-meta" :halign "start"
+                :text {github_data.failed_count + " failed / " + github_data.workflow_count + " watched · " + github_data.issue_count + " issues"})))
+          (box :class "github-section" :orientation "v" :space-evenly false :spacing 5
+            (label :class "github-section-title" :halign "start" :text "WATCHED WORKFLOWS")
+            (for run in {github_data.workflows}
+              (button :class {"github-entry " + run.conclusion} :onclick {"${lib.getExe' pkgs.xdg-utils "xdg-open"} " + run.url}
+                (box :orientation "v" :space-evenly false
+                  (label :class "github-entry-title" :halign "start" :limit-width 43 :text {run.displayTitle})
+                  (label :class "github-entry-meta" :halign "start" :text {run.repo + " · " + run.workflowName + " · " + run.conclusion})))))
+          (box :class "github-section" :orientation "v" :space-evenly false :spacing 5
+            (label :class "github-section-title" :halign "start" :text "ISSUES · NEWEST 3")
+            (for issue in {github_data.issues}
+              (button :class "github-entry issue" :onclick {"${lib.getExe' pkgs.xdg-utils "xdg-open"} " + issue.url}
+                (box :orientation "v" :space-evenly false
+                  (label :class "github-entry-title" :halign "start" :limit-width 43 :text {"#" + issue.number + "  " + issue.title})
+                  (label :class "github-entry-meta" :halign "start" :text {issue.repo})))))
+          (for source in {github_data.errors}
+            (label :class "github-error" :halign "start" :text {"query failed · " + source}))
+          (label :class "github-updated" :halign "end" :text {github_data.updated_at})))
     '';
 
     scssConfig = ''
@@ -833,6 +887,80 @@ in {
       .net-btn:hover {
         background-color: rgba(181, 232, 224, 0.14);
         color: #e8cef5;
+      }
+
+      .github-box {
+        background-color: rgba(29, 16, 58, 0.98);
+        border: 1px solid rgba(181, 232, 224, 0.14);
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+      }
+
+      .github-header {
+        border-bottom: 1px solid rgba(181, 232, 224, 0.10);
+        padding-bottom: 10px;
+      }
+
+      .github-mark {
+        color: #b5e8e0;
+        font-size: 23pt;
+      }
+
+      .github-title {
+        color: #ffffff;
+        font-size: 15pt;
+      }
+
+      .github-meta,
+      .github-entry-meta,
+      .github-updated {
+        color: rgba(205, 214, 244, 0.48);
+        font-size: 8pt;
+        font-weight: normal;
+      }
+
+      .github-section-title {
+        color: #b5e8e0;
+        font-size: 8pt;
+        letter-spacing: 1px;
+      }
+
+      .github-entry {
+        background-color: rgba(205, 214, 244, 0.045);
+        border: 1px solid rgba(205, 214, 244, 0.08);
+        border-radius: 6px;
+        padding: 7px 9px;
+      }
+
+      .github-entry:hover {
+        background-color: rgba(181, 232, 224, 0.10);
+        border-color: rgba(181, 232, 224, 0.20);
+      }
+
+      .github-entry.failure,
+      .github-entry.cancelled,
+      .github-entry.timed_out,
+      .github-entry.startup_failure,
+      .github-entry.action_required {
+        border-left: 3px solid #f28fad;
+      }
+
+      .github-entry.success {
+        border-left: 3px solid #b5e8e0;
+      }
+
+      .github-entry.issue {
+        border-left: 3px solid #f8bd96;
+      }
+
+      .github-entry-title {
+        color: #cdd6f4;
+      }
+
+      .github-error {
+        color: #f28fad;
+        font-size: 8pt;
       }
     '';
   };

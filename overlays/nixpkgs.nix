@@ -1,4 +1,8 @@
-{inputs, system, ...}: [
+{
+  inputs,
+  system,
+  ...
+}: [
   (_final: _prev: {
     home-manager = inputs.home-manager.packages.${system}.home-manager.overrideAttrs (old: {
       buildCommand =

@@ -1,15 +1,16 @@
 {pkgs, ...}: let
-  ioskeleyMonoCustom = pkgs.runCommand "ioskeley-mono-custom" {
-    nativeBuildInputs = [pkgs.fontforge];
-  } ''
-    mkdir -p $out/share/fonts/truetype
+  ioskeleyMonoCustom =
+    pkgs.runCommand "ioskeley-mono-custom" {
+      nativeBuildInputs = [pkgs.fontforge];
+    } ''
+      mkdir -p $out/share/fonts/truetype
 
-    for font in ${pkgs.ioskeley-mono.normal-NF}/share/fonts/truetype/*.ttf; do
-      output="$out/share/fonts/truetype/$(basename "$font")"
-      fontforge -lang=py -script ${./patch-custom-glyphs.py} \
-        "$font" ${./tailscale.svg} ${./memory.svg} "$output"
-    done
-  '';
+      for font in ${pkgs.ioskeley-mono.normal-NF}/share/fonts/truetype/*.ttf; do
+        output="$out/share/fonts/truetype/$(basename "$font")"
+        fontforge -lang=py -script ${./patch-custom-glyphs.py} \
+          "$font" ${./tailscale.svg} ${./memory.svg} "$output"
+      done
+    '';
 in {
   fonts = {
     packages = with pkgs; [

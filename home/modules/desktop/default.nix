@@ -1,8 +1,10 @@
 {
   imports = [
+    ./options.nix
     ./hyprland
     ./waybar
     ./eww
+    ./github-monitor.nix
     ./awww
     ./fuzzel.nix
 

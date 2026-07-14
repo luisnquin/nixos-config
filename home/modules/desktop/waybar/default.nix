@@ -22,6 +22,29 @@
 
       ewwToggleNetwork = "${lib.getExe config.programs.eww.package} open --toggle network";
 
+      ewwToggleGithub = "${lib.getExe config.programs.eww.package} open --toggle github";
+
+      githubWaybar = pkgs.writeShellApplication {
+        name = "github-monitor-waybar";
+        runtimeInputs = with pkgs; [jq];
+        text = ''
+          cache=${lib.escapeShellArg "${config.xdg.cacheHome}/github-monitor/state.json"}
+          if [ ! -r "$cache" ]; then
+            jq -cn '{text:" …", tooltip:"GitHub monitor is waiting for its first refresh", class:"loading"}'
+            exit 0
+          fi
+
+          jq -c '
+            (.failed_count + .issue_count) as $total |
+            {text:(" " + ($total | tostring)),
+             tooltip:((.failed_count | tostring) + " failed of " + (.workflow_count | tostring) + " watched workflows · " +
+                      (.issue_count | tostring) + " relevant open issues" +
+                      (if (.errors | length) > 0 then " · " + ((.errors | length) | tostring) + " query errors" else "" end)),
+             class:(if (.errors | length) > 0 then "error" elif .failed_count > 0 then "failed" elif .issue_count > 0 then "issues" else "clear" end)}' \
+            "$cache"
+        '';
+      };
+
       sshWaybar = pkgs.writeShellApplication {
         name = "ssh-waybar";
         runtimeInputs = with pkgs; [coreutils gawk jq procps];
@@ -158,6 +181,7 @@
         ];
 
         modules-right = [
+          "custom/github-monitor"
           "custom/tailscale"
           "network"
           "custom/ssh"
@@ -202,6 +226,14 @@
           interval = 5;
           tooltip = true;
           on-click = "${lib.getExe' pkgs.xdg-utils "xdg-open"} https://login.tailscale.com/admin/machines";
+        };
+
+        "custom/github-monitor" = {
+          exec = "${lib.getExe githubWaybar}";
+          return-type = "json";
+          interval = 30;
+          tooltip = true;
+          on-click = ewwToggleGithub;
         };
 
         "clock" = {

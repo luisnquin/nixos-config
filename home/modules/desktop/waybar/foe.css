@@ -46,6 +46,7 @@ window > box {
 #workspaces,
 #tray,
 #clock,
+#custom-github-monitor,
 #custom-tailscale,
 #custom-ssh,
 #cpu,
@@ -121,6 +122,7 @@ window > box {
 /* Right side */
 
 #custom-tailscale,
+#custom-github-monitor,
 #cpu,
 #memory,
 #battery,
@@ -131,6 +133,25 @@ window > box {
 }
 
 /* Tailscale */
+
+#custom-github-monitor {
+    color: #b5e8e0;
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+#custom-github-monitor.failed,
+#custom-github-monitor.error {
+    color: #f28fad;
+}
+
+#custom-github-monitor.issues {
+    color: #f8bd96;
+}
+
+#custom-github-monitor.clear {
+    color: rgba(181, 232, 224, 0.55);
+}
 
 #custom-tailscale {
     color: #aac194;
@@ -245,6 +266,7 @@ window > box {
 /* Hover only for actually actionable modules */
 #custom-launcher:hover,
 #tray:hover,
+#custom-github-monitor:hover,
 #custom-tailscale:hover,
 #cpu:hover,
 #memory:hover,
