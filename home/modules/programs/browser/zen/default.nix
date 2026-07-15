@@ -54,6 +54,8 @@
         ];
       };
 
+      spaceRouting.defaultExternalRoute = spaces."Rendezvous".id;
+
       pinsForce = true;
       pinsForceAction = "demote";
       pins = {
@@ -149,6 +151,15 @@
               collapsed = true;
               timeRange = 0;
             };
+          };
+
+          routes = {
+            "GitHub" = {
+              reference = "github.com";
+              matchType = "equal-to";
+            };
+
+            "Tailscale".reference = "tailscale.com";
           };
 
           theme = {
