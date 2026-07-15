@@ -146,7 +146,7 @@
           then "acceptEdits"
           else "default";
 
-        disableBypassPermissionsMode = "disable";
+        # disableBypassPermissionsMode = "disable";
       }
       else if target == "antigravity"
       then {
