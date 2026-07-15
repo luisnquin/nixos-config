@@ -29,6 +29,8 @@
         "zen.urlbar.behavior" = "float";
       };
 
+      presets.betterfox.enable = true;
+
       bookmarks = import ./bookmarks-config.nix {inherit libx lib;};
       search = import ./search-config.nix {inherit pkgs;};
 
