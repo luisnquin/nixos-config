@@ -87,6 +87,21 @@
       '';
     });
   })
+  (final: prev: {
+    # aa-remove-unknown sources rc.apparmor.functions from apparmor-parser, which
+    # no longer ships it after the package split (only apparmor-init does), so
+    # apparmor.service reload fails and switch-to-configuration exits 4.
+    # Fixed upstream in nixpkgs 6bea8bbfd; drop once nixos-unstable includes it.
+    apparmor-utils = prev.apparmor-utils.overrideAttrs (old: {
+      postInstall =
+        (old.postInstall or "")
+        + ''
+          substituteInPlace $out/bin/.aa-remove-unknown-wrapped \
+            --replace-fail "${final.apparmor-parser}/lib/apparmor/rc.apparmor.functions" \
+                           "${final.apparmor-init}/lib/apparmor/rc.apparmor.functions"
+        '';
+    });
+  })
   (_final: prev: {
     # Temporary pin past upstream #510; drop once nixpkgs ships > 0.8.1.
     codebase-memory-mcp = prev.codebase-memory-mcp.overrideAttrs (_old: rec {
