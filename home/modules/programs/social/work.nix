@@ -7,8 +7,8 @@
   cohesionAppId = "io.github.brunofin.Cohesion";
 in {
   home.packages = with pkgs; [
-    google-chat-linux
-    zoom-us
+    # google-chat-linux
+    # zoom-us
   ];
 
   services.flatpak.packages = [
