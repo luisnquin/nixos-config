@@ -45,6 +45,10 @@
         systems.follows = "systems";
       };
     };
+    xgreeter = {
+      url = "github:0xc000022070/xgreeter";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     encore = {
       url = "github:encoredev/encore-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -214,6 +218,7 @@
       inputs.flake-programs-sqlite.nixosModules.programs-sqlite
       inputs.disko.nixosModules.default
       inputs.black-terminal.nixosModules.default
+      inputs.xgreeter.nixosModules.default
       inputs.home-manager.nixosModules.default
       (import ./secrets {
         inherit (inputs) agenix;

@@ -15,12 +15,21 @@
 
   programs.dconf.enable = true;
 
+  programs.xgreeter = {
+    enable = true;
+    sessionCmd = ["${pkgs.hyprland}/bin/start-hyprland"];
+    accent = "amber";
+    idleStatus = "AWAITING IDENTIFICATION";
+    defaultUser = "luisnquin";
+    journalUser = "greeter";
+  };
+
   services = {
     greetd = {
       enable = true;
       settings = {
         default_session = {
-          command = ''${pkgs.greetd}/bin/agreety --cmd ${pkgs.hyprland}/bin/start-hyprland'';
+          command = lib.getExe config.programs.xgreeter.package;
         };
       };
     };

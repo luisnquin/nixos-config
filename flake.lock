@@ -1239,6 +1239,7 @@
         "roborev": "roborev",
         "systems": "systems",
         "techdebt-cli": "techdebt-cli",
+        "xgreeter": "xgreeter",
         "zen-browser": "zen-browser"
       }
     },
@@ -1388,6 +1389,26 @@
       "original": {
         "owner": "hyprwm",
         "repo": "xdg-desktop-portal-hyprland",
+        "type": "github"
+      }
+    },
+    "xgreeter": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784479647,
+        "narHash": "sha256-Nq3mFgHpW73IM8zPIqhVkwNDj//t/gCm3lnM9uBAqjU=",
+        "owner": "0xc000022070",
+        "repo": "xgreeter",
+        "rev": "8128f65d1bfde5a869a9d5db9efd89b9d22b24bc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "0xc000022070",
+        "repo": "xgreeter",
         "type": "github"
       }
     },
