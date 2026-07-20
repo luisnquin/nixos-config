@@ -90,23 +90,32 @@
       swap_used="$(printf '%s' "$mem" | cut -f4)"
       swap_percent="$(printf '%s' "$mem" | cut -f5)"
 
-      top_cpu="$(ps -eo comm=,%cpu= --sort=-%cpu | awk 'NR == 1 {printf "%s %.1f%%", $1, $2}')"
-      top_mem="$(ps -eo comm=,%mem= --sort=-%mem | awk 'NR == 1 {printf "%s %.1f%%", $1, $2}')"
-      [ -z "$top_cpu" ] && top_cpu="—"
-      [ -z "$top_mem" ] && top_mem="—"
+      top_procs() {
+        ps -eo "$1"=,comm= --sort=-"$1" \
+          | awk 'NR <= 8 {v = $1; $1 = ""; sub(/^[[:space:]]+/, ""); if ($0 == "") next; printf "%s\t%.1f%%\n", $0, v}' \
+          | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {name: .[0], value: .[1]})'
+      }
+      top_cpu_all="$(top_procs %cpu)"
+      top_mem_all="$(top_procs %mem)"
+      top_cpu="$(printf '%s' "$top_cpu_all" | jq -c '.[0:3]')"
+      top_cpu_more="$(printf '%s' "$top_cpu_all" | jq -c '.[3:8]')"
+      top_mem="$(printf '%s' "$top_mem_all" | jq -c '.[0:3]')"
+      top_mem_more="$(printf '%s' "$top_mem_all" | jq -c '.[3:8]')"
 
       jq -cn \
         --argjson cpu_percent "$cpu_percent" --arg cores "$cores" --arg load "$load" \
         --arg uptime "$uptime_label" --arg freq "$freq_label" --arg temp "$temp_label" \
         --argjson mem_percent "$mem_percent" --arg mem_used "$mem_used" --arg mem_total "$mem_total" \
         --arg swap_used "$swap_used" --argjson swap_percent "$swap_percent" \
-        --arg top_cpu "$top_cpu" --arg top_mem "$top_mem" \
+        --argjson top_cpu "$top_cpu" --argjson top_cpu_more "$top_cpu_more" \
+        --argjson top_mem "$top_mem" --argjson top_mem_more "$top_mem_more" \
         '{cpu_percent:$cpu_percent, cpu_label:($cpu_percent | tostring) + "%",
           cores:$cores, load:$load, uptime:$uptime, freq:$freq, temp:$temp,
           mem_percent:$mem_percent, mem_label:($mem_percent | tostring) + "%",
           mem_used:$mem_used, mem_total:$mem_total, swap_used:$swap_used,
           swap_percent:$swap_percent, swap_label:($swap_percent | tostring) + "%",
-          top_cpu:$top_cpu, top_mem:$top_mem}'
+          top_cpu:$top_cpu, top_cpu_more:$top_cpu_more,
+          top_mem:$top_mem, top_mem_more:$top_mem_more}'
     '';
   };
 
@@ -332,8 +341,11 @@ in {
           (calendar :class "calendar"
                     :show-week-numbers false)))
 
+      (defvar cpu_expanded false)
+      (defvar mem_expanded false)
+
       (defpoll sys :interval "2s"
-        :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":"—","top_mem":"—"}'
+        :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":[],"top_cpu_more":[],"top_mem":[],"top_mem_more":[]}'
         `${lib.getExe systemInfo}`)
 
       (defwindow sysmon
@@ -367,7 +379,8 @@ in {
             (sys-row :label "Load" :value {sys.load})
             (sys-row :label "Temp" :value {sys.temp})
             (sys-row :label "Uptime" :value {sys.uptime})
-            (sys-row :label "Top" :value {sys.top_cpu}))))
+            (top-list :items {sys.top_cpu} :more {sys.top_cpu_more}
+                      :expanded {cpu_expanded} :toggle "cpu_expanded"))))
 
       (defwidget mem-section []
         (box :class "mem-box" :orientation "v" :space-evenly false :spacing 12
@@ -383,12 +396,32 @@ in {
             (sys-row :label "Used" :value {sys.mem_used})
             (sys-row :label "Total" :value {sys.mem_total})
             (sys-row :label "Swap" :value {sys.swap_used + " · " + sys.swap_label})
-            (sys-row :label "Top" :value {sys.top_mem}))))
+            (top-list :items {sys.top_mem} :more {sys.top_mem_more}
+                      :expanded {mem_expanded} :toggle "mem_expanded"))))
 
       (defwidget sys-row [label value]
         (box :class "sys-row" :orientation "h" :space-evenly false
           (label :class "sys-row-label" :halign "start" :hexpand true :text label)
           (label :class "sys-row-value" :halign "end" :text value)))
+
+      (defwidget top-list [items more expanded toggle]
+        (box :class "top-list" :orientation "v" :space-evenly false :spacing 4
+          (box :class "top-head" :orientation "h" :space-evenly false
+            (label :class "top-head-label" :halign "start" :hexpand true :text "Top processes")
+            (button :class "top-toggle"
+              :onclick {"${eww} update " + toggle + "=" + (expanded ? "false" : "true")}
+              (label :text {expanded ? "− less" : "+ more"})))
+          (for p in {items}
+            (proc-row :name {p.name} :value {p.value}))
+          (revealer :transition "slidedown" :duration "220ms" :reveal {expanded}
+            (box :orientation "v" :space-evenly false :spacing 4
+              (for p in {more}
+                (proc-row :name {p.name} :value {p.value}))))))
+
+      (defwidget proc-row [name value]
+        (box :class "sys-row proc-row" :orientation "h" :space-evenly false
+          (label :class "sys-row-label proc-name" :halign "start" :hexpand true :limit-width 24 :text name)
+          (label :class "sys-row-value proc-value" :halign "end" :text value)))
 
       (defpoll bat :interval "3s"
         :initial '{"present":false,"icon":"󰂑","state_class":"missing","status":"loading","percent":0,"pct_label":"—","source":"—","health":"—","health_label":"Health","rate":"—","voltage":"—","eta":"—","capacity_level":"—","model":"Battery"}'
@@ -702,6 +735,41 @@ in {
 
       .sys-row-value {
         color: #cdd6f4;
+      }
+
+      .top-list {
+        border-top: 1px solid rgba(181, 232, 224, 0.10);
+        margin-top: 4px;
+        padding-top: 8px;
+      }
+
+      .top-head {
+        margin-bottom: 2px;
+      }
+
+      .top-head-label {
+        color: #b5e8e0;
+        font-size: 8pt;
+        letter-spacing: 1px;
+      }
+
+      .top-toggle {
+        background-color: rgba(181, 232, 224, 0.07);
+        color: rgba(205, 214, 244, 0.75);
+        border: 1px solid rgba(181, 232, 224, 0.12);
+        border-radius: 6px;
+        padding: 1px 8px;
+        font-size: 8pt;
+        font-weight: normal;
+      }
+
+      .top-toggle:hover {
+        background-color: rgba(181, 232, 224, 0.14);
+        color: #e8cef5;
+      }
+
+      .proc-value {
+        color: #b5e8e0;
       }
 
       .bat-box {
