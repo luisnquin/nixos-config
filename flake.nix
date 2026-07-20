@@ -163,6 +163,12 @@
     defaultSystem = "x86_64-linux";
     systems = [defaultSystem];
 
+    # Off nixpkgs.lib, not libx, so overlays can read it without recursing
+    # through the pkgs set they are applied to.
+    metadata =
+      (import ./lib/metadata.nix {inherit (nixpkgs) lib;})
+      .mkMetadata ./flake.toml "luisnquin@nyx";
+
     mkPkgs = system: let
       config = {
         allowBroken = false;
@@ -172,10 +178,7 @@
 
       pkgs = import nixpkgs {
         overlays =
-          (import ./overlays/nixpkgs.nix {
-            inherit inputs system;
-          })
-          ++ [
+          [
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default
@@ -184,7 +187,11 @@
               llm-agents = llm-agents.packages.${system};
             })
             clipz.overlays.default
-          ];
+          ]
+          ++ import ./overlays/nixpkgs.nix {
+            inherit inputs system;
+            inherit (metadata) host;
+          };
 
         inherit config;
         localSystem.system = system;
@@ -197,8 +204,6 @@
     libx = import ./lib {
       inherit pkgs;
     };
-
-    metadata = libx.mkMetadata ./flake.toml "luisnquin@nyx";
 
     specialArgs = {
       isTiling = true;

@@ -1,6 +1,7 @@
 {
   inputs,
   system,
+  host,
   ...
 }: [
   (_final: _prev: {
@@ -122,6 +123,21 @@
         make -j$NIX_BUILD_CORES -f Makefile.cbm cbm CFLAGS_EXTRA='-DCBM_VERSION=\"${version}\"'
         runHook postBuild
       '';
+    });
+  })
+  (_final: prev: {
+    # Must stay after hyprdysmorphic, which replaces `hyprland` outright.
+    # The grep turns a moved banner into a build failure instead of a no-op.
+    hyprland = prev.hyprland.overrideAttrs (old: {
+      postPatch =
+        (old.postPatch or "")
+        + ''
+          grep -q 'std::println(R"#($' src/main.cpp
+          sed -i \
+            -e '/std::println(R"#($/,/^)#");$/{/std::println(R"#($/!{/^)#");$/!d}}' \
+            -e '/std::println(R"#($/r ${prev.writeText "hyprland-banner" host.banner}' \
+            src/main.cpp
+        '';
     });
   })
 ]
