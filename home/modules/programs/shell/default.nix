@@ -1,4 +1,4 @@
-{
+{host, ...}: {
   imports = [
     ./man.nix
     ./nao.nix
@@ -15,7 +15,10 @@
     eza.enable = true;
     fzf.enable = true;
     less.enable = true;
-    macchina.enable = true;
+    macchina = {
+      enable = true;
+      ascii = host.banner;
+    };
     magic-wormhole.enable = true;
     starship.enable = true;
     tmux = {
