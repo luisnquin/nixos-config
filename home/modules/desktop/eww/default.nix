@@ -98,24 +98,22 @@
       top_cpu_all="$(top_procs %cpu)"
       top_mem_all="$(top_procs %mem)"
       top_cpu="$(printf '%s' "$top_cpu_all" | jq -c '.[0:3]')"
-      top_cpu_more="$(printf '%s' "$top_cpu_all" | jq -c '.[3:8]')"
       top_mem="$(printf '%s' "$top_mem_all" | jq -c '.[0:3]')"
-      top_mem_more="$(printf '%s' "$top_mem_all" | jq -c '.[3:8]')"
 
       jq -cn \
         --argjson cpu_percent "$cpu_percent" --arg cores "$cores" --arg load "$load" \
         --arg uptime "$uptime_label" --arg freq "$freq_label" --arg temp "$temp_label" \
         --argjson mem_percent "$mem_percent" --arg mem_used "$mem_used" --arg mem_total "$mem_total" \
         --arg swap_used "$swap_used" --argjson swap_percent "$swap_percent" \
-        --argjson top_cpu "$top_cpu" --argjson top_cpu_more "$top_cpu_more" \
-        --argjson top_mem "$top_mem" --argjson top_mem_more "$top_mem_more" \
+        --argjson top_cpu "$top_cpu" --argjson top_cpu_all "$top_cpu_all" \
+        --argjson top_mem "$top_mem" --argjson top_mem_all "$top_mem_all" \
         '{cpu_percent:$cpu_percent, cpu_label:($cpu_percent | tostring) + "%",
           cores:$cores, load:$load, uptime:$uptime, freq:$freq, temp:$temp,
           mem_percent:$mem_percent, mem_label:($mem_percent | tostring) + "%",
           mem_used:$mem_used, mem_total:$mem_total, swap_used:$swap_used,
           swap_percent:$swap_percent, swap_label:($swap_percent | tostring) + "%",
-          top_cpu:$top_cpu, top_cpu_more:$top_cpu_more,
-          top_mem:$top_mem, top_mem_more:$top_mem_more}'
+          top_cpu:$top_cpu, top_cpu_all:$top_cpu_all,
+          top_mem:$top_mem, top_mem_all:$top_mem_all}'
     '';
   };
 
@@ -345,7 +343,7 @@ in {
       (defvar mem_expanded false)
 
       (defpoll sys :interval "2s"
-        :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":[],"top_cpu_more":[],"top_mem":[],"top_mem_more":[]}'
+        :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":[],"top_cpu_all":[],"top_mem":[],"top_mem_all":[]}'
         `${lib.getExe systemInfo}`)
 
       (defwindow sysmon
@@ -379,7 +377,7 @@ in {
             (sys-row :label "Load" :value {sys.load})
             (sys-row :label "Temp" :value {sys.temp})
             (sys-row :label "Uptime" :value {sys.uptime})
-            (top-list :items {sys.top_cpu} :more {sys.top_cpu_more}
+            (top-list :items {sys.top_cpu} :all {sys.top_cpu_all}
                       :expanded {cpu_expanded} :toggle "cpu_expanded"))))
 
       (defwidget mem-section []
@@ -396,7 +394,7 @@ in {
             (sys-row :label "Used" :value {sys.mem_used})
             (sys-row :label "Total" :value {sys.mem_total})
             (sys-row :label "Swap" :value {sys.swap_used + " · " + sys.swap_label})
-            (top-list :items {sys.top_mem} :more {sys.top_mem_more}
+            (top-list :items {sys.top_mem} :all {sys.top_mem_all}
                       :expanded {mem_expanded} :toggle "mem_expanded"))))
 
       (defwidget sys-row [label value]
@@ -404,19 +402,15 @@ in {
           (label :class "sys-row-label" :halign "start" :hexpand true :text label)
           (label :class "sys-row-value" :halign "end" :text value)))
 
-      (defwidget top-list [items more expanded toggle]
+      (defwidget top-list [items all expanded toggle]
         (box :class "top-list" :orientation "v" :space-evenly false :spacing 4
           (box :class "top-head" :orientation "h" :space-evenly false
             (label :class "top-head-label" :halign "start" :hexpand true :text "Top processes")
             (button :class "top-toggle"
               :onclick {"${eww} update " + toggle + "=" + (expanded ? "false" : "true")}
               (label :text {expanded ? "− less" : "+ more"})))
-          (for p in {items}
-            (proc-row :name {p.name} :value {p.value}))
-          (revealer :transition "slidedown" :duration "220ms" :reveal {expanded}
-            (box :orientation "v" :space-evenly false :spacing 4
-              (for p in {more}
-                (proc-row :name {p.name} :value {p.value}))))))
+          (for p in {expanded ? all : items}
+            (proc-row :name {p.name} :value {p.value}))))
 
       (defwidget proc-row [name value]
         (box :class "sys-row proc-row" :orientation "h" :space-evenly false
