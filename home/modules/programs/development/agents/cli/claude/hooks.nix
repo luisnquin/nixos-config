@@ -12,6 +12,7 @@ in {
     Notification = [
       (kit.mkCmdEntry {
         commands = [
+          (kit.mkTerminalStatusCmd "waiting" "claude · input")
           (kit.mkNotificationCmd kit.images.claude "Claude Code" "Awaiting your input" {
             ntfy = {
               delay = "10s";
@@ -24,17 +25,24 @@ in {
     ];
     SessionStart = [
       (kit.mkCmdEntry {
-        commands = [(kit.mkAudioCmd [kit.sounds.ifarm])];
+        commands = [
+          (kit.mkTerminalStatusCmd "clear" "claude")
+          (kit.mkAudioCmd [kit.sounds.ifarm])
+        ];
       })
     ];
     Elicitation = [
       (kit.mkCmdEntry {
-        commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
+        commands = [
+          (kit.mkTerminalStatusCmd "waiting" "claude · input")
+          (kit.mkAudioCmd [kit.sounds.ifrtho])
+        ];
       })
     ];
     ElicitationResult = [
       (kit.mkCmdEntry {
         commands = [
+          (kit.mkTerminalStatusCmd "working" "claude · working")
           (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
           (kit.mkAudioCmd [kit.sounds.ifrtfy])
         ];
@@ -48,6 +56,7 @@ in {
     UserPromptSubmit = [
       (kit.mkCmdEntry {
         commands = [
+          (kit.mkTerminalStatusCmd "working" "claude · working")
           (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
           (kit.mkAudioCmd [kit.sounds.ifrsig])
         ];
@@ -60,7 +69,10 @@ in {
     ];
     StopFailure = [
       (kit.mkCmdEntry {
-        commands = [(kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.ifrsis])];
+        commands = [
+          (kit.mkTerminalStatusCmd "error" "claude · error")
+          (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.ifrsis])
+        ];
       })
     ];
     PermissionDenied = [
@@ -71,6 +83,7 @@ in {
     PermissionRequest = [
       (kit.mkCmdEntry {
         commands = [
+          (kit.mkTerminalStatusCmd "waiting" "claude · permission")
           (kit.mkNotificationCmd kit.images.claude "Claude Code" "Permission required" {})
           (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
         ];
@@ -90,7 +103,15 @@ in {
     ];
     SessionEnd = [
       (kit.mkCmdEntry {
-        commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
+        commands = [
+          (kit.mkTerminalStatusCmd "clear" "")
+          (kit.mkAudioCmd [kit.sounds.ifdarm])
+        ];
+      })
+    ];
+    Stop = [
+      (kit.mkCmdEntry {
+        commands = [(kit.mkTerminalStatusCmd "waiting" "claude · ready")];
       })
     ];
   };

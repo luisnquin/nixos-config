@@ -1,0 +1,21 @@
+diff --git a/src/apprt/gtk/class/tab.zig b/src/apprt/gtk/class/tab.zig
+--- a/src/apprt/gtk/class/tab.zig
++++ b/src/apprt/gtk/class/tab.zig
+@@ -323,6 +323,17 @@ pub const Tab = extern struct {
+             .remove, .@"error", .pause => false,
+         }));
+
++        const indicator_name: ?[:0]const u8 = switch (value.state) {
++            .pause => "media-playback-pause-symbolic",
++            .@"error" => "dialog-error-symbolic",
++            .remove, .set, .indeterminate => null,
++        };
++        if (indicator_name) |name| {
++            const icon = gio.ThemedIcon.new(name);
++            defer icon.unref();
++            page.setIndicatorIcon(icon.as(gio.Icon));
++        } else page.setIndicatorIcon(null);
++
+         if (page.getSelected() == 0) switch (value.state) {
+             .@"error", .pause => page.setNeedsAttention(@intFromBool(true)),
+             .remove, .set, .indeterminate => {},

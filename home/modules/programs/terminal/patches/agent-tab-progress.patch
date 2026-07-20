@@ -1,0 +1,82 @@
+diff --git a/src/apprt/gtk/class/surface.zig b/src/apprt/gtk/class/surface.zig
+--- a/src/apprt/gtk/class/surface.zig
++++ b/src/apprt/gtk/class/surface.zig
+@@ -1050,6 +1050,10 @@ pub const Surface = extern struct {
+             }
+         }
+
++        if (ext.getAncestor(Window, self.as(gtk.Widget))) |window| {
++            window.setSurfaceProgressReport(self, value);
++        }
++
+         const progress_bar = priv.progress_bar_overlay;
+         switch (value.state) {
+             // Remove the progress bar
+diff --git a/src/apprt/gtk/class/tab.zig b/src/apprt/gtk/class/tab.zig
+--- a/src/apprt/gtk/class/tab.zig
++++ b/src/apprt/gtk/class/tab.zig
+@@ -7,6 +7,7 @@ const gtk = @import("gtk");
+
+ const configpkg = @import("../../../config.zig");
+ const apprt = @import("../../../apprt.zig");
++const terminal = @import("../../../terminal/main.zig");
+ const CoreSurface = @import("../../../Surface.zig");
+ const ext = @import("../ext.zig");
+ const gresource = @import("../build/gresource.zig");
+@@ -307,6 +307,24 @@ pub const Tab = extern struct {
+         return tree.getNeedsConfirmQuit();
+     }
+
++    /// Reflect terminal progress in the native tab chrome.
++    pub fn setProgressReport(
++        self: *Self,
++        value: terminal.osc.Command.ProgressReport,
++    ) void {
++        const page = self.getTabPage() orelse return;
++
++        page.setLoading(@intFromBool(switch (value.state) {
++            .set, .indeterminate => true,
++            .remove, .@"error", .pause => false,
++        }));
++
++        if (page.getSelected() == 0) switch (value.state) {
++            .@"error", .pause => page.setNeedsAttention(@intFromBool(true)),
++            .remove, .set, .indeterminate => {},
++        };
++    }
++
+     /// Get the tab view holding this tab, if any.
+     fn getTabView(self: *Self) ?*adw.TabView {
+         return ext.getAncestor(
+diff --git a/src/apprt/gtk/class/window.zig b/src/apprt/gtk/class/window.zig
+--- a/src/apprt/gtk/class/window.zig
++++ b/src/apprt/gtk/class/window.zig
+@@ -10,6 +10,7 @@ const gtk = @import("gtk");
+
+ const i18n = @import("../../../os/main.zig").i18n;
+ const apprt = @import("../../../apprt.zig");
++const terminal = @import("../../../terminal/main.zig");
+ const configpkg = @import("../../../config.zig");
+ const TitlebarStyle = configpkg.Config.GtkTitlebarStyle;
+ const input = @import("../../../input.zig");
+@@ -1561,6 +1561,20 @@ pub const Window = extern struct {
+         page.setNeedsAttention(@intFromBool(false));
+     }
+
++    pub fn setSurfaceProgressReport(
++        self: *Self,
++        surface: *Surface,
++        value: terminal.osc.Command.ProgressReport,
++    ) void {
++        _ = self;
++        const tab = ext.getAncestor(
++            Tab,
++            surface.as(gtk.Widget),
++        ) orelse return;
++        if (tab.getActiveSurface() != surface) return;
++        tab.setProgressReport(value);
++    }
++
+     fn tabViewPageAttached(
+         _: *adw.TabView,
+         page: *adw.TabPage,

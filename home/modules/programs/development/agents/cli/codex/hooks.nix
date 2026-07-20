@@ -12,7 +12,10 @@ in {
           SessionStart = [
             (kit.mkCmdEntry {
               matcher = "startup";
-              commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
+              commands = [
+                (kit.mkTerminalStatusCmd "clear" "codex")
+                (kit.mkAudioCmd [kit.sounds.ifdarm])
+              ];
             })
           ];
           PreToolUse = [
@@ -29,17 +32,24 @@ in {
           ];
           UserPromptSubmit = [
             (kit.mkCmdEntry {
-              commands = [(kit.mkAudioCmd [kit.sounds.ifrsig])];
+              commands = [
+                (kit.mkTerminalStatusCmd "working" "codex · working")
+                (kit.mkAudioCmd [kit.sounds.ifrsig])
+              ];
             })
           ];
           Stop = [
             (kit.mkCmdEntry {
-              commands = [(kit.mkAudioCmd [kit.sounds.ifdarm])];
+              commands = [
+                (kit.mkTerminalStatusCmd "waiting" "codex · ready")
+                (kit.mkAudioCmd [kit.sounds.ifdarm])
+              ];
             })
           ];
           PermissionRequest = [
             (kit.mkCmdEntry {
               commands = [
+                (kit.mkTerminalStatusCmd "waiting" "codex · permission")
                 (kit.mkNotificationCmd kit.images.codex "Codex" "Permission required" {})
                 (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
               ];

@@ -13,7 +13,7 @@
     ./programs/social
     ./programs/studio
     ./programs/path.nix
-    ./programs/terminal.nix
+    ./programs/terminal
     ./programs/vnc.nix
 
     ./file-manager.nix

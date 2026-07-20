@@ -219,6 +219,11 @@
       runtimeInputs = [pkgs.curl pkgs.systemd pkgs.libnotify pkgs.coreutils];
       text = builtins.readFile ./notify/agent-notify.sh;
     };
+
+    agentTerminalStatus = pkgs.writeShellApplication {
+      name = "agent-terminal-status";
+      text = builtins.readFile ../../terminal/scripts/agent-terminal-status.sh;
+    };
   in {
     inherit (import ./assets {inherit lib;}) sounds images;
     inherit memories allowedDomains;
@@ -285,6 +290,15 @@
           "cancel"
           "--id"
           (lib.escapeShellArg sequenceId)
+        ]
+      );
+
+    mkTerminalStatusCmd = state: title:
+      guardRoborev (
+        lib.concatStringsSep " " [
+          (lib.getExe agentTerminalStatus)
+          (lib.escapeShellArg state)
+          (lib.escapeShellArg title)
         ]
       );
 
