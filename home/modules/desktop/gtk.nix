@@ -1,4 +1,7 @@
 {pkgs, ...}: {
+  # Global multiplier on GTK4 animation clocks (1.0 = default)
+  home.sessionVariables.GTK_SLOWDOWN = "0.1";
+
   gtk = {
     enable = true;
     theme = {
