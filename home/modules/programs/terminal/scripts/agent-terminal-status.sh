@@ -16,7 +16,7 @@ waiting) progress=4 ;;
 	;;
 esac
 
-if [ ! -w /dev/tty ]; then
+if ! { exec 3>/dev/tty; } 2>/dev/null; then
 	exit 0
 fi
 
@@ -25,9 +25,9 @@ emit() {
 
 	if [ -n "${TMUX:-}" ]; then
 		sequence="${sequence//$'\033'/$'\033\033'}"
-		printf '\033Ptmux;\033%s\033\134' "$sequence" >/dev/tty
+		printf '\033Ptmux;\033%s\033\134' "$sequence" >&3
 	else
-		printf '%s' "$sequence" >/dev/tty
+		printf '%s' "$sequence" >&3
 	fi
 }
 
