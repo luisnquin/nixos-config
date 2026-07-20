@@ -336,30 +336,25 @@ in {
         :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":"—","top_mem":"—"}'
         `${lib.getExe systemInfo}`)
 
-      (defwindow cpu
+      (defwindow sysmon
         :monitor 0
         :geometry (geometry
-          :x "130px"
+          :x "100px"
           :y "35px"
-          :width "280px"
+          :width "300px"
           :anchor "top right")
         :stacking "overlay"
         :focusable false
-        (cpu-widget))
+        (sysmon-widget))
 
-      (defwindow memory
-        :monitor 0
-        :geometry (geometry
-          :x "88px"
-          :y "35px"
-          :width "280px"
-          :anchor "top right")
-        :stacking "overlay"
-        :focusable false
-        (mem-widget))
+      (defwidget sysmon-widget []
+        (box :class "sys-box" :orientation "v" :space-evenly false :spacing 14
+          (cpu-section)
+          (box :class "sys-divider")
+          (mem-section)))
 
-      (defwidget cpu-widget []
-        (box :class "sys-box cpu-box" :orientation "v" :space-evenly false :spacing 12
+      (defwidget cpu-section []
+        (box :class "cpu-box" :orientation "v" :space-evenly false :spacing 12
           (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
             (box :class "sys-meter cpu-meter" :orientation "v" :space-evenly false :valign "center"
               (label :class "sys-meter-icon" :halign "center" :text "󰍛")
@@ -374,8 +369,8 @@ in {
             (sys-row :label "Uptime" :value {sys.uptime})
             (sys-row :label "Top" :value {sys.top_cpu}))))
 
-      (defwidget mem-widget []
-        (box :class "sys-box mem-box" :orientation "v" :space-evenly false :spacing 12
+      (defwidget mem-section []
+        (box :class "mem-box" :orientation "v" :space-evenly false :spacing 12
           (box :class "sys-hero" :orientation "h" :space-evenly false :spacing 14
             (box :class "sys-meter mem-meter" :orientation "v" :space-evenly false :valign "center"
               (label :class "sys-meter-icon" :halign "center" :text "")
@@ -402,7 +397,7 @@ in {
       (defwindow battery
         :monitor 0
         :geometry (geometry
-          :x "42px"
+          :x "8px"
           :y "35px"
           :width "300px"
           :anchor "top right")
@@ -444,7 +439,7 @@ in {
       (defwindow network
         :monitor 0
         :geometry (geometry
-          :x "8px"
+          :x "50px"
           :y "35px"
           :width "260px"
           :anchor "top right")
@@ -611,6 +606,11 @@ in {
         border-radius: 10px;
         padding: 14px 16px;
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+      }
+
+      .sys-divider {
+        background-color: rgba(181, 232, 224, 0.10);
+        min-height: 1px;
       }
 
       .sys-meter {

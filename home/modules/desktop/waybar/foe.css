@@ -181,6 +181,25 @@ window > box {
     background-color: rgba(232, 206, 245, 0.10);
 }
 
+#sysmon {
+    padding-left: 6px;
+    padding-right: 6px;
+    min-height: 24px;
+}
+
+/* Two stacked rows plus a top offset fill the 24px other modules claim alone */
+#sysmon #cpu,
+#sysmon #memory {
+    font-size: 7.5pt;
+    min-height: 10px;
+    padding: 0;
+    margin: 0;
+}
+
+#sysmon #cpu {
+    margin-top: 4px;
+}
+
 #cpu {
     color: rgb(245, 194, 231);
 }
@@ -196,8 +215,7 @@ window > box {
 #custom-battery {
     color: rgb(181, 232, 224);
     font-family: "IoskeleyMono Nerd Font", "Symbols Nerd Font", monospace;
-    font-size: 18px;
-    min-width: 18px;
+    font-size: 10pt;
 }
 
 #battery.warning {
@@ -268,11 +286,13 @@ window > box {
 #tray:hover,
 #custom-github-monitor:hover,
 #custom-tailscale:hover,
-#cpu:hover,
-#memory:hover,
 #battery:hover,
-#custom-battery:hover,
-#network:hover {
+#network:hover,
+#sysmon:hover {
+    background-color: rgba(255, 255, 255, 0.045);
+}
+
+#custom-battery:hover {
     background-color: rgba(255, 255, 255, 0.045);
 }
 

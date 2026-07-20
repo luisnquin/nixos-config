@@ -14,9 +14,7 @@
     settings = let
       ewwToggleCalendar = "${lib.getExe config.programs.eww.package} open --toggle calendar";
 
-      ewwToggleCpu = "${lib.getExe config.programs.eww.package} open --toggle cpu";
-
-      ewwToggleMemory = "${lib.getExe config.programs.eww.package} open --toggle memory";
+      ewwToggleSysmon = "${lib.getExe config.programs.eww.package} open --toggle sysmon";
 
       ewwToggleBattery = "${lib.getExe config.programs.eww.package} open --toggle battery";
 
@@ -133,31 +131,29 @@
             fi
           done
 
-          read -r icon class <<EOF
-          $(awk -v status="$status" -v capacity="$capacity" -v ac_online="$ac_online" \
+          class="$(awk -v capacity="$capacity" \
             -v warn="${toString config.services.battery-notifier.settings.warn.threshold}" \
             -v critical="${toString config.services.battery-notifier.settings.threat.threshold}" '
             BEGIN {
-              class = "normal";
-              if (capacity <= critical) class = "critical";
-              else if (capacity <= warn) class = "warning";
+              if (capacity <= critical) print "critical";
+              else if (capacity <= warn) print "warning";
+              else print "normal";
+            }')"
 
-              if (status == "Charging") icon = "󰂄";
-              else if (status == "Full") icon = "󰂂";
-              else if (ac_online == 1) icon = "󰂄";
-              else if (capacity < 15) icon = "󰁺";
-              else if (capacity < 30) icon = "󰁻";
-              else if (capacity < 45) icon = "󰁽";
-              else if (capacity < 60) icon = "󰁿";
-              else if (capacity < 80) icon = "󰂀";
-              else icon = "󰂂";
+          # horizontal font-awesome battery glyphs (nf-fa-battery_*)
+          if [ "$capacity" -lt 12 ]; then icon=$'\uf244'
+          elif [ "$capacity" -lt 37 ]; then icon=$'\uf243'
+          elif [ "$capacity" -lt 62 ]; then icon=$'\uf242'
+          elif [ "$capacity" -lt 87 ]; then icon=$'\uf241'
+          else icon=$'\uf240'
+          fi
 
-              print icon, class;
-            }')
-          EOF
+          if [ "$status" = "Charging" ] || { [ "$status" != "Full" ] && [ "$ac_online" = "1" ]; }; then
+            icon="$icon"$' \uf0e7'
+          fi
 
           jq -cn \
-            --arg text "$icon" \
+            --arg text "<span size=\"7.5pt\">$capacity%</span> <span size=\"10pt\">$icon</span>" \
             --arg tooltip "$capacity% · $status" \
             --arg class "$class" \
             '{text:$text, tooltip:$tooltip, class:$class}'
@@ -183,12 +179,16 @@
         modules-right = [
           "custom/github-monitor"
           "custom/tailscale"
-          "network"
           "custom/ssh"
-          "cpu"
-          "memory"
+          "group/sysmon"
+          "network"
           "custom/battery"
         ];
+
+        "group/sysmon" = {
+          orientation = "vertical";
+          modules = ["cpu" "memory"];
+        };
 
         "hyprland/workspaces" = {
           "format" = "{icon}";
@@ -247,7 +247,7 @@
         "cpu" = {
           "interval" = 1;
           "format" = "󰍛 {usage}%";
-          "on-click" = ewwToggleCpu;
+          "on-click" = ewwToggleSysmon;
         };
 
         "memory" = {
@@ -257,12 +257,13 @@
             "warning" = 80;
             "critical" = 95;
           };
-          "on-click" = ewwToggleMemory;
+          "on-click" = ewwToggleSysmon;
         };
 
         "custom/battery" = {
           exec = "${lib.getExe batteryWaybar}";
           return-type = "json";
+          escape = false;
           interval = 3;
           tooltip = true;
           on-click = ewwToggleBattery;
