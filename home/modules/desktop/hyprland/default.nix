@@ -33,6 +33,26 @@ args @ {
 in {
   home.sessionVariables = {
     GRIMBLAST_HIDE_CURSOR = 0;
+    NIXOS_OZONE_WL = "1";
+  };
+
+  xdg.portal = {
+    enable = true;
+    # xdgOpenUsePortal = true;
+    extraPortals = with pkgs; [
+      xdg-desktop-portal-gtk
+      kdePackages.xdg-desktop-portal-kde
+    ];
+
+    configPackages = [
+      config.wayland.windowManager.hyprland.package
+    ];
+
+    config.hyprland = {
+      default = ["hyprland" "gtk"];
+      "org.freedesktop.impl.portal.FileChooser" = "kde";
+      "org.freedesktop.impl.portal.Print" = "kde";
+    };
   };
 
   wayland.windowManager.hyprland = {

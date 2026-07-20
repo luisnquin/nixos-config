@@ -1,29 +1,5 @@
-{
-  hmConfig,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   environment.pathsToLink = ["/libexec"];
-
-  environment.sessionVariables.NIXOS_OZONE_WL = "1";
-
-  xdg.portal = {
-    # xdgOpenUsePortal = true;
-    extraPortals = with pkgs; [
-      pkgs.xdg-desktop-portal-gtk
-      kdePackages.xdg-desktop-portal-kde
-    ];
-
-    configPackages = [
-      hmConfig.wayland.windowManager.hyprland.package
-    ];
-
-    config.hyprland = {
-      default = ["hyprland" "gtk"];
-      "org.freedesktop.impl.portal.FileChooser" = "kde";
-      "org.freedesktop.impl.portal.Print" = "kde";
-    };
-  };
 
   programs = {
     hyprland = {
