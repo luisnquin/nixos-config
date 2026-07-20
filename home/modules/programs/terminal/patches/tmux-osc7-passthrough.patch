@@ -1,0 +1,20 @@
+diff --git a/src/shell-integration/zsh/ghostty-integration b/src/shell-integration/zsh/ghostty-integration
+index a96ff4bb0..34a2db87e 100644
+--- a/src/shell-integration/zsh/ghostty-integration
++++ b/src/shell-integration/zsh/ghostty-integration
+@@ -232,7 +232,14 @@ _ghostty_deferred_init() {
+ 
+     # Enable reporting current working dir to terminal. Ghostty supports
+     # the kitty-shell-cwd format.
+-    _ghostty_report_pwd() { builtin print -nu $_ghostty_fd '\e]7;kitty-shell-cwd://'"$HOST""$PWD"'\a'; }
++    # Inside tmux the OSC 7 is consumed by tmux, so wrap it in tmux's
++    # passthrough envelope (doubled ESC) to reach the outer terminal.
++    # Requires `set -g allow-passthrough on`.
++    if [[ -n "$TMUX" ]]; then
++        _ghostty_report_pwd() { builtin print -nu $_ghostty_fd '\ePtmux;\e\e]7;kitty-shell-cwd://'"$HOST""$PWD"'\a\e\\'; }
++    else
++        _ghostty_report_pwd() { builtin print -nu $_ghostty_fd '\e]7;kitty-shell-cwd://'"$HOST""$PWD"'\a'; }
++    fi
+     chpwd_functions=(${chpwd_functions[@]} "_ghostty_report_pwd")
+     # An executed program could change cwd and report the changed cwd, so also report cwd at each new prompt
+     # as in this case chpwd_functions is insufficient. chpwd_functions is still needed for things like: cd x && something
