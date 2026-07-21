@@ -1,9 +1,34 @@
 {
   inputs,
+  lib,
   pkgs,
   ...
 }: let
   inherit (inputs.agentic-flake.lib) mkSkill mkInlineSkill;
+
+  simdeckUpstream = builtins.readFile (pkgs.fetchurl {
+    name = "simdeck-skill.md";
+    url = "https://raw.githubusercontent.com/NativeScript/SimDeck/8baf1037ece3b37a90bb3040335a9a1283c0b2b5/skills/simdeck/SKILL.md";
+    hash = "sha256-VY1IfDIYhGLymhMMhvC8qG2EeNevqGUwdzXbyKqjWHQ=";
+  });
+
+  simdeckTopology = ''
+    ## Host topology
+
+    Simulators, emulators and the SimDeck service run on `rose`, a Mac reached
+    over Tailscale, never on this host. This host ships no SimDeck binary;
+    `simdeck` here is a wrapper that ssh's every invocation to `rose`.
+
+    - Paths under `$HOME` are rewritten to rose's `$HOME`. Paths outside it are
+      sent verbatim and will usually not exist there.
+    - The working directory is translated too, so project-scoped state such as
+      `simdeck use <UDID>` still keys off the repository you are in.
+    - Artifacts -- screenshots, recordings, `--artifacts-dir` -- are written on
+      rose. Retrieve them with `scp rose:<path> .` before reading them.
+    - Builds must be produced on rose for `simdeck install` to resolve them.
+    - No TTY is allocated. Never run `simdeck --open`; it would open a browser on
+      rose. Point the user at http://rose:4310 instead.
+  '';
 in {
   programs.agents = {
     enable = true;
@@ -48,6 +73,22 @@ in {
           "e2e-testing-patterns"
         ];
       })
+      (mkInlineSkill {
+          "simdeck" = {
+            description = "Drive iOS simulators and Android emulators on the remote mac rose — lifecycle, app install/launch, live viewing, UI inspection, touch/keyboard automation, screenshots, recordings, logs, pasteboard, hardware controls, and repeatable flows.";
+            tags = ["mobile"];
+            content = let
+              frontmatterFence = "\n---\n";
+
+              dropFrontmatter = text:
+                lib.concatStringsSep frontmatterFence
+                (lib.drop 1 (lib.splitString frontmatterFence text));
+            in
+              simdeckTopology + dropFrontmatter simdeckUpstream;
+          };
+        } {
+          plugins = ["simdeck"];
+        })
       (mkSkill {
           src = pkgs.fetchFromGitHub {
             owner = "aia-11-hn-mib";
