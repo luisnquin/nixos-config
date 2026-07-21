@@ -24,7 +24,8 @@
     - The working directory is translated too, so project-scoped state such as
       `simdeck use <UDID>` still keys off the repository you are in.
     - Artifacts -- screenshots, recordings, `--artifacts-dir` -- are written on
-      rose. Retrieve them with `scp rose:<path> .` before reading them.
+      rose. Prefer `screenshot --stdout > local.png`, which streams back
+      byte-exact; otherwise `scp rose:<path> .` before reading them.
     - Builds must be produced on rose for `simdeck install` to resolve them.
     - No TTY is allocated. Never run `simdeck --open`; it would open a browser on
       rose. Point the user at http://rose:4310 instead.
