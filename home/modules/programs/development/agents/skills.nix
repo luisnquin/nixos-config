@@ -29,16 +29,6 @@ in {
         } {
           plugins = ["nixgrep"];
         })
-      (encoredev.skills {
-        plugins = [
-          "encore-api"
-          "encore-code-review"
-          "encore-service"
-          "encore-auth"
-          "encore-database"
-          "encore-testing"
-        ];
-      })
       (anthropics.skills {
         prefix = "anthropics-";
         plugins = [
@@ -67,6 +57,16 @@ in {
           };
         } {
           plugins = ["imagemagick"];
+        })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "0xc000022070";
+            repo = "skills";
+            rev = "96d41d56ba9128a5f51fb4e0d05f2ff86c536ce4";
+            sha256 = "sha256-M/MVKuU7p/vgVJuzgPfczZQvRZynu8RQwtsVfyeO7So=";
+          };
+        } {
+          plugins = ["android-firmware-lab"];
         })
     ];
   };
