@@ -23,6 +23,6 @@ in {
     package = pkgs.code-cursor;
     # package = pkgs.llm-agents.code-cursor;
     mutableExtensionsDir = true;
-    inherit (config.programs.antigravity) profiles;
+    inherit (config.programs.antigravity) argvSettings profiles;
   };
 }

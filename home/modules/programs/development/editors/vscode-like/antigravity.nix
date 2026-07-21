@@ -43,6 +43,11 @@ in {
     package = pkgs.antigravity;
     mutableExtensionsDir = false;
 
+    argvSettings = {
+      password-store = "gnome-libsecret";
+      enable-crash-reporter = false;
+    };
+
     profiles.default = {
       enableExtensionUpdateCheck = true;
       enableUpdateCheck = true;
