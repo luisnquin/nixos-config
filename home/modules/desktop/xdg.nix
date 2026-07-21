@@ -18,8 +18,7 @@
       templates = null;
       videos = "${home}/Videos";
       extraConfig = {
-        XDG_PROJECTS_DIR = "${home}/Projects";
-        # XDG_WORK_DIR = "${home}/Work";
+        # WORK = "${home}/Work";
       };
     };
 
