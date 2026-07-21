@@ -30,6 +30,32 @@
     - No TTY is allocated. Never run `simdeck --open`; it would open a browser on
       rose. Point the user at http://rose:4310 instead.
   '';
+
+  simdeckLocalPatches = ''
+
+    ## Local deviations from upstream
+
+    The build on rose carries patches (`modules/overlays/patches` in
+    darwin-config), so it accepts more than the upstream guide above describes.
+
+    - `simdeck terminate <BUNDLE_ID>` (alias `stop-app`) stops a running app on
+      either platform, and `terminate <BUNDLE_ID>` is also a batch step. It is
+      idempotent: terminating an app that is not running still succeeds. Use it
+      between `launch`es so a flow starts from a known state.
+    - Batch `tap` steps take positionals, matching the top-level `tap`:
+      `--step "tap 200 400"`, `--step "tap Continue"`, `--step "tap @e3"`.
+      Explicit `--x`/`--y`/selector flags still win. A single bare number is an
+      error, as it is at top level.
+    - `button volume-up`, `button volume-down` and `button mute` work on Android
+      emulators. Upstream documents them but only implemented them for iOS.
+    - `launch` falls back to resolving the launcher component and starting it
+      explicitly when the implicit intent finds nothing, so apps whose
+      MAIN/LAUNCHER filter omits `CATEGORY_DEFAULT` still start.
+
+    `record` on rose yields a 1-2 frame MP4 regardless of `--seconds`. This is
+    CoreSimulator, not SimDeck: raw `xcrun simctl io recordVideo` behaves the
+    same. Use `screenshot` for evidence.
+  '';
 in {
   programs.agents = {
     enable = true;
@@ -85,7 +111,7 @@ in {
                 lib.concatStringsSep frontmatterFence
                 (lib.drop 1 (lib.splitString frontmatterFence text));
             in
-              simdeckTopology + dropFrontmatter simdeckUpstream;
+              simdeckTopology + dropFrontmatter simdeckUpstream + simdeckLocalPatches;
           };
         } {
           plugins = ["simdeck"];
