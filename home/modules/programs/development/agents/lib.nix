@@ -338,7 +338,7 @@
           };
 
         applyMappings = server:
-          server
+          lib.hm.mcp.addType server
           // lib.optionalAttrs snakeCase (
             lib.optionalAttrs (server ? disabledTools) {
               disabled_tools = server.disabledTools;

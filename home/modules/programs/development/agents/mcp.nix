@@ -11,23 +11,13 @@
   programs.mcp = {
     enable = true;
     servers = {
-      adb = {
-        type = "stdio";
-        command = lib.getExe pkgs.adb-mcp;
-      };
+      adb.command = lib.getExe pkgs.adb-mcp;
 
-      codebase-memory-mcp = {
-        type = "stdio";
-        command = lib.getExe pkgs.codebase-memory-mcp;
-      };
+      codebase-memory-mcp.command = lib.getExe pkgs.codebase-memory-mcp;
 
-      context7 = {
-        type = "stdio";
-        command = lib.getExe pkgs.context7-mcp;
-      };
+      context7.command = lib.getExe pkgs.context7-mcp;
 
       encore = rec {
-        type = "stdio";
         command = "encore";
         args = ["mcp" "run" "--app=gate-k9-mzni"];
         disabledTools = [
@@ -37,8 +27,7 @@
         disabled_tools = disabledTools;
       };
 
-      filesystem = rec {
-        type = "stdio";
+      filesystem = {
         command = lib.getExe pkgs.mcp-server-filesystem;
         args = [
           "."
@@ -47,24 +36,16 @@
         startup_timeout_sec = 5;
       };
 
-      nixos = {
-        type = "stdio";
-        command = lib.getExe pkgs.mcp-nixos;
-      };
+      nixos.command = lib.getExe pkgs.mcp-nixos;
 
-      sequential-thinking = {
-        type = "stdio";
-        command = lib.getExe pkgs.mcp-server-sequential-thinking;
-      };
+      sequential-thinking.command = lib.getExe pkgs.mcp-server-sequential-thinking;
 
       techdebt-mcp = {
-        type = "stdio";
         command = lib.getExe config.programs.techdebt.package;
         args = ["mcp"];
       };
 
       # supabase = rec {
-      #   type = "http";
       #   url = "https://mcp.supabase.com/mcp?project_ref=mjkvxcziwkwohxpuejak";
       #   disabledTools = [
       #     "reset_branch"
