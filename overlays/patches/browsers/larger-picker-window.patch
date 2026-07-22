@@ -1,0 +1,61 @@
+diff --git a/src/gui/main_window.rs b/src/gui/main_window.rs
+index 2569661..fb1b1fb 100644
+--- a/src/gui/main_window.rs
++++ b/src/gui/main_window.rs
+@@ -50,8 +50,8 @@ pub const MOVE_PROFILE: Selector<(String, MoveTo)> = Selector::new("browsers.mov
+ const WINDOW_BORDER_WIDTH: f64 = 1.0;
+ const PADDING_X: f64 = 5.0;
+ const PADDING_Y: f64 = 10.0;
+-const ITEM_WIDTH: f64 = 210.0;
+-const ITEM_HEIGHT: f64 = 32.0;
++const ITEM_WIDTH: f64 = 280.0;
++const ITEM_HEIGHT: f64 = 44.0;
+ 
+ impl FocusData for UIState {
+     fn has_autofocus(&self) -> bool {
+@@ -240,7 +240,7 @@ const fn get_icon_size() -> f64 {
+     if cfg!(target_os = "macos") {
+         32.0
+     } else if cfg!(target_os = "linux") {
+-        24.0
++        32.0
+     } else {
+         24.0
+     }
+@@ -405,7 +405,7 @@ fn create_browser(
+         Vec2::ZERO,
+     );
+ 
+-    let text_size = 10.0;
++    let text_size = 13.0;
+     let font = FontDescriptor::new(FontFamily::MONOSPACE)
+         .with_weight(FontWeight::NORMAL)
+         .with_size(text_size);
+diff --git a/src/gui/ui_theme.rs b/src/gui/ui_theme.rs
+index b6aedbd..8179b5b 100644
+--- a/src/gui/ui_theme.rs
++++ b/src/gui/ui_theme.rs
+@@ -76,9 +76,9 @@ fn get_theme(ui_theme: UITheme) -> Theme {
+         main: MainWindowTheme {
+             window_background_color: Color::rgba(0.15, 0.15, 0.15, 0.9),
+             window_border_color: Color::rgba(0.5, 0.5, 0.5, 0.9),
+-            browser_label_size: 12.0,
++            browser_label_size: 15.0,
+             browser_label_color: Color::rgb8(255, 255, 255),
+-            profile_label_size: 11.0,
++            profile_label_size: 14.0,
+             profile_label_color: Color::rgb8(190, 190, 190),
+             hotkey_background_color: Color::rgba(0.15, 0.15, 0.15, 1.0),
+             hotkey_border_color: Color::rgba(0.4, 0.4, 0.4, 0.9),
+@@ -131,9 +131,9 @@ fn get_theme(ui_theme: UITheme) -> Theme {
+         main: MainWindowTheme {
+             window_background_color: Color::rgba8(215, 215, 215, 230),
+             window_border_color: Color::rgba(0.7, 0.7, 0.7, 0.9),
+-            browser_label_size: 12.0,
++            browser_label_size: 15.0,
+             browser_label_color: Color::rgb8(0, 0, 0),
+-            profile_label_size: 11.0,
++            profile_label_size: 14.0,
+             profile_label_color: Color::rgb8(30, 30, 30),
+             hotkey_background_color: Color::rgb8(215, 215, 215),
+             hotkey_border_color: Color::rgba(0.4, 0.4, 0.4, 0.9),

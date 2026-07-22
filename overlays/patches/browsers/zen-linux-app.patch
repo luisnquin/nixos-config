@@ -1,0 +1,14 @@
+diff --git a/resources/repository/application-repository.toml b/resources/repository/application-repository.toml
+index f300ed9..8573b3b 100644
+--- a/resources/repository/application-repository.toml
++++ b/resources/repository/application-repository.toml
+@@ -475,3 +475,9 @@ os = "LINUX"
+ id = "URL:Zoom Launcher"
+ kind = "ZOOM"
+ os = "WINDOWS"
++
++[[apps]]
++id = "zen-beta"
++config_dir_relative = ".config/zen"
++kind = "FIREFOX"
++os = "LINUX"

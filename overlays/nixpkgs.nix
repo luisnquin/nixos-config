@@ -126,6 +126,16 @@
     });
   })
   (_final: prev: {
+    browsers = prev.browsers.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/browsers/zen-linux-app.patch
+          ./patches/browsers/larger-picker-window.patch
+        ];
+    });
+  })
+  (_final: prev: {
     # Must stay after hyprdysmorphic, which replaces `hyprland` outright.
     # The grep turns a moved banner into a build failure instead of a no-op.
     hyprland = prev.hyprland.overrideAttrs (old: {
