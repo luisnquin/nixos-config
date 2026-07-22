@@ -27,10 +27,12 @@
       vlc = ["vlc.desktop"];
       zathura = ["zathura.desktop"];
       vscode = ["code.desktop"];
+      claude = ["claude-desktop.desktop"];
 
       associations = {
         "inode/directory" = dolphin;
         "application/pdf" = zathura;
+        "x-scheme-handler/claude" = claude;
 
         "video/mp4" = vlc;
         "video/x-matroska" = vlc;
