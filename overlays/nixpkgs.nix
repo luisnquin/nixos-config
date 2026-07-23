@@ -4,16 +4,6 @@
   host,
   ...
 }: [
-  (_final: _prev: {
-    home-manager = inputs.home-manager.packages.${system}.home-manager.overrideAttrs (old: {
-      buildCommand =
-        old.buildCommand
-        + ''
-          substituteInPlace $out/bin/home-manager \
-            --replace-fail "    presentNews" "    :"
-        '';
-    });
-  })
   (
     _self: super: {
       waybar = super.waybar.overrideAttrs (_oldAttrs: let

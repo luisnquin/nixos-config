@@ -155,13 +155,8 @@
   };
 
   outputs = inputs @ {
-    agentic-flake,
-    hyprdysmorphic,
-    nixpkgs-extra,
     home-manager,
-    llm-agents,
     nixpkgs,
-    clipz,
     ...
   }: let
     defaultSystem = "x86_64-linux";
@@ -182,20 +177,12 @@
 
       pkgs = import nixpkgs {
         overlays =
-          [
-            inputs.herdr.overlays.default
-            hyprdysmorphic.overlays.default
-            nixpkgs-extra.overlays.default
-            agentic-flake.overlays.default
-            inputs.hermes-agent.overlays.default
-            (_final: _prev: {
-              llm-agents = llm-agents.packages.${system};
-            })
-            clipz.overlays.default
-          ]
-          ++ import ./overlays/nixpkgs.nix {
+          import ./overlays/nixpkgs.nix {
             inherit inputs system;
             inherit (metadata) host;
+          }
+          ++ import ./overlays/inputs.nix {
+            inherit inputs system;
           };
 
         inherit config;
