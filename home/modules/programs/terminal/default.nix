@@ -1,5 +1,8 @@
 {
-  imports = [./ghostty.nix];
+  imports = [
+    ./ghostty.nix
+    ./herdr.nix
+  ];
 
   shared.alacritty.enable = true;
 

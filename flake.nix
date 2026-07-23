@@ -90,6 +90,10 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    herdr = {
+      url = "github:ogulcancelik/herdr";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
       inputs = {
@@ -179,6 +183,7 @@
       pkgs = import nixpkgs {
         overlays =
           [
+            inputs.herdr.overlays.default
             hyprdysmorphic.overlays.default
             nixpkgs-extra.overlays.default
             agentic-flake.overlays.default

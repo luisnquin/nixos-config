@@ -27,6 +27,7 @@ args @ {
       done
       exec ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
     ''}")
+    hl.exec_cmd("[workspace special:herdr silent] ${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear -e ${lib.getExe pkgs.herdr}")
   '';
 
   waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
@@ -240,6 +241,13 @@ in {
         {
           name = "ghostty-hyprdrop";
           match = {class = "^ghostty\\.hyprdrop$";};
+          float = true;
+          size = "1280 720";
+          center = true;
+        }
+        {
+          name = "ghostty-herdr";
+          match = {class = "^ghostty\\.herdr$";};
           float = true;
           size = "1280 720";
           center = true;

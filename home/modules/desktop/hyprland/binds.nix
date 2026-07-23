@@ -172,6 +172,7 @@ in
     (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
     (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
     (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop \"ghostty --class=ghostty.hyprdrop\""))
+    (b "${mainMod} + J" (mkLuaInline "hl.dsp.workspace.toggle_special(${toLua' "herdr"})"))
 
     (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
     (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
