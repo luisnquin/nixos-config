@@ -1,6 +1,7 @@
 {
   inputs,
   lib,
+  pkgs,
   system,
   ...
 }: let
@@ -32,6 +33,8 @@ in {
         '';
     });
     settings = {
+      # Every new surface runs tmux; windows launched with -e (herdr) override it.
+      command = lib.getExe pkgs.tmux;
       font-size = "10.8";
       gtk-titlebar = "false";
       window-show-tab-bar = "never";

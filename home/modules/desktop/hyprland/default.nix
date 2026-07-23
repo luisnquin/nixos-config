@@ -27,7 +27,10 @@ args @ {
       done
       exec ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
     ''}")
-    hl.exec_cmd("[workspace special:herdr silent] ${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear -e ${lib.getExe pkgs.herdr}")
+    hl.exec_cmd("[workspace special:herdr silent] ${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear -e ${pkgs.writeShellScript "herdr-scratchpad" ''
+      export HERDR_SESSION=hyprland
+      exec ${lib.getExe pkgs.herdr} --no-session
+    ''}")
   '';
 
   waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
