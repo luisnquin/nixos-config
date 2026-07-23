@@ -1,0 +1,33 @@
+--- a/src/layout/algorithm/tiled/scrolling/ScrollingFullscreenHandler.hpp
++++ b/src/layout/algorithm/tiled/scrolling/ScrollingFullscreenHandler.hpp
+@@ -18,6 +18,7 @@
+     struct SFullscreenScrollState {
+         SFullscreenMode      mode;
+         std::optional<float> restoreColumnWidth = std::nullopt;
++        std::optional<double> restoreOffset       = std::nullopt;
+     };
+ 
+     class CScrollingFullscreenHandler : public IFullscreenHandler {
+--- a/src/layout/algorithm/tiled/scrolling/ScrollingFullscreenHandler.cpp
++++ b/src/layout/algorithm/tiled/scrolling/ScrollingFullscreenHandler.cpp
+@@ -191,6 +191,10 @@
+         const auto CURRENTCOL = TDATA->column.lock();
+         if (!CURRENTCOL || CURRENTCOL->targetDatas.size() > 1)
+             return FULLSCREEN_REQUEST_FAILED;
++
++        // save the scroll offset so unfullscreening restores the pre-fullscreen viewport
++        if (const auto FSITR = m_fsTargets.find(TARGET); FSITR != m_fsTargets.end() && !FSITR->second.restoreOffset.has_value())
++            FSITR->second.restoreOffset = m_scrollingAlgorithm->m_scrollingData->controller->getOffset();
+ 
+         CURRENTCOL->setColumnWidth(fullscreenColumnWidth());
+ 
+@@ -530,6 +534,9 @@
+         if (TDATA && TDATA->column)
+             TDATA->column->setColumnWidth(ITR->second.restoreColumnWidth.value());
+     }
++
++    if (ITR->second.restoreOffset.has_value() && m_scrollingAlgorithm->m_scrollingData && m_scrollingAlgorithm->m_scrollingData->controller)
++        m_scrollingAlgorithm->m_scrollingData->controller->setOffset(ITR->second.restoreOffset.value());
+     if (target->window())
+         target->window()->m_layoutFlags.cantLockCursor = false;
+     m_fsTargets.erase(ITR);

@@ -140,6 +140,11 @@
     # Must stay after hyprdysmorphic, which replaces `hyprland` outright.
     # The grep turns a moved banner into a build failure instead of a no-op.
     hyprland = prev.hyprland.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/hyprland/scrolling-fs-restore-offset.patch
+        ];
       postPatch =
         (old.postPatch or "")
         + ''
