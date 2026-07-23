@@ -168,12 +168,12 @@
 
       pkgs = import nixpkgs {
         overlays =
-          import ./overlays/nixpkgs.nix {
+          import ./overlays/inputs.nix {
+            inherit inputs system;
+          }
+          ++ import ./overlays/nixpkgs.nix {
             inherit inputs system;
             inherit (metadata) host;
-          }
-          ++ import ./overlays/inputs.nix {
-            inherit inputs system;
           };
 
         inherit config;
