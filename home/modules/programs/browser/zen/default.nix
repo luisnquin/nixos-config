@@ -62,7 +62,11 @@
         "Telegram Web" = {
           id = "5065293b-1c04-40ee-ba1d-99a231873864";
           url = "https://web.telegram.org/k/";
-          position = 103;
+          isEssential = true;
+        };
+        "Hacker News" = {
+          id = "c90aabb4-0e7b-48a8-85a8-5245ea84f095";
+          url = "https://news.ycombinator.com/";
           isEssential = true;
         };
       };
