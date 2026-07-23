@@ -132,6 +132,7 @@
         ++ [
           ./patches/browsers/zen-linux-app.patch
           ./patches/browsers/larger-picker-window.patch
+          ./patches/browsers/fix-url-argument-injection.patch
         ];
     });
   })

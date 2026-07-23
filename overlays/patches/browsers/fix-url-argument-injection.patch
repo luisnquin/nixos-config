@@ -1,0 +1,49 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 29f408c..64e1ea0 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -123,6 +123,7 @@ impl BrowserCommon {
+         let app_url = self
+             .supported_app
+             .get_transformed_url(common_browser_profile, url);
++        let app_url = sanitize_launch_arg(app_url);
+ 
+         let (main_command, command_arguments) = self.command.split_at(1);
+         let main_command = main_command.first().unwrap(); // guaranteed to not be empty
+@@ -218,6 +219,18 @@ fn replace_url_placeholder(command_arguments: &[String], app_url: &str) -> Vec<S
+         .collect();
+ }
+ 
++// A launch target must never be parsable by the spawned browser as a CLI
++// flag; otherwise a URL like "--gpu-launcher=<cmd>" becomes argument
++// injection into the browser process. No legitimate URL or app scheme
++// starts with '-'.
++fn sanitize_launch_arg(app_url: String) -> String {
++    if app_url.trim_start().starts_with('-') {
++        warn!("Refusing to launch suspicious URL as argument: {app_url}");
++        return "about:blank".to_string();
++    }
++    return app_url;
++}
++
+ #[derive(Clone)]
+ pub struct CommonBrowserProfile {
+     profile_cli_arg_value: String,
+@@ -652,7 +665,16 @@ pub fn unwrap_url(url_str: &str, behavioral_settings: &BehavioralConfig) -> Stri
+         };
+     });
+ 
+-    return transformed_url.unwrap_or(url_str.to_string());
++    // Wrapper params (SafeLinks/Messenger) are attacker-controlled. Only
++    // unwrap to the embedded target if it is itself a real web URL, so a
++    // value like "--gpu-launcher=<cmd>" can never reach the browser argv.
++    let safe_transformed_url = transformed_url.filter(|target| {
++        Url::from_str(target)
++            .map(|u| matches!(u.scheme(), "http" | "https"))
++            .unwrap_or(false)
++    });
++
++    return safe_transformed_url.unwrap_or(url_str.to_string());
+ }
+ 
+ pub fn handle_messages_to_main(
