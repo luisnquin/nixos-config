@@ -1,9 +1,4 @@
-{
-  inputs,
-  system,
-  host,
-  ...
-}: [
+{host, ...}: [
   (
     _self: super: {
       waybar = super.waybar.overrideAttrs (_oldAttrs: let
