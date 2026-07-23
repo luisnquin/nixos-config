@@ -22,6 +22,8 @@
 
       ewwToggleGithub = "${lib.getExe config.programs.eww.package} open --toggle github";
 
+      ewwToggleTailscale = "${lib.getExe config.programs.eww.package} open --toggle tailscale";
+
       githubWaybar = pkgs.writeShellApplication {
         name = "github-monitor-waybar";
         runtimeInputs = with pkgs; [jq];
@@ -225,7 +227,7 @@
           return-type = "json";
           interval = 5;
           tooltip = true;
-          on-click = "${lib.getExe' pkgs.xdg-utils "xdg-open"} https://login.tailscale.com/admin/machines";
+          on-click = ewwToggleTailscale;
         };
 
         "custom/github-monitor" = {
