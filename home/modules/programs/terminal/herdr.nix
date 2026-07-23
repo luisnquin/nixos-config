@@ -33,9 +33,9 @@
         );
       };
 
-      # Mirror Ghostty's bindings. Move settings away from its default prefix+s.
       keys = {
-        split_horizontal = "prefix+s";
+        split_vertical = ["prefix+v" "prefix+percent" "prefix+|" "prefix+backtick"];
+        split_horizontal = ["prefix+s" "prefix+double_quote" "prefix+minus" "prefix+slash"];
         settings = "prefix+shift+s";
         rename_tab = "prefix+comma";
 
