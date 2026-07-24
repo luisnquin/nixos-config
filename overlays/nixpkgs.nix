@@ -170,4 +170,68 @@
       };
     };
   })
+  (final: _prev: {
+    herdr-autoname = final.rustPlatform.buildRustPackage {
+      pname = "herdr-autoname";
+      version = "0.1.0";
+
+      src = final.lib.cleanSource ./herdr-autoname;
+
+      cargoLock.lockFile = ./herdr-autoname/Cargo.lock;
+
+      postInstall = ''
+        cp herdr-plugin.toml $out/
+        install -Dm644 shell/hook.zsh $out/shell/hook.zsh
+      '';
+
+      meta.mainProgram = "herdr-autoname";
+    };
+  })
+  (final: _prev: {
+    # Mic92's OSC 52 fork of rmarganti/herdr-pluck: clipboard survives SSH panes.
+    herdr-pluck = final.rustPlatform.buildRustPackage {
+      pname = "herdr-pluck";
+      version = "0.1.0-unstable-2026-07-23";
+
+      src = final.fetchFromGitHub {
+        owner = "Mic92";
+        repo = "herdr-pluck";
+        rev = "6f94c5b2e41e3f51a868847d7a62f140c4ff496c";
+        hash = "sha256-7MyNBAHUbimRd68Oj8d9Y2l4knmHMqHNNdUtBJOkwJM=";
+      };
+
+      cargoHash = "sha256-h3yU5gPuJSdv4fW8kbfCxdAR0Nnnr5/dYTNaMhNNFIE=";
+
+      postInstall = ''
+        cp herdr-plugin.toml $out/
+      '';
+
+      meta.mainProgram = "herdr-pluck";
+    };
+  })
+  (final: _prev: {
+    herdr-sesh = final.buildGoModule rec {
+      pname = "herdr-sesh";
+      version = "0.5.0";
+
+      src = final.fetchFromGitHub {
+        owner = "fullerzz";
+        repo = "herdr-plugin-sesh";
+        rev = "v${version}";
+        hash = "sha256-IGLMExUtNI8ybwY0tOVzhxZSFl5SJgu98DW+kvcBTyY=";
+      };
+
+      vendorHash = "sha256-TnfuQetN3KaRsB5r1bTCcQwOw6kqYVjzKb2aWkz6C0A=";
+
+      subPackages = ["cmd/herdr-sesh"];
+
+      ldflags = ["-X=github.com/fullerzz/herdr-plugin-sesh/internal/app.Version=${version}"];
+
+      postInstall = ''
+        cp herdr-plugin.toml $out/
+      '';
+
+      meta.mainProgram = "herdr-sesh";
+    };
+  })
 ]

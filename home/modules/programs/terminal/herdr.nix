@@ -1,4 +1,33 @@
 {
+  pkgs,
+  lib,
+  ...
+}: let
+  # Stopgap: own plugins.json declaratively until the herdr module exposes a
+  # native `plugins` option. importTOML reads each manifest at eval time (IFD).
+  plugins = [
+    pkgs.herdr-autoname
+    pkgs.herdr-pluck
+    pkgs.herdr-sesh
+  ];
+
+  pluginEntry = pkg: let
+    manifest = lib.importTOML "${pkg}/herdr-plugin.toml";
+  in {
+    plugin_id = manifest.id;
+    name = manifest.name;
+    version = manifest.version;
+    min_herdr_version = manifest.min_herdr_version or "";
+    manifest_path = "${pkg}/herdr-plugin.toml";
+    plugin_root = "${pkg}";
+    enabled = true;
+    source.kind = "local";
+  };
+
+  pluginRegistry = pkgs.writeText "herdr-plugins.json" (
+    builtins.toJSON (map pluginEntry plugins)
+  );
+in {
   programs.herdr = {
     enable = true;
 
@@ -50,4 +79,13 @@
       };
     };
   };
+
+  # Real file, not a symlink: herdr rewrites plugins.json under a lock.
+  home.activation.herdrPluginRegistry = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    run install -Dm644 ${pluginRegistry} "$HOME/.config/herdr/plugins.json"
+  '';
+
+  programs.zsh.initContent = lib.mkAfter ''
+    source ${pkgs.herdr-autoname}/shell/hook.zsh
+  '';
 }
