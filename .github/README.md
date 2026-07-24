@@ -27,4 +27,4 @@ After that just reboot and continue the setup with home manager.
 
 ## How does it look like?
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/8fb2640c-f7f4-4078-bd6d-7e07daccca4a" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c188cc0a-9e9b-448f-b999-f28dfbc83ad9" />
