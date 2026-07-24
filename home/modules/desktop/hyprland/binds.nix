@@ -4,6 +4,7 @@
   pkgs,
   libx,
   lib,
+  dropdowns,
   ...
 }: let
   inherit (lib.generators) mkLuaInline;
@@ -171,8 +172,8 @@ in
     (b "${mainMod} + SHIFT + M" (dspExec "${lib.getExe pkgs.hyprstfu} -unmute-all"))
     (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
     (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
-    (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop \"ghostty --class=ghostty.hyprdrop\""))
-    (b "${mainMod} + J" (mkLuaInline "hl.dsp.workspace.toggle_special(${toLua' "herdr"})"))
+    (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.tmux \"${dropdowns.ghosttyDropCmd}\""))
+    (b "${mainMod} + J" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.herdr \"${dropdowns.herdrDropCmd}\""))
 
     (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
     (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))

@@ -6,7 +6,13 @@ args @ {
   ...
 }: let
   inherit (lib.generators) mkLuaInline;
-  hyprctlCmd = "${pkgs.hyprland}/bin/hyprctl";
+
+  ghosttyDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux";
+
+  herdrDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear --keybind=ctrl+shift+v=paste_from_clipboard -e ${pkgs.writeShellScript "herdr-scratchpad" ''
+    export HERDR_SESSION=hyprland
+    exec ${lib.getExe pkgs.herdr} --no-session
+  ''}";
 
   waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''
     pkill waybar 2>/dev/null || true
@@ -19,18 +25,8 @@ args @ {
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("${waybarRestart}")
     hl.exec_cmd("[workspace 2 silent] ${lib.getExe config.programs.ghostty.package}")
-    hl.exec_cmd("${pkgs.writeShellScript "hypr-ghostty-drop" ''
-      ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
-      while [ -z "$ADDRESS" ]; do
-        sleep 0.1
-        ADDRESS=$(${hyprctlCmd} clients -j | ${lib.getExe pkgs.jq} -r '.[] | select(.class == "ghostty.hyprdrop") | .address')
-      done
-      exec ${lib.getExe pkgs.hyprdrop} -i ghostty.hyprdrop "ghostty --class=ghostty.hyprdrop"
-    ''}")
-    hl.exec_cmd("[workspace special:herdr silent] ${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear -e ${pkgs.writeShellScript "herdr-scratchpad" ''
-      export HERDR_SESSION=hyprland
-      exec ${lib.getExe pkgs.herdr} --no-session
-    ''}")
+    hl.exec_cmd("[workspace special:hyprdrop silent] ${ghosttyDropCmd}")
+    hl.exec_cmd("[workspace special:hyprdrop silent] ${herdrDropCmd}")
   '';
 
   waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
@@ -242,8 +238,8 @@ in {
           float = true;
         }
         {
-          name = "ghostty-hyprdrop";
-          match = {class = "^ghostty\\.hyprdrop$";};
+          name = "ghostty-tmux";
+          match = {class = "^ghostty\\.tmux$";};
           float = true;
           size = "1280 720";
           center = true;
@@ -298,7 +294,7 @@ in {
         sensitivity = -0.5;
       };
 
-      bind = import ./binds.nix args;
+      bind = import ./binds.nix (args // {dropdowns = {inherit ghosttyDropCmd herdrDropCmd;};});
 
       permission = [
         {
