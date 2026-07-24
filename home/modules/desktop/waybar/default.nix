@@ -12,17 +12,31 @@
     };
     style = builtins.readFile ./foe.css;
     settings = let
-      ewwToggleCalendar = "${lib.getExe config.programs.eww.package} open --toggle calendar";
+      ewwPanel = pkgs.writeShellApplication {
+        name = "eww-panel";
+        runtimeInputs = [config.programs.eww.package];
+        text = ''
+          target="$1"
+          open=$(eww active-windows 2>/dev/null || true)
+          eww close-all 2>/dev/null || true
+          if ! grep -q "^$target" <<<"$open"; then
+            eww open "$target"
+          fi
+        '';
+      };
+      ewwToggle = name: "${lib.getExe ewwPanel} ${name}";
 
-      ewwToggleSysmon = "${lib.getExe config.programs.eww.package} open --toggle sysmon";
+      ewwToggleCalendar = ewwToggle "calendar";
 
-      ewwToggleBattery = "${lib.getExe config.programs.eww.package} open --toggle battery";
+      ewwToggleSysmon = ewwToggle "sysmon";
 
-      ewwToggleNetwork = "${lib.getExe config.programs.eww.package} open --toggle network";
+      ewwToggleBattery = ewwToggle "battery";
 
-      ewwToggleGithub = "${lib.getExe config.programs.eww.package} open --toggle github";
+      ewwToggleNetwork = ewwToggle "network";
 
-      ewwToggleTailscale = "${lib.getExe config.programs.eww.package} open --toggle tailscale";
+      ewwToggleGithub = ewwToggle "github";
+
+      ewwToggleTailscale = ewwToggle "tailscale";
 
       githubWaybar = pkgs.writeShellApplication {
         name = "github-monitor-waybar";
