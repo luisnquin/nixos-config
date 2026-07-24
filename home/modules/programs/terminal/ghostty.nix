@@ -32,8 +32,6 @@ in {
         '';
     });
     settings = {
-      # No command: surfaces run the login shell, which execs tmux from zsh init
-      # (see tmux.nix). Surfaces launched with -e (herdr) override the shell.
       font-size = "10.8";
       gtk-titlebar = "false";
       window-show-tab-bar = "never";

@@ -23,8 +23,8 @@
     starship.enable = true;
     tmux = {
       enable = true;
-      # ghostty launches tmux itself (settings.command); herdr panes get plain zsh.
-      autoStart = false;
+      autoStart = true;
+      autoStartSkipEnv = ["HERDR_ENV" "SSH_CONNECTION"];
       status = {
         ssh.enable = true;
         gpg.enable = true;
