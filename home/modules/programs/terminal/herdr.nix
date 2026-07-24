@@ -1,4 +1,14 @@
-{...}: {
+{
+  lib,
+  pkgs,
+  ...
+}: {
+  programs.zsh.initContent = lib.mkBefore ''
+    if [[ -o interactive && -n "$SSH_CONNECTION" && -z "$HERDR_ENV" && -z "$TMUX" ]]; then
+      exec ${lib.getExe pkgs.herdr} --session hyprland
+    fi
+  '';
+
   programs.herdr = {
     enable = true;
 
