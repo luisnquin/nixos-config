@@ -23,10 +23,11 @@ with lib; let
         else cmd;
     in ''
       (
+        trap __nyx_on_int INT
         cd ${workdir}
         printf "\n\e[38;2;112;112;112m(${workdir})\033[0;32m ${command}\033[0m\n"
         ${command}
-      )
+      ) || exit "$?"
     '';
 
     log = msg: ''
@@ -34,7 +35,7 @@ with lib; let
     '';
 
     requireSudo = ''
-      if [ "$(id -u)" -ne 0 ]; then sudo echo -n ""; fi
+      if [ "$(id -u)" -ne 0 ]; then sudo -v || exit "$?"; fi
     '';
 
     notify = title: body: ''
@@ -45,9 +46,10 @@ with lib; let
 
     cd = path: body: ''
       (
+        trap __nyx_on_int INT
         cd ${path}
         ${body}
-      )
+      ) || exit "$?"
     '';
 
     seq = steps: concatStringsSep "\n" steps;
@@ -62,8 +64,12 @@ with lib; let
       subNames;
 
     /*
-    Runs steps under set -e and only notifies from the outermost wrapper. Nested
+    Runs steps in a subshell and only notifies from the outermost wrapper. Nested
     wrappers propagate their status so composed commands produce one final notification.
+
+    Status is captured explicitly instead of relying on `set -e`: bash suspends
+    errexit inside a subshell used as an `if` condition, so a failing step there
+    would not abort the run.
     */
     withNotify = {
       image ? defaultNyxIcon,
@@ -108,23 +114,24 @@ with lib; let
       inner = concatStringsSep "\n" steps;
     in [
       ''
-        if (
-          set -e
-          export NYX_NOTIFY_DEPTH="$((NYX_NOTIFY_DEPTH + 1))"
+        __nyx_depth="''${NYX_NOTIFY_DEPTH:-0}"
+        __nyx_status=0
+
+        (
+          trap __nyx_on_int INT
+          export NYX_NOTIFY_DEPTH="$((__nyx_depth + 1))"
           ${inner}
-        ); then
-          if [ "''${NYX_NOTIFY_DEPTH:-0}" -eq 0 ]; then
-            ${okNotify} || true
-          fi
-        else
-          status=$?
-          if [ "$status" -eq 130 ]; then
-            exit "$status"
-          fi
-          if [ "''${NYX_NOTIFY_DEPTH:-0}" -eq 0 ]; then
+        ) || __nyx_status=$?
+
+        if [ "$__nyx_status" -ne 0 ]; then
+          if [ "$__nyx_depth" -eq 0 ] && [ "$__nyx_status" -ne 130 ] && ! __nyx_interrupted; then
             ${errNotify} || true
           fi
-          exit "$status"
+          exit "$__nyx_status"
+        fi
+
+        if [ "$__nyx_depth" -eq 0 ]; then
+          ${okNotify} || true
         fi
       ''
     ];
@@ -210,16 +217,33 @@ with lib; let
     #!/usr/bin/env bash
     set -e
 
-    NYX_ROOT_PID="$BASHPID"
+    __nyx_root_pid="$BASHPID"
+    __nyx_int_flag="''${TMPDIR:-/tmp}/nyx-interrupt-$$"
+
+    # Subshells reset traps, so every nested level re-arms __nyx_on_int and the
+    # flag file is what carries "the user pressed Ctrl-C" back to the root shell.
+    __nyx_on_int() {
+      if [ ! -e "$__nyx_int_flag" ]; then
+        : > "$__nyx_int_flag" 2>/dev/null || true
+        printf "\n" >&2
+      fi
+      exit 130
+    }
+
+    __nyx_interrupted() {
+      [ -e "$__nyx_int_flag" ]
+    }
 
     notify_on_interrupt() {
       status=$?
-      if [ "$status" -eq 130 ] && [ "$BASHPID" -eq "$NYX_ROOT_PID" ]; then
+      [ "$BASHPID" -eq "$__nyx_root_pid" ] || return 0
+      if [ "$status" -eq 130 ] || __nyx_interrupted; then
         ${interruptNotify} || true
       fi
+      rm -f "$__nyx_int_flag"
     }
 
-    trap 'exit 130' INT
+    trap __nyx_on_int INT
     trap notify_on_interrupt EXIT
 
     COMMAND="$1"
