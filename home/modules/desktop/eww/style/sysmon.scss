@@ -1,0 +1,138 @@
+.sys-box {
+  background-color: rgba(29, 16, 58, 0.97);
+  border: 1px solid rgba(181, 232, 224, 0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.sys-divider {
+  background-color: rgba(181, 232, 224, 0.10);
+  min-height: 1px;
+}
+
+.sys-meter {
+  background-color: rgba(205, 214, 244, 0.08);
+  border: 1px solid rgba(205, 214, 244, 0.12);
+  border-radius: 8px;
+  min-width: 64px;
+  min-height: 64px;
+  padding: 7px 8px;
+}
+
+.cpu-meter {
+  background-color: rgba(245, 194, 231, 0.14);
+  border-color: rgba(245, 194, 231, 0.28);
+}
+
+.mem-meter {
+  background-color: rgba(181, 232, 224, 0.14);
+  border-color: rgba(181, 232, 224, 0.28);
+}
+
+.sys-meter-icon {
+  font-size: 18pt;
+  color: #1a1826;
+}
+
+.cpu-meter .sys-meter-icon,
+.cpu-meter .sys-meter-value {
+  color: #f5c2e7;
+}
+
+.cpu-meter .sys-meter-icon {
+  margin-right: 4px;
+}
+
+.mem-meter .sys-meter-icon,
+.mem-meter .sys-meter-value {
+  color: #b5e8e0;
+}
+
+.mem-meter .sys-meter-icon {
+  margin-right: 10px;
+}
+
+.sys-meter-value {
+  font-size: 13pt;
+}
+
+.sys-title {
+  font-size: 18pt;
+  color: #ffffff;
+}
+
+.sys-subtitle {
+  font-size: 8pt;
+  font-weight: normal;
+  color: rgba(205, 214, 244, 0.50);
+}
+
+.sys-bar trough {
+  background-color: rgba(205, 214, 244, 0.12);
+  border-radius: 999px;
+  min-height: 6px;
+  margin-top: 8px;
+}
+
+.sys-bar progress {
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+.cpu-bar progress {
+  background-color: #f5c2e7;
+}
+
+.mem-bar progress {
+  background-color: #b5e8e0;
+}
+
+.sys-grid {
+  border-top: 1px solid rgba(181, 232, 224, 0.10);
+  padding-top: 10px;
+}
+
+.sys-row-label {
+  color: rgba(205, 214, 244, 0.55);
+  font-weight: normal;
+}
+
+.sys-row-value {
+  color: #cdd6f4;
+}
+
+.top-list {
+  border-top: 1px solid rgba(181, 232, 224, 0.10);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.top-head {
+  margin-bottom: 2px;
+}
+
+.top-head-label {
+  color: #b5e8e0;
+  font-size: 8pt;
+  letter-spacing: 1px;
+}
+
+.top-toggle {
+  background-color: rgba(181, 232, 224, 0.07);
+  color: rgba(205, 214, 244, 0.75);
+  border: 1px solid rgba(181, 232, 224, 0.12);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.top-toggle:hover {
+  background-color: rgba(181, 232, 224, 0.14);
+  color: #e8cef5;
+}
+
+.proc-value {
+  color: #b5e8e0;
+}

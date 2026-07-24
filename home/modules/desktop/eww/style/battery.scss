@@ -1,0 +1,119 @@
+.bat-box {
+  background-color: rgba(29, 16, 58, 0.97);
+  border: 1px solid rgba(181, 232, 224, 0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.bat-gauge {
+  background-color: rgba(181, 232, 224, 0.12);
+  border: 1px solid rgba(181, 232, 224, 0.30);
+  border-radius: 8px;
+  min-width: 64px;
+  min-height: 64px;
+  padding: 7px 8px;
+}
+
+.bat-icon {
+  background-color: transparent;
+  border: 2px solid #1a1826;
+  border-radius: 4px;
+  min-width: 42px;
+  min-height: 20px;
+  padding: 2px;
+}
+
+.bat-icon-fill trough {
+  background-color: transparent;
+  border-radius: 2px;
+  min-height: 16px;
+  min-width: 38px;
+}
+
+.bat-icon-fill progress {
+  background-color: #1a1826;
+  border-radius: 2px;
+  min-height: 16px;
+}
+
+.bat-gauge-value {
+  font-size: 13pt;
+  color: #1a1826;
+}
+
+.bat-percent {
+  font-size: 19pt;
+  color: #ffffff;
+}
+
+.bat-status {
+  font-size: 9pt;
+  color: #b5e8e0;
+}
+
+.bat-model {
+  font-size: 8pt;
+  font-weight: normal;
+  color: rgba(205, 214, 244, 0.50);
+}
+
+.bat-grid {
+  border-top: 1px solid rgba(181, 232, 224, 0.10);
+  padding-top: 10px;
+}
+
+.bat-row-label {
+  color: rgba(205, 214, 244, 0.55);
+  font-weight: normal;
+}
+
+.bat-row-value {
+  color: #cdd6f4;
+}
+
+.bat-bar trough {
+  background-color: rgba(205, 214, 244, 0.12);
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+.bat-bar progress {
+  background-color: #b5e8e0;
+  border-radius: 999px;
+  min-height: 6px;
+}
+
+.bat-box.charging .bat-gauge,
+.bat-box.full .bat-gauge,
+.bat-box.charging .bat-bar progress,
+.bat-box.full .bat-bar progress {
+  background-color: #b5e8e0;
+}
+
+.bat-box.charging .bat-gauge-value,
+.bat-box.full .bat-gauge-value {
+  color: #1a1826;
+}
+
+.bat-box.discharging .bat-gauge,
+.bat-box.discharging .bat-bar progress {
+  background-color: #f8bd96;
+}
+
+.bat-box.discharging .bat-gauge-value {
+  color: #1a1826;
+}
+
+.bat-btn {
+  background-color: rgba(181, 232, 224, 0.07);
+  color: #cdd6f4;
+  border: 1px solid rgba(181, 232, 224, 0.12);
+  border-radius: 6px;
+  padding: 5px 10px;
+}
+
+.bat-btn:hover {
+  background-color: rgba(181, 232, 224, 0.14);
+  color: #e8cef5;
+}

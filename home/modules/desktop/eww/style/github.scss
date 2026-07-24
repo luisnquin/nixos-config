@@ -1,0 +1,73 @@
+.github-box {
+  background-color: rgba(29, 16, 58, 0.98);
+  border: 1px solid rgba(181, 232, 224, 0.14);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.github-header {
+  border-bottom: 1px solid rgba(181, 232, 224, 0.10);
+  padding-bottom: 10px;
+}
+
+.github-mark {
+  color: #b5e8e0;
+  font-size: 23pt;
+}
+
+.github-title {
+  color: #ffffff;
+  font-size: 15pt;
+}
+
+.github-meta,
+.github-entry-meta,
+.github-updated {
+  color: rgba(205, 214, 244, 0.48);
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.github-section-title {
+  color: #b5e8e0;
+  font-size: 8pt;
+  letter-spacing: 1px;
+}
+
+.github-entry {
+  background-color: rgba(205, 214, 244, 0.045);
+  border: 1px solid rgba(205, 214, 244, 0.08);
+  border-radius: 6px;
+  padding: 7px 9px;
+}
+
+.github-entry:hover {
+  background-color: rgba(181, 232, 224, 0.10);
+  border-color: rgba(181, 232, 224, 0.20);
+}
+
+.github-entry.failure,
+.github-entry.cancelled,
+.github-entry.timed_out,
+.github-entry.startup_failure,
+.github-entry.action_required {
+  border-left: 3px solid #f28fad;
+}
+
+.github-entry.success {
+  border-left: 3px solid #b5e8e0;
+}
+
+.github-entry.issue {
+  border-left: 3px solid #f8bd96;
+}
+
+.github-entry-title {
+  color: #cdd6f4;
+}
+
+.github-error {
+  color: #f28fad;
+  font-size: 8pt;
+}
