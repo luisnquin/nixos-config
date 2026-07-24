@@ -90,6 +90,7 @@ in {
       outputStyle = "Explanatory";
       language = "english";
       cleanupPeriodDays = 20;
+      tui = "fullscreen";
 
       env = {
         "CLAUDE_CODE_AUTO_COMPACT_WINDOW" = "200000";
