@@ -1,7 +1,6 @@
 {
   inputs,
   lib,
-  pkgs,
   system,
   ...
 }: let
@@ -33,8 +32,8 @@ in {
         '';
     });
     settings = {
-      # Every new surface runs tmux; windows launched with -e (herdr) override it.
-      command = lib.getExe pkgs.tmux;
+      # No command: surfaces run the login shell, which execs tmux from zsh init
+      # (see tmux.nix). Surfaces launched with -e (herdr) override the shell.
       font-size = "10.8";
       gtk-titlebar = "false";
       window-show-tab-bar = "never";
