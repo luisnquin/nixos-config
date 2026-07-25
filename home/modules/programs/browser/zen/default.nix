@@ -27,12 +27,14 @@
         "zen.view.compact.animate-sidebar" = false;
         "zen.welcome-screen.seen" = true;
         "zen.urlbar.behavior" = "float";
+        "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
       };
 
       presets.betterfox.enable = true;
 
       bookmarks = import ./bookmarks-config.nix {inherit libx lib;};
       search = import ./search-config.nix {inherit pkgs;};
+      userContent = import ./user-content-config.nix {inherit pkgs lib;};
 
       sine = {
         enable = true;
