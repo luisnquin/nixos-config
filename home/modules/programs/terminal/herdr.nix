@@ -68,6 +68,9 @@ in {
         settings = "prefix+shift+s";
         rename_tab = "prefix+comma";
 
+        next_workspace = "prefix+tab";
+        previous_workspace = "prefix+shift+tab";
+
         command = [
           {
             key = "prefix+alt+g";
