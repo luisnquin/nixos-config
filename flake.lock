@@ -1311,11 +1311,11 @@
     "sickdeck": {
       "flake": false,
       "locked": {
-        "lastModified": 1784991183,
-        "narHash": "sha256-t6T4tfju2IkGfrTuqoMX1wH0MQSA2HO4jQJLS9k9wIM=",
+        "lastModified": 1785008561,
+        "narHash": "sha256-reErOChchhpnmGCOpDnE0+eaLVOijTbkiqEbGB550e8=",
         "ref": "refs/heads/main",
-        "rev": "76db2b3140c18ec6797c1718e44e88847c61e965",
-        "revCount": 325,
+        "rev": "e9642f94391b46b0e30bed0a1bd15558f42bdbc2",
+        "revCount": 335,
         "type": "git",
         "url": "ssh://git@github.com/0xc000022070/sickdeck"
       },
