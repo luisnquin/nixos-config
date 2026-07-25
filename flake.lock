@@ -1259,6 +1259,7 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
         "roborev": "roborev",
+        "sickdeck": "sickdeck",
         "systems": "systems",
         "techdebt-cli": "techdebt-cli",
         "xgreeter": "xgreeter",
@@ -1305,6 +1306,22 @@
         "owner": "luisnquin",
         "repo": "senv",
         "type": "github"
+      }
+    },
+    "sickdeck": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1784991183,
+        "narHash": "sha256-t6T4tfju2IkGfrTuqoMX1wH0MQSA2HO4jQJLS9k9wIM=",
+        "ref": "refs/heads/main",
+        "rev": "76db2b3140c18ec6797c1718e44e88847c61e965",
+        "revCount": 325,
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/sickdeck"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/sickdeck"
       }
     },
     "systems": {
