@@ -1,0 +1,54 @@
+--- a/tui/src/config_update.rs
++++ b/tui/src/config_update.rs
+@@ -15,11 +15,14 @@
+ use codex_app_server_protocol::RequestId;
+ use codex_app_server_protocol::SkillsConfigWriteParams;
+ use codex_app_server_protocol::SkillsConfigWriteResponse;
++use codex_app_server_protocol::WriteStatus;
++use codex_config::CONFIG_TOML_FILE;
+ use codex_config::loader::project_trust_key;
+ use codex_features::FEATURES;
+ use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+ use codex_protocol::config_types::TrustLevel;
+ use codex_utils_absolute_path::AbsolutePathBuf;
++use codex_utils_home_dir::find_codex_home;
+ use color_eyre::eyre::Result;
+ use color_eyre::eyre::WrapErr;
+ use serde_json::Value as JsonValue;
+@@ -144,10 +147,36 @@
+     replace_config_value("oss_provider", serde_json::json!(provider))
+ }
+ 
++// Disabled: `config.toml` is a read-only symlink into the Nix store, so every
++// TUI-initiated `config/batchWrite` fails and surfaces a red error banner instead of
++// applying the setting. Reporting the write as applied keeps the change alive for the
++// session; durable changes belong in the home-manager module.
++const CONFIG_WRITES_ENABLED: bool = false;
++
++fn skipped_config_write_response() -> Result<ConfigWriteResponse> {
++    let file_path = find_codex_home()
++        .map(|codex_home| codex_home.join(CONFIG_TOML_FILE))
++        .wrap_err("failed to resolve CODEX_HOME")?;
++    Ok(ConfigWriteResponse {
++        status: WriteStatus::Ok,
++        version: String::new(),
++        file_path,
++        overridden_metadata: None,
++    })
++}
++
+ pub(crate) async fn write_config_batch(
+     request_handle: AppServerRequestHandle,
+     edits: Vec<ConfigEdit>,
+ ) -> Result<ConfigWriteResponse> {
++    if !CONFIG_WRITES_ENABLED {
++        tracing::info!(
++            edit_count = edits.len(),
++            "skipping config/batchWrite; config.toml is read-only"
++        );
++        return skipped_config_write_response();
++    }
++
+     let request_id = RequestId::String(format!("tui-config-write-{}", Uuid::new_v4()));
+     request_handle
+         .request_typed(ClientRequest::ConfigBatchWrite {
