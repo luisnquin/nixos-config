@@ -32,6 +32,10 @@ in {
   DisablePocket = true; # save webs for later reading
   DisableTelemetry = true;
   DontCheckDefaultBrowser = true;
+  # Betterfox turns on dom.security.https_only_mode; exempt plain-HTTP hosts reachable over tailnet
+  HttpAllowlist = [
+    "http://rose:4310"
+  ];
   OfferToSaveLogins = false;
   EnableTrackingProtection = {
     Value = true;
