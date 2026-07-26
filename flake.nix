@@ -53,13 +53,9 @@
       url = "github:encoredev/encore-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    agenix = {
-      url = "github:ryantm/agenix";
-      inputs = {
-        home-manager.follows = "home-manager";
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake/beta"; # 1.130238β
@@ -215,11 +211,8 @@
       inputs.black-terminal.nixosModules.default
       inputs.xgreeter.nixosModules.default
       inputs.home-manager.nixosModules.default
-      (import ./secrets {
-        inherit (inputs) agenix;
-        system = defaultSystem;
-      })
-      inputs.agenix.nixosModules.default
+      inputs.sops-nix.nixosModules.sops
+      ./secrets
       (./system/hosts + "/${metadata.host.name}")
     ];
 

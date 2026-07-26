@@ -4,7 +4,7 @@
   services = {
     tailscale = {
       enable = true;
-      authKeyFile = config.age.secrets."tailscale/auth-key".path;
+      authKeyFile = config.sops.secrets."tailscale/auth-key".path;
     };
 
     mullvad-vpn.enable = true;

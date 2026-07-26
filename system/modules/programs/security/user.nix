@@ -16,7 +16,7 @@
 
         shell = pkgs.zsh;
         home = ''/home/${user.alias}/'';
-        initialHashedPassword = "$y$j9T$FSyIWawN7XrwjmaN5LG5B0$hpO2SDerGvBaoYCfPFbrxcn2j3NS8aTgBfcseMS/QiB";
+        hashedPasswordFile = config.sops.secrets."users/${user.alias}-password-hash".path;
         isNormalUser = true;
 
         extraGroups = [

@@ -8,7 +8,7 @@
   ];
 
   security.pki.certificates = [
-    config.age.secrets."certs/ccd/rootCA.crt".path
+    config.sops.secrets."certs/ccd/rootCA.crt".path
   ];
 
   environment.systemPackages = [pkgs.nss.tools];
@@ -18,8 +18,8 @@
 
     structuredVirtualHosts = let
       tls = {
-        cert = config.age.secrets."certs/ccd/wildcard.crt".path;
-        key = config.age.secrets."certs/ccd/wildcard.key".path;
+        cert = config.sops.secrets."certs/ccd/wildcard.crt".path;
+        key = config.sops.secrets."certs/ccd/wildcard.key".path;
       };
     in {
       "ccd.com.pe" = {
