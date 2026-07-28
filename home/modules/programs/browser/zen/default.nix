@@ -32,6 +32,25 @@
 
       presets.betterfox.enable = true;
 
+      extensions.settings."{74145f27-f039-47ce-a470-a662b129930a}" = {
+        force = true;
+        settings = {
+          badged_color = "#7b383a";
+          badgedStatus = true;
+          domainBlocking = false;
+          eTagFiltering = true;
+          hashURL = "https://rules2.clearurls.xyz/rules.minify.hash";
+          historyListenerEnabled = true;
+          localHostsSkipping = true;
+          logLimit = 250;
+          loggingStatus = true;
+          pingBlocking = true;
+          referralMarketing = true;
+          ruleURL = "https://rules2.clearurls.xyz/data.minify.json";
+          statisticsStatus = true;
+        };
+      };
+
       bookmarks = import ./bookmarks-config.nix {inherit libx lib;};
       search = import ./search-config.nix {inherit pkgs;};
       userContent = import ./user-content-config.nix {inherit pkgs lib;};

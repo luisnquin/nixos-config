@@ -69,6 +69,22 @@ in {
     "github-repository-size@pranavmangal" = "gh-repo-size";
     "jid1-BoFifL9Vbdl2zQ@jetpack" = "decentraleyes";
   };
+  "3rdparty".Extensions."uBlock0@raymondhill.net".toOverwrite = {
+    filterLists = [
+      "user-filters"
+      "ublock-filters"
+      "ublock-badware"
+      "ublock-privacy"
+      "ublock-quick-fixes"
+      "ublock-unbreak"
+      "easylist"
+      "easyprivacy"
+      "adguard-spyware-url"
+      "urlhaus-1"
+      "plowe-0"
+    ];
+    filters = ["||doubleclick.net^"];
+  };
   Preferences = mkLockedAttrs {
     "browser.aboutConfig.showWarning" = false;
     "browser.tabs.warnOnClose" = false;
