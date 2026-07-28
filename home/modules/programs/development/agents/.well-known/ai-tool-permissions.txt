@@ -158,5 +158,4 @@
 - Bash(encore version update)
 - Bash(encore secret set:*)
 - Bash(encore secret delete:*)
-- Bash(git switch:*)
 - Bash(npm publish:*)
