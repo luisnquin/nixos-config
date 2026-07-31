@@ -97,8 +97,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
-            rev = "96d41d56ba9128a5f51fb4e0d05f2ff86c536ce4";
-            sha256 = "sha256-M/MVKuU7p/vgVJuzgPfczZQvRZynu8RQwtsVfyeO7So=";
+            rev = "ef449cb8658a4734ac4fe3916a87a20f67af7f2e";
+            sha256 = "sha256-AVhoOctBbI2NH2O4xBk6nTcFBclyg0z1Df/YNgEw3LQ=";
           };
         } {
           plugins = ["android-firmware-lab"];
