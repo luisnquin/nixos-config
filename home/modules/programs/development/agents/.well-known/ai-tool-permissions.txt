@@ -134,7 +134,6 @@
 ? Bash(git submodule update:*)
 ? Bash(find * -delete *)
 ? Bash(find * -exec *)
-? Bash(sed -i:*)
 - Bash(cargo publish:*)
 - Bash(cargo install:*)
 - Bash(cargo uninstall:*)
