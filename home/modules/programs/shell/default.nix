@@ -23,8 +23,8 @@
     starship.enable = true;
     tmux = {
       enable = true;
-      autoStart = true;
-      autoStartSkipEnv = ["HERDR_ENV" "SSH_CONNECTION"];
+      # Replaced by the attach-or-create launcher in programs/terminal.
+      autoStart = false;
       status = {
         ssh.enable = true;
         gpg.enable = true;
