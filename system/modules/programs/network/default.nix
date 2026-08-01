@@ -29,7 +29,7 @@
     };
 
     firewall = let
-      ports = [5900 8081];
+      ports = [4000 5900 8081 9400];
     in {
       enable = true;
       allowedTCPPorts = ports;
