@@ -1,15 +1,8 @@
 {
   inputs,
-  lib,
   system,
   ...
-}: let
-  tmuxNativeKeybinds = lib.pipe (builtins.readFile ./mods/tmux-native-keybinds.conf) [
-    (lib.splitString "\n")
-    (builtins.filter (line: line != ""))
-    (map (lib.removePrefix "keybind = "))
-  ];
-in {
+}: {
   shared.ghostty = {
     enable = true;
     # GTK 4.20 stopped falling back to built-in dead-key/compose handling on
@@ -37,6 +30,4 @@ in {
       window-show-tab-bar = "never";
     };
   };
-
-  programs.ghostty.settings.keybind = tmuxNativeKeybinds;
 }
