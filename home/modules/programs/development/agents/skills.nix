@@ -46,6 +46,15 @@ in {
         } {
           plugins = ["nixgrep"];
         })
+      (mkInlineSkill {
+          "flake-update" = {
+            description = "Update flake inputs in this dotfiles repo — bump nixpkgs, home-manager or any single input, then audit whether the pinned/patched overlays can be dropped, catch renamed or removed NixOS/home-manager options, and surface new upstream options and packages worth adopting. Use for any nix flake update, input bump or lock refresh.";
+            tags = ["nix"];
+            content = builtins.readFile ./skills/flake-update.md;
+          };
+        } {
+          plugins = ["flake-update"];
+        })
       (anthropics.skills {
         prefix = "anthropics-";
         plugins = [
