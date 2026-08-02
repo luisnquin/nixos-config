@@ -44,20 +44,36 @@
     });
   })
   (_final: prev: {
-    # Temporary pin past upstream #510; drop once nixpkgs ships > 0.8.1.
+    # Temporary pin past upstream #510; drop once nixpkgs ships 0.9.1 or newer.
+    # print_help and handle_subcommand both moved, so nixpkgs' own
+    # remove-install-update.diff no longer applies and is replaced by a copy
+    # refreshed against this rev — the self-install/update subcommands still
+    # have to go, they would write into a store-managed install.
     codebase-memory-mcp = prev.codebase-memory-mcp.overrideAttrs (_old: rec {
-      version = "0.8.1-unstable-2026-06-29";
+      version = "0.9.1-rc.1-unstable-2026-07-31";
       src = prev.fetchFromGitHub {
         owner = "DeusData";
         repo = "codebase-memory-mcp";
-        rev = "7824e505c192023a21b3e90bcb98ca6210629b64";
-        hash = "sha256-wAxnaSnZylJTbvV0rn+4mzDlKtJDaIipYoOdjdqTsLE=";
+        rev = "d6be58ef9d43c574a2d1b0827ecc1e3c4846f0fe";
+        hash = "sha256-4Z3DjDXOM3XMMdzz1aZQIAO2qjhlNXiCpTw1faltH30=";
       };
       npmDeps = prev.fetchNpmDeps {
         inherit src;
         sourceRoot = "${src.name}/graph-ui";
-        hash = "sha256-P1JVo+GFr+Gsq88dnn9OsedZqrTaj3DDGbej+nHbp4U=";
+        hash = "sha256-6NUv6JCUAPHmq7RbgkgaQVrKgeL09QfUksz4uvh5UAA=";
       };
+      patches = [
+        ./patches/codebase-memory-mcp/remove-install-update.patch
+      ];
+      # embed-frontend.sh moved to `#!/usr/bin/env bash`, so nixpkgs' hardcoded
+      # /bin/bash --replace-fail has nothing left to hit; patchShebangs resolves
+      # it instead. The npm ci strip stays, npmDeps already vendored the tree.
+      postPatch = ''
+        substituteInPlace Makefile.cbm \
+          --replace-fail "npm ci &&" ""
+
+        patchShebangs scripts/embed-frontend.sh
+      '';
       buildPhase = ''
         runHook preBuild
         make -j$NIX_BUILD_CORES -f Makefile.cbm cbm CFLAGS_EXTRA='-DCBM_VERSION=\"${version}\"'
