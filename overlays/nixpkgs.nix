@@ -111,6 +111,50 @@
     });
   })
   (final: _prev: {
+    # nixpkgs dropped every murrine-dependent theme in bcdf2b8ca (2026-07-29) and
+    # vimix went with it, along with `gtk_engines` and `gtk-engine-murrine`. Those
+    # only ever fed the GTK2 assets, which nothing here reads, so the derivation
+    # is upstream's minus the engine inputs. Only the doder family is built —
+    # `home/modules/desktop/gtk.nix` asks for `Vimix-light-doder`.
+    vimix-gtk-themes = final.stdenvNoCC.mkDerivation rec {
+      pname = "vimix-gtk-themes";
+      version = "2025-06-20";
+
+      src = final.fetchFromGitHub {
+        owner = "vinceliuice";
+        repo = "vimix-gtk-themes";
+        rev = version;
+        sha256 = "uRm6v+Zag4FO7nFVcHhZjVhOfdOeYBZYQym0IBR8+HU=";
+      };
+
+      nativeBuildInputs = [
+        final.gnome-shell # detects the gnome-shell version
+        final.jdupes
+        final.sassc
+      ];
+
+      postPatch = ''
+        patchShebangs install.sh
+      '';
+
+      installPhase = ''
+        runHook preInstall
+        mkdir -p $out/share/themes
+        name= HOME="$TMPDIR" ./install.sh --theme doder --dest $out/share/themes
+        rm $out/share/themes/*/{AUTHORS,LICENSE}
+        jdupes --quiet --link-soft --recurse $out/share
+        runHook postInstall
+      '';
+
+      meta = {
+        description = "Flat Material Design theme for GTK based desktop environments";
+        homepage = "https://github.com/vinceliuice/vimix-gtk-themes";
+        license = final.lib.licenses.gpl3Only;
+        platforms = final.lib.platforms.unix;
+      };
+    };
+  })
+  (final: _prev: {
     spiceedit = final.buildGoModule {
       pname = "spiceedit";
       version = "0.0.43";
