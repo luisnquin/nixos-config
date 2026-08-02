@@ -35,36 +35,6 @@
       });
     }
   )
-  (_self: super: {
-    antigravity = super.antigravity.overrideAttrs (oldAttrs: rec {
-      version = "2.1.1";
-
-      src = super.fetchurl {
-        url = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}-6123990880747520/linux-x64/Antigravity%20IDE.tar.gz";
-        sha256 = "sha256-Wyzr99M6aNAD/Y8fqYjRYAkFrOIlBKCF5ThCFCkIeL0=";
-      };
-
-      sourceRoot = "Antigravity IDE";
-
-      installPhase =
-        super.lib.replaceStrings
-        [
-          ''"$out/lib/antigravity/bin/antigravity"''
-          ''"$out/bin/antigravity"''
-        ]
-        [
-          ''"$out/lib/antigravity/bin/antigravity-ide"''
-          ''"$out/bin/antigravity-ide"''
-        ]
-        oldAttrs.installPhase;
-
-      postFixup =
-        super.lib.replaceStrings
-        ["$out/lib/antigravity/antigravity"]
-        ["$out/lib/antigravity/antigravity-ide"]
-        oldAttrs.postFixup;
-    });
-  })
   (final: _prev: {
     rtk = final.llm-agents.rtk.overrideAttrs (_oldAttrs: {
       postInstall = ''

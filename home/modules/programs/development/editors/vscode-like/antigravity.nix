@@ -17,7 +17,7 @@ in {
     (mkVscodeModule {
       modulePath = ["programs" "antigravity"];
       name = "Antigravity IDE";
-      packageName = "antigravity";
+      packageName = "antigravity-ide";
       nameShort = "Antigravity IDE";
       dataFolderName = ".antigravity-ide";
       skipVersionCheck = true;
@@ -40,7 +40,7 @@ in {
   programs.antigravity = {
     enable = true;
     # package = pkgs.llm-agents.antigravity;
-    package = pkgs.antigravity;
+    package = pkgs.antigravity-ide;
     mutableExtensionsDir = false;
 
     argvSettings = {
