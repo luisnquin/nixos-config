@@ -1,6 +1,6 @@
 --- a/core-plugins/src/manager.rs
 +++ b/core-plugins/src/manager.rs
-@@ -81,6 +81,10 @@
+@@ -114,6 +114,10 @@
  use tracing::warn;
  
  static CURATED_REPO_SYNC_STARTED: AtomicBool = AtomicBool::new(false);
@@ -11,10 +11,10 @@
  const FEATURED_PLUGIN_IDS_CACHE_TTL: std::time::Duration =
      std::time::Duration::from_secs(60 * 60 * 3);
  
-@@ -1650,6 +1654,9 @@
+@@ -2518,6 +2522,9 @@
      }
  
-     fn start_curated_repo_sync(self: &Arc<Self>) {
+     fn start_curated_repo_sync(self: &Arc<Self>, http_client_factory: HttpClientFactory) {
 +        if !CURATED_REPO_SYNC_ENABLED {
 +            return;
 +        }
