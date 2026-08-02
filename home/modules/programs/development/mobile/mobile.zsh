@@ -12,8 +12,16 @@
 # the pty's LF->CRLF translation that corrupts binary output. screencap can warn
 # and still exit 0, so success is decided by a valid PNG signature coming back,
 # not by adb's exit code.
+#
+# `exec-out` merges the device's stderr into the same stream as its stdout, so a
+# device-side warning lands *inside* the PNG. Suppressing it needs the redirect
+# to run on the device (inside the quoted command), not on the local adb.
+#
+# Foldables expose several internal displays and screencap defaults to "the
+# first one found", which is not stable across captures and is usually the panel
+# that is currently off. The powered-on display is picked explicitly.
 copy_android_screenshot() {
-    local want="$1" tmp serial sel r
+    local want="$1" tmp serial sel r display
     local -a rows
 
     rows=("${(@f)$(adb devices -l 2>/dev/null | awk '
@@ -53,7 +61,12 @@ copy_android_screenshot() {
     fi
 
     tmp="$(mktemp --suffix=.png)" || return 1
-    adb -s "$serial" exec-out screencap -p >"$tmp" 2>/dev/null
+
+    display="$(adb -s "$serial" shell dumpsys SurfaceFlinger --displays 2>/dev/null |
+        tr -d '\r' |
+        awk '/^Display [0-9]+$/ { id = $2 } /powerMode=On$/ { print id; exit }')"
+
+    adb -s "$serial" exec-out "screencap -p ${display:+-d $display} 2>/dev/null" >"$tmp" 2>/dev/null
 
     if [ -s "$tmp" ] && [ "$(od -An -tx1 -N4 "$tmp" | tr -d ' \n')" = "89504e47" ]; then
         wl-copy --type image/png <"$tmp"
