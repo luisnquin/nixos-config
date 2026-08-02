@@ -122,6 +122,20 @@
     });
   })
   (_final: prev: {
+    # 3.7b's window_tree_build reads `s = l[n - 1]` once outside the loop, so the
+    # session-group check runs against the last session for every iteration and
+    # `continue` skips all of them: choose-tree/choose-window/choose-session draw
+    # nothing whenever a grouped session exists (ssh-gateway makes one). Fixed
+    # upstream after 3.7b; drop once nixpkgs ships 3.8.
+    tmux = prev.tmux.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/tmux/window-tree-per-session-group-check.patch
+        ];
+    });
+  })
+  (_final: prev: {
     # Must stay after hyprdysmorphic, which replaces `hyprland` outright.
     # The grep turns a moved banner into a build failure instead of a no-op.
     hyprland = prev.hyprland.overrideAttrs (old: {
