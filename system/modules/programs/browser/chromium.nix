@@ -56,6 +56,8 @@
       "DefaultCookiesSetting" = 4;
       "CookiesAllowedForUrls" = [
         (libx.base64.decode "aHR0cHM6Ly9wcm90ZWN0LXVlLmlzbWFydGxpZmUubWUK")
+        "https://grapheneos.org"
+        "https://releases.grapheneos.org"
       ];
 
       "DnsOverHttpsMode" = "secure";
