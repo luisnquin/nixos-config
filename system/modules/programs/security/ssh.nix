@@ -18,6 +18,8 @@ in {
       HostName rose.local
   '';
 
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = config.services.openssh.ports;
+
   environment = {
     systemPackages = with pkgs; [
       fast-ssh
@@ -88,7 +90,7 @@ in {
       ports = [
         357
       ];
-      openFirewall = true;
+      openFirewall = false;
 
       settings = {
         Banner = "/etc/ssh/ssh-banner";
@@ -99,8 +101,10 @@ in {
         ChallengeResponseAuthentication = "no";
         PermitRootLogin = "no";
         MaxAuthTries = 3;
+        LoginGraceTime = 20;
         AllowUsers = [user.alias];
         X11Forwarding = false;
+        AllowAgentForwarding = false;
         ClientAliveCountMax = 3;
         ClientAliveInterval = 60;
       };
