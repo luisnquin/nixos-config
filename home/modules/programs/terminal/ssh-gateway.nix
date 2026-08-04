@@ -12,19 +12,31 @@
   };
 in {
   programs.zsh.initContent = lib.mkBefore ''
-    if [[ -o interactive && -n "$SSH_CONNECTION" && -z "$HERDR_ENV" && -z "$TMUX" ]]; then
-      gw_summary=$(${lib.getExe summary} ${herdrSession} 2>/dev/null)
-      if [[ -n "$gw_summary" ]]; then
-        print -r -- "$gw_summary"
-      else
-        print -P ""
-        print -P "  incoming ssh — %F{cyan}[h]%f herdr  %F{green}[t]%f tmux  %F{yellow}[z]%f zsh"
-      fi
-      unset gw_summary
-      print -Pn "  > "
-      read -k 1 -t 10 reply || reply=h
+    if [[ -o interactive && -t 0 && -n "$SSH_CONNECTION" && -z "$HERDR_ENV" && -z "$TMUX" ]]; then
+      gw_shown=""
+      gw_lines=0
+      while true; do
+        gw_summary=$(${lib.getExe summary} ${herdrSession} 2>/dev/null)
+        if [[ -z "$gw_summary" ]]; then
+          gw_summary=$'\n  incoming ssh — [h] herdr  [t] tmux  [z] zsh'
+        fi
+        if [[ "$gw_summary" != "$gw_shown" ]]; then
+          (( gw_lines > 0 )) && print -n $'\e['"$gw_lines"$'A\e[J'
+          print -r -- "$gw_summary"
+          print -Pn "  > "
+          # array assignment is the only form that keeps the blank separator
+          # lines; a scalar ''${#''${(@f)...}} silently drops them and the
+          # cursor walks up into the banner on every repaint
+          gw_rows=("''${(@f)gw_summary}")
+          gw_lines=$#gw_rows
+          gw_shown="$gw_summary"
+        fi
+        read -k 1 -t 2 reply && break
+      done
+      unset gw_summary gw_shown gw_lines gw_rows
       print ""
       case "$reply" in
+        h) exec ${lib.getExe pkgs.herdr} --session ${herdrSession} ;;
         t)
           base=$(${lib.getExe pkgs.tmux} list-sessions -F '#{session_last_attached} #{session_name}' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
           if [[ -n "$base" ]]; then
@@ -33,8 +45,7 @@ in {
             exec ${lib.getExe pkgs.tmux} new-session -A -s ssh
           fi
           ;;
-        z) ;;
-        *) exec ${lib.getExe pkgs.herdr} --session ${herdrSession} ;;
+        *) ;;
       esac
     fi
   '';
