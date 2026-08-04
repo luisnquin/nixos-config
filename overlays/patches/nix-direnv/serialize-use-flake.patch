@@ -1,0 +1,46 @@
+diff --git a/direnvrc b/direnvrc
+--- a/direnvrc
++++ b/direnvrc
+@@ -273,7 +273,7 @@ _nix_direnv_warn_manual_reload() {
+   fi
+ }
+
+-use_flake() {
++_nix_direnv_use_flake() {
+   if ! _nix_direnv_preflight; then
+     return 1
+   fi
+@@ -396,6 +396,33 @@ use_flake() {
+   _nix_import_env "$profile_rc"
+ }
+
++use_flake() {
++  local layout_dir lock_fd status
++  layout_dir=$(direnv_layout_dir)
++
++  if ! mkdir -p "$layout_dir"; then
++    _nix_direnv_error "could not create cache directory: $layout_dir"
++    return 1
++  fi
++
++  if ! exec {lock_fd}>"${layout_dir}/.nix-direnv-use-flake.lock"; then
++    _nix_direnv_error "could not open use_flake cache lock"
++    return 1
++  fi
++
++  if ! flock "$lock_fd"; then
++    exec {lock_fd}>&-
++    _nix_direnv_error "could not acquire use_flake cache lock"
++    return 1
++  fi
++
++  _nix_direnv_use_flake "$@"
++  status=$?
++
++  exec {lock_fd}>&-
++  return "$status"
++}
++
+ use_nix() {
+   if ! _nix_direnv_preflight; then
+     return 1
