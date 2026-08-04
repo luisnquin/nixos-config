@@ -11,6 +11,8 @@
 
   shared.alacritty.enable = true;
 
+  home.packages = [pkgs.tmuxp];
+
   # Every ghostty surface is its own pty and so gets its own tmux client. Bare
   # `tmux` is `new-session`, which mints a fresh session per surface and never
   # reclaims the ones left detached when a surface closes. Take over an
