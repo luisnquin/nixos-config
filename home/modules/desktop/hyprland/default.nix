@@ -10,7 +10,7 @@ args @ {
   ghosttyDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux";
 
   herdrDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear --keybind=ctrl+shift+c=copy_to_clipboard --keybind=ctrl+shift+v=paste_from_clipboard -e ${pkgs.writeShellScript "herdr-scratchpad" ''
-    exec ${lib.getExe pkgs.herdr} --session hyprland
+    exec ${lib.getExe pkgs.herdr} --session hub
   ''}";
 
   waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''

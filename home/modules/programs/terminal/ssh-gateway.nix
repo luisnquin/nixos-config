@@ -3,7 +3,7 @@
   pkgs,
   ...
 }: let
-  herdrSession = "hyprland";
+  herdrSession = "hub";
 
   summary = pkgs.writeShellApplication {
     name = "ssh-gateway-summary";

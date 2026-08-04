@@ -36,7 +36,7 @@ rel() {
   fi
 }
 
-herdr_session=${1:-hyprland}
+herdr_session=${1:-hub}
 herdr_color=$dim
 herdr_note="$herdr_session down"
 herdr_tree=''
