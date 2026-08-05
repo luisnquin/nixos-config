@@ -44,43 +44,6 @@
     });
   })
   (_final: prev: {
-    # Temporary until nix-direnv serializes concurrent use_flake cache refreshes.
-    nix-direnv = let
-      extendAttrs = attrs:
-        attrs
-        // {
-          patches =
-            (attrs.patches or [])
-            ++ [
-              ./patches/nix-direnv/serialize-use-flake.patch
-            ];
-          solutions =
-            attrs.solutions
-            // {
-              default =
-                attrs.solutions.default
-                // {
-                  inputs = attrs.solutions.default.inputs ++ [prev.util-linux];
-                  execer =
-                    (attrs.solutions.default.execer or [])
-                    ++ ["cannot:${prev.lib.getExe' prev.util-linux "flock"}"];
-                };
-            };
-        };
-      resholve =
-        prev.resholve
-        // {
-          mkDerivation = attrs:
-            prev.resholve.mkDerivation (
-              if builtins.isFunction attrs
-              then finalAttrs: extendAttrs (attrs finalAttrs)
-              else extendAttrs attrs
-            );
-        };
-    in
-      prev.nix-direnv.override {inherit resholve;};
-  })
-  (_final: prev: {
     # Temporary pin past upstream #510; drop once nixpkgs ships 0.9.1 or newer.
     # print_help and handle_subcommand both moved, so nixpkgs' own
     # remove-install-update.diff no longer applies and is replaced by a copy
