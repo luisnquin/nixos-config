@@ -1,19 +1,22 @@
-diff --git a/direnvrc b/direnvrc
 --- a/direnvrc
 +++ b/direnvrc
-@@ -273,7 +273,7 @@ _nix_direnv_warn_manual_reload() {
+@@ -273,7 +273,7 @@
    fi
  }
-
+ 
 -use_flake() {
 +_nix_direnv_use_flake() {
    if ! _nix_direnv_preflight; then
      return 1
    fi
-@@ -396,6 +396,33 @@ use_flake() {
-   _nix_import_env "$profile_rc"
- }
-
+@@ -393,7 +393,43 @@
+     fi
+   fi
+ 
+-  _nix_import_env "$profile_rc"
++  _nix_direnv_profile_rc="$profile_rc"
++}
++
 +use_flake() {
 +  local layout_dir lock_fd status
 +  layout_dir=$(direnv_layout_dir)
@@ -28,19 +31,26 @@ diff --git a/direnvrc b/direnvrc
 +    return 1
 +  fi
 +
-+  if ! flock "$lock_fd"; then
-+    exec {lock_fd}>&-
-+    _nix_direnv_error "could not acquire use_flake cache lock"
-+    return 1
++  # lock_fd has no close-on-exec, so a daemon started under the lock keeps it
++  # held after every shell in its ancestry is gone. Never block forever on it.
++  if ! flock -w 120 "$lock_fd"; then
++    _nix_direnv_warning "use_flake cache lock timed out, refreshing unserialized"
 +  fi
 +
-+  _nix_direnv_use_flake "$@"
-+  status=$?
++  status=0
++  _nix_direnv_profile_rc=
++  _nix_direnv_use_flake "$@" || status=$?
 +
 +  exec {lock_fd}>&-
-+  return "$status"
-+}
 +
++  # Outside the lock on purpose: this evaluates the devShell rc, running the
++  # flake's shellHook, and any daemon it spawns would inherit lock_fd.
++  if [[ $status -eq 0 ]]; then
++    _nix_import_env "$_nix_direnv_profile_rc" || status=$?
++  fi
++
++  unset _nix_direnv_profile_rc
++  return "$status"
+ }
+ 
  use_nix() {
-   if ! _nix_direnv_preflight; then
-     return 1
