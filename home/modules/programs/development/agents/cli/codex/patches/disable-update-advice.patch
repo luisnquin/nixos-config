@@ -1,7 +1,7 @@
 diff --git a/tui/src/updates.rs b/tui/src/updates.rs
 --- a/tui/src/updates.rs
 +++ b/tui/src/updates.rs
-@@ -6,51 +6,19 @@ use crate::npm_registry::NpmPackageInfo;
+@@ -6,55 +6,22 @@ use crate::npm_registry::NpmPackageInfo;
  use crate::update_action;
  use crate::update_action::UpdateAction;
  use crate::update_versions::extract_version_from_latest_tag;
@@ -12,7 +12,10 @@ diff --git a/tui/src/updates.rs b/tui/src/updates.rs
  use crate::updates_cache::version_filepath;
 -use chrono::Duration;
  use chrono::Utc;
- use codex_login::default_client::create_client;
+ use codex_http_client::ClientRouteClass;
+ use codex_http_client::HttpClientFactory;
+ use codex_http_client::RouteAwareClientPool;
+ use codex_login::default_client::default_headers;
  use serde::Deserialize;
  use std::path::Path;
  
@@ -33,11 +36,12 @@ diff --git a/tui/src/updates.rs b/tui/src/updates.rs
 -        None => true,
 -        Some(info) => info.last_checked_at < Utc::now() - Duration::hours(20),
 -    } {
+-        let http_client_factory = config.http_client_factory();
 -        // Refresh the cached latest version in the background so TUI startup
 -        // isn’t blocked by a network call. The UI reads the previously cached
 -        // value (if any) for this run; the next run shows the banner if needed.
 -        tokio::spawn(async move {
--            check_for_update(&version_file, action)
+-            check_for_update(&version_file, action, http_client_factory)
 -                .await
 -                .inspect_err(|e| tracing::error!("Failed to update version: {e}"))
 -        });

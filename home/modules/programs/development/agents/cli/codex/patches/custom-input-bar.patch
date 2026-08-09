@@ -35,7 +35,7 @@ index 2423647b38..8c60b1c6f8 100644
 @@ -4386,6 +4401,6 @@ impl ChatComposer {
          }
          let style = user_message_style();
--        Block::default().style(style).render_ref(composer_rect, buf);
+-        Block::default().style(style).render(composer_rect, buf);
 +        render_custom_input_bar(composer_rect, buf);
          if !remote_images_rect.is_empty() {
              Paragraph::new(self.attachments.remote_image_lines())

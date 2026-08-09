@@ -11,10 +11,11 @@
  const FEATURED_PLUGIN_IDS_CACHE_TTL: std::time::Duration =
      std::time::Duration::from_secs(60 * 60 * 3);
  
-@@ -2518,6 +2522,9 @@
-     }
- 
-     fn start_curated_repo_sync(self: &Arc<Self>, http_client_factory: HttpClientFactory) {
+@@ -2597,7 +2601,10 @@
+         self: &Arc<Self>,
+         http_client_factory: HttpClientFactory,
+         on_effective_plugins_changed: Option<EffectivePluginsChangedCallback>,
+     ) {
 +        if !CURATED_REPO_SYNC_ENABLED {
 +            return;
 +        }

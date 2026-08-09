@@ -13,10 +13,11 @@ index 7be1146df5..0eb9c3f55e 100644
  [dependencies]
  anyhow = { workspace = true }
  clap = { workspace = true, features = ["derive", "env"] }
-@@ -28,7 +32,7 @@ codex-app-server-test-client = { workspace = true }
+@@ -28,8 +32,8 @@ codex-app-server-test-client = { workspace = true }
  codex-arg0 = { workspace = true }
  codex-api = { workspace = true }
  codex-chatgpt = { workspace = true }
+ codex-cloud-config = { workspace = true }
 -codex-cloud-tasks = { path = "../cloud-tasks" }
 +codex-cloud-tasks = { path = "../cloud-tasks", optional = true }
  codex-utils-cli = { workspace = true }
