@@ -8,6 +8,7 @@
     ./discovery.nix
     ./hosts.nix
     ./ntfy.nix
+    ./usb-tether.nix
     ./vpn.nix
     ./tools.nix
   ];
