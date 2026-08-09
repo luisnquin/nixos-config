@@ -16,6 +16,10 @@ in {
   programs.ssh.extraConfig = ''
     Host mac-local
       HostName rose.local
+
+    Host ori0n ori0n.local
+      Port 963
+      User luisnquin
   '';
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = config.services.openssh.ports;
