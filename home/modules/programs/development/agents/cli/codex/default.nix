@@ -53,6 +53,9 @@ in {
     '';
 
     settings = {
+      model = "gpt-5.6-sol";
+      model_reasoning_effort = "medium";
+
       analytics.enabled = true;
       feedback.enabled = true;
       mcp_servers = kit.mkMcpServers {
