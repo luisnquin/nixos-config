@@ -74,6 +74,9 @@ in {
           "e2e-testing-patterns"
         ];
       })
+      (mkSkill {src = inputs.herdr;} {
+        plugins = ["herdr"];
+      })
       (mkInlineSkill {
           "sickdeck" = {
             description = "Drive iOS simulators and Android emulators on the remote mac rose — lifecycle, app install/launch, live viewing, UI inspection, touch/keyboard automation, screenshots, recordings, logs, pasteboard, hardware controls, and repeatable flows.";
