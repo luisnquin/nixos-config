@@ -44,6 +44,15 @@
     });
   })
   (_final: prev: {
+    handy = prev.handy.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/handy/comfortable-overlay-spacing.patch
+        ];
+    });
+  })
+  (_final: prev: {
     # Temporary pin past upstream #510; drop once nixpkgs ships 0.9.1 or newer.
     # print_help and handle_subcommand both moved, so nixpkgs' own
     # remove-install-update.diff no longer applies and is replaced by a copy
