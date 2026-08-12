@@ -84,13 +84,19 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
         });
     }
 
-    // the iPhone is reachable through the tunnel or not at all; there is no adb
-    // transport to remember, so it never enters the registry.
+    // there is no adb transport to remember, but the row still has to outlive the
+    // tunnel: it drops often enough that a device that is only listed while
+    // reachable cannot be selected, queued for, or made the default.
+    //
+    // `last_connected` stays unset on purpose — a bare `phone connect` reaches
+    // for the most recent device, and the iPhone has nothing to connect to.
     for device in iphones {
         claimed.insert(device.id.clone());
 
+        let stored = reg.upsert(device).clone();
+
         views.push(View {
-            device,
+            device: stored,
             reach: Reach::Online,
         });
     }
