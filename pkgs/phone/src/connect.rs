@@ -5,7 +5,7 @@ use anyhow::{anyhow, bail, Result};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::adb;
-use crate::discover::{avahi, split_addr, sweep};
+use crate::discover::{avahi, split_addr, sweep, tailscale};
 use crate::model::{Device, Pin};
 use crate::registry::Registry;
 
@@ -232,6 +232,12 @@ async fn try_sweep(
         return Ok(None);
     };
 
+    if !tailnet_routable(&tailnet.ip).await {
+        rep.fail(format!("sweep: {} is not on the tailnet", device.label));
+
+        return Ok(None);
+    }
+
     rep.try_(format!(
         "sweep {} ports {}-{}",
         tailnet.ip,
@@ -277,6 +283,21 @@ async fn try_sweep(
     rep.fail("sweep: no candidate spoke adb");
 
     Ok(None)
+}
+
+/// Whether the tailnet still carries `ip`. A 100.x address only routes while
+/// its node holds a connection, so sweeping one that does not means waiting out
+/// the timeout on every port in the range.
+async fn tailnet_routable(ip: &str) -> bool {
+    match tailscale::peers().await {
+        Ok(peers) => routable(&peers, ip),
+        // with no answer from tailscaled there is nothing to rule the sweep out
+        Err(_) => true,
+    }
+}
+
+fn routable(peers: &[tailscale::Peer], ip: &str) -> bool {
+    peers.iter().any(|p| p.ip == ip && p.online)
 }
 
 fn remember(reg: &mut Registry, device: &Device, host: &str, port: u16, pin: Pin) {
@@ -405,4 +426,41 @@ pub async fn pair(addr: Option<&str>, code: &str, rep: &Reporter) -> Result<Stri
     rep.done(format!("paired with {addr}"));
 
     Ok(addr)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn peer(ip: &str, online: bool) -> tailscale::Peer {
+        tailscale::Peer {
+            hostname: "moriarty".into(),
+            ip: ip.into(),
+            node_id: "nXXXX".into(),
+            os: "android".into(),
+            online,
+            last_seen: None,
+        }
+    }
+
+    #[test]
+    fn an_offline_peer_is_not_worth_sweeping() {
+        let peers = [peer("100.75.85.98", false)];
+
+        assert!(!routable(&peers, "100.75.85.98"));
+    }
+
+    #[test]
+    fn an_online_peer_is() {
+        let peers = [peer("100.75.85.98", true)];
+
+        assert!(routable(&peers, "100.75.85.98"));
+    }
+
+    #[test]
+    fn an_address_the_tailnet_no_longer_lists_is_not() {
+        let peers = [peer("100.127.25.101", true)];
+
+        assert!(!routable(&peers, "100.75.85.98"));
+    }
 }
