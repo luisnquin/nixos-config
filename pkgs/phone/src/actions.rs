@@ -86,9 +86,7 @@ pub async fn screenshot(device: &Device, sink: &Sink, rep: &Reporter) -> Result<
         Sink::Clipboard => {
             let mut cmd = tokio::process::Command::new("wl-copy");
 
-            cmd.args(["--type", "image/png"])
-                .stdin(Stdio::piped())
-                .stderr(Stdio::piped());
+            cmd.args(["--type", "image/png"]);
 
             // wl-copy forks a daemon that keeps serving the selection, so the
             // image only lives as long as that process does. Leaving it in this
@@ -96,26 +94,46 @@ pub async fn screenshot(device: &Device, sink: &Sink, rep: &Reporter) -> Result<
             // contents away along with the TUI.
             cmd.process_group(0);
 
-            let mut child = cmd.spawn().context("running wl-copy")?;
-
-            if let Some(mut stdin) = child.stdin.take() {
-                use tokio::io::AsyncWriteExt as _;
-                stdin.write_all(&png).await?;
-                stdin.shutdown().await?;
-            }
-
-            let out = child.wait_with_output().await?;
-
-            if !out.status.success() {
-                bail!(
-                    "wl-copy failed: {}",
-                    String::from_utf8_lossy(&out.stderr).trim()
-                );
-            }
+            pipe_to(&mut cmd, &png, "wl-copy").await?;
 
             Ok(format!("copied {} to the clipboard", device.label))
         }
     }
+}
+
+/// Feeds `bytes` to `cmd` on stdin and waits for it to exit. Only the front
+/// process is waited on: anything it forks off inherits the stderr pipe and can
+/// outlive it, so that pipe is read on failure alone.
+async fn pipe_to(cmd: &mut tokio::process::Command, bytes: &[u8], what: &str) -> Result<()> {
+    cmd.stdin(Stdio::piped()).stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().with_context(|| format!("running {what}"))?;
+
+    let wrote = match child.stdin.take() {
+        Some(mut stdin) => {
+            use tokio::io::AsyncWriteExt as _;
+            stdin.write_all(bytes).await.and(stdin.shutdown().await)
+        }
+        None => Ok(()),
+    };
+
+    let mut stderr = child.stderr.take();
+    let status = child.wait().await?;
+
+    if !status.success() {
+        let mut msg = String::new();
+
+        if let Some(stderr) = stderr.as_mut() {
+            use tokio::io::AsyncReadExt as _;
+            let _ = stderr.read_to_string(&mut msg).await;
+        }
+
+        bail!("{what} failed: {}", msg.trim());
+    }
+
+    wrote.with_context(|| format!("writing to {what}"))?;
+
+    Ok(())
 }
 
 fn is_png(bytes: &[u8]) -> bool {
@@ -204,4 +222,34 @@ pub async fn install(device: &Device, apk: &Path, rep: &Reporter) -> Result<Stri
     }
 
     Ok(format!("installed on {}", device.label))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn returns_before_a_forked_grandchild_exits() {
+        let mut cmd = tokio::process::Command::new("sh");
+        cmd.args(["-c", "cat >/dev/null; sleep 20 & exit 0"]);
+
+        let start = std::time::Instant::now();
+
+        pipe_to(&mut cmd, b"payload", "sh").await.unwrap();
+
+        assert!(
+            start.elapsed() < Duration::from_secs(5),
+            "waited on a process that inherited stderr and outlived the child"
+        );
+    }
+
+    #[tokio::test]
+    async fn reports_the_stderr_of_a_failing_child() {
+        let mut cmd = tokio::process::Command::new("sh");
+        cmd.args(["-c", "cat >/dev/null; echo boom >&2; exit 1"]);
+
+        let err = pipe_to(&mut cmd, b"payload", "wl-copy").await.unwrap_err();
+
+        assert_eq!(err.to_string(), "wl-copy failed: boom");
+    }
 }
