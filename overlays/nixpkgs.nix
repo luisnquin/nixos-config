@@ -43,6 +43,39 @@
       '';
     });
   })
+  (_final: prev: rec {
+    codex = prev.llm-agents.codex.overrideAttrs (old: let
+      devServerInstruction = "When building a site or app that needs a dev server to run properly, you start the local dev server after implementation and give the user the URL so they can try it. If there's already a server on that port, you use another one. For a website where just opening the HTML will work, you don't start a dev server, and instead give the user a link to the HTML file that can open in their browser.\\n\\n";
+    in {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/codex/recursive-project-trust.patch
+          ./patches/codex/git-remote-show-no-fetch.patch
+          ./patches/codex/curated-plugins-disable-sync.patch
+          ./patches/codex/presentation-card.patch
+          ./patches/codex/terminal-terminfo-dirs.patch
+          ./patches/codex/custom-input-bar.patch
+          ./patches/codex/disable-cloud-tasks.patch
+          ./patches/codex/default-bypass-hook-trust.patch
+          ./patches/codex/disable-update-advice.patch
+          ./patches/codex/session-only-directory-trust.patch
+          ./patches/codex/disable-config-toml-writes.patch
+          ./patches/codex/default-yolo.patch
+          ./patches/codex/status-line-short-cwd.patch
+          ./patches/codex/status-line-effective-reasoning.patch
+        ];
+
+      postPatch =
+        (old.postPatch or "")
+        + ''
+          substituteInPlace models-manager/models.json \
+            --replace-fail ${prev.lib.escapeShellArg devServerInstruction} ""
+        '';
+    });
+
+    llm-agents = prev.llm-agents // {inherit codex;};
+  })
   (_final: prev: {
     handy = prev.handy.overrideAttrs (old: {
       patches =
