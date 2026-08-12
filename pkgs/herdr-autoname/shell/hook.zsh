@@ -9,7 +9,7 @@ if [[ -n ${HERDR_TAB_ID:-} && -x $_herdr_autoname_bin ]]; then
     ("$_herdr_autoname_bin" preexec "${2:-$1}" &) >/dev/null 2>&1
   }
   _herdr_autoname_precmd() {
-    ("$_herdr_autoname_bin" precmd zsh &) >/dev/null 2>&1
+    ("$_herdr_autoname_bin" precmd "${ZSH_NAME:-zsh}" "$PWD" &) >/dev/null 2>&1
   }
   autoload -Uz add-zsh-hook
   add-zsh-hook preexec _herdr_autoname_preexec
