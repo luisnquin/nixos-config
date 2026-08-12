@@ -236,7 +236,7 @@
       perSystem = {system, ...}: let
         pkgs = mkPkgs system;
       in {
-        packages.setup = pkgs.callPackage ./installer {};
+        packages = (import ./pkgs pkgs) // {setup = pkgs.callPackage ./installer {};};
       };
 
       flake = rec {

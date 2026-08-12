@@ -119,26 +119,13 @@
     '';
   };
 
-  voiceGatewayBinary = pkgs.buildGoModule {
-    pname = "voice-gateway";
-    version = "0.1.0";
-
-    src = lib.cleanSource ./voice-gateway;
-    vendorHash = null;
-
-    env.CGO_ENABLED = 0;
-    ldflags = ["-s" "-w"];
-
-    meta.mainProgram = "voice-gateway";
-  };
-
   voiceGateway = pkgs.writeShellApplication {
     name = "voice-gateway";
     runtimeInputs = [
       config.programs.codex.package
       pkgs.herdr
       pkgs.rtk
-      voiceGatewayBinary
+      pkgs.voice-gateway
     ];
     text = ''
       export VOICE_CODEX_BIN="''${VOICE_CODEX_BIN:-${lib.getExe config.programs.codex.package}}"
@@ -150,7 +137,7 @@
       export VOICE_SKILL_PATH="''${VOICE_SKILL_PATH:-${config.home.homeDirectory}/.agents/skills/voice-orchestrator/SKILL.md}"
       export VOICE_HERDR_SESSION="''${VOICE_HERDR_SESSION:-hub}"
       export HERDR_ENV="''${HERDR_ENV:-1}"
-      exec ${lib.getExe voiceGatewayBinary} "$@"
+      exec ${lib.getExe pkgs.voice-gateway} "$@"
     '';
   };
 
@@ -253,10 +240,7 @@ in {
       Description = "Persistent Codex voice orchestrator";
       After = ["network-online.target"];
       Wants = ["network-online.target"];
-      X-Restart-Triggers = [
-        "${./voice-gateway}"
-        voiceGateway
-      ];
+      X-Restart-Triggers = [voiceGateway];
     };
 
     Service = {

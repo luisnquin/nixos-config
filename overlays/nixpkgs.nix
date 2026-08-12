@@ -208,23 +208,9 @@
       };
     };
   })
-  (final: _prev: {
-    herdr-autoname = final.rustPlatform.buildRustPackage {
-      pname = "herdr-autoname";
-      version = "0.1.0";
-
-      src = final.lib.cleanSource ./herdr-autoname;
-
-      cargoLock.lockFile = ./herdr-autoname/Cargo.lock;
-
-      postInstall = ''
-        cp herdr-plugin.toml $out/
-        install -Dm644 shell/hook.zsh $out/shell/hook.zsh
-      '';
-
-      meta.mainProgram = "herdr-autoname";
-    };
-  })
+  # first-party packages living at the repo root, so they are reachable as
+  # `pkgs.<name>` from any module instead of each one being wired its own way
+  (final: _prev: import ../pkgs final)
   (final: _prev: {
     # Mic92's OSC 52 fork of rmarganti/herdr-pluck: clipboard survives SSH panes.
     herdr-pluck = final.rustPlatform.buildRustPackage {

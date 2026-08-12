@@ -1,9 +1,17 @@
 {
   lib,
-  pkgs,
-  ...
+  rustPlatform,
+  installShellFiles,
+  makeWrapper,
+  android-tools,
+  avahi,
+  fzf,
+  openssh,
+  scrcpy,
+  tailscale,
+  wl-clipboard,
 }: let
-  runtimeInputs = with pkgs; [
+  runtimeInputs = [
     android-tools
     avahi
     fzf
@@ -12,8 +20,8 @@
     tailscale
     wl-clipboard
   ];
-
-  phone = pkgs.rustPlatform.buildRustPackage {
+in
+  rustPlatform.buildRustPackage {
     pname = "phone";
     version = "0.1.0";
 
@@ -29,7 +37,7 @@
 
     cargoLock.lockFile = ./Cargo.lock;
 
-    nativeBuildInputs = with pkgs; [installShellFiles makeWrapper];
+    nativeBuildInputs = [installShellFiles makeWrapper];
 
     postInstall = ''
       installShellCompletion --cmd phone \
@@ -42,7 +50,4 @@
     '';
 
     meta.mainProgram = "phone";
-  };
-in {
-  home.packages = [phone];
-}
+  }
