@@ -323,3 +323,14 @@ pub struct View {
     pub device: Device,
     pub reach: Reach,
 }
+
+impl View {
+    /// A capture needs a live transport, not just an answer: `Online` is a
+    /// tailnet ping, and adb cannot screencap through that.
+    pub fn can_shoot(&self) -> bool {
+        match self.device.platform {
+            Platform::Ios => self.reach == Reach::Online,
+            _ => self.reach.is_attached(),
+        }
+    }
+}

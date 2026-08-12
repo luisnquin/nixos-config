@@ -10,7 +10,7 @@ use crate::model::Reach;
 const KEYS: &[(&str, &str)] = &[
     ("enter/c", "connect"),
     ("d", "disconnect"),
-    ("s", "screenshot"),
+    ("s", "screenshot (queues if away)"),
     ("m", "mirror"),
     ("l", "logs"),
     ("p", "pin 5555"),
@@ -192,16 +192,20 @@ fn render_status(frame: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
-    let line = match &app.busy {
-        Some(busy) => Line::from(Span::styled(
+    let line = match (&app.busy, app.queued_label()) {
+        (Some(busy), _) => Line::from(Span::styled(
             format!(" {busy}…"),
             Style::default().fg(Color::Cyan),
         )),
-        None if !app.filter.is_empty() => Line::from(Span::styled(
+        (None, Some(queued)) => Line::from(Span::styled(
+            format!(" waiting to shoot {queued}"),
+            Style::default().fg(Color::Yellow),
+        )),
+        _ if !app.filter.is_empty() => Line::from(Span::styled(
             format!(" filter: {}", app.filter),
             Style::default().fg(Color::DarkGray),
         )),
-        None => Line::from(""),
+        _ => Line::from(""),
     };
 
     frame.render_widget(Paragraph::new(line), area);

@@ -59,6 +59,18 @@ pub enum Outcome {
     Exec(std::process::Command),
 }
 
+/// A shot that has been asked for but has nothing to run against yet. The iPhone
+/// tunnel drops often enough that the row itself disappears, so the request is
+/// keyed on the device id and outlives the view it came from.
+#[derive(Clone)]
+pub struct Queued {
+    pub id: String,
+    pub label: String,
+    pub tries: u8,
+}
+
+const MAX_SHOT_TRIES: u8 = 3;
+
 pub struct App {
     pub reg: Shared,
     pub views: Vec<View>,
@@ -72,6 +84,8 @@ pub struct App {
     pub progress: Option<(usize, usize)>,
     pub current: Option<String>,
     pub quit: Option<Outcome>,
+    pub queue: Vec<Queued>,
+    shot: Option<Queued>,
     tx: UnboundedSender<Msg>,
 }
 
@@ -90,6 +104,8 @@ impl App {
             progress: None,
             current,
             quit: None,
+            queue: Vec::new(),
+            shot: None,
             tx,
         }
     }
@@ -135,6 +151,8 @@ impl App {
                         self.state.select(Some(pos));
                     }
                 }
+
+                self.drain_queue();
             }
             Msg::Step(step) => match step {
                 Step::Try(t) => self.push_log(Level::Try, t),
@@ -147,10 +165,18 @@ impl App {
                 self.busy = None;
                 self.progress = None;
 
+                let shot = self.shot.take();
+
                 match res {
                     Ok(text) if !text.is_empty() => self.push_log(Level::Done, text),
                     Ok(_) => {}
-                    Err(e) => self.push_log(Level::Fail, e),
+                    Err(e) => {
+                        self.push_log(Level::Fail, e);
+
+                        if let Some(shot) = shot {
+                            self.requeue(shot);
+                        }
+                    }
                 }
 
                 self.refresh();
@@ -308,15 +334,102 @@ impl App {
         });
     }
 
+    /// Queues a shot for the selected device, or drops the one already queued.
+    /// Nothing here needs the device to be reachable: that is the whole point.
     pub fn shot_selected(&mut self) {
-        let Some(view) = self.selected() else { return };
+        let Some((id, label)) = self.picked() else {
+            return;
+        };
 
-        let device = view.device.clone();
+        if let Some(pos) = self.queue.iter().position(|q| q.id == id) {
+            self.queue.remove(pos);
+            self.push_log(Level::Note, format!("dropped the queued shot for {label}"));
 
-        self.spawn(
-            format!("shot {}", device.label),
-            move |_reg, rep| async move { actions::screenshot(&device, &Sink::Clipboard, &rep).await },
-        );
+            return;
+        }
+
+        self.queue.push(Queued {
+            id: id.clone(),
+            label: label.clone(),
+            tries: 0,
+        });
+
+        self.drain_queue();
+
+        if self.queue.iter().any(|q| q.id == id) {
+            self.push_log(Level::Note, format!("queued a shot for {label}"));
+        }
+    }
+
+    fn ready_to_shoot(&self, id: &str) -> bool {
+        self.views
+            .iter()
+            .any(|v| v.device.id == id && v.can_shoot())
+    }
+
+    /// Fires the first queued shot whose device is back. Called on every survey,
+    /// so a device that reappears is captured within one tick of showing up.
+    fn drain_queue(&mut self) {
+        if self.busy.is_some() {
+            return;
+        }
+
+        let Some(pos) = self.queue.iter().position(|q| self.ready_to_shoot(&q.id)) else {
+            return;
+        };
+
+        let mut shot = self.queue.remove(pos);
+        shot.tries += 1;
+
+        let Some(device) = self
+            .views
+            .iter()
+            .find(|v| v.device.id == shot.id)
+            .map(|v| v.device.clone())
+        else {
+            return;
+        };
+
+        let label = device.label.clone();
+
+        self.shot = Some(shot);
+
+        self.spawn(format!("shot {label}"), move |_reg, rep| async move {
+            actions::screenshot(&device, &Sink::Clipboard, &rep).await
+        });
+    }
+
+    /// A capture that died because the device went away is the case the queue
+    /// exists for, so it goes back in line. Bounded: one that is still listed and
+    /// still failing (locked, asleep) would otherwise retry forever.
+    fn requeue(&mut self, shot: Queued) {
+        if shot.tries >= MAX_SHOT_TRIES {
+            self.push_log(
+                Level::Fail,
+                format!("gave up on {} after {} tries", shot.label, shot.tries),
+            );
+
+            return;
+        }
+
+        self.push_log(Level::Note, format!("re-queued the shot for {}", shot.label));
+        self.queue.push(shot);
+    }
+
+    /// The queue outlives the rows it was built from, so it needs a line of its
+    /// own; a device waiting on the tunnel has nothing left in the list.
+    pub fn queued_label(&self) -> Option<String> {
+        if self.queue.is_empty() {
+            return None;
+        }
+
+        Some(
+            self.queue
+                .iter()
+                .map(|q| q.label.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+        )
     }
 
     pub fn mirror_selected(&mut self) {
@@ -526,4 +639,91 @@ pub fn row_fields(view: &View) -> (String, String, String, String) {
     };
 
     (d.label.clone(), d.model.clone(), view.reach.label(), detail)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Device;
+
+    fn view(id: &str, platform: Platform, reach: Reach) -> View {
+        View {
+            device: Device::new(id, id, platform),
+            reach,
+        }
+    }
+
+    fn app_with(views: Vec<View>) -> App {
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut app = App::new(Arc::new(Mutex::new(Registry::default())), None, tx);
+
+        app.views = views;
+        app.refilter();
+        app
+    }
+
+    #[test]
+    fn a_tailnet_answer_is_not_a_transport() {
+        let app = app_with(vec![
+            view("phone", Platform::Android, Reach::Online),
+            view("udid", Platform::Ios, Reach::Online),
+        ]);
+
+        assert!(!app.ready_to_shoot("phone"));
+        assert!(app.ready_to_shoot("udid"));
+    }
+
+    #[test]
+    fn an_unreachable_device_queues_the_shot() {
+        let mut app = app_with(vec![view("phone", Platform::Android, Reach::Online)]);
+
+        app.shot_selected();
+
+        assert_eq!(app.queue.len(), 1);
+        assert!(app.busy.is_none(), "ran a capture with no transport to run it on");
+    }
+
+    #[test]
+    fn shooting_a_queued_device_drops_it() {
+        let mut app = app_with(vec![view("phone", Platform::Android, Reach::Online)]);
+
+        app.shot_selected();
+        app.shot_selected();
+
+        assert!(app.queue.is_empty());
+    }
+
+    #[test]
+    fn a_queued_shot_outlives_its_row() {
+        let mut app = app_with(vec![view("udid", Platform::Ios, Reach::Known)]);
+
+        app.shot_selected();
+        app.on_msg(Msg::Views(Vec::new()));
+
+        assert_eq!(app.queue.len(), 1);
+        assert_eq!(app.queued_label().as_deref(), Some("udid"));
+    }
+
+    #[test]
+    fn a_failed_shot_goes_back_in_line_until_the_limit() {
+        let mut app = app_with(Vec::new());
+
+        app.requeue(Queued {
+            id: "udid".into(),
+            label: "udid".into(),
+            tries: 1,
+        });
+
+        assert_eq!(app.queue.len(), 1);
+
+        app.queue.clear();
+        app.requeue(Queued {
+            id: "udid".into(),
+            label: "udid".into(),
+            tries: MAX_SHOT_TRIES,
+        });
+
+        assert!(app.queue.is_empty(), "retried a device that keeps failing while present");
+    }
 }
