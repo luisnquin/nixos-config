@@ -69,21 +69,29 @@ in {
           delay_seconds = 1;
         };
 
-        sidebar.agents.rows_by_agent = builtins.listToAttrs (
-          map (agent: {
-            name = agent;
-            value = [
-              ["state_icon" "agent" "state_text"]
-              ["terminal_title_stripped"]
-              ["workspace" "tab"]
-            ];
-          }) [
-            "claude"
-            "codex"
-            "opencode"
-            "pi"
-          ]
-        );
+        # `$icon` comes from herdr-autoname's reported metadata.
+        sidebar = {
+          agents.rows_by_agent = builtins.listToAttrs (
+            map (agent: {
+              name = agent;
+              value = [
+                ["state_icon" "$icon" "state_text"]
+                ["terminal_title_stripped"]
+                ["workspace" "tab"]
+              ];
+            }) [
+              "claude"
+              "codex"
+              "opencode"
+              "pi"
+            ]
+          );
+
+          spaces.rows = [
+            ["state_icon" "$icon" "workspace"]
+            ["branch" "git_status"]
+          ];
+        };
       };
 
       keys = {
