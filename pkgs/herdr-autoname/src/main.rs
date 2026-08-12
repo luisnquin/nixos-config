@@ -1,4 +1,4 @@
-//! tmux-like automatic tab names for herdr.
+//! tmux-like automatic tab and space names for herdr.
 //!
 //! Modes:
 //!   event                 rename the tab the event points at (`HERDR_TAB_ID`)
@@ -9,6 +9,10 @@
 //! A tab renamed by the user is left alone: state remembers the last name we set
 //! per tab, and a label that is neither that name nor herdr's own tab number opts
 //! the tab out until it is renamed back.
+//!
+//! Spaces are named from the active tab's pane. herdr derives its own space label
+//! from the *first* tab's root pane, so a background pane decides the name of the
+//! space you are looking at; setting a custom name pins it to the visible pane.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -31,7 +35,8 @@ fn main() {
     let cfg = Config::load();
     let namer = Namer {
         cfg,
-        store: Store::new(state_dir()),
+        store: Store::new(tabs_dir()),
+        spaces: Store::new(spaces_dir()),
     };
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
@@ -39,7 +44,10 @@ fn main() {
             args.get(1)
                 .and_then(|cmdline| program_from_cmdline(cmdline, cfg.max_len)),
         ),
-        Some("precmd") => namer.rename_current(idle_name(&cfg, args.get(1), args.get(2))),
+        Some("precmd") => {
+            namer.rename_current(idle_name(&cfg, args.get(1), args.get(2)));
+            namer.rename_current_space(args.get(2).map(String::as_str));
+        }
         Some("refresh") => namer.reconcile(),
         _ => namer.event(),
     }
@@ -53,11 +61,19 @@ enum Idle {
     Shell,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum SpaceName {
+    Repo,
+    Cwd,
+    Off,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Config {
     idle: Idle,
     agent: bool,
     max_len: usize,
+    space: SpaceName,
 }
 
 impl Default for Config {
@@ -66,6 +82,7 @@ impl Default for Config {
             idle: Idle::Cwd,
             agent: true,
             max_len: DEFAULT_MAX_LEN,
+            space: SpaceName::Repo,
         }
     }
 }
@@ -80,6 +97,7 @@ impl Config {
             ("idle", "HERDR_AUTONAME_IDLE"),
             ("agent", "HERDR_AUTONAME_AGENT"),
             ("max_len", "HERDR_AUTONAME_MAX_LEN"),
+            ("space", "HERDR_AUTONAME_SPACE"),
         ] {
             if let Ok(value) = std::env::var(var) {
                 cfg.set(key, value.trim());
@@ -108,6 +126,13 @@ impl Config {
                 }
             }
             "agent" => self.agent = !matches!(value, "false" | "0" | "no" | "off"),
+            "space" => {
+                self.space = match value {
+                    "cwd" => SpaceName::Cwd,
+                    "false" | "0" | "no" | "off" => SpaceName::Off,
+                    _ => SpaceName::Repo,
+                }
+            }
             "max_len" => {
                 if let Ok(len) = value.parse::<usize>() {
                     if len > 0 {
@@ -135,8 +160,12 @@ fn config_path() -> PathBuf {
     xdg("XDG_CONFIG_HOME", ".config").join("herdr-autoname/config")
 }
 
-fn state_dir() -> PathBuf {
+fn tabs_dir() -> PathBuf {
     xdg("XDG_STATE_HOME", ".local/state").join("herdr-autoname/tabs")
+}
+
+fn spaces_dir() -> PathBuf {
+    xdg("XDG_STATE_HOME", ".local/state").join("herdr-autoname/spaces")
 }
 
 // ---- names ----
@@ -216,6 +245,17 @@ fn dir_name(path: &str, max_len: usize) -> Option<String> {
     sanitize(basename(trimmed), max_len)
 }
 
+/// Innermost ancestor holding a `.git` entry; a linked worktree keeps a file there.
+fn repo_root(cwd: &str) -> Option<PathBuf> {
+    let mut dir = Path::new(cwd);
+    loop {
+        if dir.join(".git").exists() {
+            return Some(dir.to_path_buf());
+        }
+        dir = dir.parent()?;
+    }
+}
+
 /// Name for a shell sitting at a prompt.
 fn idle_name(cfg: &Config, shell: Option<&String>, cwd: Option<&String>) -> Option<String> {
     let from_cwd = (cfg.idle == Idle::Cwd)
@@ -232,6 +272,13 @@ fn eligible(label: &str, number: Option<f64>, last_set: Option<&str>) -> bool {
         || last_set == Some(label)
 }
 
+/// A space label is always cwd-derived, so herdr's own name is indistinguishable
+/// from a user's. An untouched space is adopted; after that only our own name is
+/// ours to replace, and a foreign label opts the space out via the off marker.
+fn space_eligible(label: &str, last_set: Option<&str>) -> bool {
+    last_set.is_none() || last_set == Some(label)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Action {
     Skip,
@@ -239,8 +286,8 @@ enum Action {
     Rename,
 }
 
-fn decide(label: &str, number: Option<f64>, last_set: Option<&str>, name: &str) -> Action {
-    if !eligible(label, number, last_set) {
+fn decide(eligible: bool, label: &str, last_set: Option<&str>, name: &str) -> Action {
+    if !eligible {
         Action::Skip
     } else if label != name {
         Action::Rename
@@ -295,6 +342,17 @@ fn active_pane<'a>(panes: &'a [JsonValue], tab_id: &str) -> Option<&'a JsonValue
         [only] => Some(only),
         _ => in_tab.into_iter().find(|pane| is_true(pane, "focused")),
     }
+}
+
+/// The pane a space is named after: the focused pane of its active tab, else the
+/// first one. Unlike a tab name, a space name is better stale than missing.
+fn space_pane<'a>(panes: &'a [JsonValue], tab_id: &str) -> Option<&'a JsonValue> {
+    let mut in_tab = panes
+        .iter()
+        .filter(|pane| str_at(pane, &["tab_id"]) == Some(tab_id))
+        .peekable();
+    let first = in_tab.peek().copied();
+    in_tab.find(|pane| is_true(pane, "focused")).or(first)
 }
 
 /// `HERDR_PLUGIN_EVENT_JSON` holds the whole envelope; `tab.renamed` carries the
@@ -364,7 +422,26 @@ impl Store {
         let _ = std::fs::remove_file(self.dir.join(Self::key(tab_id)));
     }
 
-    /// Drop entries for tabs that no longer exist.
+    /// Marker for an id we must never rename again, kept beside its name entry.
+    fn off_key(id: &str) -> String {
+        format!("{}.off", Self::key(id))
+    }
+
+    fn is_off(&self, id: &str) -> bool {
+        self.dir.join(Self::off_key(id)).exists()
+    }
+
+    fn set_off(&self, id: &str) {
+        if self.ensure_dir() {
+            let _ = std::fs::write(self.dir.join(Self::off_key(id)), "");
+        }
+    }
+
+    fn clear_off(&self, id: &str) {
+        let _ = std::fs::remove_file(self.dir.join(Self::off_key(id)));
+    }
+
+    /// Drop entries for tabs or spaces that no longer exist.
     fn gc(&self, live: &HashSet<String>) {
         let Ok(entries) = std::fs::read_dir(&self.dir) else {
             return;
@@ -373,7 +450,8 @@ impl Store {
             let Ok(name) = entry.file_name().into_string() else {
                 continue;
             };
-            if name.contains(".tmp") || live.contains(&name) {
+            let key = name.strip_suffix(".off").unwrap_or(&name);
+            if name.contains(".tmp") || live.contains(key) {
                 continue;
             }
             let _ = std::fs::remove_file(entry.path());
@@ -386,6 +464,7 @@ impl Store {
 struct Namer {
     cfg: Config,
     store: Store,
+    spaces: Store,
 }
 
 impl Namer {
@@ -412,10 +491,22 @@ impl Namer {
                 return;
             }
             "tab.renamed" => return self.forget_if_user_renamed(),
+            "workspace.closed" => {
+                if let Ok(ws_id) = std::env::var("HERDR_WORKSPACE_ID") {
+                    self.spaces.clear(&ws_id);
+                    self.spaces.clear_off(&ws_id);
+                }
+                return;
+            }
+            "workspace.renamed" => return self.forget_space_if_user_renamed(),
             _ => {}
         }
         let Ok(tab_id) = std::env::var("HERDR_TAB_ID") else {
-            return self.reconcile();
+            // workspace.created and workspace.focused carry no tab.
+            return match std::env::var("HERDR_WORKSPACE_ID") {
+                Ok(ws_id) => self.rename_space(&ws_id, None),
+                Err(_) => self.reconcile(),
+            };
         };
         let pane = std::env::var("HERDR_PANE_ID")
             .ok()
@@ -423,6 +514,9 @@ impl Namer {
             .and_then(|response| at(&response, &["result", "pane"]).cloned())
             .filter(|pane| str_at(pane, &["tab_id"]) == Some(tab_id.as_str()))
             .or_else(|| self.active_pane_in(&tab_id));
+        if let Ok(ws_id) = std::env::var("HERDR_WORKSPACE_ID") {
+            self.rename_space(&ws_id, pane.as_ref());
+        }
         let Some(name) = pane.as_ref().and_then(|pane| self.name_for_pane(pane)) else {
             return;
         };
@@ -447,7 +541,31 @@ impl Namer {
         }
     }
 
-    /// Rename every tab and drop state for tabs that are gone.
+    /// Our own space renames come back as `workspace.renamed` too. A foreign label
+    /// opts the space out for good; renaming it back to the automatic name opts in.
+    fn forget_space_if_user_renamed(&self) {
+        let Ok(ws_id) = std::env::var("HERDR_WORKSPACE_ID") else {
+            return;
+        };
+        let Some(label) = event_label().or_else(|| {
+            let ws = herdr(&["workspace", "get", &ws_id])?;
+            str_at(&ws, &["result", "workspace", "label"]).map(str::to_string)
+        }) else {
+            return;
+        };
+        if self.spaces.get(&ws_id).as_deref() == Some(label.as_str()) {
+            return;
+        }
+        if self.space_name(&ws_id, None).as_deref() == Some(label.as_str()) {
+            self.spaces.clear_off(&ws_id);
+            self.spaces.set(&ws_id, &label);
+            return;
+        }
+        self.spaces.clear(&ws_id);
+        self.spaces.set_off(&ws_id);
+    }
+
+    /// Rename every tab and space, and drop state for the ones that are gone.
     fn reconcile(&self) {
         let (Some(tabs), Some(panes)) = (herdr(&["tab", "list"]), herdr(&["pane", "list"])) else {
             return;
@@ -474,11 +592,113 @@ impl Namer {
             self.apply_known(tab_id, label, number, &name);
         }
         self.store.gc(&live);
+        self.reconcile_spaces(panes);
+    }
+
+    fn reconcile_spaces(&self, panes: &[JsonValue]) {
+        let Some(response) = herdr(&["workspace", "list"]) else {
+            return;
+        };
+        let empty = Vec::new();
+        let workspaces = array(&response, &["result", "workspaces"]).unwrap_or(&empty);
+
+        let mut live = HashSet::new();
+        for ws in workspaces {
+            let Some(ws_id) = str_at(ws, &["workspace_id"]) else {
+                continue;
+            };
+            live.insert(Store::key(ws_id));
+            if self.cfg.space == SpaceName::Off || self.spaces.is_off(ws_id) {
+                continue;
+            }
+            let Some(name) = str_at(ws, &["active_tab_id"])
+                .and_then(|tab_id| space_pane(panes, tab_id))
+                .and_then(|pane| self.name_for_space(pane))
+            else {
+                continue;
+            };
+            self.apply_space_known(ws_id, str_at(ws, &["label"]).unwrap_or(""), &name);
+        }
+        self.spaces.gc(&live);
     }
 
     fn active_pane_in(&self, tab_id: &str) -> Option<JsonValue> {
         let response = herdr(&["pane", "list"])?;
         active_pane(array(&response, &["result", "panes"])?, tab_id).cloned()
+    }
+
+    fn space_pane_in(&self, tab_id: &str) -> Option<JsonValue> {
+        let response = herdr(&["pane", "list"])?;
+        space_pane(array(&response, &["result", "panes"])?, tab_id).cloned()
+    }
+
+    /// Repository holding the pane, else its directory. `cwd` is preferred over
+    /// `foreground_cwd`: a child process that chdirs elsewhere must not drag the
+    /// whole space along with it.
+    fn name_for_space(&self, pane: &JsonValue) -> Option<String> {
+        let cwd = str_at(pane, &["cwd"]).or_else(|| str_at(pane, &["foreground_cwd"]))?;
+        self.name_from_cwd(cwd)
+    }
+
+    fn name_from_cwd(&self, cwd: &str) -> Option<String> {
+        match self.cfg.space {
+            SpaceName::Off => None,
+            SpaceName::Cwd => dir_name(cwd, self.cfg.max_len),
+            SpaceName::Repo => repo_root(cwd)
+                .and_then(|root| dir_name(&root.to_string_lossy(), self.cfg.max_len))
+                .or_else(|| dir_name(cwd, self.cfg.max_len)),
+        }
+    }
+
+    /// Name a space would get right now, from the pane the event carries when it
+    /// sits in the active tab, else from that tab's own pane.
+    fn space_name(&self, ws_id: &str, hint: Option<&JsonValue>) -> Option<String> {
+        let ws = herdr(&["workspace", "get", ws_id])?;
+        let tab_id = str_at(&ws, &["result", "workspace", "active_tab_id"])?;
+        hint.filter(|pane| str_at(pane, &["tab_id"]) == Some(tab_id))
+            .cloned()
+            .or_else(|| self.space_pane_in(tab_id))
+            .as_ref()
+            .and_then(|pane| self.name_for_space(pane))
+    }
+
+    fn rename_space(&self, ws_id: &str, hint: Option<&JsonValue>) {
+        if self.cfg.space == SpaceName::Off || self.spaces.is_off(ws_id) {
+            return;
+        }
+        let Some(name) = self.space_name(ws_id, hint) else {
+            return;
+        };
+        self.apply_space(ws_id, &name);
+    }
+
+    /// Shell hook path: this pane's cwd already names the space when the pane sits
+    /// in the active tab, so the steady state costs no API call at all.
+    fn rename_current_space(&self, cwd: Option<&str>) {
+        let (Some(cwd), Ok(ws_id), Ok(tab_id)) = (
+            cwd,
+            std::env::var("HERDR_WORKSPACE_ID"),
+            std::env::var("HERDR_TAB_ID"),
+        ) else {
+            return;
+        };
+        if self.cfg.space == SpaceName::Off || self.spaces.is_off(&ws_id) {
+            return;
+        }
+        let Some(name) = self.name_from_cwd(cwd) else {
+            return;
+        };
+        if self.spaces.get(&ws_id).as_deref() == Some(name.as_str()) {
+            return;
+        }
+        let Some(ws) = herdr(&["workspace", "get", &ws_id]) else {
+            return;
+        };
+        if str_at(&ws, &["result", "workspace", "active_tab_id"]) != Some(tab_id.as_str()) {
+            return;
+        }
+        let label = str_at(&ws, &["result", "workspace", "label"]).unwrap_or("");
+        self.apply_space_known(&ws_id, label, &name);
     }
 
     /// Detected agent, else the foreground program, else the working directory.
@@ -549,12 +769,46 @@ impl Namer {
     /// State is written before the rename so the `tab.renamed` hook we trigger
     /// recognises the label as ours.
     fn apply_known(&self, tab_id: &str, label: &str, number: Option<f64>, name: &str) {
-        match decide(label, number, self.store.get(tab_id).as_deref(), name) {
+        let last_set = self.store.get(tab_id);
+        match decide(
+            eligible(label, number, last_set.as_deref()),
+            label,
+            last_set.as_deref(),
+            name,
+        ) {
             Action::Skip => {}
             Action::Record => self.store.set(tab_id, name),
             Action::Rename => {
                 self.store.set(tab_id, name);
                 herdr(&["tab", "rename", tab_id, name]);
+            }
+        }
+    }
+
+    fn apply_space(&self, ws_id: &str, name: &str) {
+        if self.spaces.get(ws_id).as_deref() == Some(name) {
+            return;
+        }
+        let Some(ws) = herdr(&["workspace", "get", ws_id]) else {
+            return;
+        };
+        let label = str_at(&ws, &["result", "workspace", "label"]).unwrap_or("");
+        self.apply_space_known(ws_id, label, name);
+    }
+
+    fn apply_space_known(&self, ws_id: &str, label: &str, name: &str) {
+        let last_set = self.spaces.get(ws_id);
+        match decide(
+            space_eligible(label, last_set.as_deref()),
+            label,
+            last_set.as_deref(),
+            name,
+        ) {
+            Action::Skip => {}
+            Action::Record => self.spaces.set(ws_id, name),
+            Action::Rename => {
+                self.spaces.set(ws_id, name);
+                herdr(&["workspace", "rename", ws_id, name]);
             }
         }
     }
@@ -671,13 +925,15 @@ mod tests {
         cfg.set("agent", "false");
         cfg.set("max_len", "8");
         cfg.set("max_len", "0");
+        cfg.set("space", "cwd");
         cfg.set("nope", "1");
         assert_eq!(
             cfg,
             Config {
                 idle: Idle::Shell,
                 agent: false,
-                max_len: 8
+                max_len: 8,
+                space: SpaceName::Cwd,
             }
         );
     }
@@ -726,45 +982,75 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    fn decide_tab(label: &str, number: Option<f64>, last_set: Option<&str>, name: &str) -> Action {
+        decide(eligible(label, number, last_set), label, last_set, name)
+    }
+
     #[test]
     fn decide_renames_records_or_backs_off() {
         let number = Some(2.0);
         // fresh tab still labelled with its number
-        assert_eq!(decide("2", number, None, "nvim"), Action::Rename);
+        assert_eq!(decide_tab("2", number, None, "nvim"), Action::Rename);
         // label already ours but state was lost
-        assert_eq!(decide("nvim", number, None, "nvim"), Action::Skip);
-        assert_eq!(decide("nvim", number, Some("nvim"), "nvim"), Action::Skip);
+        assert_eq!(decide_tab("nvim", number, None, "nvim"), Action::Skip);
+        assert_eq!(decide_tab("nvim", number, Some("nvim"), "nvim"), Action::Skip);
         // our own tab, new program
         assert_eq!(
-            decide("nvim", number, Some("nvim"), "cargo"),
+            decide_tab("nvim", number, Some("nvim"), "cargo"),
             Action::Rename
         );
         // herdr reset the label under us
-        assert_eq!(decide("2", number, Some("nvim"), "nvim"), Action::Rename);
+        assert_eq!(decide_tab("2", number, Some("nvim"), "nvim"), Action::Rename);
         // user rename wins
-        assert_eq!(decide("logs", number, Some("nvim"), "cargo"), Action::Skip);
-        assert_eq!(decide("logs", number, None, "cargo"), Action::Skip);
+        assert_eq!(
+            decide_tab("logs", number, Some("nvim"), "cargo"),
+            Action::Skip
+        );
+        assert_eq!(decide_tab("logs", number, None, "cargo"), Action::Skip);
     }
 
     #[test]
     fn decide_handles_tabs_without_a_number() {
         // a fresh tab herdr has not numbered yet
-        assert_eq!(decide("", None, None, "nvim"), Action::Rename);
-        assert_eq!(decide("nvim", None, Some("nvim"), "nvim"), Action::Skip);
-        assert_eq!(decide("logs", None, None, "nvim"), Action::Skip);
+        assert_eq!(decide_tab("", None, None, "nvim"), Action::Rename);
+        assert_eq!(decide_tab("nvim", None, Some("nvim"), "nvim"), Action::Skip);
+        assert_eq!(decide_tab("logs", None, None, "nvim"), Action::Skip);
+    }
+
+    #[test]
+    fn spaces_are_adopted_once_then_only_ours_to_rename() {
+        let decide_space =
+            |label: &str, last_set: Option<&str>, name: &str| -> Action {
+                decide(space_eligible(label, last_set), label, last_set, name)
+            };
+        // herdr's own cwd-derived label, never touched by us
+        assert_eq!(decide_space("cuentacero", None, ".dotfiles"), Action::Rename);
+        assert_eq!(decide_space(".dotfiles", None, ".dotfiles"), Action::Record);
+        // ours, and the active tab moved to another repo
+        assert_eq!(
+            decide_space(".dotfiles", Some(".dotfiles"), "sevastopol"),
+            Action::Rename
+        );
+        assert_eq!(
+            decide_space(".dotfiles", Some(".dotfiles"), ".dotfiles"),
+            Action::Skip
+        );
+        // a label we did not set is the user's
+        assert_eq!(decide_space("logs", Some(".dotfiles"), "api"), Action::Skip);
     }
 
     #[test]
     fn config_parses_file_with_comments() {
         let cfg = Config::parse(
-            "# tab names\nidle = shell\nagent=no  # herdr detects it anyway\n\nmax_len = 12\nbogus\n",
+            "# tab names\nidle = shell\nagent=no  # herdr detects it anyway\n\nmax_len = 12\nspace = off\nbogus\n",
         );
         assert_eq!(
             cfg,
             Config {
                 idle: Idle::Shell,
                 agent: false,
-                max_len: 12
+                max_len: 12,
+                space: SpaceName::Off,
             }
         );
         assert_eq!(Config::parse(""), Config::default());
@@ -783,6 +1069,7 @@ mod tests {
         let namer = |cfg| Namer {
             cfg,
             store: Store::new(PathBuf::from("/nonexistent")),
+            spaces: Store::new(PathBuf::from("/nonexistent")),
         };
         let pane: JsonValue = r#"{
             "pane_id": "w1:p1", "tab_id": "w1:t1", "focused": true,
@@ -829,5 +1116,131 @@ mod tests {
     fn store_keys_are_safe_file_names() {
         assert_eq!(Store::key("w1:t2"), "w1%3At2");
         assert_eq!(Store::key("../escape"), "..%2Fescape");
+        assert_eq!(Store::off_key("w1"), "w1.off");
+    }
+
+    #[test]
+    fn off_markers_survive_gc_of_live_ids() {
+        let dir = std::env::temp_dir().join(format!("herdr-autoname-off-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = Store::new(dir.clone());
+
+        store.set("wE", "dotfiles");
+        store.set_off("wE");
+        store.set_off("wZ");
+        assert!(store.is_off("wE"));
+
+        store.gc(&HashSet::from([Store::key("wE")]));
+        assert!(store.is_off("wE"));
+        assert_eq!(store.get("wE").as_deref(), Some("dotfiles"));
+        assert!(!store.is_off("wZ"));
+
+        store.clear_off("wE");
+        assert!(!store.is_off("wE"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn repo_root_climbs_to_the_git_directory() {
+        let dir = std::env::temp_dir().join(format!("herdr-autoname-repo-{}", std::process::id()));
+        let nested = dir.join("repo/crates/api");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::create_dir_all(dir.join("repo/.git")).unwrap();
+
+        assert_eq!(
+            repo_root(nested.to_str().unwrap()),
+            Some(dir.join("repo").to_path_buf())
+        );
+        assert_eq!(repo_root(dir.to_str().unwrap()), None);
+
+        // a linked worktree carries a .git file instead of a directory
+        let worktree = dir.join("wt");
+        std::fs::create_dir_all(&worktree).unwrap();
+        std::fs::write(worktree.join(".git"), "gitdir: /elsewhere\n").unwrap();
+        assert_eq!(repo_root(worktree.to_str().unwrap()), Some(worktree));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn space_names_follow_the_repo_then_the_directory() {
+        let dir = std::env::temp_dir().join(format!("herdr-autoname-space-{}", std::process::id()));
+        let nested = dir.join("repo/crates/api");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::create_dir_all(dir.join("repo/.git")).unwrap();
+        let nested = nested.to_str().unwrap();
+
+        let namer = |cfg| Namer {
+            cfg,
+            store: Store::new(PathBuf::from("/nonexistent")),
+            spaces: Store::new(PathBuf::from("/nonexistent")),
+        };
+
+        assert_eq!(
+            namer(Config::default()).name_from_cwd(nested).as_deref(),
+            Some("repo")
+        );
+        // outside a repository the directory itself names the space
+        let plain = dir.join("plain");
+        std::fs::create_dir_all(&plain).unwrap();
+        assert_eq!(
+            namer(Config::default())
+                .name_from_cwd(plain.to_str().unwrap())
+                .as_deref(),
+            Some("plain")
+        );
+
+        let cwd = namer(Config {
+            space: SpaceName::Cwd,
+            ..Config::default()
+        });
+        assert_eq!(cwd.name_from_cwd(nested).as_deref(), Some("api"));
+
+        let off = namer(Config {
+            space: SpaceName::Off,
+            ..Config::default()
+        });
+        assert_eq!(off.name_from_cwd(nested), None);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn space_pane_prefers_focused_then_first_in_tab() {
+        let panes: Vec<JsonValue> = [
+            r#"{"pane_id": "p1", "tab_id": "t1", "focused": false}"#,
+            r#"{"pane_id": "p2", "tab_id": "t2", "focused": false}"#,
+            r#"{"pane_id": "p3", "tab_id": "t2", "focused": true}"#,
+        ]
+        .iter()
+        .map(|pane| pane.parse().unwrap())
+        .collect();
+        let id = |pane: Option<&JsonValue>| {
+            pane.and_then(|p| str_at(p, &["pane_id"]))
+                .map(str::to_string)
+        };
+        // unlike a tab name, an unfocused multi-pane tab still names its space
+        assert_eq!(id(space_pane(&panes, "t1")).as_deref(), Some("p1"));
+        assert_eq!(id(space_pane(&panes, "t2")).as_deref(), Some("p3"));
+        assert_eq!(id(space_pane(&panes, "t9")), None);
+    }
+
+    #[test]
+    fn space_name_ignores_a_child_process_that_wandered_off() {
+        let namer = Namer {
+            cfg: Config::default(),
+            store: Store::new(PathBuf::from("/nonexistent")),
+            spaces: Store::new(PathBuf::from("/nonexistent")),
+        };
+        let pane: JsonValue = r#"{
+            "pane_id": "wE:p1", "tab_id": "wE:t1",
+            "cwd": "/nonexistent/dotfiles", "foreground_cwd": "/nonexistent/other"
+        }"#
+        .parse()
+        .unwrap();
+        assert_eq!(namer.name_for_space(&pane).as_deref(), Some("dotfiles"));
     }
 }

@@ -1,18 +1,19 @@
 id = "herdr-autoname"
 name = "Herdr Autoname"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.8.0"
-description = "tmux-like automatic tab names from the foreground program"
+description = "tmux-like automatic tab and space names from the foreground program"
 platforms = ["linux", "macos"]
 
-# Events rename the tab they carry in HERDR_TAB_ID; per-command updates come from
-# shell/hook.zsh because herdr has no "foreground command changed" event.
+# Events rename the tab they carry in HERDR_TAB_ID and the space in
+# HERDR_WORKSPACE_ID; per-command updates come from shell/hook.zsh because herdr
+# has no "foreground command changed" event.
 [[startup]]
 command = ["bin/herdr-autoname", "refresh"]
 
 [[actions]]
 id = "refresh"
-title = "Refresh tab names"
+title = "Refresh tab and space names"
 contexts = ["global", "workspace", "tab"]
 command = ["bin/herdr-autoname", "refresh"]
 
@@ -50,4 +51,20 @@ command = ["bin/herdr-autoname", "event"]
 
 [[events]]
 on = "pane.agent_detected"
+command = ["bin/herdr-autoname", "event"]
+
+[[events]]
+on = "workspace.created"
+command = ["bin/herdr-autoname", "event"]
+
+[[events]]
+on = "workspace.focused"
+command = ["bin/herdr-autoname", "event"]
+
+[[events]]
+on = "workspace.renamed"
+command = ["bin/herdr-autoname", "event"]
+
+[[events]]
+on = "workspace.closed"
 command = ["bin/herdr-autoname", "event"]
