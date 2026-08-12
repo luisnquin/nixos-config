@@ -34,7 +34,29 @@ in {
     settings = {
       onboarding = false;
 
-      theme.name = "terminal";
+      # "terminal" keeps every background at Reset, which is what makes the
+      # sidebar translucent — a named theme would paint panel_bg opaque. It also
+      # collapses mauve, subtext0 and overlay0 onto the same ANSI gray, so the
+      # branch, the space name and the muted rows all read alike. Pin the
+      # foreground tokens to rose-pine and leave the backgrounds untouched.
+      theme = {
+        name = "terminal";
+
+        custom = {
+          accent = "#9ccfd8";
+          overlay0 = "#6e6a86";
+          overlay1 = "#908caa";
+          subtext0 = "#908caa";
+          mauve = "#c4a7e7";
+          red = "#eb6f92";
+          yellow = "#f6c177";
+          green = "#31748f";
+          teal = "#9ccfd8";
+          blue = "#3e8fb0";
+          peach = "#ebbcba";
+        };
+      };
+
       terminal.new_cwd = "follow";
       worktrees.directory = "~/.herdr/worktrees";
       session.resume_agents_on_restore = true;
