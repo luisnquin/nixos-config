@@ -11,6 +11,10 @@ that pane's directory basename. herdr derives its own space label from the first
 tab's root pane instead, so a background pane decides the name of the space you
 are looking at, and the label stops matching what is on screen.
 
+Panes running an agent and spaces also get a Nerd Font glyph, reported as a
+metadata token rather than folded into the name — a name doubles as the opt-out
+marker, so a glyph inside it would make every rename you type look like ours.
+
 ## Behaviour
 
 - Renaming a tab yourself opts it out. The plugin remembers the last name it set
@@ -29,6 +33,12 @@ are looking at, and the label stops matching what is on screen.
   chdirs elsewhere does not drag the whole space along with it.
 - Event hooks rename only the tab and space the event carries; the full sweep
   runs on the startup hook and the `refresh` action.
+- Icons are reported even for a space you opted out of naming: they are a
+  separate display token, not part of the label.
+- A space glyph follows the project kind of the repository holding its pane
+  (`flake.nix`, `Cargo.toml`, `go.mod`, `package.json`, `pyproject.toml`,
+  `requirements.txt`), else the repository, else a plain directory. A pane glyph
+  follows the detected agent.
 - Unfocused multi-pane tabs keep the name they already have — there is no
   per-tab active pane in the API, only global focus.
 - Wrappers are skipped: `sudo nvim`, `env RUST_LOG=debug nvim` and
@@ -45,15 +55,29 @@ the plugin environment and has to read the same file.
 | --- | --- | --- |
 | `idle` | `cwd` | name for a shell at a prompt: `cwd` basename or `shell` |
 | `agent` | `true` | prefer herdr's detected agent over the foreground program |
+| `icons` | `true` | report `$icon` metadata tokens for agent panes and spaces |
 | `max_len` | `20` | truncate names to this many characters |
 | `space` | `repo` | space name source: `repo` root basename, `cwd` basename, or `off` |
+| `icon.<key>` | — | replace one glyph; `<key>` is an agent name (`claude`, `codex`, …) or a project kind (`nix`, `rust`, `go`, `node`, `python`, `git`, `dir`) |
 
-`HERDR_AUTONAME_IDLE`, `HERDR_AUTONAME_AGENT`, `HERDR_AUTONAME_MAX_LEN` and
-`HERDR_AUTONAME_SPACE` override the file.
+An `icon.<key>` value is capped at two characters — a sidebar row lays its tokens
+out by display width, so a longer one shifts every row it lands in. An empty
+value restores the built-in glyph.
 
-State lives in `$XDG_STATE_HOME/herdr-autoname`, one file per tab under `tabs/`
-and per space under `spaces/`; a `<id>.off` file next to a space entry is its
-opt-out marker.
+`HERDR_AUTONAME_IDLE`, `HERDR_AUTONAME_AGENT`, `HERDR_AUTONAME_ICONS`,
+`HERDR_AUTONAME_MAX_LEN` and `HERDR_AUTONAME_SPACE` override the file.
+
+Rendering the glyphs needs the token in herdr's own config, since the sidebar
+rows are opt-in:
+
+```toml
+[ui.sidebar.agents]
+rows = [["state_icon", "$icon", "state_text"], ["terminal_title_stripped"]]
+```
+
+State lives in `$XDG_STATE_HOME/herdr-autoname`, one file per tab under `tabs/`,
+per space under `spaces/` and per reported glyph under `icons/`; a `<id>.off`
+file next to a space entry is its opt-out marker.
 
 ## Shell hook
 

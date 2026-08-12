@@ -13,6 +13,9 @@
 //! Spaces are named from the active tab's pane. herdr derives its own space label
 //! from the *first* tab's root pane, so a background pane decides the name of the
 //! space you are looking at; setting a custom name pins it to the visible pane.
+//!
+//! Icons are reported as metadata, never folded into a name: a name doubles as
+//! the opt-out marker.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -31,21 +34,49 @@ const WRAPPERS: &[&str] = &[
     "sudo", "time", "timeout", "watch",
 ];
 
+const METADATA_SOURCE: &str = "herdr-autoname";
+
+const MAX_ICON_CHARS: usize = 2;
+
+/// Marker file at the repository root, `icon.<key>` override key, glyph.
+const PROJECT_ICONS: &[(&str, &str, &str)] = &[
+    ("flake.nix", "nix", "\u{f313}"),
+    ("Cargo.toml", "rust", "\u{e7a8}"),
+    ("go.mod", "go", "\u{e627}"),
+    ("package.json", "node", "\u{e718}"),
+    ("pyproject.toml", "python", "\u{e73c}"),
+    ("requirements.txt", "python", "\u{e73c}"),
+    ("default.nix", "nix", "\u{f313}"),
+    ("shell.nix", "nix", "\u{f313}"),
+];
+
+const AGENT_ICONS: &[(&str, &str)] = &[
+    ("claude", ICON_AGENT),
+    ("codex", "\u{f121}"),
+    ("opencode", "\u{f489}"),
+    ("pi", "\u{3c0}"),
+];
+
+const ICON_REPO: &str = "\u{e702}";
+const ICON_DIR: &str = "\u{f07b}";
+const ICON_AGENT: &str = "\u{f06a9}";
+
 fn main() {
-    let cfg = Config::load();
     let namer = Namer {
-        cfg,
+        cfg: Config::load(),
         store: Store::new(tabs_dir()),
         spaces: Store::new(spaces_dir()),
+        icons: Store::new(icons_dir()),
     };
+    let max_len = namer.cfg.max_len;
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("preexec") => namer.rename_current(
             args.get(1)
-                .and_then(|cmdline| program_from_cmdline(cmdline, cfg.max_len)),
+                .and_then(|cmdline| program_from_cmdline(cmdline, max_len)),
         ),
         Some("precmd") => {
-            namer.rename_current(idle_name(&cfg, args.get(1), args.get(2)));
+            namer.rename_current(idle_name(&namer.cfg, args.get(1), args.get(2)));
             namer.rename_current_space(args.get(2).map(String::as_str));
         }
         Some("refresh") => namer.reconcile(),
@@ -68,12 +99,14 @@ enum SpaceName {
     Off,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Config {
     idle: Idle,
     agent: bool,
+    icons: bool,
     max_len: usize,
     space: SpaceName,
+    icon_overrides: HashMap<String, String>,
 }
 
 impl Default for Config {
@@ -81,8 +114,10 @@ impl Default for Config {
         Self {
             idle: Idle::Cwd,
             agent: true,
+            icons: true,
             max_len: DEFAULT_MAX_LEN,
             space: SpaceName::Repo,
+            icon_overrides: HashMap::new(),
         }
     }
 }
@@ -96,6 +131,7 @@ impl Config {
         for (key, var) in [
             ("idle", "HERDR_AUTONAME_IDLE"),
             ("agent", "HERDR_AUTONAME_AGENT"),
+            ("icons", "HERDR_AUTONAME_ICONS"),
             ("max_len", "HERDR_AUTONAME_MAX_LEN"),
             ("space", "HERDR_AUTONAME_SPACE"),
         ] {
@@ -118,6 +154,9 @@ impl Config {
     }
 
     fn set(&mut self, key: &str, value: &str) {
+        if let Some(name) = key.strip_prefix("icon.") {
+            return self.set_icon(name, value);
+        }
         match key {
             "idle" => {
                 self.idle = match value {
@@ -126,6 +165,7 @@ impl Config {
                 }
             }
             "agent" => self.agent = !matches!(value, "false" | "0" | "no" | "off"),
+            "icons" => self.icons = !matches!(value, "false" | "0" | "no" | "off"),
             "space" => {
                 self.space = match value {
                     "cwd" => SpaceName::Cwd,
@@ -142,6 +182,59 @@ impl Config {
             }
             _ => {}
         }
+    }
+
+    /// An empty value drops back to the built-in glyph.
+    fn set_icon(&mut self, name: &str, glyph: &str) {
+        let name = name.trim().to_lowercase();
+        if name.is_empty() {
+            return;
+        }
+        let glyph: String = glyph
+            .trim()
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(MAX_ICON_CHARS)
+            .collect();
+        if glyph.is_empty() {
+            self.icon_overrides.remove(&name);
+        } else {
+            self.icon_overrides.insert(name, glyph);
+        }
+    }
+
+    fn icon_or(&self, key: &str, fallback: &str) -> String {
+        self.icon_overrides
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| fallback.to_string())
+    }
+
+    /// `display_agent` may carry a model too, so a key matches the first word.
+    fn agent_icon(&self, agent: &str) -> String {
+        let key = agent
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .to_lowercase();
+        let glyph = AGENT_ICONS
+            .iter()
+            .find(|(name, _)| *name == key)
+            .map_or(ICON_AGENT, |(_, glyph)| glyph);
+        self.icon_or(&key, glyph)
+    }
+
+    fn dir_icon(&self, cwd: &str) -> String {
+        let Some(root) = repo_root(cwd) else {
+            return self.icon_or("dir", ICON_DIR);
+        };
+        PROJECT_ICONS
+            .iter()
+            .find(|(marker, ..)| root.join(marker).exists())
+            .map_or_else(
+                || self.icon_or("git", ICON_REPO),
+                |(_, kind, glyph)| self.icon_or(kind, glyph),
+            )
     }
 }
 
@@ -166,6 +259,11 @@ fn tabs_dir() -> PathBuf {
 
 fn spaces_dir() -> PathBuf {
     xdg("XDG_STATE_HOME", ".local/state").join("herdr-autoname/spaces")
+}
+
+/// Keyed by pane and by workspace id — the two shapes never collide.
+fn icons_dir() -> PathBuf {
+    xdg("XDG_STATE_HOME", ".local/state").join("herdr-autoname/icons")
 }
 
 // ---- names ----
@@ -301,10 +399,20 @@ fn decide(eligible: bool, label: &str, last_set: Option<&str>, name: &str) -> Ac
 // ---- herdr CLI ----
 
 fn herdr(args: &[&str]) -> Option<JsonValue> {
+    herdr_stdout(args)?.parse().ok()
+}
+
+/// `report-metadata` answers with an empty body, so its only verdict is the exit
+/// status.
+fn herdr_ok(args: &[&str]) -> bool {
+    herdr_stdout(args).is_some()
+}
+
+fn herdr_stdout(args: &[&str]) -> Option<String> {
     let bin = std::env::var("HERDR_BIN_PATH").unwrap_or_else(|_| "herdr".to_string());
     let out = Command::new(bin).args(args).output().ok()?;
     out.status.success().then_some(())?;
-    String::from_utf8(out.stdout).ok()?.parse().ok()
+    String::from_utf8(out.stdout).ok()
 }
 
 fn at<'a>(v: &'a JsonValue, path: &[&str]) -> Option<&'a JsonValue> {
@@ -342,6 +450,13 @@ fn active_pane<'a>(panes: &'a [JsonValue], tab_id: &str) -> Option<&'a JsonValue
         [only] => Some(only),
         _ => in_tab.into_iter().find(|pane| is_true(pane, "focused")),
     }
+}
+
+/// Directory a space is named and iconified after. `cwd` is preferred over
+/// `foreground_cwd`: a child process that chdirs elsewhere must not drag the
+/// whole space along with it.
+fn space_cwd(pane: &JsonValue) -> Option<&str> {
+    str_at(pane, &["cwd"]).or_else(|| str_at(pane, &["foreground_cwd"]))
 }
 
 /// The pane a space is named after: the focused pane of its active tab, else the
@@ -465,6 +580,7 @@ struct Namer {
     cfg: Config,
     store: Store,
     spaces: Store,
+    icons: Store,
 }
 
 impl Namer {
@@ -499,6 +615,12 @@ impl Namer {
                 return;
             }
             "workspace.renamed" => return self.forget_space_if_user_renamed(),
+            // No return: the tab still needs a name for whatever is left.
+            "pane.exited" => {
+                if let Ok(pane_id) = std::env::var("HERDR_PANE_ID") {
+                    self.icons.clear(&pane_id);
+                }
+            }
             _ => {}
         }
         let Ok(tab_id) = std::env::var("HERDR_TAB_ID") else {
@@ -514,6 +636,9 @@ impl Namer {
             .and_then(|response| at(&response, &["result", "pane"]).cloned())
             .filter(|pane| str_at(pane, &["tab_id"]) == Some(tab_id.as_str()))
             .or_else(|| self.active_pane_in(&tab_id));
+        if let Some(pane) = pane.as_ref() {
+            self.report_pane_icon(pane);
+        }
         if let Ok(ws_id) = std::env::var("HERDR_WORKSPACE_ID") {
             self.rename_space(&ws_id, pane.as_ref());
         }
@@ -574,6 +699,14 @@ impl Namer {
         let tabs = array(&tabs, &["result", "tabs"]).unwrap_or(&empty);
         let panes = array(&panes, &["result", "panes"]).unwrap_or(&empty);
 
+        let mut icons_live = HashSet::new();
+        for pane in panes {
+            self.report_pane_icon(pane);
+            if let Some(pane_id) = str_at(pane, &["pane_id"]) {
+                icons_live.insert(Store::key(pane_id));
+            }
+        }
+
         let mut live = HashSet::new();
         for tab in tabs {
             let Some(tab_id) = str_at(tab, &["tab_id"]) else {
@@ -592,10 +725,11 @@ impl Namer {
             self.apply_known(tab_id, label, number, &name);
         }
         self.store.gc(&live);
-        self.reconcile_spaces(panes);
+        self.reconcile_spaces(panes, icons_live);
     }
 
-    fn reconcile_spaces(&self, panes: &[JsonValue]) {
+    /// `icons_live` arrives holding the pane keys: one store holds both.
+    fn reconcile_spaces(&self, panes: &[JsonValue], mut icons_live: HashSet<String>) {
         let Some(response) = herdr(&["workspace", "list"]) else {
             return;
         };
@@ -608,18 +742,21 @@ impl Namer {
                 continue;
             };
             live.insert(Store::key(ws_id));
+            icons_live.insert(Store::key(ws_id));
+            let pane = str_at(ws, &["active_tab_id"]).and_then(|tab_id| space_pane(panes, tab_id));
+            if let Some(cwd) = pane.and_then(space_cwd) {
+                self.report_space_icon(ws_id, cwd);
+            }
             if self.cfg.space == SpaceName::Off || self.spaces.is_off(ws_id) {
                 continue;
             }
-            let Some(name) = str_at(ws, &["active_tab_id"])
-                .and_then(|tab_id| space_pane(panes, tab_id))
-                .and_then(|pane| self.name_for_space(pane))
-            else {
+            let Some(name) = pane.and_then(|pane| self.name_for_space(pane)) else {
                 continue;
             };
             self.apply_space_known(ws_id, str_at(ws, &["label"]).unwrap_or(""), &name);
         }
         self.spaces.gc(&live);
+        self.icons.gc(&icons_live);
     }
 
     fn active_pane_in(&self, tab_id: &str) -> Option<JsonValue> {
@@ -632,12 +769,49 @@ impl Namer {
         space_pane(array(&response, &["result", "panes"])?, tab_id).cloned()
     }
 
-    /// Repository holding the pane, else its directory. `cwd` is preferred over
-    /// `foreground_cwd`: a child process that chdirs elsewhere must not drag the
-    /// whole space along with it.
+    /// Repository holding the pane, else its directory.
     fn name_for_space(&self, pane: &JsonValue) -> Option<String> {
-        let cwd = str_at(pane, &["cwd"]).or_else(|| str_at(pane, &["foreground_cwd"]))?;
-        self.name_from_cwd(cwd)
+        self.name_from_cwd(space_cwd(pane)?)
+    }
+
+    /// State is written after the call, so a failed report is retried.
+    fn report_icon(&self, scope: &str, id: &str, icon: &str) {
+        if self.icons.get(id).as_deref() == Some(icon) {
+            return;
+        }
+        let token = format!("icon={icon}");
+        let reported = herdr_ok(&[
+            scope,
+            "report-metadata",
+            id,
+            "--source",
+            METADATA_SOURCE,
+            "--token",
+            &token,
+        ]);
+        if reported {
+            self.icons.set(id, icon);
+        }
+    }
+
+    fn report_pane_icon(&self, pane: &JsonValue) {
+        if !self.cfg.icons {
+            return;
+        }
+        let (Some(pane_id), Some(agent)) = (
+            str_at(pane, &["pane_id"]),
+            str_at(pane, &["agent"]).or_else(|| str_at(pane, &["display_agent"])),
+        ) else {
+            return;
+        };
+        self.report_icon("pane", pane_id, &self.cfg.agent_icon(agent));
+    }
+
+    fn report_space_icon(&self, ws_id: &str, cwd: &str) {
+        if !self.cfg.icons {
+            return;
+        }
+        self.report_icon("workspace", ws_id, &self.cfg.dir_icon(cwd));
     }
 
     fn name_from_cwd(&self, cwd: &str) -> Option<String> {
@@ -650,23 +824,32 @@ impl Namer {
         }
     }
 
-    /// Name a space would get right now, from the pane the event carries when it
-    /// sits in the active tab, else from that tab's own pane.
-    fn space_name(&self, ws_id: &str, hint: Option<&JsonValue>) -> Option<String> {
+    /// The pane the event carries when it sits in the active tab, else that
+    /// tab's own pane.
+    fn space_pane_for(&self, ws_id: &str, hint: Option<&JsonValue>) -> Option<JsonValue> {
         let ws = herdr(&["workspace", "get", ws_id])?;
         let tab_id = str_at(&ws, &["result", "workspace", "active_tab_id"])?;
         hint.filter(|pane| str_at(pane, &["tab_id"]) == Some(tab_id))
             .cloned()
             .or_else(|| self.space_pane_in(tab_id))
-            .as_ref()
-            .and_then(|pane| self.name_for_space(pane))
+    }
+
+    fn space_name(&self, ws_id: &str, hint: Option<&JsonValue>) -> Option<String> {
+        self.name_for_space(&self.space_pane_for(ws_id, hint)?)
     }
 
     fn rename_space(&self, ws_id: &str, hint: Option<&JsonValue>) {
-        if self.cfg.space == SpaceName::Off || self.spaces.is_off(ws_id) {
+        let naming = self.cfg.space != SpaceName::Off && !self.spaces.is_off(ws_id);
+        if !naming && !self.cfg.icons {
             return;
         }
-        let Some(name) = self.space_name(ws_id, hint) else {
+        let Some(pane) = self.space_pane_for(ws_id, hint) else {
+            return;
+        };
+        if let Some(cwd) = space_cwd(&pane) {
+            self.report_space_icon(ws_id, cwd);
+        }
+        let Some(name) = naming.then(|| self.name_for_space(&pane)).flatten() else {
             return;
         };
         self.apply_space(ws_id, &name);
@@ -682,13 +865,18 @@ impl Namer {
         ) else {
             return;
         };
-        if self.cfg.space == SpaceName::Off || self.spaces.is_off(&ws_id) {
-            return;
-        }
-        let Some(name) = self.name_from_cwd(cwd) else {
-            return;
-        };
-        if self.spaces.get(&ws_id).as_deref() == Some(name.as_str()) {
+        let naming = self.cfg.space != SpaceName::Off && !self.spaces.is_off(&ws_id);
+        let name = naming.then(|| self.name_from_cwd(cwd)).flatten();
+        let icon = self.cfg.icons.then(|| self.cfg.dir_icon(cwd));
+        let stale_name = matches!(
+            &name,
+            Some(name) if self.spaces.get(&ws_id).as_deref() != Some(name.as_str())
+        );
+        let stale_icon = matches!(
+            &icon,
+            Some(icon) if self.icons.get(&ws_id).as_deref() != Some(icon.as_str())
+        );
+        if !stale_name && !stale_icon {
             return;
         }
         let Some(ws) = herdr(&["workspace", "get", &ws_id]) else {
@@ -697,6 +885,12 @@ impl Namer {
         if str_at(&ws, &["result", "workspace", "active_tab_id"]) != Some(tab_id.as_str()) {
             return;
         }
+        if let Some(icon) = icon {
+            self.report_icon("workspace", &ws_id, &icon);
+        }
+        let Some(name) = name.filter(|_| stale_name) else {
+            return;
+        };
         let label = str_at(&ws, &["result", "workspace", "label"]).unwrap_or("");
         self.apply_space_known(&ws_id, label, &name);
     }
@@ -932,8 +1126,10 @@ mod tests {
             Config {
                 idle: Idle::Shell,
                 agent: false,
+                icons: true,
                 max_len: 8,
                 space: SpaceName::Cwd,
+                icon_overrides: HashMap::new(),
             }
         );
     }
@@ -1042,15 +1238,17 @@ mod tests {
     #[test]
     fn config_parses_file_with_comments() {
         let cfg = Config::parse(
-            "# tab names\nidle = shell\nagent=no  # herdr detects it anyway\n\nmax_len = 12\nspace = off\nbogus\n",
+            "# tab names\nidle = shell\nagent=no  # herdr detects it anyway\n\nmax_len = 12\nspace = off\nicons = off\nbogus\n",
         );
         assert_eq!(
             cfg,
             Config {
                 idle: Idle::Shell,
                 agent: false,
+                icons: false,
                 max_len: 12,
                 space: SpaceName::Off,
+                icon_overrides: HashMap::new(),
             }
         );
         assert_eq!(Config::parse(""), Config::default());
@@ -1070,6 +1268,7 @@ mod tests {
             cfg,
             store: Store::new(PathBuf::from("/nonexistent")),
             spaces: Store::new(PathBuf::from("/nonexistent")),
+            icons: Store::new(PathBuf::from("/nonexistent")),
         };
         let pane: JsonValue = r#"{
             "pane_id": "w1:p1", "tab_id": "w1:t1", "focused": true,
@@ -1177,6 +1376,7 @@ mod tests {
             cfg,
             store: Store::new(PathBuf::from("/nonexistent")),
             spaces: Store::new(PathBuf::from("/nonexistent")),
+            icons: Store::new(PathBuf::from("/nonexistent")),
         };
 
         assert_eq!(
@@ -1234,6 +1434,7 @@ mod tests {
             cfg: Config::default(),
             store: Store::new(PathBuf::from("/nonexistent")),
             spaces: Store::new(PathBuf::from("/nonexistent")),
+            icons: Store::new(PathBuf::from("/nonexistent")),
         };
         let pane: JsonValue = r#"{
             "pane_id": "wE:p1", "tab_id": "wE:t1",
@@ -1242,5 +1443,60 @@ mod tests {
         .parse()
         .unwrap();
         assert_eq!(namer.name_for_space(&pane).as_deref(), Some("dotfiles"));
+    }
+
+    #[test]
+    fn agent_icons_fall_back_and_bow_to_overrides() {
+        let cfg = Config::default();
+        assert_eq!(cfg.agent_icon("Claude Sonnet"), ICON_AGENT);
+        assert_eq!(cfg.agent_icon("codex"), "\u{f121}");
+        assert_eq!(cfg.agent_icon("aider"), ICON_AGENT);
+
+        let mut cfg = Config::default();
+        cfg.set("icon.codex", "\u{f0e7}");
+        cfg.set("icon.aider", "\u{f0e7}");
+        assert_eq!(cfg.agent_icon("codex --sandbox"), "\u{f0e7}");
+        assert_eq!(cfg.agent_icon("aider"), "\u{f0e7}");
+        cfg.set("icon.codex", "");
+        assert_eq!(cfg.agent_icon("codex"), "\u{f121}");
+    }
+
+    #[test]
+    fn icon_overrides_are_trimmed_and_capped() {
+        let mut cfg = Config::default();
+        cfg.set("icon. GO ", "  go\u{7} ok  ");
+        assert_eq!(cfg.icon_or("go", ICON_DIR), "go");
+        cfg.set("icon.", "x");
+        assert!(!cfg.icon_overrides.contains_key(""));
+    }
+
+    #[test]
+    fn dir_icons_follow_the_repository_marker() {
+        let dir = std::env::temp_dir().join(format!("herdr-autoname-icon-{}", std::process::id()));
+        let nested = dir.join("repo/crates/api");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::create_dir_all(dir.join("repo/.git")).unwrap();
+        let nested = nested.to_str().unwrap();
+
+        let mut cfg = Config::default();
+        assert_eq!(cfg.dir_icon(nested), ICON_REPO);
+        // the marker is looked for at the root, not beside the pane
+        std::fs::write(dir.join("repo/Cargo.toml"), "").unwrap();
+        assert_eq!(cfg.dir_icon(nested), "\u{e7a8}");
+        // table order decides, not the filesystem
+        std::fs::write(dir.join("repo/flake.nix"), "").unwrap();
+        assert_eq!(cfg.dir_icon(nested), "\u{f313}");
+        cfg.set("icon.nix", "N");
+        assert_eq!(cfg.dir_icon(nested), "N");
+
+        let plain = dir.join("plain");
+        std::fs::create_dir_all(&plain).unwrap();
+        assert_eq!(
+            Config::default().dir_icon(plain.to_str().unwrap()),
+            ICON_DIR
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
