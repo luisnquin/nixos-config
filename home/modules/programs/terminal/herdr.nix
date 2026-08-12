@@ -40,6 +40,8 @@ in {
       session.resume_agents_on_restore = true;
 
       ui = {
+        hide_tab_bar_when_single_tab = true;
+
         toast = {
           delivery = "system";
           delay_seconds = 1;
