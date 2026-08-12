@@ -219,11 +219,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1784822387,
-        "narHash": "sha256-hOwbHpnHjoPJsV26YGcyUTUP+G9U5xfmzGrUI3cP6dU=",
+        "lastModified": 1786540926,
+        "narHash": "sha256-aHEQonAzIUG2WMLulmp/JcU0i5X68L0bX0t7wp8uUEY=",
         "owner": "encoredev",
         "repo": "encore-flake",
-        "rev": "7ca38f560ebb3c1e1e908bd2e99befe2a0cd1c84",
+        "rev": "6c417336392899e1c2071a22e0b8bf002181a59d",
         "type": "github"
       },
       "original": {
