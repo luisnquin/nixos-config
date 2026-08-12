@@ -1,7 +1,15 @@
-{stdenv}:
+{
+  lib,
+  stdenv,
+}:
 stdenv.mkDerivation {
   name = "setup";
-  src = ./.;
+
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = ./setup.sh;
+  };
+
   installPhase = ''
     mkdir -p $out/bin
     cp setup.sh $out/bin/setup
