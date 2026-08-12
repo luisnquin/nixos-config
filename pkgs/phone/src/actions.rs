@@ -1,5 +1,5 @@
 use std::io::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -70,18 +70,24 @@ pub async fn screenshot(device: &Device, sink: &Sink, rep: &Reporter) -> Result<
         bail!("capture failed on {} (is it awake and unlocked?)", device.label);
     }
 
-    match sink {
+    let (msg, body, icon) = match sink {
         Sink::Stdout => {
             let mut stdout = std::io::stdout().lock();
             stdout.write_all(&png)?;
             stdout.flush()?;
 
-            Ok("wrote PNG to stdout".into())
+            // the caller is piping the bytes somewhere, so a popup is noise
+            return Ok("wrote PNG to stdout".into());
         }
         Sink::File(path) => {
             std::fs::write(path, &png).with_context(|| format!("writing {path}"))?;
 
-            Ok(format!("saved {path}"))
+            // notify-send resolves an icon as a file only from an absolute path
+            let icon = std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
+
+            let msg = format!("saved {path}");
+
+            (msg.clone(), msg, Some(icon))
         }
         Sink::Clipboard => {
             let mut cmd = tokio::process::Command::new("wl-copy");
@@ -96,9 +102,56 @@ pub async fn screenshot(device: &Device, sink: &Sink, rep: &Reporter) -> Result<
 
             pipe_to(&mut cmd, &png, "wl-copy").await?;
 
-            Ok(format!("copied {} to the clipboard", device.label))
+            (
+                format!("copied {} to the clipboard", device.label),
+                "copied to the clipboard".to_string(),
+                preview(&png),
+            )
         }
+    };
+
+    notify(&device.label, &body, icon.as_deref()).await;
+
+    Ok(msg)
+}
+
+/// A notification daemon reads the icon off disk, so a capture that only went to
+/// the clipboard still needs a file to point at. One fixed name under the runtime
+/// dir: tmpfs, dies with the session, and every capture overwrites the last one.
+fn preview(png: &[u8]) -> Option<PathBuf> {
+    let dir = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+
+    preview_in(&dir.join("phone"), png)
+}
+
+fn preview_in(dir: &Path, png: &[u8]) -> Option<PathBuf> {
+    std::fs::create_dir_all(dir).ok()?;
+
+    let path = dir.join("preview.png");
+    std::fs::write(&path, png).ok()?;
+
+    Some(path)
+}
+
+/// Best effort: a missing notify-send or a dead bus must not fail a capture that
+/// already landed.
+async fn notify(summary: &str, body: &str, icon: Option<&Path>) {
+    let mut cmd = tokio::process::Command::new("notify-send");
+
+    cmd.args(["--app-name=phone", "--expire-time=4000"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    if let Some(icon) = icon {
+        cmd.arg("--icon").arg(icon);
     }
+
+    cmd.args(["--", summary, body]);
+
+    let _ = cmd.status().await;
 }
 
 /// Feeds `bytes` to `cmd` on stdin and waits for it to exit. Only the front
@@ -241,6 +294,33 @@ mod tests {
             start.elapsed() < Duration::from_secs(5),
             "waited on a process that inherited stderr and outlived the child"
         );
+    }
+
+    #[test]
+    fn every_preview_reuses_the_same_file() {
+        let dir = std::env::temp_dir().join(format!("phone-preview-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let first = preview_in(&dir, b"first").unwrap();
+        let second = preview_in(&dir, b"second").unwrap();
+
+        assert_eq!(first, second);
+        assert_eq!(std::fs::read(&second).unwrap(), b"second");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_preview_path_is_absolute_for_notify_send() {
+        let dir = std::env::temp_dir().join(format!("phone-preview-abs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let path = preview_in(&dir, b"png").unwrap();
+
+        assert!(path.is_absolute(), "notify-send would treat {path:?} as an icon name");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

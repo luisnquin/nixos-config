@@ -467,7 +467,7 @@ async fn doctor() -> Result<()> {
         },
     );
 
-    for tool in ["fzf", "scrcpy", "wl-copy"] {
+    for tool in ["fzf", "scrcpy", "wl-copy", "notify-send"] {
         check(which(tool), tool, if which(tool) { "ok".into() } else { "not on PATH".into() });
     }
 

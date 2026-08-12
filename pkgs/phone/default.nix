@@ -6,6 +6,7 @@
   android-tools,
   avahi,
   fzf,
+  libnotify,
   openssh,
   scrcpy,
   tailscale,
@@ -15,6 +16,7 @@
     android-tools
     avahi
     fzf
+    libnotify
     openssh
     scrcpy
     tailscale
