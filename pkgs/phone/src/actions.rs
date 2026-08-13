@@ -76,7 +76,7 @@ pub async fn screenshot(
             // but folds the device's stderr into the same stream, so the
             // redirect has to run on the device, inside the quoted command.
             let remote = match display {
-                Some(id) => format!("screencap -p -d {id} 2>/dev/null"),
+                Some(d) => format!("screencap -p -d {} 2>/dev/null", d.physical),
                 None => "screencap -p 2>/dev/null".to_string(),
             };
 

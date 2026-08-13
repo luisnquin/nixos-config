@@ -318,52 +318,58 @@ pub async fn pair(server: &Server, addr: &str, code: &str) -> Result<()> {
     }
 }
 
-/// The display whose panel is actually on. Foldables expose several internal
-/// displays and `screencap` defaults to "the first one found", which is usually
-/// the one that is off.
-pub async fn active_display(server: &Server, serial: &str) -> Option<u64> {
+/// A panel, in both of the id namespaces Android keeps for it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Display {
+    /// SurfaceFlinger's physical id, which is what `screencap -d` takes. 64 bit
+    /// and on current hardware always past what a `u32` holds.
+    pub physical: u64,
+    /// The logical id, which is what `input -d` takes. Unrelated to the
+    /// physical one: a fold numbers its two panels 0 and 3 where SurfaceFlinger
+    /// numbers them 4619827677550801152 and ...153, and each command rejects
+    /// the other's id outright.
+    pub logical: u32,
+}
+
+/// The panel that is live. Foldables expose several and both `screencap` and
+/// `input` otherwise fall to the first, which is as often as not the one that
+/// is closed.
+pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
     let out = run_timeout(
         server,
-        &[
-            "-s",
-            serial,
-            "shell",
-            "dumpsys",
-            "SurfaceFlinger",
-            "--displays",
-        ],
+        &["-s", serial, "shell", "dumpsys", "display"],
         Duration::from_secs(8),
     )
     .await
     .ok()?;
 
-    powered_display(&out.stdout)
+    active_viewport(&out.stdout)
 }
 
-/// The id of the first display reported powered on.
+/// The viewport `dumpsys display` marks active.
 ///
-/// Ids are the physical display id SurfaceFlinger assigns, which is 64 bit and
-/// on current hardware always larger than a `u32` — parsing one into anything
-/// narrower discards every display and reports that none is on, which is
-/// indistinguishable here from a phone that has only one.
-pub fn powered_display(text: &str) -> Option<u64> {
-    let mut current = None;
+/// Read from there rather than from SurfaceFlinger's `powerMode` because
+/// `isActive` is the input system's own record of which panel is live — the
+/// question being asked — and because SurfaceFlinger never names the logical id
+/// at all.
+pub fn active_viewport(text: &str) -> Option<Display> {
+    let record = text
+        .split("DisplayViewport{")
+        .skip(1)
+        .map(|record| &record[..record.find('}').unwrap_or(record.len())])
+        .find(|record| field(record, "isActive=") == Some("true"))?;
 
-    for line in text.lines() {
-        let line = line.trim_end();
+    Some(Display {
+        physical: field(record, "uniqueId='local:")?.parse().ok()?,
+        logical: field(record, "displayId=")?.parse().ok()?,
+    })
+}
 
-        if let Some(rest) = line.strip_prefix("Display ") {
-            if let Ok(id) = rest.trim().parse::<u64>() {
-                current = Some(id);
-            }
-        }
+/// The value written after `key`, up to whatever closes it.
+fn field<'a>(record: &'a str, key: &str) -> Option<&'a str> {
+    let rest = record.split_once(key)?.1;
 
-        if line.ends_with("powerMode=On") {
-            return current;
-        }
-    }
-
-    None
+    Some(&rest[..rest.find([',', '\'', '}']).unwrap_or(rest.len())])
 }
 
 pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<String> {
@@ -382,25 +388,46 @@ pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<Strin
 mod tests {
     use super::*;
 
-    /// Taken from a Pixel 10 Pro Fold, whose two panels are the reason this
-    /// function exists. Both ids overflow a `u32`, so a narrower parse silently
-    /// answers "no display is on" for exactly the hardware it is meant to serve.
-    const FOLD: &str = "\
-Display 4619827677550801152
-    powerMode=Off
-Display 4619827677550801153
-    powerMode=On
-";
+    /// A Pixel 10 Pro Fold, open, whose two panels are the reason any of this
+    /// exists. Trimmed of the geometry, which is not read.
+    const FOLD: &str = "  mViewports=[DisplayViewport{type=INTERNAL, valid=true, isActive=true, \
+displayId=0, uniqueId='local:4619827677550801152', physicalPort=0, orientation=0, \
+deviceWidth=2076, deviceHeight=2152}, DisplayViewport{type=INTERNAL, valid=true, \
+isActive=false, displayId=3, uniqueId='local:4619827677550801153', physicalPort=1, \
+orientation=0, deviceWidth=1080, deviceHeight=2364}]
+  mDefaultDisplayDefaultColorMode=0";
 
     #[test]
-    fn reads_a_64_bit_display_id() {
-        assert_eq!(powered_display(FOLD), Some(4619827677550801153));
+    fn pairs_the_live_panel_with_both_its_ids() {
+        assert_eq!(
+            active_viewport(FOLD),
+            Some(Display {
+                physical: 4619827677550801152,
+                logical: 0,
+            })
+        );
+    }
+
+    /// Folded, the second viewport takes over. Nothing but `isActive` moves, so
+    /// reading position instead of that flag would answer the same either way.
+    #[test]
+    fn follows_the_flag_rather_than_the_order() {
+        let folded = FOLD.replacen("isActive=true", "isActive=x", 1);
+        let folded = folded.replace("isActive=false", "isActive=true");
+
+        assert_eq!(
+            active_viewport(&folded),
+            Some(Display {
+                physical: 4619827677550801153,
+                logical: 3,
+            })
+        );
     }
 
     #[test]
-    fn answers_nothing_when_every_panel_is_off() {
+    fn answers_nothing_when_no_viewport_is_live() {
         assert_eq!(
-            powered_display(&FOLD.replace("powerMode=On", "powerMode=Off")),
+            active_viewport(&FOLD.replace("isActive=true", "isActive=false")),
             None
         );
     }

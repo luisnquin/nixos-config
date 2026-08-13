@@ -180,12 +180,28 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
     }
 }
 
-pub async fn tap(server: &Server, serial: &str, x: i32, y: i32) -> Result<()> {
-    let (x, y) = (x.to_string(), y.to_string());
+/// One `input` invocation, aimed at the panel that is live.
+///
+/// Built as a single device-side command rather than as argv, because `input
+/// text` takes the rest of the line as its own words and flags — anything with
+/// a space in it has to reach the device already quoted.
+///
+/// `-d` is only written when a display was resolved: without it `input` aims at
+/// logical display 0, which is the right panel on everything that has one.
+async fn input(
+    server: &Server,
+    serial: &str,
+    display: Option<adb::Display>,
+    args: &str,
+) -> Result<()> {
+    let aim = display
+        .map(|d| format!(" -d {}", d.logical))
+        .unwrap_or_default();
+
     let out = adb::run_timeout(
         server,
-        &["-s", serial, "shell", "input", "tap", &x, &y],
-        Duration::from_secs(10),
+        &["-s", serial, "shell", &format!("input{aim} {args}")],
+        Duration::from_secs(20),
     )
     .await?;
 
@@ -194,6 +210,16 @@ pub async fn tap(server: &Server, serial: &str, x: i32, y: i32) -> Result<()> {
     } else {
         bail!("{}", out.stderr.trim())
     }
+}
+
+pub async fn tap(
+    server: &Server,
+    serial: &str,
+    display: Option<adb::Display>,
+    x: i32,
+    y: i32,
+) -> Result<()> {
+    input(server, serial, display, &format!("tap {x} {y}")).await
 }
 
 /// The characters `input text` cannot carry, sorted and deduplicated.
@@ -214,28 +240,25 @@ fn unsendable(text: &str) -> Vec<char> {
     odd
 }
 
-pub async fn type_text(server: &Server, serial: &str, text: &str) -> Result<()> {
+pub async fn type_text(
+    server: &Server,
+    serial: &str,
+    display: Option<adb::Display>,
+    text: &str,
+) -> Result<()> {
     let odd = unsendable(text);
 
     if !odd.is_empty() {
         bail!("cannot type {odd:?} — the device spells out ASCII only and drops the rest silently");
     }
 
-    // `input text` splits on spaces and reads the rest as its own flags, so the
-    // device-side shell has to receive it as one already-quoted word.
-    let quoted = format!("input text {}", shell_quote(text));
-    let out = adb::run_timeout(
+    input(
         server,
-        &["-s", serial, "shell", &quoted],
-        Duration::from_secs(20),
+        serial,
+        display,
+        &format!("text {}", shell_quote(text)),
     )
-    .await?;
-
-    if out.ok() {
-        Ok(())
-    } else {
-        bail!("{}", out.stderr.trim())
-    }
+    .await
 }
 
 /// The keys worth naming when driving a phone.
@@ -301,20 +324,15 @@ fn keycode(name: &str) -> Result<String> {
     bail!("unknown key '{name}' — did you mean {}?", near.join(", "))
 }
 
-pub async fn key(server: &Server, serial: &str, name: &str) -> Result<()> {
+pub async fn key(
+    server: &Server,
+    serial: &str,
+    display: Option<adb::Display>,
+    name: &str,
+) -> Result<()> {
     let code = keycode(name)?;
-    let out = adb::run_timeout(
-        server,
-        &["-s", serial, "shell", "input", "keyevent", &code],
-        Duration::from_secs(10),
-    )
-    .await?;
 
-    if out.ok() {
-        Ok(())
-    } else {
-        bail!("{}", out.stderr.trim())
-    }
+    input(server, serial, display, &format!("keyevent {code}")).await
 }
 
 fn shell_quote(text: &str) -> String {

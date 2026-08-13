@@ -242,7 +242,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Hosts { action }) => hosts_cmd(&mut reg, action).await,
 
         Some(Command::Snapshot { target, json }) => {
-            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+            // uiautomator has no display flag; it reads whichever one holds focus
+            let (server, serial, _) = driven(&mut reg, target.as_deref()).await?;
             let nodes = a11y::dump(&server, &serial).await?;
 
             if json {
@@ -255,30 +256,30 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Tap { what, target }) => {
-            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+            let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
             let nodes = a11y::dump(&server, &serial).await?;
             let node = a11y::pick(&nodes, &what)?;
             let (x, y) = node.bounds.center();
 
-            a11y::tap(&server, &serial, x, y).await?;
+            a11y::tap(&server, &serial, display, x, y).await?;
             eprintln!("phone: tapped {} at {x},{y}", node.label());
 
             Ok(())
         }
 
         Some(Command::Type { text, target }) => {
-            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+            let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
 
-            a11y::type_text(&server, &serial, &text).await?;
+            a11y::type_text(&server, &serial, display, &text).await?;
             eprintln!("phone: typed {} characters", text.chars().count());
 
             Ok(())
         }
 
         Some(Command::Key { name, target }) => {
-            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+            let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
 
-            a11y::key(&server, &serial, &name).await?;
+            a11y::key(&server, &serial, display, &name).await?;
             eprintln!("phone: sent {}", name.to_uppercase());
 
             Ok(())
@@ -409,7 +410,10 @@ async fn drain(mut rx: UnboundedReceiver<Step>) {
 /// so work the same on a handset here and an emulator on a mac. Neither exists
 /// for an iPhone or an iOS simulator: driving those needs the CoreSimulator
 /// frameworks, in a process on the host itself.
-async fn driven(reg: &mut Registry, want: Option<&str>) -> Result<(Server, String)> {
+async fn driven(
+    reg: &mut Registry,
+    want: Option<&str>,
+) -> Result<(Server, String, Option<adb::Display>)> {
     let view = resolve(reg, want, true).await?;
 
     if view.device.platform.is_hosted() {
@@ -424,7 +428,9 @@ async fn driven(reg: &mut Registry, want: Option<&str>) -> Result<(Server, Strin
         .await
         .ok_or_else(|| anyhow::anyhow!("{} is not attached", view.device.label))?;
 
-    Ok((view.server, serial))
+    let display = adb::active_display(&view.server, &serial).await;
+
+    Ok((view.server, serial, display))
 }
 
 fn print_elements(nodes: &[a11y::Node]) {
