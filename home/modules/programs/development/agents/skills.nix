@@ -61,6 +61,15 @@ in {
         } {
           plugins = ["flake-update"];
         })
+      (mkInlineSkill {
+          "phone" = {
+            description = "Drive the Android handsets and emulators on this desk with the `phone` CLI — pick a device, screenshot it, list the elements on screen, tap by name or coordinate, type, send keys, and handle split screen focus and foldable displays. Use for any hands-on Android device automation from this host.";
+            tags = ["mobile"];
+            content = builtins.readFile ./skills/phone.md;
+          };
+        } {
+          plugins = ["phone"];
+        })
       (anthropics.skills {
         prefix = "anthropics-";
         plugins = [
