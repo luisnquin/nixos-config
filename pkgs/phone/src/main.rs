@@ -1,3 +1,4 @@
+mod a11y;
 mod actions;
 mod adb;
 mod cli;
@@ -240,6 +241,49 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Hosts { action }) => hosts_cmd(&mut reg, action).await,
 
+        Some(Command::Snapshot { target, json }) => {
+            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+            let nodes = a11y::dump(&server, &serial).await?;
+
+            if json {
+                print_elements_json(&nodes)?;
+            } else {
+                print_elements(&nodes);
+            }
+
+            Ok(())
+        }
+
+        Some(Command::Tap { what, target }) => {
+            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+            let nodes = a11y::dump(&server, &serial).await?;
+            let node = a11y::pick(&nodes, &what)?;
+            let (x, y) = node.bounds.center();
+
+            a11y::tap(&server, &serial, x, y).await?;
+            eprintln!("phone: tapped {} at {x},{y}", node.label());
+
+            Ok(())
+        }
+
+        Some(Command::Type { text, target }) => {
+            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+
+            a11y::type_text(&server, &serial, &text).await?;
+            eprintln!("phone: typed {} characters", text.chars().count());
+
+            Ok(())
+        }
+
+        Some(Command::Key { name, target }) => {
+            let (server, serial) = driven(&mut reg, target.as_deref()).await?;
+
+            a11y::key(&server, &serial, &name).await?;
+            eprintln!("phone: sent {}", name.to_uppercase());
+
+            Ok(())
+        }
+
         Some(Command::Doctor) => doctor(&mut reg).await,
 
         Some(Command::Completions { .. }) => unreachable!("handled above"),
@@ -356,6 +400,63 @@ async fn drain(mut rx: UnboundedReceiver<Step>) {
             }
         }
     }
+}
+
+/// The adb transport for a device this can drive, for the commands that read
+/// and press the screen.
+///
+/// Those go through `uiautomator` and `input`, which ride the adb transport and
+/// so work the same on a handset here and an emulator on a mac. Neither exists
+/// for an iPhone or an iOS simulator: driving those needs the CoreSimulator
+/// frameworks, in a process on the host itself.
+async fn driven(reg: &mut Registry, want: Option<&str>) -> Result<(Server, String)> {
+    let view = resolve(reg, want, true).await?;
+
+    if view.device.platform.is_hosted() {
+        bail!(
+            "cannot read or press {} — {} has no adb transport",
+            view.device.label,
+            view.device.platform
+        );
+    }
+
+    let serial = connect::attached_serial(&view.server, &view.device)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("{} is not attached", view.device.label))?;
+
+    Ok((view.server, serial))
+}
+
+fn print_elements(nodes: &[a11y::Node]) {
+    for node in nodes {
+        let (x, y) = node.bounds.center();
+        let press = if node.clickable { "tap" } else { "   " };
+
+        println!("@{:<3} {press}  {:<40} {x},{y}", node.index, node.label());
+    }
+}
+
+fn print_elements_json(nodes: &[a11y::Node]) -> Result<()> {
+    let rows: Vec<serde_json::Value> = nodes
+        .iter()
+        .map(|node| {
+            let (x, y) = node.bounds.center();
+
+            serde_json::json!({
+                "ref": format!("@{}", node.index),
+                "label": node.label(),
+                "text": node.text,
+                "desc": node.desc,
+                "id": node.res_id,
+                "clickable": node.clickable,
+                "at": [x, y],
+            })
+        })
+        .collect();
+
+    println!("{}", serde_json::to_string_pretty(&rows)?);
+
+    Ok(())
 }
 
 /// Turns whatever the user typed into exactly one device.

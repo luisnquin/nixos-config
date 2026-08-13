@@ -107,6 +107,39 @@ pub enum Command {
         action: Option<HostAction>,
     },
 
+    /// List what is on screen, as elements that can be named
+    Snapshot {
+        target: Option<String>,
+
+        /// Emit JSON instead of a table
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Press an element, named by its text, description or @index
+    Tap {
+        what: String,
+
+        #[arg(long)]
+        target: Option<String>,
+    },
+
+    /// Type into whatever holds focus
+    Type {
+        text: String,
+
+        #[arg(long)]
+        target: Option<String>,
+    },
+
+    /// Send a key, by keycode name (back, home, enter, tab…)
+    Key {
+        name: String,
+
+        #[arg(long)]
+        target: Option<String>,
+    },
+
     /// Check the tools and daemons this depends on
     Doctor,
 
