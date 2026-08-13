@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Gauge, List, ListItem, Paragraph, Wrap};
 use ratatui::Frame;
 
-use super::app::{row_fields, App, Level, Mode};
+use super::app::{row_fields, App, Level, Mode, Prompt};
 use crate::model::Reach;
 
 const KEYS: &[(&str, &str)] = &[
@@ -18,6 +18,7 @@ const KEYS: &[(&str, &str)] = &[
     ("u", "use as default"),
     ("x", "forget"),
     ("r", "refresh"),
+    ("h", "ssh hosts"),
     ("/", "filter"),
     ("g/G", "top/bottom"),
     ("?", "help"),
@@ -43,6 +44,82 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if matches!(app.mode, Mode::Help) {
         render_help(frame, frame.area());
     }
+
+    if matches!(app.mode, Mode::Hosts | Mode::Prompt(Prompt::Host)) {
+        render_hosts(frame, app, frame.area());
+    }
+}
+
+/// The ssh hosts a survey may reach into. No host is configured here on
+/// purpose: a row is only a name plus whether it is worth the round trip, and
+/// how to reach it stays entirely ssh's business.
+fn render_hosts(frame: &mut Frame, app: &mut App, area: Rect) {
+    let width = 54;
+    let height = (app.hosts.len() as u16).clamp(1, 14) + 3;
+
+    let [area] = Layout::horizontal([Constraint::Length(width)])
+        .flex(Flex::Center)
+        .areas(area);
+
+    let [area] = Layout::vertical([Constraint::Length(height)])
+        .flex(Flex::Center)
+        .areas(area);
+
+    let block = Block::bordered()
+        .title(" ssh hosts ")
+        .title_bottom(" space toggle · a add · r rescan · esc close ");
+
+    frame.render_widget(Clear, area);
+
+    if app.hosts.is_empty() {
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "  reading ssh config…",
+                Style::default().fg(Color::DarkGray),
+            )))
+            .block(block),
+            area,
+        );
+
+        return;
+    }
+
+    let rows: Vec<ListItem> = app
+        .hosts
+        .iter()
+        .map(|host| {
+            let (mark, mark_style) = if host.enabled {
+                ("[x] ", Style::default().fg(Color::Green))
+            } else {
+                ("[ ] ", Style::default().fg(Color::DarkGray))
+            };
+
+            // an unprobed host has no answer yet, which is not the same as a
+            // host that answered and drives nothing.
+            let (caps, caps_color) = match (host.probed, host.caps.any()) {
+                (false, _) => (String::from("unprobed"), Color::DarkGray),
+                (true, false) => (host.caps.label(), Color::Red),
+                (true, true) => (host.caps.label(), Color::Cyan),
+            };
+
+            ListItem::new(Line::from(vec![
+                Span::styled(mark, mark_style),
+                Span::styled(fit(&host.name, 20), Style::default().fg(Color::White)),
+                Span::styled(caps, Style::default().fg(caps_color)),
+            ]))
+        })
+        .collect();
+
+    let list = List::new(rows)
+        .block(block)
+        .highlight_symbol("▸ ")
+        .highlight_style(
+            Style::default()
+                .bg(Color::Rgb(40, 44, 52))
+                .add_modifier(Modifier::BOLD),
+        );
+
+    frame.render_stateful_widget(list, area, &mut app.host_state);
 }
 
 fn render_header(frame: &mut Frame, app: &App, area: Rect) {
@@ -59,7 +136,10 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
     ];
 
     if let Some(label) = app.current_label() {
-        spans.push(Span::styled("   default: ", Style::default().fg(Color::DarkGray)));
+        spans.push(Span::styled(
+            "   default: ",
+            Style::default().fg(Color::DarkGray),
+        ));
         spans.push(Span::styled(label, Style::default().fg(Color::Magenta)));
     }
 
@@ -88,18 +168,49 @@ fn render_list(frame: &mut Frame, app: &mut App, area: Rect) {
                 ),
                 Span::styled(fit(&model, w_model), Style::default().fg(Color::Gray)),
                 Span::styled(fit(&reach, w_reach), reach_style(&view.reach)),
-                Span::styled(detail, Style::default().fg(Color::DarkGray)),
+                Span::styled(detail, detail_style(view.device.host.as_deref())),
             ]))
         })
         .collect();
 
-    let list = List::new(rows).block(block).highlight_symbol("▸ ").highlight_style(
-        Style::default()
-            .bg(Color::Rgb(40, 44, 52))
-            .add_modifier(Modifier::BOLD),
-    );
+    let list = List::new(rows)
+        .block(block)
+        .highlight_symbol("▸ ")
+        .highlight_style(
+            Style::default()
+                .bg(Color::Rgb(40, 44, 52))
+                .add_modifier(Modifier::BOLD),
+        );
 
     frame.render_stateful_widget(list, area, &mut app.state);
+}
+
+/// Colours the where-it-lives column by the machine that owns the device, so a
+/// local emulator and one on a mac are told apart at a glance rather than by
+/// reading the text. Grey means this machine — the case with no host to name.
+///
+/// The colour is derived from the name rather than assigned: hosts come out of
+/// ssh's config, so there is no fixed set to hand-pick from, and two of them
+/// must not collapse into one reading.
+fn detail_style(host: Option<&str>) -> Style {
+    const PALETTE: &[Color] = &[
+        Color::Magenta,
+        Color::Blue,
+        Color::Yellow,
+        Color::Green,
+        Color::LightRed,
+        Color::LightCyan,
+    ];
+
+    let Some(host) = host else {
+        return Style::default().fg(Color::DarkGray);
+    };
+
+    let sum = host.bytes().fold(0usize, |acc, b| {
+        acc.wrapping_mul(31).wrapping_add(b as usize)
+    });
+
+    Style::default().fg(PALETTE[sum % PALETTE.len()])
 }
 
 fn reach_style(reach: &Reach) -> Style {
@@ -197,10 +308,17 @@ fn render_status(frame: &mut Frame, app: &App, area: Rect) {
             format!(" {busy}…"),
             Style::default().fg(Color::Cyan),
         )),
-        (None, Some(queued)) => Line::from(Span::styled(
-            format!(" waiting to shoot {queued}"),
-            Style::default().fg(Color::Yellow),
-        )),
+        (None, Some(queued)) => {
+            let why = app
+                .queued_hint()
+                .map(|why| format!(" · {why}"))
+                .unwrap_or_default();
+
+            Line::from(Span::styled(
+                format!(" waiting to shoot {queued}{why}"),
+                Style::default().fg(Color::Yellow),
+            ))
+        }
         _ if !app.filter.is_empty() => Line::from(Span::styled(
             format!(" filter: {}", app.filter),
             Style::default().fg(Color::DarkGray),

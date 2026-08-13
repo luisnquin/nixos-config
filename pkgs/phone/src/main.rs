@@ -3,10 +3,13 @@ mod adb;
 mod cli;
 mod connect;
 mod discover;
+mod hosts;
 mod ios;
 mod model;
 mod picker;
 mod registry;
+mod simctl;
+mod ssh;
 mod tui;
 
 use std::os::unix::process::CommandExt;
@@ -17,7 +20,8 @@ use clap::{CommandFactory, Parser};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use actions::Sink;
-use cli::{Cli, Command};
+use adb::Server;
+use cli::{Cli, Command, HostAction};
 use connect::{Reporter, Step};
 use discover::survey;
 use model::View;
@@ -91,7 +95,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             };
 
             let (rep, drain) = reporter();
-            let serial = connect::connect(&mut reg, &view.device, &opts, &rep).await;
+            let serial = connect::connect(&mut reg, &view.server, &view.device, &opts, &rep).await;
 
             drop(rep);
             drain.await;
@@ -103,7 +107,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Disconnect { target, all }) => {
             if all {
-                adb::run(&["disconnect"]).await?;
+                adb::run(&Server::Local, &["disconnect"]).await?;
                 eprintln!("phone: dropped every wireless transport");
 
                 return Ok(());
@@ -115,7 +119,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 bail!("{} has no wireless transport", view.device.label);
             };
 
-            adb::disconnect(serial).await?;
+            adb::disconnect(&view.server, serial).await?;
             eprintln!("phone: disconnected {serial}");
 
             Ok(())
@@ -123,7 +127,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Pair { code, addr }) => {
             let (rep, drain) = reporter();
-            let res = connect::pair(addr.as_deref(), &code, &rep).await;
+            let res = connect::pair(&Server::Local, addr.as_deref(), &code, &rep).await;
 
             drop(rep);
             drain.await;
@@ -139,7 +143,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             let view = resolve(&mut reg, target.as_deref(), true).await?;
 
             let (rep, drain) = reporter();
-            let res = connect::pin(&mut reg, &view.device, port, &rep).await;
+            let res = connect::pin(&mut reg, &view.server, &view.device, port, &rep).await;
 
             drop(rep);
             drain.await;
@@ -185,7 +189,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             let sink = Sink::from_opt(out.as_deref());
 
             let (rep, drain) = reporter();
-            let res = actions::screenshot(&view.device, &sink, &rep).await;
+            let res = actions::screenshot(&view.server, &view.device, &sink, &rep).await;
 
             drop(rep);
             drain.await;
@@ -202,7 +206,9 @@ async fn dispatch(cli: Cli) -> Result<()> {
             };
 
             let view = resolve(&mut reg, target.as_deref(), true).await?;
-            let err = actions::logs_command(&view.device, &app).await?.exec();
+            let err = actions::logs_command(&view.server, &view.device, &app)
+                .await?
+                .exec();
 
             bail!("{err}");
         }
@@ -210,7 +216,10 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Mirror { target }) => {
             let view = resolve(&mut reg, target.as_deref(), true).await?;
 
-            eprintln!("phone: {}", actions::mirror(&view.device).await?);
+            eprintln!(
+                "phone: {}",
+                actions::mirror(&view.server, &view.device).await?
+            );
 
             Ok(())
         }
@@ -219,7 +228,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             let view = resolve(&mut reg, target.as_deref(), true).await?;
 
             let (rep, drain) = reporter();
-            let res = actions::install(&view.device, &apk, &rep).await;
+            let res = actions::install(&view.server, &view.device, &apk, &rep).await;
 
             drop(rep);
             drain.await;
@@ -229,9 +238,94 @@ async fn dispatch(cli: Cli) -> Result<()> {
             Ok(())
         }
 
-        Some(Command::Doctor) => doctor().await,
+        Some(Command::Hosts { action }) => hosts_cmd(&mut reg, action).await,
+
+        Some(Command::Doctor) => doctor(&mut reg).await,
 
         Some(Command::Completions { .. }) => unreachable!("handled above"),
+    }
+}
+
+/// Lists or toggles the ssh hosts a survey reaches into. There is no host
+/// config here on purpose: the names come from ssh, and everything about how to
+/// reach one is already answered by the user's own `ssh_config`.
+async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()> {
+    let found = hosts::discover().await;
+    let names: Vec<String> = found.iter().map(|h| h.name.clone()).collect();
+
+    reg.sync_hosts(&names);
+
+    match action {
+        Some(HostAction::Enable { name }) => {
+            // whether ssh has a stanza for the name is not this program's
+            // business: a name resolved by MagicDNS, /etc/hosts or plain DNS
+            // reaches a real machine and is enabled by the same rule as any
+            // other — it answered.
+            //
+            // probing on enable rather than on every survey: an ssh round trip
+            // is not something to pay for on each refresh, and a mac does not
+            // grow an Android SDK between two of them.
+            let Some(caps) = hosts::probe(&name).await else {
+                bail!("{name} did not answer; `ssh {name} true` says why");
+            };
+
+            let state = reg.host_mut(&name);
+
+            state.enabled = true;
+            hosts::stamp(state, caps);
+
+            reg.save()?;
+
+            eprintln!("phone: {name} enabled ({})", caps.label());
+
+            if !caps.any() {
+                eprintln!("phone: nothing to drive there; adb, xcrun and tunneld all answered no");
+            }
+
+            Ok(())
+        }
+
+        Some(HostAction::Disable { name }) => {
+            reg.host_mut(&name).enabled = false;
+            reg.save()?;
+
+            eprintln!("phone: {name} disabled");
+
+            Ok(())
+        }
+
+        None => {
+            if reg.hosts.is_empty() {
+                eprintln!("phone: no Host stanzas in your ssh config");
+
+                return Ok(());
+            }
+
+            for state in &reg.hosts {
+                let detail = if state.enabled {
+                    match state.tunnel_port {
+                        Some(port) => format!("{} · adb on :{port}", state.caps.label()),
+                        None => state.caps.label(),
+                    }
+                } else {
+                    found
+                        .iter()
+                        .find(|h| h.name == state.name)
+                        .map(|h| h.target.clone())
+                        .unwrap_or_default()
+                };
+
+                println!(
+                    "  {} {:<20} {detail}",
+                    if state.enabled { "◉" } else { "○" },
+                    state.name
+                );
+            }
+
+            reg.save()?;
+
+            Ok(())
+        }
     }
 }
 
@@ -279,7 +373,11 @@ async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         .filter(|s| !s.is_empty());
 
     let mut candidates: Vec<View> = match &want {
-        Some(w) => views.iter().filter(|v| v.device.matches(w)).cloned().collect(),
+        Some(w) => views
+            .iter()
+            .filter(|v| v.device.matches(w))
+            .cloned()
+            .collect(),
         None => views.clone(),
     };
 
@@ -340,6 +438,9 @@ fn print_table(views: &[View]) {
                     format!("{} [{pin}]", e.addr())
                 }
             })
+            // a device driven through a host has no address of its own here;
+            // the host is the only locating fact there is
+            .or_else(|| d.host.clone())
             .unwrap_or_else(|| "-".into());
 
         println!(
@@ -367,7 +468,8 @@ fn print_json(views: &[View]) -> Result<()> {
                 "platform": v.device.platform.as_str(),
                 "reach": v.reach.label(),
                 "serial": v.reach.serial(),
-                "tailnet": v.device.tailnet,
+                "host": v.device.host,
+                "discovered_id": v.device.discovered_id,
                 "endpoints": v.device.endpoints,
                 "last_connected": v.device.last_connected,
             })
@@ -384,10 +486,13 @@ fn truncate(s: &str, width: usize) -> String {
         return s.to_string();
     }
 
-    s.chars().take(width.saturating_sub(1)).chain(['…']).collect()
+    s.chars()
+        .take(width.saturating_sub(1))
+        .chain(['…'])
+        .collect()
 }
 
-async fn doctor() -> Result<()> {
+async fn doctor(reg: &mut Registry) -> Result<()> {
     let mut bad = 0;
 
     let mut check = |ok: bool, name: &str, detail: String| {
@@ -399,7 +504,7 @@ async fn doctor() -> Result<()> {
         }
     };
 
-    let adb_version = adb::run(&["version"]).await;
+    let adb_version = adb::run(&Server::Local, &["version"]).await;
 
     check(
         adb_version.as_ref().is_ok_and(|o| o.ok()),
@@ -411,13 +516,9 @@ async fn doctor() -> Result<()> {
             .unwrap_or_else(|| "not on PATH".into()),
     );
 
-    let attached = adb::devices().await.unwrap_or_default();
+    let attached = adb::devices(&Server::Local).await.unwrap_or_default();
 
-    check(
-        true,
-        "transports",
-        format!("{} attached", attached.len()),
-    );
+    check(true, "transports", format!("{} attached", attached.len()));
 
     let key = registry::state_dir()
         .parent()
@@ -452,8 +553,10 @@ async fn doctor() -> Result<()> {
 
     // adb from nixpkgs is built without the bundled mDNS responder, so wireless
     // pairing depends entirely on the system's avahi
-    let mdns = adb::run(&["mdns", "check"]).await;
-    let adb_mdns = mdns.as_ref().is_ok_and(|o| !o.stderr.contains("not supported"));
+    let mdns = adb::run(&Server::Local, &["mdns", "check"]).await;
+    let adb_mdns = mdns
+        .as_ref()
+        .is_ok_and(|o| !o.stderr.contains("not supported"));
 
     check(
         adb_mdns || which("avahi-browse"),
@@ -468,16 +571,60 @@ async fn doctor() -> Result<()> {
     );
 
     for tool in ["fzf", "scrcpy", "wl-copy", "notify-send"] {
-        check(which(tool), tool, if which(tool) { "ok".into() } else { "not on PATH".into() });
+        check(
+            which(tool),
+            tool,
+            if which(tool) {
+                "ok".into()
+            } else {
+                "not on PATH".into()
+            },
+        );
     }
 
-    let ios = ios::devices().await;
+    let known = hosts::discover().await;
+    reg.sync_hosts(&known.iter().map(|h| h.name.clone()).collect::<Vec<_>>());
+
+    let enabled: Vec<String> = reg
+        .enabled_hosts()
+        .iter()
+        .map(|h| format!("{} ({})", h.name, h.caps.label()))
+        .collect();
 
     check(
         true,
-        "ios",
-        format!("{} device(s) via {}", ios.len(), ios::HOST),
+        "ssh hosts",
+        if enabled.is_empty() {
+            format!(
+                "{} in your ssh config, none enabled; `phone hosts enable NAME`",
+                known.len()
+            )
+        } else {
+            enabled.join(", ")
+        },
     );
+
+    for state in reg
+        .hosts
+        .iter()
+        .filter(|h| h.enabled)
+        .cloned()
+        .collect::<Vec<_>>()
+    {
+        match hosts::probe(&state.name).await {
+            Some(caps) if caps == state.caps => {
+                check(true, &state.name, format!("still {}", caps.label()))
+            }
+            Some(caps) => check(
+                false,
+                &state.name,
+                format!("now {} (was {})", caps.label(), state.caps.label()),
+            ),
+            None => check(false, &state.name, "unreachable over ssh".into()),
+        }
+    }
+
+    reg.save()?;
 
     if bad > 0 {
         bail!("{bad} check(s) failed");
@@ -497,8 +644,6 @@ fn dirs_adbkey() -> std::path::PathBuf {
 
 fn which(bin: &str) -> bool {
     std::env::var_os("PATH")
-        .map(|paths| {
-            std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file())
-        })
+        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
         .unwrap_or(false)
 }

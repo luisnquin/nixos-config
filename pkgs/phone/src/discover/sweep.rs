@@ -32,7 +32,12 @@ impl Sweep {
     /// Every port in `range` that accepts a TCP connection, lowest first. A hit
     /// is only a candidate: adbd is not the sole listener a phone can have, so
     /// callers still have to confirm with `adb connect`.
-    pub async fn scan<F>(&self, host: &str, range: RangeInclusive<u16>, mut on_progress: F) -> Result<Vec<u16>>
+    pub async fn scan<F>(
+        &self,
+        host: &str,
+        range: RangeInclusive<u16>,
+        mut on_progress: F,
+    ) -> Result<Vec<u16>>
     where
         F: FnMut(usize, usize),
     {
@@ -54,9 +59,10 @@ impl Sweep {
             tasks.spawn(async move {
                 let _permit = sem.acquire_owned().await.ok()?;
 
-                let hit = tokio::time::timeout(timeout, TcpStream::connect(SocketAddr::new(ip, port)))
-                    .await
-                    .is_ok_and(|r| r.is_ok());
+                let hit =
+                    tokio::time::timeout(timeout, TcpStream::connect(SocketAddr::new(ip, port)))
+                        .await
+                        .is_ok_and(|r| r.is_ok());
 
                 done.fetch_add(1, Ordering::Relaxed);
 

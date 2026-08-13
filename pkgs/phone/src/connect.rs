@@ -4,8 +4,8 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Result};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::adb;
-use crate::discover::{avahi, split_addr, sweep, tailscale};
+use crate::adb::{self, Server};
+use crate::discover::{avahi, scoped, split_addr, sweep, tailscale};
 use crate::model::{Device, Pin};
 use crate::registry::Registry;
 
@@ -70,6 +70,7 @@ impl Default for Opts {
 /// serial of the transport that came up.
 pub async fn connect(
     reg: &mut Registry,
+    server: &Server,
     device: &Device,
     opts: &Opts,
     rep: &Reporter,
@@ -78,7 +79,7 @@ pub async fn connect(
         bail!("{} is not an adb device", device.label);
     }
 
-    if let Some(serial) = attached_serial(device).await {
+    if let Some(serial) = attached_serial(server, device).await {
         rep.done(format!("already attached as {serial}"));
         reg.touch(&device.id);
         reg.save()?;
@@ -86,16 +87,16 @@ pub async fn connect(
         return Ok(serial);
     }
 
-    if let Some(serial) = try_history(reg, device, rep).await? {
+    if let Some(serial) = try_history(reg, server, device, rep).await? {
         return Ok(serial);
     }
 
-    if let Some(serial) = try_avahi(reg, device, rep).await? {
+    if let Some(serial) = try_avahi(reg, server, device, rep).await? {
         return Ok(serial);
     }
 
     if opts.sweep {
-        if let Some(serial) = try_sweep(reg, device, opts, rep).await? {
+        if let Some(serial) = try_sweep(reg, server, device, opts, rep).await? {
             return Ok(serial);
         }
     }
@@ -105,22 +106,31 @@ pub async fn connect(
     Err(anyhow!("no route to {}", device.label))
 }
 
-/// The adb serial of an already-live transport for this device, if any.
-pub async fn attached_serial(device: &Device) -> Option<String> {
-    let attached = adb::devices().await.ok()?;
+/// The adb serial of an already-live transport for this device on `server`.
+/// The comparison goes through the scoped id because a serial only identifies a
+/// device within the server that reported it.
+pub async fn attached_serial(server: &Server, device: &Device) -> Option<String> {
+    let attached = adb::devices(server).await.ok()?;
 
     attached
         .into_iter()
         .filter(|a| a.state == "device")
         .find(|a| {
-            a.serial == device.id
-                || device.aliases.iter().any(|alias| *alias == a.serial)
+            let key = scoped(server, &a.serial);
+
+            key == device.id
+                || device.aliases.contains(&key)
                 || device.endpoints.iter().any(|e| e.addr() == a.serial)
         })
         .map(|a| a.serial)
 }
 
-async fn try_history(reg: &mut Registry, device: &Device, rep: &Reporter) -> Result<Option<String>> {
+async fn try_history(
+    reg: &mut Registry,
+    server: &Server,
+    device: &Device,
+    rep: &Reporter,
+) -> Result<Option<String>> {
     let ranked: Vec<(String, u16, Pin)> = device
         .ranked_endpoints()
         .into_iter()
@@ -164,7 +174,7 @@ async fn try_history(reg: &mut Registry, device: &Device, rep: &Reporter) -> Res
 
         rep.try_(format!("connect {addr}"));
 
-        match adb::connect(&addr).await {
+        match adb::connect(server, &addr).await {
             Ok(()) => {
                 remember(reg, device, host, *port, *pin);
                 reg.save()?;
@@ -181,15 +191,19 @@ async fn try_history(reg: &mut Registry, device: &Device, rep: &Reporter) -> Res
     Ok(None)
 }
 
-async fn try_avahi(reg: &mut Registry, device: &Device, rep: &Reporter) -> Result<Option<String>> {
+async fn try_avahi(
+    reg: &mut Registry,
+    server: &Server,
+    device: &Device,
+    rep: &Reporter,
+) -> Result<Option<String>> {
     rep.try_("mdns: browsing the local network");
 
     let services = avahi::browse(avahi::CONNECT_SERVICE, Duration::from_secs(3)).await;
 
     let hit = services.iter().find(|s| {
-        s.serial().is_some_and(|serial| {
-            serial == device.id || device.aliases.iter().any(|a| a == serial)
-        })
+        s.serial()
+            .is_some_and(|serial| serial == device.id || device.aliases.iter().any(|a| a == serial))
     });
 
     let Some(service) = hit else {
@@ -206,7 +220,7 @@ async fn try_avahi(reg: &mut Registry, device: &Device, rep: &Reporter) -> Resul
 
     rep.try_(format!("connect {addr}"));
 
-    match adb::connect(&addr).await {
+    match adb::connect(server, &addr).await {
         Ok(()) => {
             remember(reg, device, &service.host, service.port, Pin::None);
             reg.save()?;
@@ -224,59 +238,68 @@ async fn try_avahi(reg: &mut Registry, device: &Device, rep: &Reporter) -> Resul
 
 async fn try_sweep(
     reg: &mut Registry,
+    server: &Server,
     device: &Device,
     opts: &Opts,
     rep: &Reporter,
 ) -> Result<Option<String>> {
-    let Some(tailnet) = device.tailnet.as_ref().filter(|t| !t.ip.is_empty()) else {
-        return Ok(None);
-    };
+    // an address only routes while whatever advertises it holds a connection,
+    // so one a source names and reports down is worth skipping: sweeping it
+    // means waiting out the timeout on every port in the range.
+    let peers = tailscale::peers().await.unwrap_or_default();
 
-    if !tailnet_routable(&tailnet.ip).await {
-        rep.fail(format!("sweep: {} is not on the tailnet", device.label));
+    let targets: Vec<String> = device
+        .hosts()
+        .into_iter()
+        .filter(|host| !unreachable(&peers, host))
+        .collect();
 
-        return Ok(None);
-    }
-
-    rep.try_(format!(
-        "sweep {} ports {}-{}",
-        tailnet.ip,
-        opts.range.start(),
-        opts.range.end()
-    ));
-
-    let scanner = sweep::Sweep {
-        concurrency: opts.concurrency,
-        ..Default::default()
-    };
-
-    let rep_progress = rep.clone();
-
-    let open = scanner
-        .scan(&tailnet.ip, opts.range.clone(), move |done, total| {
-            rep_progress.send(Step::Progress { done, total });
-        })
-        .await?;
-
-    if open.is_empty() {
-        rep.fail("sweep: no open ports");
+    if targets.is_empty() {
+        rep.fail(format!("sweep: no address to scan for {}", device.label));
 
         return Ok(None);
     }
 
-    rep.note(format!("sweep: {} candidate port(s)", open.len()));
+    for host in targets {
+        rep.try_(format!(
+            "sweep {host} ports {}-{}",
+            opts.range.start(),
+            opts.range.end()
+        ));
 
-    for port in open {
-        let addr = format!("{}:{port}", tailnet.ip);
+        let scanner = sweep::Sweep {
+            concurrency: opts.concurrency,
+            ..Default::default()
+        };
 
-        rep.try_(format!("connect {addr}"));
+        let rep_progress = rep.clone();
 
-        if adb::connect(&addr).await.is_ok() {
-            remember(reg, device, &tailnet.ip, port, Pin::None);
-            reg.save()?;
-            rep.done(format!("connected {addr}"));
+        let open = scanner
+            .scan(&host, opts.range.clone(), move |done, total| {
+                rep_progress.send(Step::Progress { done, total });
+            })
+            .await?;
 
-            return Ok(Some(addr));
+        if open.is_empty() {
+            rep.fail(format!("sweep: no open ports on {host}"));
+
+            continue;
+        }
+
+        rep.note(format!("sweep: {} candidate port(s)", open.len()));
+
+        for port in open {
+            let addr = format!("{host}:{port}");
+
+            rep.try_(format!("connect {addr}"));
+
+            if adb::connect(server, &addr).await.is_ok() {
+                remember(reg, device, &host, port, Pin::None);
+                reg.save()?;
+                rep.done(format!("connected {addr}"));
+
+                return Ok(Some(addr));
+            }
         }
     }
 
@@ -285,15 +308,11 @@ async fn try_sweep(
     Ok(None)
 }
 
-/// Whether the tailnet still carries `ip`. A 100.x address only routes while
-/// its node holds a connection, so sweeping one that does not means waiting out
-/// the timeout on every port in the range.
-async fn tailnet_routable(ip: &str) -> bool {
-    match tailscale::peers().await {
-        Ok(peers) => routable(&peers, ip),
-        // with no answer from tailscaled there is nothing to rule the sweep out
-        Err(_) => true,
-    }
+/// Whether a source names this address and says it is down. An address nothing
+/// knows about is not ruled out — no source claiming it is not the same as one
+/// claiming it is gone.
+fn unreachable(peers: &[tailscale::Peer], host: &str) -> bool {
+    peers.iter().any(|p| p.ip == host && !p.online)
 }
 
 fn routable(peers: &[tailscale::Peer], ip: &str) -> bool {
@@ -316,24 +335,31 @@ fn remember(reg: &mut Registry, device: &Device, host: &str, port: u16, pin: Pin
 /// Restart adbd on a fixed port so later reconnects skip discovery entirely.
 /// Without root this lasts until the device reboots; with it, the persistent
 /// property makes the endpoint permanent.
-pub async fn pin(reg: &mut Registry, device: &Device, port: u16, rep: &Reporter) -> Result<()> {
-    let serial = attached_serial(device)
+pub async fn pin(
+    reg: &mut Registry,
+    server: &Server,
+    device: &Device,
+    port: u16,
+    rep: &Reporter,
+) -> Result<()> {
+    let serial = attached_serial(server, device)
         .await
         .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
 
     rep.try_(format!("adb tcpip {port}"));
-    adb::tcpip(&serial, port).await?;
+    adb::tcpip(server, &serial, port).await?;
 
     // adbd drops every transport while it rebinds
     tokio::time::sleep(Duration::from_millis(1500)).await;
 
-    let host = host_for(reg, device, &serial).await?;
+    let host = host_for(reg, server, device, &serial).await?;
     let addr = format!("{host}:{port}");
 
     rep.try_(format!("connect {addr}"));
-    adb::connect(&addr).await?;
+    adb::connect(server, &addr).await?;
 
     let persistent = adb::run_timeout(
+        server,
         &[
             "-s",
             &addr,
@@ -363,20 +389,29 @@ pub async fn pin(reg: &mut Registry, device: &Device, port: u16, rep: &Reporter)
     Ok(())
 }
 
-/// Where to dial the device once adbd rebinds. The tailnet address is preferred
-/// over whatever the LAN currently hands out, because it is the one that stays
-/// valid from anywhere.
-async fn host_for(reg: &Registry, device: &Device, serial: &str) -> Result<String> {
-    if let Some(t) = device.tailnet.as_ref().filter(|t| !t.ip.is_empty()) {
-        return Ok(t.ip.clone());
+/// Where to dial the device once adbd rebinds. An address a discovery source
+/// still advertises wins over whatever the LAN currently hands out, because it
+/// is the one that stays valid from anywhere.
+async fn host_for(
+    reg: &Registry,
+    server: &Server,
+    device: &Device,
+    serial: &str,
+) -> Result<String> {
+    let mut known = device.hosts();
+
+    if let Some(stored) = reg.get(&device.id) {
+        for host in stored.hosts() {
+            if !known.contains(&host) {
+                known.push(host);
+            }
+        }
     }
 
-    if let Some(stored) = reg
-        .get(&device.id)
-        .and_then(|d| d.tailnet.as_ref())
-        .filter(|t| !t.ip.is_empty())
-    {
-        return Ok(stored.ip.clone());
+    if let Ok(peers) = tailscale::peers().await {
+        if let Some(host) = known.into_iter().find(|h| routable(&peers, h)) {
+            return Ok(host);
+        }
     }
 
     if let Some((host, _)) = split_addr(serial) {
@@ -384,6 +419,7 @@ async fn host_for(reg: &Registry, device: &Device, serial: &str) -> Result<Strin
     }
 
     let out = adb::run_timeout(
+        server,
         &["-s", serial, "shell", "ip", "route", "get", "1.1.1.1"],
         Duration::from_secs(6),
     )
@@ -400,7 +436,12 @@ async fn host_for(reg: &Registry, device: &Device, serial: &str) -> Result<Strin
 /// mDNS-driven pairing. Wireless debugging advertises the pairing port on a
 /// different, also ephemeral, port than the connect one, so the code alone is
 /// never enough to reach it.
-pub async fn pair(addr: Option<&str>, code: &str, rep: &Reporter) -> Result<String> {
+pub async fn pair(
+    server: &Server,
+    addr: Option<&str>,
+    code: &str,
+    rep: &Reporter,
+) -> Result<String> {
     let addr = match addr {
         Some(addr) => addr.to_string(),
         None => {
@@ -422,7 +463,7 @@ pub async fn pair(addr: Option<&str>, code: &str, rep: &Reporter) -> Result<Stri
     };
 
     rep.try_(format!("pair {addr}"));
-    adb::pair(&addr, code).await?;
+    adb::pair(server, &addr, code).await?;
     rep.done(format!("paired with {addr}"));
 
     Ok(addr)

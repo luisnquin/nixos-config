@@ -93,7 +93,7 @@ pub enum Command {
     /// scrcpy mirror
     Mirror { target: Option<String> },
 
-    /// Install an apk
+    /// Install an apk, or a .app bundle on a simulator
     Install {
         apk: PathBuf,
 
@@ -101,11 +101,26 @@ pub enum Command {
         target: Option<String>,
     },
 
+    /// Choose which ssh hosts to survey for devices
+    Hosts {
+        #[command(subcommand)]
+        action: Option<HostAction>,
+    },
+
     /// Check the tools and daemons this depends on
     Doctor,
 
     /// Print a shell completion script
     Completions { shell: Shell },
+}
+
+#[derive(Subcommand)]
+pub enum HostAction {
+    /// Survey this host's devices from now on, probing what it can drive
+    Enable { name: String },
+
+    /// Stop surveying it
+    Disable { name: String },
 }
 
 #[derive(Copy, Clone, ValueEnum)]

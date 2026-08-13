@@ -3,7 +3,11 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::model::{now, Device, PLACEHOLDER_PREFIX};
+use crate::hosts::HostState;
+use crate::model::{discovered_id, now, Device, PLACEHOLDER_PREFIX};
+
+/// The id prefix placeholders carried before discovery sources were named.
+const LEGACY_PLACEHOLDER_PREFIX: &str = "tailnet:";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Registry {
@@ -11,6 +15,10 @@ pub struct Registry {
     pub devices: Vec<Device>,
     #[serde(default)]
     pub current: Option<String>,
+    /// Which ssh hosts to survey, and the local port each one's tunnel holds.
+    /// ssh owns every other fact about them.
+    #[serde(default)]
+    pub hosts: Vec<HostState>,
 
     #[serde(skip)]
     path: PathBuf,
@@ -40,8 +48,37 @@ impl Registry {
         };
 
         reg.path = path.to_path_buf();
+        reg.migrate();
 
         Ok(reg)
+    }
+
+    /// Rewrites placeholder keys minted before the id carried its source. The
+    /// dropped `tailnet` field takes the hostname and ip with it, but discovery
+    /// puts both back on the next survey; the id is the part that cannot be
+    /// rebuilt, because a stale one shows the same device twice.
+    fn migrate(&mut self) {
+        let mut renamed: Vec<(String, String)> = Vec::new();
+
+        for device in &mut self.devices {
+            let Some(node_id) = device.id.strip_prefix(LEGACY_PLACEHOLDER_PREFIX) else {
+                continue;
+            };
+
+            let discovered = discovered_id("tailscale", node_id);
+            let id = format!("{PLACEHOLDER_PREFIX}{discovered}");
+
+            renamed.push((device.id.clone(), id.clone()));
+
+            device.discovered_id = Some(discovered);
+            device.id = id;
+        }
+
+        for (old, new) in renamed {
+            if self.current.as_deref() == Some(old.as_str()) {
+                self.current = Some(new);
+            }
+        }
     }
 
     /// Two `phone` invocations racing on the same file is normal (a shell alias
@@ -82,20 +119,20 @@ impl Registry {
             .find(|d| d.id == alias || d.aliases.iter().any(|a| a == alias))
     }
 
-    pub fn by_node_id(&self, node_id: &str) -> Option<&Device> {
+    pub fn by_discovered_id(&self, discovered: &str) -> Option<&Device> {
         self.devices
             .iter()
-            .find(|d| d.tailnet.as_ref().is_some_and(|t| t.node_id == node_id))
+            .find(|d| d.discovered_id.as_deref() == Some(discovered))
     }
 
-    /// A tailnet-only placeholder holding `ip`, other than `keep`. Once a
+    /// A discovered-only placeholder holding `host`, other than `keep`. Once a
     /// transport answers at that address the placeholder is the same handset
     /// under a weaker key, and leaving it listed shows the phone twice.
-    pub fn placeholder_at(&self, ip: &str, keep: &str) -> Option<&Device> {
+    pub fn placeholder_at(&self, host: &str, keep: &str) -> Option<&Device> {
         self.devices.iter().find(|d| {
             d.id != keep
                 && d.id.starts_with(PLACEHOLDER_PREFIX)
-                && d.tailnet.as_ref().is_some_and(|t| t.ip == ip)
+                && d.endpoints.iter().any(|e| e.host == host)
         })
     }
 
@@ -117,8 +154,12 @@ impl Registry {
                     existing.model = device.model;
                 }
 
-                if device.tailnet.is_some() {
-                    existing.tailnet = device.tailnet;
+                if device.discovered_id.is_some() {
+                    existing.discovered_id = device.discovered_id;
+                }
+
+                if device.host.is_some() {
+                    existing.host = device.host;
                 }
 
                 for alias in device.aliases {
@@ -160,4 +201,45 @@ impl Registry {
         self.devices.len() != before
     }
 
+    pub fn host_mut(&mut self, name: &str) -> &mut HostState {
+        match self.hosts.iter().position(|h| h.name == name) {
+            Some(i) => &mut self.hosts[i],
+            None => {
+                self.hosts.push(HostState::new(name));
+                self.hosts.last_mut().expect("just pushed")
+            }
+        }
+    }
+
+    /// The hosts to survey. Enabling is per host and opt-in: an ssh config
+    /// routinely lists machines that have nothing to do with phones, and every
+    /// enabled one costs a round trip on every refresh.
+    pub fn enabled_hosts(&self) -> Vec<&HostState> {
+        self.hosts.iter().filter(|h| h.enabled).collect()
+    }
+
+    /// Reconciles stored host state against the names ssh advertises. An alias
+    /// that left the config takes its state with it, so a renamed host does not
+    /// sit disabled forever pointing at nothing.
+    ///
+    /// An enabled host is kept either way: `Host` stanzas are not the only way
+    /// ssh reaches a machine, and one that was enabled by name answered a probe
+    /// at least once, which is better evidence than a stanza.
+    pub fn sync_hosts(&mut self, found: &[String]) {
+        self.hosts
+            .retain(|h| h.enabled || found.iter().any(|f| f == &h.name));
+
+        for name in found {
+            if !self.hosts.iter().any(|h| &h.name == name) {
+                self.hosts.push(HostState::new(name.clone()));
+            }
+        }
+
+        self.hosts.sort_by_key(|h| {
+            found
+                .iter()
+                .position(|n| n == &h.name)
+                .unwrap_or(usize::MAX)
+        });
+    }
 }

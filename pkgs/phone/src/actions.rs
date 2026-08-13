@@ -5,12 +5,23 @@ use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 
-use crate::adb;
+use crate::adb::{self, Server};
 use crate::connect::{attached_serial, Reporter};
-use crate::ios;
 use crate::model::{Device, Platform};
+use crate::{ios, simctl};
 
 const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
+
+/// The machine a hosted device hangs off. Nothing here can reach one without
+/// it, so a device that lost its host is an error rather than a fallback to
+/// this machine, which would silently drive the wrong device.
+fn host_of(device: &Device) -> Result<&str> {
+    device
+        .host
+        .as_deref()
+        .filter(|h| !h.is_empty())
+        .ok_or_else(|| anyhow!("{} is not on any known host", device.label))
+}
 
 #[derive(Clone, Debug)]
 pub enum Sink {
@@ -31,26 +42,35 @@ impl Sink {
 
 /// `screencap` and pymobiledevice3 both exit 0 on some failures, so a capture
 /// only counts once real PNG bytes come back.
-pub async fn screenshot(device: &Device, sink: &Sink, rep: &Reporter) -> Result<String> {
+pub async fn screenshot(
+    server: &Server,
+    device: &Device,
+    sink: &Sink,
+    rep: &Reporter,
+) -> Result<String> {
     let png = match device.platform {
         Platform::Ios => {
-            let mut png = ios::screenshot(&device.id).await?;
+            let host = host_of(device)?;
+            let udid = ios::udid(device)?;
+
+            let mut png = ios::screenshot(host, udid).await?;
 
             if !is_png(&png) {
                 // tunneld may still be coming up right after a mac reboot
                 rep.note("no image yet, retrying the tunnel");
                 tokio::time::sleep(Duration::from_secs(3)).await;
-                png = ios::screenshot(&device.id).await?;
+                png = ios::screenshot(host, udid).await?;
             }
 
             png
         }
+        Platform::Simulator => simctl::screenshot(host_of(device)?, simctl::udid(device)?).await?,
         _ => {
-            let serial = attached_serial(device)
+            let serial = attached_serial(server, device)
                 .await
                 .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
 
-            let display = adb::active_display(&serial).await;
+            let display = adb::active_display(server, &serial).await;
 
             // exec-out keeps the pty's LF -> CRLF translation away from the PNG,
             // but folds the device's stderr into the same stream, so the
@@ -60,14 +80,17 @@ pub async fn screenshot(device: &Device, sink: &Sink, rep: &Reporter) -> Result<
                 None => "screencap -p 2>/dev/null".to_string(),
             };
 
-            let (_, bytes) = adb::run_bytes(&["-s", &serial, "exec-out", &remote]).await?;
+            let (_, bytes) = adb::run_bytes(server, &["-s", &serial, "exec-out", &remote]).await?;
 
             bytes
         }
     };
 
     if !is_png(&png) {
-        bail!("capture failed on {} (is it awake and unlocked?)", device.label);
+        bail!(
+            "capture failed on {} (is it awake and unlocked?)",
+            device.label
+        );
     }
 
     let (msg, body, icon) = match sink {
@@ -195,7 +218,11 @@ fn is_png(bytes: &[u8]) -> bool {
 
 /// Logcat and oslog both take over the terminal, so they are handed back as a
 /// command for the caller to exec once it has torn down whatever UI it owns.
-pub async fn logs_command(device: &Device, app: &str) -> Result<std::process::Command> {
+pub async fn logs_command(
+    server: &Server,
+    device: &Device,
+    app: &str,
+) -> Result<std::process::Command> {
     if !app
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
@@ -204,19 +231,23 @@ pub async fn logs_command(device: &Device, app: &str) -> Result<std::process::Co
         bail!("invalid app id: {app}");
     }
 
-    if device.platform == Platform::Ios {
-        return ios::logs_command(&device.id, app);
+    match device.platform {
+        Platform::Ios => return ios::logs_command(host_of(device)?, ios::udid(device)?, app),
+        Platform::Simulator => {
+            return simctl::logs_command(host_of(device)?, simctl::udid(device)?, app)
+        }
+        _ => {}
     }
 
-    let serial = attached_serial(device)
+    let serial = attached_serial(server, device)
         .await
         .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
 
-    let pid = adb::pidof(&serial, app)
+    let pid = adb::pidof(server, &serial, app)
         .await
         .ok_or_else(|| anyhow!("app is not running: {app}"))?;
 
-    let mut cmd = std::process::Command::new("adb");
+    let mut cmd = server.command();
     cmd.args(["-s", &serial, "logcat", &format!("--pid={pid}")]);
 
     Ok(cmd)
@@ -224,17 +255,27 @@ pub async fn logs_command(device: &Device, app: &str) -> Result<std::process::Co
 
 /// scrcpy owns a window, not the terminal, so it is detached and the caller
 /// keeps running.
-pub async fn mirror(device: &Device) -> Result<String> {
-    if device.platform == Platform::Ios {
-        bail!("scrcpy cannot mirror an iPhone");
+///
+/// It works against a remote server unchanged: the encoder runs on the device
+/// and the H.264 stream rides the same adb connection as everything else, so
+/// nothing but the frames crosses the network.
+pub async fn mirror(server: &Server, device: &Device) -> Result<String> {
+    if device.platform.is_hosted() {
+        bail!("scrcpy cannot mirror {}", device.platform);
     }
 
-    let serial = attached_serial(device)
+    let serial = attached_serial(server, device)
         .await
         .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
 
-    tokio::process::Command::new("scrcpy")
-        .args(["-s", &serial])
+    let mut cmd = tokio::process::Command::new("scrcpy");
+
+    // scrcpy runs its own adb, which takes no flag of ours
+    if let Some((key, value)) = server.env() {
+        cmd.env(key, value);
+    }
+
+    cmd.args(["-s", &serial])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -244,23 +285,35 @@ pub async fn mirror(device: &Device) -> Result<String> {
     Ok(format!("mirroring {}", device.label))
 }
 
-pub async fn install(device: &Device, apk: &Path, rep: &Reporter) -> Result<String> {
+pub async fn install(
+    server: &Server,
+    device: &Device,
+    bundle: &Path,
+    rep: &Reporter,
+) -> Result<String> {
     if device.platform == Platform::Ios {
-        bail!("cannot install an apk on an iPhone");
+        bail!("cannot install on an iPhone from here");
     }
 
-    if !apk.exists() {
-        bail!("no such file: {}", apk.display());
+    if !bundle.exists() {
+        bail!("no such file: {}", bundle.display());
     }
 
-    let serial = attached_serial(device)
+    if device.platform == Platform::Simulator {
+        rep.try_(format!("install {}", bundle.display()));
+        simctl::install(host_of(device)?, simctl::udid(device)?, bundle).await?;
+
+        return Ok(format!("installed on {}", device.label));
+    }
+
+    let serial = attached_serial(server, device)
         .await
         .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
 
-    rep.try_(format!("install {}", apk.display()));
+    rep.try_(format!("install {}", bundle.display()));
 
-    let path = apk.to_string_lossy().to_string();
-    let out = adb::run(&["-s", &serial, "install", "-r", &path]).await?;
+    let path = bundle.to_string_lossy().to_string();
+    let out = adb::run(server, &["-s", &serial, "install", "-r", &path]).await?;
 
     if !out.ok() || out.stdout.contains("Failure") {
         bail!(
@@ -318,7 +371,10 @@ mod tests {
 
         let path = preview_in(&dir, b"png").unwrap();
 
-        assert!(path.is_absolute(), "notify-send would treat {path:?} as an icon name");
+        assert!(
+            path.is_absolute(),
+            "notify-send would treat {path:?} as an icon name"
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }

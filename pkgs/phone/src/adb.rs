@@ -6,6 +6,58 @@ use tokio::process::Command;
 
 use crate::model::Platform;
 
+/// Which adb server a command talks to. adb has no notion of federation — a
+/// server never speaks to another server — but the client picks its server per
+/// invocation, so holding one forward per host and choosing between them here
+/// gets the same result without either side knowing.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Server {
+    #[default]
+    Local,
+    Remote {
+        host: String,
+        port: u16,
+    },
+}
+
+impl Server {
+    pub fn host(&self) -> Option<&str> {
+        match self {
+            Server::Local => None,
+            Server::Remote { host, .. } => Some(host),
+        }
+    }
+
+    /// The client flag that redirects this invocation. Note it selects a
+    /// *server*, so anything the client resolves for itself still happens
+    /// locally — `adb emu` dials the emulator console on this machine's
+    /// loopback and cannot reach a remote one.
+    fn args(&self) -> Vec<String> {
+        match self {
+            Server::Local => Vec::new(),
+            Server::Remote { port, .. } => {
+                vec!["-L".to_string(), format!("tcp:127.0.0.1:{port}")]
+            }
+        }
+    }
+
+    pub fn command(&self) -> std::process::Command {
+        let mut cmd = std::process::Command::new("adb");
+        cmd.args(self.args());
+
+        cmd
+    }
+
+    /// The same redirection for tools that shell out to `adb` themselves and
+    /// take no flags of ours — scrcpy being the one that matters.
+    pub fn env(&self) -> Option<(&'static str, String)> {
+        match self {
+            Server::Local => None,
+            Server::Remote { port, .. } => Some(("ANDROID_ADB_SERVER_PORT", port.to_string())),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Attached {
     pub serial: String,
@@ -22,7 +74,10 @@ impl Attached {
     }
 
     pub fn platform(&self) -> Platform {
-        if self.serial.starts_with("emulator-") {
+        if self
+            .serial
+            .starts_with(crate::model::EMULATOR_SERIAL_PREFIX)
+        {
             Platform::Emulator
         } else {
             Platform::Android
@@ -68,8 +123,9 @@ impl Output {
     }
 }
 
-pub async fn run(args: &[&str]) -> Result<Output> {
+pub async fn run(server: &Server, args: &[&str]) -> Result<Output> {
     let out = Command::new("adb")
+        .args(server.args())
         .args(args)
         .stdin(Stdio::null())
         .output()
@@ -84,15 +140,16 @@ pub async fn run(args: &[&str]) -> Result<Output> {
     })
 }
 
-pub async fn run_timeout(args: &[&str], limit: Duration) -> Result<Output> {
-    tokio::time::timeout(limit, run(args))
+pub async fn run_timeout(server: &Server, args: &[&str], limit: Duration) -> Result<Output> {
+    tokio::time::timeout(limit, run(server, args))
         .await
         .map_err(|_| anyhow!("adb {} timed out", args.join(" ")))?
 }
 
 /// Raw bytes, for anything that is not text (`exec-out screencap -p`).
-pub async fn run_bytes(args: &[&str]) -> Result<(bool, Vec<u8>)> {
+pub async fn run_bytes(server: &Server, args: &[&str]) -> Result<(bool, Vec<u8>)> {
     let out = Command::new("adb")
+        .args(server.args())
         .args(args)
         .stdin(Stdio::null())
         .stderr(Stdio::null())
@@ -102,8 +159,8 @@ pub async fn run_bytes(args: &[&str]) -> Result<(bool, Vec<u8>)> {
     Ok((out.status.success(), out.stdout))
 }
 
-pub async fn devices() -> Result<Vec<Attached>> {
-    let out = run_timeout(&["devices", "-l"], Duration::from_secs(10)).await?;
+pub async fn devices(server: &Server) -> Result<Vec<Attached>> {
+    let out = run_timeout(server, &["devices", "-l"], Duration::from_secs(10)).await?;
 
     if !out.ok() {
         bail!("adb devices failed: {}", out.stderr.trim());
@@ -148,8 +205,9 @@ pub fn parse_devices(text: &str) -> Vec<Attached> {
     out
 }
 
-pub async fn getprop(serial: &str, prop: &str) -> String {
+pub async fn getprop(server: &Server, serial: &str, prop: &str) -> String {
     match run_timeout(
+        server,
         &["-s", serial, "shell", "getprop", prop],
         Duration::from_secs(5),
     )
@@ -160,13 +218,22 @@ pub async fn getprop(serial: &str, prop: &str) -> String {
     }
 }
 
-pub async fn identity(serial: &str) -> Identity {
+pub async fn identity(server: &Server, serial: &str) -> Identity {
     let (serialno, boot_serialno, android_id, model) = tokio::join!(
-        getprop(serial, "ro.serialno"),
-        getprop(serial, "ro.boot.serialno"),
+        getprop(server, serial, "ro.serialno"),
+        getprop(server, serial, "ro.boot.serialno"),
         async {
             match run_timeout(
-                &["-s", serial, "shell", "settings", "get", "secure", "android_id"],
+                server,
+                &[
+                    "-s",
+                    serial,
+                    "shell",
+                    "settings",
+                    "get",
+                    "secure",
+                    "android_id",
+                ],
                 Duration::from_secs(5),
             )
             .await
@@ -175,7 +242,7 @@ pub async fn identity(serial: &str) -> Identity {
                 _ => String::new(),
             }
         },
-        getprop(serial, "ro.product.model"),
+        getprop(server, serial, "ro.product.model"),
     );
 
     Identity {
@@ -189,23 +256,26 @@ pub async fn identity(serial: &str) -> Identity {
     }
 }
 
-/// AVD console name. The `model` reported by `adb devices -l` is the system
-/// image and identical across every emulator, so it cannot tell two apart.
-pub async fn avd_name(serial: &str) -> String {
-    match run_timeout(&["-s", serial, "emu", "avd", "name"], Duration::from_secs(5)).await {
-        Ok(o) if o.ok() => o
-            .stdout
-            .lines()
-            .next()
-            .unwrap_or_default()
-            .trim()
-            .to_string(),
-        _ => String::new(),
+/// AVD name. The `model` reported by `adb devices -l` is the system image and
+/// identical across every emulator, so it cannot tell two apart.
+///
+/// Read as a property rather than over `adb emu`: that command is resolved by
+/// the *client*, which derives the console port from `emulator-5554` and dials
+/// it on its own loopback, so through a forwarded server it lands on this
+/// machine where nothing is listening. A property rides the transport and works
+/// the same whichever server answered.
+pub async fn avd_name(server: &Server, serial: &str) -> String {
+    let name = getprop(server, serial, "ro.boot.qemu.avd_name").await;
+
+    if !name.is_empty() {
+        return name;
     }
+
+    getprop(server, serial, "ro.kernel.qemu.avd_name").await
 }
 
-pub async fn connect(addr: &str) -> Result<()> {
-    let out = run_timeout(&["connect", addr], Duration::from_secs(12)).await?;
+pub async fn connect(server: &Server, addr: &str) -> Result<()> {
+    let out = run_timeout(server, &["connect", addr], Duration::from_secs(12)).await?;
     let text = format!("{}{}", out.stdout, out.stderr);
 
     // `adb connect` exits 0 on refusal and reports it on stdout instead
@@ -216,14 +286,15 @@ pub async fn connect(addr: &str) -> Result<()> {
     }
 }
 
-pub async fn disconnect(addr: &str) -> Result<()> {
-    run_timeout(&["disconnect", addr], Duration::from_secs(8)).await?;
+pub async fn disconnect(server: &Server, addr: &str) -> Result<()> {
+    run_timeout(server, &["disconnect", addr], Duration::from_secs(8)).await?;
 
     Ok(())
 }
 
-pub async fn tcpip(serial: &str, port: u16) -> Result<()> {
+pub async fn tcpip(server: &Server, serial: &str, port: u16) -> Result<()> {
     let out = run_timeout(
+        server,
         &["-s", serial, "tcpip", &port.to_string()],
         Duration::from_secs(12),
     )
@@ -236,8 +307,8 @@ pub async fn tcpip(serial: &str, port: u16) -> Result<()> {
     }
 }
 
-pub async fn pair(addr: &str, code: &str) -> Result<()> {
-    let out = run_timeout(&["pair", addr, code], Duration::from_secs(30)).await?;
+pub async fn pair(server: &Server, addr: &str, code: &str) -> Result<()> {
+    let out = run_timeout(server, &["pair", addr, code], Duration::from_secs(30)).await?;
     let text = format!("{}{}", out.stdout, out.stderr);
 
     if text.contains("Successfully paired") {
@@ -250,9 +321,17 @@ pub async fn pair(addr: &str, code: &str) -> Result<()> {
 /// The display whose panel is actually on. Foldables expose several internal
 /// displays and `screencap` defaults to "the first one found", which is usually
 /// the one that is off.
-pub async fn active_display(serial: &str) -> Option<u32> {
+pub async fn active_display(server: &Server, serial: &str) -> Option<u32> {
     let out = run_timeout(
-        &["-s", serial, "shell", "dumpsys", "SurfaceFlinger", "--displays"],
+        server,
+        &[
+            "-s",
+            serial,
+            "shell",
+            "dumpsys",
+            "SurfaceFlinger",
+            "--displays",
+        ],
         Duration::from_secs(8),
     )
     .await
@@ -277,8 +356,9 @@ pub async fn active_display(serial: &str) -> Option<u32> {
     None
 }
 
-pub async fn pidof(serial: &str, package: &str) -> Option<String> {
+pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<String> {
     let out = run_timeout(
+        server,
         &["-s", serial, "shell", "pidof", package],
         Duration::from_secs(6),
     )

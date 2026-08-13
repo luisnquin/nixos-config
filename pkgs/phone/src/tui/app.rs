@@ -7,7 +7,8 @@ use tokio::sync::Mutex;
 use crate::actions::{self, Sink};
 use crate::connect::{self, Reporter, Step};
 use crate::discover::survey;
-use crate::model::{Platform, Reach, View};
+use crate::hosts::Caps;
+use crate::model::{Blocked, Platform, Reach, View};
 use crate::registry::Registry;
 
 pub type Shared = Arc<Mutex<Registry>>;
@@ -27,15 +28,28 @@ pub struct LogLine {
 
 pub enum Msg {
     Views(Vec<View>),
+    Hosts(Vec<HostRow>),
     Step(Step),
     Finished(Result<String, String>),
     Exec(std::process::Command),
+}
+
+/// One ssh host as the pane shows it. A snapshot rather than a borrow of the
+/// registry: the pane redraws on every keystroke and the registry is behind an
+/// async lock a render pass cannot wait on.
+#[derive(Clone)]
+pub struct HostRow {
+    pub name: String,
+    pub enabled: bool,
+    pub caps: Caps,
+    pub probed: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Prompt {
     Logs,
     PairCode,
+    Host,
 }
 
 impl Prompt {
@@ -43,6 +57,7 @@ impl Prompt {
         match self {
             Prompt::Logs => "package / bundle id",
             Prompt::PairCode => "pairing code",
+            Prompt::Host => "ssh host to enable",
         }
     }
 }
@@ -52,6 +67,7 @@ pub enum Mode {
     Filter,
     Prompt(Prompt),
     Help,
+    Hosts,
 }
 
 pub enum Outcome {
@@ -85,6 +101,8 @@ pub struct App {
     pub current: Option<String>,
     pub quit: Option<Outcome>,
     pub queue: Vec<Queued>,
+    pub hosts: Vec<HostRow>,
+    pub host_state: ListState,
     shot: Option<Queued>,
     tx: UnboundedSender<Msg>,
 }
@@ -105,6 +123,8 @@ impl App {
             current,
             quit: None,
             queue: Vec::new(),
+            hosts: Vec::new(),
+            host_state: ListState::default(),
             shot: None,
             tx,
         }
@@ -154,6 +174,17 @@ impl App {
 
                 self.drain_queue();
             }
+            Msg::Hosts(hosts) => {
+                self.hosts = hosts;
+
+                if self.hosts.is_empty() {
+                    self.host_state.select(None);
+                } else {
+                    let sel = self.host_state.selected().unwrap_or(0);
+
+                    self.host_state.select(Some(sel.min(self.hosts.len() - 1)));
+                }
+            }
             Msg::Step(step) => match step {
                 Step::Try(t) => self.push_log(Level::Try, t),
                 Step::Done(t) => self.push_log(Level::Done, t),
@@ -180,6 +211,12 @@ impl App {
                 }
 
                 self.refresh();
+
+                if matches!(self.mode, Mode::Hosts) {
+                    // a toggle changes what the pane shows, and the pane is
+                    // still open in front of the user who pressed it.
+                    self.scan_hosts();
+                }
             }
             Msg::Exec(cmd) => self.quit = Some(Outcome::Exec(cmd)),
         }
@@ -197,7 +234,11 @@ impl App {
         if self.visible.is_empty() {
             self.state.select(None);
         } else {
-            let sel = self.state.selected().unwrap_or(0).min(self.visible.len() - 1);
+            let sel = self
+                .state
+                .selected()
+                .unwrap_or(0)
+                .min(self.visible.len() - 1);
             self.state.select(Some(sel));
         }
     }
@@ -210,7 +251,8 @@ impl App {
         let len = self.visible.len() as isize;
         let cur = self.state.selected().unwrap_or(0) as isize;
 
-        self.state.select(Some((cur + delta).rem_euclid(len) as usize));
+        self.state
+            .select(Some((cur + delta).rem_euclid(len) as usize));
     }
 
     pub fn select_edge(&mut self, last: bool) {
@@ -240,6 +282,106 @@ impl App {
             };
 
             let _ = tx.send(Msg::Views(views));
+        });
+    }
+
+    pub fn open_hosts(&mut self) {
+        self.mode = Mode::Hosts;
+
+        if self.host_state.selected().is_none() && !self.hosts.is_empty() {
+            self.host_state.select(Some(0));
+        }
+
+        self.scan_hosts();
+    }
+
+    /// Re-reads what ssh knows and hands the pane a fresh snapshot. Only `ssh
+    /// -G` runs here, which resolves config without touching the network, so
+    /// this stays cheap enough to redo on every open.
+    pub fn scan_hosts(&mut self) {
+        let reg = self.reg.clone();
+        let tx = self.tx.clone();
+
+        tokio::spawn(async move {
+            let found = crate::hosts::discover().await;
+            let names: Vec<String> = found.into_iter().map(|h| h.name).collect();
+
+            let rows = {
+                let mut guard = reg.lock().await;
+
+                guard.sync_hosts(&names);
+
+                let _ = guard.save();
+
+                host_rows(&guard)
+            };
+
+            let _ = tx.send(Msg::Hosts(rows));
+        });
+    }
+
+    pub fn move_host_by(&mut self, delta: isize) {
+        if self.hosts.is_empty() {
+            return;
+        }
+
+        let len = self.hosts.len() as isize;
+        let cur = self.host_state.selected().unwrap_or(0) as isize;
+
+        self.host_state
+            .select(Some((cur + delta).rem_euclid(len) as usize));
+    }
+
+    fn selected_host(&self) -> Option<&HostRow> {
+        self.hosts.get(self.host_state.selected()?)
+    }
+
+    /// Flips the selected host.
+    pub fn toggle_host(&mut self) {
+        let Some(row) = self.selected_host() else {
+            return;
+        };
+
+        let (name, enable) = (row.name.clone(), !row.enabled);
+
+        self.set_host(name, enable);
+    }
+
+    /// Enabling probes first: a host that never answered must not end up
+    /// enabled, because every later survey would pay its timeout before
+    /// concluding the same thing.
+    fn set_host(&mut self, name: String, enable: bool) {
+        let label = if enable {
+            format!("enable {name}")
+        } else {
+            format!("disable {name}")
+        };
+
+        self.spawn(label, move |reg, _rep| async move {
+            let caps = if enable {
+                match crate::hosts::probe(&name).await {
+                    Some(caps) => Some(caps),
+                    None => anyhow::bail!("{name} did not answer; `ssh {name} true` says why"),
+                }
+            } else {
+                None
+            };
+
+            let mut guard = reg.lock().await;
+            let state = guard.host_mut(&name);
+
+            state.enabled = enable;
+
+            if let Some(caps) = caps {
+                crate::hosts::stamp(state, caps);
+            }
+
+            guard.save()?;
+
+            Ok(match caps {
+                Some(caps) => format!("{name} enabled ({})", caps.label()),
+                None => format!("{name} disabled"),
+            })
         });
     }
 
@@ -293,12 +435,15 @@ impl App {
         let Some(view) = self.selected() else { return };
 
         let device = view.device.clone();
+        let server = view.server.clone();
         let label = device.label.clone();
 
         if !device.platform.is_adb() {
+            let via = device.host.clone().unwrap_or_else(|| "its host".into());
+
             self.push_log(
                 Level::Note,
-                format!("{label} is already reachable through {}", crate::ios::HOST),
+                format!("{label} is already reachable through {via}"),
             );
 
             return;
@@ -307,7 +452,14 @@ impl App {
         self.spawn(format!("connect {label}"), move |reg, rep| async move {
             let mut guard = reg.lock().await;
 
-            connect::connect(&mut guard, &device, &connect::Opts::default(), &rep).await
+            connect::connect(
+                &mut guard,
+                &server,
+                &device,
+                &connect::Opts::default(),
+                &rep,
+            )
+            .await
         });
     }
 
@@ -315,6 +467,7 @@ impl App {
         let Some(view) = self.selected() else { return };
 
         let label = view.device.label.clone();
+        let server = view.server.clone();
         let serial = view.reach.serial().map(str::to_string);
 
         let Some(serial) = serial else {
@@ -327,11 +480,14 @@ impl App {
             return;
         }
 
-        self.spawn(format!("disconnect {label}"), move |_reg, _rep| async move {
-            crate::adb::disconnect(&serial).await?;
+        self.spawn(
+            format!("disconnect {label}"),
+            move |_reg, _rep| async move {
+                crate::adb::disconnect(&server, &serial).await?;
 
-            anyhow::Ok(format!("disconnected {serial}"))
-        });
+                anyhow::Ok(format!("disconnected {serial}"))
+            },
+        );
     }
 
     /// Queues a shot for the selected device, or drops the one already queued.
@@ -357,8 +513,24 @@ impl App {
         self.drain_queue();
 
         if self.queue.iter().any(|q| q.id == id) {
-            self.push_log(Level::Note, format!("queued a shot for {label}"));
+            let why = self.blocker(&id);
+
+            self.push_log(Level::Note, format!("queued a shot for {label}: {why}"));
         }
+    }
+
+    /// What the device with `id` is waiting on, worded for the footer and the
+    /// log. A device that has left the list entirely no longer says.
+    fn blocker(&self, id: &str) -> &'static str {
+        self.views
+            .iter()
+            .find(|v| v.device.id == id)
+            .and_then(|v| v.blocked())
+            .map_or("waiting for it to come back", |blocked| match blocked {
+                Blocked::Disconnected => "listed but not connected — press enter to connect",
+                Blocked::Unauthorized => "waiting for this key to be trusted on the device",
+                Blocked::Away => "waiting for it to come back",
+            })
     }
 
     fn ready_to_shoot(&self, id: &str) -> bool {
@@ -381,11 +553,11 @@ impl App {
         let mut shot = self.queue.remove(pos);
         shot.tries += 1;
 
-        let Some(device) = self
+        let Some((device, server)) = self
             .views
             .iter()
             .find(|v| v.device.id == shot.id)
-            .map(|v| v.device.clone())
+            .map(|v| (v.device.clone(), v.server.clone()))
         else {
             return;
         };
@@ -395,7 +567,7 @@ impl App {
         self.shot = Some(shot);
 
         self.spawn(format!("shot {label}"), move |_reg, rep| async move {
-            actions::screenshot(&device, &Sink::Clipboard, &rep).await
+            actions::screenshot(&server, &device, &Sink::Clipboard, &rep).await
         });
     }
 
@@ -412,7 +584,10 @@ impl App {
             return;
         }
 
-        self.push_log(Level::Note, format!("re-queued the shot for {}", shot.label));
+        self.push_log(
+            Level::Note,
+            format!("re-queued the shot for {}", shot.label),
+        );
         self.queue.push(shot);
     }
 
@@ -432,14 +607,21 @@ impl App {
         )
     }
 
+    /// Why the head of the queue has not fired. The log line scrolls away and
+    /// the wait does not, so the status line has to keep answering it.
+    pub fn queued_hint(&self) -> Option<&'static str> {
+        self.queue.first().map(|q| self.blocker(&q.id))
+    }
+
     pub fn mirror_selected(&mut self) {
         let Some(view) = self.selected() else { return };
 
         let device = view.device.clone();
+        let server = view.server.clone();
 
         self.spawn(
             format!("mirror {}", device.label),
-            move |_reg, _rep| async move { actions::mirror(&device).await },
+            move |_reg, _rep| async move { actions::mirror(&server, &device).await },
         );
     }
 
@@ -447,9 +629,13 @@ impl App {
         let Some(view) = self.selected() else { return };
 
         let device = view.device.clone();
+        let server = view.server.clone();
 
         if !device.platform.is_adb() {
-            self.push_log(Level::Note, format!("{} has no adb port to pin", device.label));
+            self.push_log(
+                Level::Note,
+                format!("{} has no adb port to pin", device.label),
+            );
             return;
         }
 
@@ -458,13 +644,16 @@ impl App {
             return;
         }
 
-        self.spawn(format!("pin {}", device.label), move |reg, rep| async move {
-            let mut guard = reg.lock().await;
+        self.spawn(
+            format!("pin {}", device.label),
+            move |reg, rep| async move {
+                let mut guard = reg.lock().await;
 
-            connect::pin(&mut guard, &device, 5555, &rep).await?;
+                connect::pin(&mut guard, &server, &device, 5555, &rep).await?;
 
-            anyhow::Ok(String::new())
-        });
+                anyhow::Ok(String::new())
+            },
+        );
     }
 
     pub fn forget_selected(&mut self) {
@@ -506,7 +695,12 @@ impl App {
     pub fn submit_prompt(&mut self, prompt: Prompt) {
         let value = std::mem::take(&mut self.input);
 
-        self.mode = Mode::Normal;
+        // the host prompt is opened from a pane that is still what the user is
+        // looking at, so it goes back there rather than to the device list.
+        self.mode = match prompt {
+            Prompt::Host => Mode::Hosts,
+            _ => Mode::Normal,
+        };
 
         if value.is_empty() {
             return;
@@ -517,6 +711,7 @@ impl App {
                 let Some(view) = self.selected() else { return };
 
                 let device = view.device.clone();
+                let server = view.server.clone();
                 let tx = self.tx.clone();
 
                 self.push_log(Level::Try, format!("logs {} {value}", device.label));
@@ -524,7 +719,7 @@ impl App {
                 // logcat and oslog own the terminal, so the TUI has to be torn
                 // down first; the command goes back to main to be run there.
                 tokio::spawn(async move {
-                    let msg = match actions::logs_command(&device, &value).await {
+                    let msg = match actions::logs_command(&server, &device, &value).await {
                         Ok(cmd) => Msg::Exec(cmd),
                         Err(e) => Msg::Finished(Err(e.to_string())),
                     };
@@ -534,7 +729,8 @@ impl App {
             }
             Prompt::PairCode => {
                 self.spawn("pair", move |reg, rep| async move {
-                    let addr = connect::pair(None, &value, &rep).await?;
+                    let addr =
+                        connect::pair(&crate::adb::Server::Local, None, &value, &rep).await?;
 
                     let guard = reg.lock().await;
                     guard.save()?;
@@ -542,6 +738,10 @@ impl App {
                     anyhow::Ok(format!("paired {addr}; connect it now"))
                 });
             }
+            // a `Host` stanza is not the only way ssh reaches a machine, so the
+            // pane must be able to name one the config never listed — the same
+            // rule the command line already follows.
+            Prompt::Host => self.set_host(value, true),
         }
     }
 
@@ -566,12 +766,15 @@ impl App {
     /// Footer hints for the selected row. Offering `connect` or `pin` on a
     /// device that has no adb transport at all only invites the keystroke.
     pub fn hints(&self) -> &'static [&'static str] {
-        const IOS: &[&str] = &["s shot", "l logs", "u use", "/ filter", "? help", "q quit"];
+        const HOSTED: &[&str] = &[
+            "s shot", "l logs", "u use", "h hosts", "/ filter", "? help", "q quit",
+        ];
         const EMULATOR: &[&str] = &[
             "enter connect",
             "s shot",
             "m mirror",
             "l logs",
+            "h hosts",
             "/ filter",
             "? help",
             "q quit",
@@ -581,13 +784,14 @@ impl App {
             "s shot",
             "m mirror",
             "p pin",
+            "h hosts",
             "/ filter",
             "? help",
             "q quit",
         ];
 
         match self.selected().map(|v| v.device.platform) {
-            Some(Platform::Ios) => IOS,
+            Some(p) if p.is_hosted() => HOSTED,
             Some(Platform::Emulator) => EMULATOR,
             _ => ANDROID,
         }
@@ -604,6 +808,18 @@ impl App {
                 .unwrap_or_else(|| id.clone()),
         )
     }
+}
+
+fn host_rows(reg: &Registry) -> Vec<HostRow> {
+    reg.hosts
+        .iter()
+        .map(|h| HostRow {
+            name: h.name.clone(),
+            enabled: h.enabled,
+            caps: h.caps,
+            probed: h.probed.is_some(),
+        })
+        .collect()
 }
 
 /// label, model, reachability, endpoint + last-connected — the four columns the
@@ -630,10 +846,10 @@ pub fn row_fields(view: &View) -> (String, String, String, String) {
         .map(crate::model::ago)
         .unwrap_or_else(|| "never".into());
 
-    let detail = match d.platform {
-        // there is no endpoint and no connect history to report: the tunnel on
-        // the mac either has the device or it does not.
-        Platform::Ios => format!("via {}", crate::ios::HOST),
+    let detail = match &d.host {
+        // there is no endpoint and no connect history to report for a hosted
+        // device: the host either has it or it does not.
+        Some(host) if d.platform.is_hosted() => format!("via {host}"),
         _ if endpoint.is_empty() => last,
         _ => format!("{endpoint}  {last}"),
     };
@@ -647,10 +863,7 @@ mod tests {
     use crate::model::Device;
 
     fn view(id: &str, platform: Platform, reach: Reach) -> View {
-        View {
-            device: Device::new(id, id, platform),
-            reach,
-        }
+        View::new(Device::new(id, id, platform), reach)
     }
 
     fn app_with(views: Vec<View>) -> App {
@@ -681,7 +894,33 @@ mod tests {
         app.shot_selected();
 
         assert_eq!(app.queue.len(), 1);
-        assert!(app.busy.is_none(), "ran a capture with no transport to run it on");
+        assert!(
+            app.busy.is_none(),
+            "ran a capture with no transport to run it on"
+        );
+    }
+
+    /// A queue that says nothing looks like a keypress that did nothing: the
+    /// device is listed, so the reason it cannot be shot — no adb transport —
+    /// is invisible unless the queue names it, along with the key that fixes it.
+    #[test]
+    fn a_queued_shot_says_what_it_waits_for() {
+        let mut app = app_with(vec![view("phone", Platform::Android, Reach::Online)]);
+
+        app.shot_selected();
+
+        let queued = app.log.last().expect("queuing logged nothing");
+
+        assert!(
+            queued.text.contains("not connected") && queued.text.contains("enter"),
+            "queued without naming the connect step: {}",
+            queued.text
+        );
+
+        assert_eq!(
+            app.queued_hint(),
+            Some("listed but not connected — press enter to connect")
+        );
     }
 
     #[test]
@@ -724,6 +963,9 @@ mod tests {
             tries: MAX_SHOT_TRIES,
         });
 
-        assert!(app.queue.is_empty(), "retried a device that keeps failing while present");
+        assert!(
+            app.queue.is_empty(),
+            "retried a device that keeps failing while present"
+        );
     }
 }

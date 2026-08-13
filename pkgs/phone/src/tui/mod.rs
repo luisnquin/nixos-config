@@ -67,9 +67,25 @@ fn on_event(app: &mut App, event: Event) {
 
     match app.mode {
         Mode::Help => app.mode = Mode::Normal,
+        Mode::Hosts => on_hosts_key(app, key),
         Mode::Filter => on_filter_key(app, key),
         Mode::Prompt(prompt) => on_prompt_key(app, key, prompt),
         Mode::Normal => on_normal_key(app, key),
+    }
+}
+
+fn on_hosts_key(app: &mut App, key: KeyEvent) {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('h') => app.mode = Mode::Normal,
+        KeyCode::Char('j') | KeyCode::Down => app.move_host_by(1),
+        KeyCode::Char('k') | KeyCode::Up => app.move_host_by(-1),
+        KeyCode::Char(' ') | KeyCode::Enter => app.toggle_host(),
+        KeyCode::Char('r') => app.scan_hosts(),
+        KeyCode::Char('a') => {
+            app.input.clear();
+            app.mode = Mode::Prompt(Prompt::Host);
+        }
+        _ => {}
     }
 }
 
@@ -99,7 +115,11 @@ fn on_prompt_key(app: &mut App, key: KeyEvent, prompt: Prompt) {
     match key.code {
         KeyCode::Esc => {
             app.input.clear();
-            app.mode = Mode::Normal;
+
+            app.mode = match prompt {
+                Prompt::Host => Mode::Hosts,
+                _ => Mode::Normal,
+            };
         }
         KeyCode::Enter => app.submit_prompt(prompt),
         KeyCode::Backspace => {
@@ -136,6 +156,7 @@ fn on_normal_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('/') => {
             app.mode = Mode::Filter;
         }
+        KeyCode::Char('h') => app.open_hosts(),
         KeyCode::Char('?') => app.mode = Mode::Help,
         _ => {}
     }
