@@ -34,9 +34,8 @@ pub enum Msg {
     Exec(std::process::Command),
 }
 
-/// One ssh host as the pane shows it. A snapshot rather than a borrow of the
-/// registry: the pane redraws on every keystroke and the registry is behind an
-/// async lock a render pass cannot wait on.
+/// One ssh host as the pane shows it. A snapshot rather than a borrow: the pane
+/// redraws per keystroke and the registry is behind an async lock.
 #[derive(Clone)]
 pub struct HostRow {
     pub name: String,
@@ -75,9 +74,8 @@ pub enum Outcome {
     Exec(std::process::Command),
 }
 
-/// A shot that has been asked for but has nothing to run against yet. The iPhone
-/// tunnel drops often enough that the row itself disappears, so the request is
-/// keyed on the device id and outlives the view it came from.
+/// A shot asked for with nothing to run against yet. Keyed on the device id
+/// because the iPhone tunnel drops often enough to take the row with it.
 #[derive(Clone)]
 pub struct Queued {
     pub id: String,
@@ -147,8 +145,7 @@ impl App {
             text: text.into(),
         });
 
-        // the pane only ever shows a tail; an unbounded log is a slow leak in a
-        // process that is meant to stay open all day.
+        // an unbounded log is a slow leak in a process meant to stay open all day
         if self.log.len() > 500 {
             self.log.drain(..self.log.len() - 500);
         }
@@ -213,8 +210,7 @@ impl App {
                 self.refresh();
 
                 if matches!(self.mode, Mode::Hosts) {
-                    // a toggle changes what the pane shows, and the pane is
-                    // still open in front of the user who pressed it.
+                    // the pane is still open in front of whoever pressed it
                     self.scan_hosts();
                 }
             }
@@ -295,9 +291,8 @@ impl App {
         self.scan_hosts();
     }
 
-    /// Re-reads what ssh knows and hands the pane a fresh snapshot. Only `ssh
-    /// -G` runs here, which resolves config without touching the network, so
-    /// this stays cheap enough to redo on every open.
+    /// Re-reads what ssh knows. Only `ssh -G` runs here, which resolves config
+    /// without touching the network, so it is cheap enough to redo on every open.
     pub fn scan_hosts(&mut self) {
         let reg = self.reg.clone();
         let tx = self.tx.clone();
@@ -336,7 +331,6 @@ impl App {
         self.hosts.get(self.host_state.selected()?)
     }
 
-    /// Flips the selected host.
     pub fn toggle_host(&mut self) {
         let Some(row) = self.selected_host() else {
             return;
@@ -348,8 +342,7 @@ impl App {
     }
 
     /// Enabling probes first: a host that never answered must not end up
-    /// enabled, because every later survey would pay its timeout before
-    /// concluding the same thing.
+    /// enabled, or every later survey pays its timeout to conclude the same.
     fn set_host(&mut self, name: String, enable: bool) {
         let label = if enable {
             format!("enable {name}")
@@ -400,9 +393,8 @@ impl App {
         (Reporter::new(step_tx), pump)
     }
 
-    /// Runs one registry-mutating action in the background. Only one at a time:
-    /// the lock is held for its whole duration, and two connects racing on the
-    /// same adb server produce nothing useful anyway.
+    /// One registry-mutating action at a time: the lock is held throughout, and
+    /// two connects racing on the same adb server produce nothing useful.
     fn spawn<F, Fut>(&mut self, label: impl Into<String>, f: F)
     where
         F: FnOnce(Shared, Reporter) -> Fut + Send + 'static,
@@ -539,8 +531,7 @@ impl App {
             .any(|v| v.device.id == id && v.can_shoot())
     }
 
-    /// Fires the first queued shot whose device is back. Called on every survey,
-    /// so a device that reappears is captured within one tick of showing up.
+    /// Fires the first queued shot whose device is back, on every survey.
     fn drain_queue(&mut self) {
         if self.busy.is_some() {
             return;
@@ -571,9 +562,8 @@ impl App {
         });
     }
 
-    /// A capture that died because the device went away is the case the queue
-    /// exists for, so it goes back in line. Bounded: one that is still listed and
-    /// still failing (locked, asleep) would otherwise retry forever.
+    /// A capture that died because the device went away is what the queue exists
+    /// for, so it goes back in line. Bounded: locked or asleep would retry forever.
     fn requeue(&mut self, shot: Queued) {
         if shot.tries >= MAX_SHOT_TRIES {
             self.push_log(
@@ -607,8 +597,7 @@ impl App {
         )
     }
 
-    /// Why the head of the queue has not fired. The log line scrolls away and
-    /// the wait does not, so the status line has to keep answering it.
+    /// The log line scrolls away and the wait does not.
     pub fn queued_hint(&self) -> Option<&'static str> {
         self.queue.first().map(|q| self.blocker(&q.id))
     }
@@ -695,8 +684,7 @@ impl App {
     pub fn submit_prompt(&mut self, prompt: Prompt) {
         let value = std::mem::take(&mut self.input);
 
-        // the host prompt is opened from a pane that is still what the user is
-        // looking at, so it goes back there rather than to the device list.
+        // the host prompt is opened from a pane that is still on screen
         self.mode = match prompt {
             Prompt::Host => Mode::Hosts,
             _ => Mode::Normal,
@@ -716,8 +704,7 @@ impl App {
 
                 self.push_log(Level::Try, format!("logs {} {value}", device.label));
 
-                // logcat and oslog own the terminal, so the TUI has to be torn
-                // down first; the command goes back to main to be run there.
+                // logcat owns the terminal, so the TUI is torn down and main runs it
                 tokio::spawn(async move {
                     let msg = match actions::logs_command(&server, &device, &value).await {
                         Ok(cmd) => Msg::Exec(cmd),
@@ -738,9 +725,8 @@ impl App {
                     anyhow::Ok(format!("paired {addr}; connect it now"))
                 });
             }
-            // a `Host` stanza is not the only way ssh reaches a machine, so the
-            // pane must be able to name one the config never listed — the same
-            // rule the command line already follows.
+            // a `Host` stanza is not the only way ssh reaches a machine, so the pane
+            // must be able to name one the config never listed
             Prompt::Host => self.set_host(value, true),
         }
     }
@@ -847,8 +833,7 @@ pub fn row_fields(view: &View) -> (String, String, String, String) {
         .unwrap_or_else(|| "never".into());
 
     let detail = match &d.host {
-        // there is no endpoint and no connect history to report for a hosted
-        // device: the host either has it or it does not.
+        // a hosted device has no endpoint or connect history to report
         Some(host) if d.platform.is_hosted() => format!("via {host}"),
         _ if endpoint.is_empty() => last,
         _ => format!("{endpoint}  {last}"),
@@ -901,8 +886,7 @@ mod tests {
     }
 
     /// A queue that says nothing looks like a keypress that did nothing: the
-    /// device is listed, so the reason it cannot be shot — no adb transport —
-    /// is invisible unless the queue names it, along with the key that fixes it.
+    /// device is listed, so the missing adb transport is invisible unless named.
     #[test]
     fn a_queued_shot_says_what_it_waits_for() {
         let mut app = app_with(vec![view("phone", Platform::Android, Reach::Online)]);

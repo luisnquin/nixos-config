@@ -15,13 +15,10 @@ use crate::registry::Registry;
 /// them can claim the same machine without colliding.
 const TAILSCALE: &str = "tailscale";
 
-/// Every adb server worth asking, this machine's first. adb has no federation
-/// of its own — a server never talks to another server — so the fleet is
-/// assembled client-side, one forward per enabled host.
-///
-/// Bringing tunnels up is part of surveying rather than a separate step: they
-/// are daemonised and outlive the process, so all this usually does is confirm
-/// the port an earlier run already opened.
+/// Every adb server worth asking, this machine's first. Servers never talk to
+/// each other, so the fleet is assembled client-side, one forward per enabled
+/// host. Bringing those up is part of surveying: they are daemonised, so this
+/// usually only confirms a port an earlier run opened.
 async fn fleet(reg: &mut Registry) -> Vec<Server> {
     let states: Vec<_> = reg
         .hosts
@@ -60,9 +57,8 @@ async fn fleet(reg: &mut Registry) -> Vec<Server> {
     out
 }
 
-/// `adb devices` against every server at once, keeping each answer next to the
-/// server that gave it: a serial is only unique within one server, and two macs
-/// both running `emulator-5554` is the normal case, not an edge one.
+/// `adb devices` against every server at once, each answer kept next to the
+/// server that gave it: two macs both running `emulator-5554` is normal.
 async fn attached(fleet: &[Server]) -> Vec<(Server, Vec<adb::Attached>)> {
     let mut tasks = tokio::task::JoinSet::new();
 
@@ -112,13 +108,10 @@ async fn hosted(enabled: &[(String, Caps)]) -> Vec<Device> {
     out
 }
 
-/// Merge everything that can name a device — every adb server in the fleet,
-/// every enabled host, the tailnet and the registry — into one list keyed by
-/// stable device id.
-///
-/// Writes back what it learns: an attached device is the only moment where a
-/// transport address and a hardware id are observable together, and that pairing
-/// is exactly what later reconnects depend on.
+/// Merges everything that can name a device into one list keyed by stable id,
+/// writing back what it learns: an attached device is the only moment a
+/// transport address and a hardware id are observable together, which is what
+/// later reconnects depend on.
 pub async fn survey(reg: &mut Registry) -> Vec<View> {
     let fleet = fleet(reg).await;
 
@@ -156,8 +149,7 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
             .cloned();
 
         let mut device = known.unwrap_or_else(|| {
-            // nothing has ever connected to it, so the peer key is the only
-            // identity available until a first connect resolves the real one.
+            // the peer key is the only identity there is until a first connect
             let mut d = Device::new(
                 format!("{PLACEHOLDER_PREFIX}{discovered}"),
                 peer.hostname.clone(),
@@ -168,8 +160,7 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
             d
         });
 
-        // the name a source advertises is the one that gets typed, and the
-        // model already has its own column to sit in.
+        // the advertised name is the one that gets typed; model has its own column
         device.label = peer.hostname.clone();
         device.discovered_id = Some(discovered);
         device.merge_endpoint(Endpoint::new(peer.ip.clone(), 5555));
@@ -178,8 +169,7 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
         let stored = reg.upsert(device).clone();
 
         if claimed.contains(&stored.id) {
-            // already listed as attached; this source only refreshed its
-            // address, it must not appear twice.
+            // already listed as attached; this source only refreshed its address
             continue;
         }
 
@@ -197,12 +187,10 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
         ));
     }
 
-    // there is no adb transport to remember, but the row still has to outlive
-    // the tunnel: it drops often enough that a device that is only listed while
-    // reachable cannot be selected, queued for, or made the default.
-    //
-    // `last_connected` stays unset on purpose — a bare `phone connect` reaches
-    // for the most recent device, and these have nothing to connect to.
+    // no adb transport to remember, but the row must outlive the tunnel: it
+    // drops often enough that a device listed only while reachable cannot be
+    // selected or made the default. `last_connected` stays unset, since a bare
+    // `phone connect` reaches for the most recent device.
     for device in hosted_devices {
         claimed.insert(device.id.clone());
 
@@ -235,10 +223,9 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     views
 }
 
-/// The id a serial is filed under. Hardware ids are globally unique, but an adb
-/// serial is only unique within its own server, so anything keyed on one has to
-/// carry the host it came from or a second mac's `emulator-5554` overwrites the
-/// first one's row.
+/// The id a serial is filed under. Hardware ids are globally unique; an adb
+/// serial is only unique within its server, so it carries the host or a second
+/// mac's `emulator-5554` overwrites the first one's row.
 pub fn scoped(server: &Server, serial: &str) -> String {
     match server.host() {
         Some(host) => format!("{host}/{serial}"),
@@ -255,8 +242,7 @@ async fn resolve_attached(
     let key = scoped(server, &dev.serial);
 
     if dev.state != "device" {
-        // an unauthorized transport answers no shell command, so its identity
-        // cannot be read; fall back to the serial and let the user see why.
+        // an unauthorized transport answers no shell command, so read no identity
         let mut device = reg
             .by_alias(&key)
             .cloned()
@@ -302,9 +288,8 @@ async fn resolve_attached(
         .cloned()
         .unwrap_or_else(|| Device::new(id.clone(), String::new(), platform));
 
-    // an attach over an address some source advertised is the only moment its
-    // key and the hardware id are provably the same handset; fold the
-    // placeholder away before it survives as a second row.
+    // an attach over an advertised address is the only moment the key and the
+    // hardware id are provably one handset; fold the placeholder away
     if let Some((host, _)) = split_addr(&dev.serial) {
         if let Some(stale) = reg.placeholder_at(&host, &id).cloned() {
             device.absorb(&stale);
@@ -344,8 +329,7 @@ async fn resolve_attached(
         device.record_endpoint(&host, port, pin);
     }
 
-    // a live transport is a connection; leaving this at "never" while the
-    // device is plainly attached is the one reading that cannot be right.
+    // a live transport is a connection; "never" while attached cannot be right
     device.last_connected = Some(crate::model::now());
 
     let stored = reg.upsert(device).clone();

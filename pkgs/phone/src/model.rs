@@ -4,16 +4,14 @@ use serde::{Deserialize, Serialize};
 
 pub type Unix = i64;
 
-/// Key prefix for a peer some discovery source named but that has never
-/// answered over adb, and so has no hardware id to be filed under yet.
+/// Key prefix for a peer named by discovery that has never answered over adb,
+/// and so has no hardware id to be filed under yet.
 pub const PLACEHOLDER_PREFIX: &str = "peer:";
 
-/// How adb names an emulator: the prefix plus the console port it answers on.
 pub const EMULATOR_SERIAL_PREFIX: &str = "emulator-";
 
-/// Builds the id a discovery source hands a device it found but never spoke to.
 /// The source is part of the key so two sources naming the same machine do not
-/// collide, and so nothing downstream has to know which source it came from.
+/// collide.
 pub fn discovered_id(source: &str, key: &str) -> String {
     format!("{source}:{key}")
 }
@@ -22,8 +20,6 @@ pub fn now() -> Unix {
     chrono::Utc::now().timestamp()
 }
 
-/// Compact "2h ago" rendering; the exact instant is never interesting here, only
-/// whether an endpoint is worth trying again.
 pub fn ago(t: Unix) -> String {
     let d = (now() - t).max(0);
 
@@ -58,10 +54,8 @@ impl Platform {
         matches!(self, Platform::Android | Platform::Emulator)
     }
 
-    /// Whether the platform is driven by running commands on its host rather
-    /// than by a transport this machine can hold open. CoreSimulator has no
-    /// socket to forward, so a simulator is only ever reachable as a shell on
-    /// the mac that owns it.
+    /// Driven by running commands on its host rather than over a transport this
+    /// machine can hold open: CoreSimulator has no socket to forward.
     pub fn is_hosted(self) -> bool {
         matches!(self, Platform::Ios | Platform::Simulator)
     }
@@ -74,9 +68,8 @@ impl fmt::Display for Platform {
 }
 
 /// How deterministic a wireless port is. `adb tcpip` survives until the device
-/// reboots; the persistent property survives that too but needs root. Anything
-/// else is an ephemeral port that Android rerolls on every wireless-debugging
-/// toggle, so it is only worth one speculative retry.
+/// reboots and the persistent property survives that too; anything else is a
+/// port Android rerolls on every wireless-debugging toggle.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Pin {
@@ -122,9 +115,9 @@ impl Endpoint {
 }
 
 /// A device as remembered across runs. `id` is a hardware-level identifier, not
-/// an adb serial: the same handset is `R58N70ABCDE` over USB and
-/// `100.127.25.101:37419` over a routed network, so keying on the adb serial
-/// would mean a new history entry on every transport change.
+/// an adb serial: the same handset is `R58N70ABCDE` over USB and a host:port
+/// over the network, so keying on the serial would mean a new entry per
+/// transport change.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Device {
     pub id: String,
@@ -135,12 +128,11 @@ pub struct Device {
     #[serde(default)]
     pub aliases: Vec<String>,
     /// Stable key from whichever source first named this device, kept resolvable
-    /// after a transport reveals the real hardware id and supersedes it. Carries
-    /// its source as a prefix so nothing downstream special-cases one.
+    /// after a transport reveals the real hardware id and supersedes it.
     #[serde(default)]
     pub discovered_id: Option<String>,
-    /// The ssh host this device hangs off, when it is not on this machine. Only
-    /// a name — where it resolves and how it is reached is ssh's business.
+    /// The ssh host this device hangs off. Only a name — where it resolves and
+    /// how it is reached is ssh's business.
     #[serde(default)]
     pub host: Option<String>,
     #[serde(default)]
@@ -178,9 +170,8 @@ impl Device {
             || self.endpoints.iter().any(|e| hit(&e.addr()))
     }
 
-    /// Every address this device has ever been reached at, best first. Discovery
-    /// sources record what they know as endpoints, so this is also the list of
-    /// hosts worth scanning when no remembered port answers.
+    /// Every address this device has been reached at, best first, which is also
+    /// the list of hosts worth scanning when no remembered port answers.
     pub fn hosts(&self) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
 
@@ -201,8 +192,8 @@ impl Device {
         }
     }
 
-    /// Endpoints worth dialling, best first: pinned ports never move, so they go
-    /// ahead of ephemeral ones regardless of how recently those worked.
+    /// Pinned ports never move, so they outrank ephemeral ones however recently
+    /// those worked.
     pub fn ranked_endpoints(&self) -> Vec<&Endpoint> {
         let mut out: Vec<&Endpoint> = self.endpoints.iter().collect();
 
@@ -219,7 +210,6 @@ impl Device {
         out
     }
 
-    /// Records an endpoint that has just answered.
     pub fn record_endpoint(&mut self, host: &str, port: u16, pin: Pin) {
         self.merge_endpoint(Endpoint {
             host: host.to_string(),
@@ -229,10 +219,9 @@ impl Device {
         });
     }
 
-    /// Merges what is known about an endpoint. `last_ok` only ever moves
-    /// forward, and only from a caller that actually saw the port answer:
-    /// discovery guesses at `:5555` constantly, and stamping those would make
-    /// an untested guess outrank the port that really worked.
+    /// `last_ok` only ever moves forward, and only from a caller that saw the
+    /// port answer: discovery guesses at `:5555` constantly, and stamping those
+    /// would make a guess outrank the port that really worked.
     pub fn merge_endpoint(&mut self, incoming: Endpoint) {
         if let Some(e) = self
             .endpoints
@@ -252,8 +241,7 @@ impl Device {
 
         self.endpoints.push(incoming);
 
-        // an ephemeral port that has been superseded is dead weight; keep the
-        // list from growing once per wireless-debugging toggle, forever.
+        // else the list grows once per wireless-debugging toggle, forever
         if self.endpoints.len() > 8 {
             let ranked: Vec<String> = self
                 .ranked_endpoints()
@@ -266,9 +254,8 @@ impl Device {
         }
     }
 
-    /// Folds a placeholder record into this device. A discovered-only entry is
-    /// keyed on whatever its source calls it, because nothing has ever spoken
-    /// adb to it; the first attach reveals the hardware id and supersedes it.
+    /// Folds a placeholder record into this device, keeping its key resolvable
+    /// so `phone connect peer:…` and any saved default still land here.
     pub fn absorb(&mut self, other: &Device) {
         if self.label.is_empty() {
             self.label = other.label.clone();
@@ -286,8 +273,6 @@ impl Device {
             self.host = other.host.clone();
         }
 
-        // the old key stays resolvable, so `phone connect peer:…` and any saved
-        // default still land on the right device.
         self.add_alias(other.id.clone());
 
         for alias in &other.aliases {
@@ -328,8 +313,7 @@ impl Reach {
 
     pub fn label(&self) -> String {
         match self {
-            // an emulator's transport is neither of the two a handset can have,
-            // and "usb" is the one reading that is never true of it.
+            // an emulator's transport is neither of the two a handset can have
             Reach::Attached { serial, wireless } => match () {
                 _ if serial.starts_with(EMULATOR_SERIAL_PREFIX) => "attached/emu".into(),
                 _ if *wireless => "attached/tcp".into(),
@@ -345,7 +329,7 @@ impl Reach {
         }
     }
 
-    /// Ordering used to pick a default target and to sort the picker.
+    /// Picks the default target and sorts the picker.
     pub fn rank(&self) -> u8 {
         match self {
             Reach::Attached { .. } => 0,
@@ -361,8 +345,8 @@ impl Reach {
 pub struct View {
     pub device: Device,
     pub reach: Reach,
-    /// Which adb server saw it. A serial is only unique within one server, so
-    /// every command aimed at this device has to go back through the same one.
+    /// A serial is only unique within one adb server, so every command aimed at
+    /// this device has to go back through the one that saw it.
     pub server: crate::adb::Server,
 }
 
@@ -380,10 +364,9 @@ impl View {
         self
     }
 
-    /// A capture needs a live transport, not just an answer: `Online` means a
-    /// discovery source still lists the device, and adb cannot screencap
-    /// through that. Hosted platforms are the exception — their capture runs on
-    /// the host, so being listed there is all the reachability they ever get.
+    /// `Online` means a discovery source still lists the device, and adb cannot
+    /// screencap through that. Hosted platforms capture on their host, so being
+    /// listed there is all the reachability they get.
     pub fn can_shoot(&self) -> bool {
         if self.device.platform.is_hosted() {
             return self.reach == Reach::Online;
@@ -392,11 +375,9 @@ impl View {
         self.reach.is_attached()
     }
 
-    /// What `can_shoot` is waiting for, or `None` when it is not waiting.
-    ///
-    /// A queued shot is silent by nature — it sits until a transport appears,
-    /// which for a device that was never connected is never. Without a reason
-    /// the wait is indistinguishable from the program ignoring the keypress.
+    /// A queued shot sits until a transport appears, which for a device that was
+    /// never connected is never; without a reason that is indistinguishable from
+    /// the program ignoring the keypress.
     pub fn blocked(&self) -> Option<Blocked> {
         if self.can_shoot() {
             return None;
@@ -404,16 +385,14 @@ impl View {
 
         Some(match self.reach {
             Reach::Unauthorized { .. } => Blocked::Unauthorized,
-            // listed by a discovery source, which is an answer and not a
-            // transport: adb cannot screencap over it.
             Reach::Online => Blocked::Disconnected,
             _ => Blocked::Away,
         })
     }
 }
 
-/// Why a capture cannot run yet. Kept apart from its wording so the phrasing,
-/// which names keys the user has to press, stays with the UI that owns them.
+/// Kept apart from its wording so the phrasing, which names keys the user has to
+/// press, stays with the UI that owns them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Blocked {
     Disconnected,

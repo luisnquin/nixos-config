@@ -243,8 +243,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Snapshot { target, json }) => {
             // uiautomator has no display flag; it reads whichever one holds focus
-            let (server, serial, _) = driven(&mut reg, target.as_deref()).await?;
-            let nodes = a11y::dump(&server, &serial, cli.focus).await?;
+            let t = driven(&mut reg, target.as_deref(), cli.focus).await?;
+            let nodes = a11y::dump(&t).await?;
 
             if json {
                 print_elements_json(&nodes)?;
@@ -256,40 +256,39 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Tap { what, target }) => {
-            let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
+            let t = driven(&mut reg, target.as_deref(), cli.focus).await?;
 
-            // a literal point, for the screens no hierarchy describes — a game,
-            // a canvas, or the half of a split that does not hold focus
+            // a literal point, for a game, a canvas, or an unfocused split half
             if let Ok((x, y)) = cli::parse_point(&what) {
-                a11y::tap(&server, &serial, display, cli.focus, x, y).await?;
+                a11y::tap(&t, x, y).await?;
                 eprintln!("phone: tapped {x},{y}");
 
                 return Ok(());
             }
 
-            let nodes = a11y::dump(&server, &serial, cli.focus).await?;
+            let nodes = a11y::dump(&t).await?;
             let node = a11y::pick(&nodes, &what)?;
             let (x, y) = node.bounds.center();
 
-            a11y::tap(&server, &serial, display, cli.focus, x, y).await?;
+            a11y::tap(&t, x, y).await?;
             eprintln!("phone: tapped {} at {x},{y}", node.label());
 
             Ok(())
         }
 
         Some(Command::Type { text, target }) => {
-            let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
+            let t = driven(&mut reg, target.as_deref(), cli.focus).await?;
 
-            a11y::type_text(&server, &serial, display, cli.focus, &text).await?;
+            a11y::type_text(&t, &text).await?;
             eprintln!("phone: typed {} characters", text.chars().count());
 
             Ok(())
         }
 
         Some(Command::Key { name, target }) => {
-            let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
+            let t = driven(&mut reg, target.as_deref(), cli.focus).await?;
 
-            a11y::key(&server, &serial, display, cli.focus, &name).await?;
+            a11y::key(&t, &name).await?;
             eprintln!("phone: sent {}", name.to_uppercase());
 
             Ok(())
@@ -301,9 +300,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
     }
 }
 
-/// Lists or toggles the ssh hosts a survey reaches into. There is no host
-/// config here on purpose: the names come from ssh, and everything about how to
-/// reach one is already answered by the user's own `ssh_config`.
+/// Lists or toggles the ssh hosts a survey reaches into. The names come from
+/// ssh, and how to reach one is already answered by the user's `ssh_config`.
 async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()> {
     let found = hosts::discover().await;
     let names: Vec<String> = found.iter().map(|h| h.name.clone()).collect();
@@ -312,14 +310,9 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
 
     match action {
         Some(HostAction::Enable { name }) => {
-            // whether ssh has a stanza for the name is not this program's
-            // business: a name resolved by MagicDNS, /etc/hosts or plain DNS
-            // reaches a real machine and is enabled by the same rule as any
-            // other — it answered.
-            //
-            // probing on enable rather than on every survey: an ssh round trip
-            // is not something to pay for on each refresh, and a mac does not
-            // grow an Android SDK between two of them.
+            // whether ssh has a stanza for the name is not this program's business:
+            // MagicDNS, /etc/hosts and plain DNS all reach real machines. Probing on
+            // enable, not per survey — an ssh round trip is not a per-refresh cost.
             let Some(caps) = hosts::probe(&name).await else {
                 bail!("{name} did not answer; `ssh {name} true` says why");
             };
@@ -413,17 +406,14 @@ async fn drain(mut rx: UnboundedReceiver<Step>) {
     }
 }
 
-/// The adb transport for a device this can drive, for the commands that read
-/// and press the screen.
-///
-/// Those go through `uiautomator` and `input`, which ride the adb transport and
-/// so work the same on a handset here and an emulator on a mac. Neither exists
-/// for an iPhone or an iOS simulator: driving those needs the CoreSimulator
-/// frameworks, in a process on the host itself.
+/// A device to read and press. `uiautomator` and `input` ride the adb transport,
+/// so a handset here and an emulator on a mac behave alike; an iPhone has
+/// neither and needs the CoreSimulator frameworks on the host itself.
 async fn driven(
     reg: &mut Registry,
     want: Option<&str>,
-) -> Result<(Server, String, Option<adb::Display>)> {
+    focus: Option<(i32, i32)>,
+) -> Result<a11y::Target> {
     let view = resolve(reg, want, true).await?;
 
     if view.device.platform.is_hosted() {
@@ -438,9 +428,12 @@ async fn driven(
         .await
         .ok_or_else(|| anyhow::anyhow!("{} is not attached", view.device.label))?;
 
-    let display = adb::active_display(&view.server, &serial).await;
-
-    Ok((view.server, serial, display))
+    Ok(a11y::Target {
+        display: adb::active_display(&view.server, &serial).await,
+        server: view.server,
+        serial,
+        focus,
+    })
 }
 
 fn print_elements(nodes: &[a11y::Node]) {
@@ -475,11 +468,9 @@ fn print_elements_json(nodes: &[a11y::Node]) -> Result<()> {
     Ok(())
 }
 
-/// Turns whatever the user typed into exactly one device.
-///
-/// `prefer_recent` is what makes a bare `phone connect` a single keystroke: with
-/// nothing to go on it reaches for the device last used rather than opening a
-/// picker over devices that are mostly offline.
+/// Turns whatever the user typed into exactly one device. `prefer_recent` is
+/// what makes a bare `phone connect` one keystroke: with nothing to go on it
+/// reaches for the last device used rather than a mostly-offline picker.
 async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
     let views = survey(reg).await;
     reg.save()?;
@@ -555,8 +546,7 @@ fn print_table(views: &[View]) {
                     format!("{} [{pin}]", e.addr())
                 }
             })
-            // a device driven through a host has no address of its own here;
-            // the host is the only locating fact there is
+            // a device driven through a host has no address of its own; the host is it
             .or_else(|| d.host.clone())
             .unwrap_or_else(|| "-".into());
 

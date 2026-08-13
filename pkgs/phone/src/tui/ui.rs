@@ -50,9 +50,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
 }
 
-/// The ssh hosts a survey may reach into. No host is configured here on
-/// purpose: a row is only a name plus whether it is worth the round trip, and
-/// how to reach it stays entirely ssh's business.
+/// The ssh hosts a survey may reach into. A row is only a name plus whether it
+/// is worth the round trip; how to reach it stays ssh's business.
 fn render_hosts(frame: &mut Frame, app: &mut App, area: Rect) {
     let width = 54;
     let height = (app.hosts.len() as u16).clamp(1, 14) + 3;
@@ -94,8 +93,7 @@ fn render_hosts(frame: &mut Frame, app: &mut App, area: Rect) {
                 ("[ ] ", Style::default().fg(Color::DarkGray))
             };
 
-            // an unprobed host has no answer yet, which is not the same as a
-            // host that answered and drives nothing.
+            // unprobed is not the same as answered and driving nothing
             let (caps, caps_color) = match (host.probed, host.caps.any()) {
                 (false, _) => (String::from("unprobed"), Color::DarkGray),
                 (true, false) => (host.caps.label(), Color::Red),
@@ -185,13 +183,10 @@ fn render_list(frame: &mut Frame, app: &mut App, area: Rect) {
     frame.render_stateful_widget(list, area, &mut app.state);
 }
 
-/// Colours the where-it-lives column by the machine that owns the device, so a
-/// local emulator and one on a mac are told apart at a glance rather than by
-/// reading the text. Grey means this machine — the case with no host to name.
-///
-/// The colour is derived from the name rather than assigned: hosts come out of
-/// ssh's config, so there is no fixed set to hand-pick from, and two of them
-/// must not collapse into one reading.
+/// Colours the where-it-lives column by owning machine, so a local emulator and
+/// one on a mac are told apart at a glance. Grey means this machine. Derived
+/// from the name rather than assigned, because hosts come out of ssh's config
+/// and two must not collapse into one reading.
 fn detail_style(host: Option<&str>) -> Style {
     const PALETTE: &[Color] = &[
         Color::Magenta,

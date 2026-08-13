@@ -15,8 +15,7 @@ pub struct Registry {
     pub devices: Vec<Device>,
     #[serde(default)]
     pub current: Option<String>,
-    /// Which ssh hosts to survey, and the local port each one's tunnel holds.
-    /// ssh owns every other fact about them.
+    /// Which ssh hosts to survey, and each tunnel's local port.
     #[serde(default)]
     pub hosts: Vec<HostState>,
 
@@ -53,10 +52,9 @@ impl Registry {
         Ok(reg)
     }
 
-    /// Rewrites placeholder keys minted before the id carried its source. The
-    /// dropped `tailnet` field takes the hostname and ip with it, but discovery
-    /// puts both back on the next survey; the id is the part that cannot be
-    /// rebuilt, because a stale one shows the same device twice.
+    /// Rewrites placeholder keys minted before the id carried its source. Only
+    /// the id is worth migrating — discovery rebuilds the rest, and a stale id
+    /// shows the same device twice.
     fn migrate(&mut self) {
         let mut renamed: Vec<(String, String)> = Vec::new();
 
@@ -81,9 +79,8 @@ impl Registry {
         }
     }
 
-    /// Two `phone` invocations racing on the same file is normal (a shell alias
-    /// plus the TUI), so the write is a rename onto the target rather than a
-    /// truncate-and-fill that a reader could catch half-done.
+    /// A rename rather than a truncate-and-fill: two `phone` invocations racing
+    /// on this file is normal, and a reader must not catch it half-done.
     pub fn save(&self) -> Result<()> {
         if self.path.as_os_str().is_empty() {
             return Ok(());
@@ -126,8 +123,7 @@ impl Registry {
     }
 
     /// A discovered-only placeholder holding `host`, other than `keep`. Once a
-    /// transport answers at that address the placeholder is the same handset
-    /// under a weaker key, and leaving it listed shows the phone twice.
+    /// transport answers there it is the same handset under a weaker key.
     pub fn placeholder_at(&self, host: &str, keep: &str) -> Option<&Device> {
         self.devices.iter().find(|d| {
             d.id != keep
@@ -145,8 +141,8 @@ impl Registry {
             Some(i) => {
                 let existing = &mut self.devices[i];
 
-                // discovery re-runs constantly and knows less than a completed
-                // connect does, so it must not blank fields it did not observe.
+                // discovery knows less than a completed connect, so it must
+                // not blank what it did not observe
                 existing.label = device.label;
                 existing.platform = device.platform;
 
@@ -211,20 +207,15 @@ impl Registry {
         }
     }
 
-    /// The hosts to survey. Enabling is per host and opt-in: an ssh config
-    /// routinely lists machines that have nothing to do with phones, and every
-    /// enabled one costs a round trip on every refresh.
+    /// Opt-in per host: an ssh config lists machines that have nothing to do
+    /// with phones, and every enabled one costs a round trip per refresh.
     pub fn enabled_hosts(&self) -> Vec<&HostState> {
         self.hosts.iter().filter(|h| h.enabled).collect()
     }
 
-    /// Reconciles stored host state against the names ssh advertises. An alias
-    /// that left the config takes its state with it, so a renamed host does not
-    /// sit disabled forever pointing at nothing.
-    ///
-    /// An enabled host is kept either way: `Host` stanzas are not the only way
-    /// ssh reaches a machine, and one that was enabled by name answered a probe
-    /// at least once, which is better evidence than a stanza.
+    /// An alias that left the config takes its state with it, so a renamed host
+    /// does not sit disabled forever pointing at nothing. An enabled one is kept
+    /// either way — it answered a probe once, which beats a stanza as evidence.
     pub fn sync_hosts(&mut self, found: &[String]) {
         self.hosts
             .retain(|h| h.enabled || found.iter().any(|f| f == &h.name));

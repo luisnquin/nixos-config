@@ -106,9 +106,8 @@ pub async fn connect(
     Err(anyhow!("no route to {}", device.label))
 }
 
-/// The adb serial of an already-live transport for this device on `server`.
-/// The comparison goes through the scoped id because a serial only identifies a
-/// device within the server that reported it.
+/// Compared through the scoped id, because a serial only identifies a device
+/// within the server that reported it.
 pub async fn attached_serial(server: &Server, device: &Device) -> Option<String> {
     let attached = adb::devices(server).await.ok()?;
 
@@ -143,8 +142,7 @@ async fn try_history(
 
     rep.try_(format!("history: {} endpoint(s)", ranked.len()));
 
-    // `adb connect` costs seconds per miss, a raw TCP probe costs one round
-    // trip; probing first turns a stale history into a sub-second dead end.
+    // `adb connect` costs seconds per miss, a TCP probe one round trip
     let mut probes = tokio::task::JoinSet::new();
 
     for (i, (host, port, _)) in ranked.iter().enumerate() {
@@ -243,9 +241,8 @@ async fn try_sweep(
     opts: &Opts,
     rep: &Reporter,
 ) -> Result<Option<String>> {
-    // an address only routes while whatever advertises it holds a connection,
-    // so one a source names and reports down is worth skipping: sweeping it
-    // means waiting out the timeout on every port in the range.
+    // sweeping an address a source reports down means waiting out the timeout
+    // on every port in the range
     let peers = tailscale::peers().await.unwrap_or_default();
 
     let targets: Vec<String> = device
@@ -308,9 +305,8 @@ async fn try_sweep(
     Ok(None)
 }
 
-/// Whether a source names this address and says it is down. An address nothing
-/// knows about is not ruled out — no source claiming it is not the same as one
-/// claiming it is gone.
+/// An address nothing knows about is not ruled out: no source claiming it is
+/// not the same as one claiming it is gone.
 fn unreachable(peers: &[tailscale::Peer], host: &str) -> bool {
     peers.iter().any(|p| p.ip == host && !p.online)
 }
@@ -332,9 +328,8 @@ fn remember(reg: &mut Registry, device: &Device, host: &str, port: u16, pin: Pin
     entry.last_connected = Some(crate::model::now());
 }
 
-/// Restart adbd on a fixed port so later reconnects skip discovery entirely.
-/// Without root this lasts until the device reboots; with it, the persistent
-/// property makes the endpoint permanent.
+/// Restart adbd on a fixed port so later reconnects skip discovery. Lasts until
+/// reboot, or forever if root can set the persistent property.
 pub async fn pin(
     reg: &mut Registry,
     server: &Server,
@@ -389,9 +384,8 @@ pub async fn pin(
     Ok(())
 }
 
-/// Where to dial the device once adbd rebinds. An address a discovery source
-/// still advertises wins over whatever the LAN currently hands out, because it
-/// is the one that stays valid from anywhere.
+/// Where to dial once adbd rebinds. An address a discovery source advertises
+/// beats whatever the LAN hands out, because it stays valid from anywhere.
 async fn host_for(
     reg: &Registry,
     server: &Server,
@@ -433,9 +427,8 @@ async fn host_for(
         .ok_or_else(|| anyhow!("could not work out the device's own address"))
 }
 
-/// mDNS-driven pairing. Wireless debugging advertises the pairing port on a
-/// different, also ephemeral, port than the connect one, so the code alone is
-/// never enough to reach it.
+/// Wireless debugging advertises pairing on a different ephemeral port than
+/// connect, so the code alone is never enough to reach it.
 pub async fn pair(
     server: &Server,
     addr: Option<&str>,

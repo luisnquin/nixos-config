@@ -8,9 +8,8 @@ use tokio::process::Command;
 use crate::discover::sweep;
 use crate::registry::state_dir;
 
-/// Where the multiplexed control sockets live. A survey fans out several
-/// commands per host, and without a shared connection each one pays its own
-/// handshake; `%C` keys the socket on the host/port/user tuple ssh resolved.
+/// Multiplexed control sockets, so a survey's several commands per host share
+/// one handshake. `%C` keys the socket on the tuple ssh resolved.
 fn control_path() -> PathBuf {
     let dir = state_dir().join("ssh");
     let _ = std::fs::create_dir_all(&dir);
@@ -18,8 +17,7 @@ fn control_path() -> PathBuf {
     dir.join("%C")
 }
 
-/// An ssh invocation carrying nothing but connection hygiene. Every fact about
-/// where `host` is and how to authenticate to it stays in ssh's own config.
+/// Connection hygiene only; where `host` is and how to reach it is ssh's.
 pub fn command(host: &str) -> Command {
     let mut cmd = Command::new("ssh");
 
@@ -33,19 +31,16 @@ pub fn command(host: &str) -> Command {
     cmd
 }
 
-/// Wraps a string so the remote shell reads it as exactly one word.
 fn quoted(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
 }
 
 /// One remote command line running `script` with `args` bound to `$1`, `$2`, …
-/// Passing values as positional arguments rather than interpolating them into
-/// the script keeps a device id or bundle id from being read as shell syntax.
+/// Positional rather than interpolated, so a device or bundle id is never read
+/// as shell syntax.
 ///
-/// Quoted into a single word rather than passed as separate arguments because
-/// ssh has no argv to pass: it joins everything after the host with spaces and
-/// hands the result to the remote login shell, which splits it again on its own
-/// rules. A multi-line script given as one argument comes apart on the way.
+/// Quoted into a single word because ssh has no argv: it joins everything after
+/// the host with spaces and lets the remote shell split it again.
 pub fn remote(script: &str, args: &[&str]) -> String {
     let mut out = format!("sh -c {} sh", quoted(script));
 
@@ -73,9 +68,8 @@ pub async fn output(mut cmd: Command, limit: Duration) -> Result<Vec<u8>> {
     Ok(out.stdout)
 }
 
-/// Runs `remote` and returns its stdout as trimmed text, or an empty string for
-/// anything that failed. Discovery calls this per host and one unreachable
-/// machine must not fail the survey.
+/// Empty string for anything that failed: discovery calls this per host and one
+/// unreachable machine must not fail the survey.
 pub async fn text(host: &str, remote: &str, limit: Duration) -> String {
     let mut cmd = command(host);
     cmd.arg(remote);
@@ -86,12 +80,10 @@ pub async fn text(host: &str, remote: &str, limit: Duration) -> String {
     }
 }
 
-/// Brings up a forward from `local` to `remote_port` on the host's own
-/// loopback, reusing one that is already up.
-///
-/// `-f -N` daemonises, so the tunnel outlives the `phone` process that opened
-/// it. That is deliberate: every CLI invocation is a fresh process, and a
-/// tunnel torn down on exit would be rebuilt on every single command.
+/// A forward from `local` to `remote_port` on the host's loopback, reusing one
+/// already up. `-f -N` daemonises so it outlives this process — every CLI
+/// invocation is a fresh one, and a tunnel torn down on exit is rebuilt on every
+/// command.
 pub async fn forward(host: &str, local: u16, remote_port: u16) -> Result<()> {
     if sweep::probe("127.0.0.1", local, Duration::from_millis(400)).await {
         return Ok(());
@@ -117,9 +109,8 @@ pub async fn forward(host: &str, local: u16, remote_port: u16) -> Result<()> {
     Ok(())
 }
 
-/// A free local port, for a forward that has to be recorded before it exists.
-/// The bind is released immediately, so this is a hint rather than a
-/// reservation — callers keep the number and re-pick if it stops working.
+/// A hint rather than a reservation: the bind is released immediately, so
+/// callers keep the number and re-pick if it stops working.
 pub async fn free_port() -> Result<u16> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();

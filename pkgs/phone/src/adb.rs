@@ -6,10 +6,9 @@ use tokio::process::Command;
 
 use crate::model::Platform;
 
-/// Which adb server a command talks to. adb has no notion of federation — a
-/// server never speaks to another server — but the client picks its server per
-/// invocation, so holding one forward per host and choosing between them here
-/// gets the same result without either side knowing.
+/// Which adb server a command talks to. Servers never speak to each other, but
+/// the client picks its server per invocation, so one forward per host and a
+/// choice here gets the same result.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Server {
     #[default]
@@ -28,10 +27,8 @@ impl Server {
         }
     }
 
-    /// The client flag that redirects this invocation. Note it selects a
-    /// *server*, so anything the client resolves for itself still happens
-    /// locally — `adb emu` dials the emulator console on this machine's
-    /// loopback and cannot reach a remote one.
+    /// Selects a *server*, so anything the client resolves for itself still
+    /// happens locally — `adb emu` dials the console on this machine's loopback.
     fn args(&self) -> Vec<String> {
         match self {
             Server::Local => Vec::new(),
@@ -48,8 +45,7 @@ impl Server {
         cmd
     }
 
-    /// The same redirection for tools that shell out to `adb` themselves and
-    /// take no flags of ours — scrcpy being the one that matters.
+    /// The same redirection for tools that shell out to `adb` themselves.
     pub fn env(&self) -> Option<(&'static str, String)> {
         match self {
             Server::Local => None,
@@ -68,8 +64,7 @@ pub struct Attached {
 
 impl Attached {
     pub fn is_wireless(&self) -> bool {
-        // a wireless transport is addressed as host:port; USB and emulator
-        // serials never contain a colon.
+        // USB and emulator serials never contain a colon
         self.serial.contains(':')
     }
 
@@ -94,8 +89,7 @@ pub struct Identity {
 
 impl Identity {
     /// Android 10+ hides `ro.serialno` from unprivileged callers on some
-    /// vendors, so the settings-provider id is kept as a fallback key rather
-    /// than letting the device fall back to its transient adb serial.
+    /// vendors; the settings-provider id is the fallback key.
     pub fn best_id(&self) -> Option<String> {
         if !self.serialno.is_empty() {
             Some(self.serialno.clone())
@@ -256,14 +250,9 @@ pub async fn identity(server: &Server, serial: &str) -> Identity {
     }
 }
 
-/// AVD name. The `model` reported by `adb devices -l` is the system image and
-/// identical across every emulator, so it cannot tell two apart.
-///
-/// Read as a property rather than over `adb emu`: that command is resolved by
-/// the *client*, which derives the console port from `emulator-5554` and dials
-/// it on its own loopback, so through a forwarded server it lands on this
-/// machine where nothing is listening. A property rides the transport and works
-/// the same whichever server answered.
+/// AVD name. `adb devices -l` reports the system image as `model`, identical
+/// across every emulator. Read as a property because `adb emu` is resolved
+/// client-side and would dial this machine's loopback.
 pub async fn avd_name(server: &Server, serial: &str) -> String {
     let name = getprop(server, serial, "ro.boot.qemu.avd_name").await;
 
@@ -318,22 +307,19 @@ pub async fn pair(server: &Server, addr: &str, code: &str) -> Result<()> {
     }
 }
 
-/// A panel, in both of the id namespaces Android keeps for it.
+/// A panel, in both of the id namespaces Android keeps for it. A fold numbers
+/// its two panels 0 and 3 where SurfaceFlinger numbers them
+/// 4619827677550801152 and ...153, and each command rejects the other's id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Display {
-    /// SurfaceFlinger's physical id, which is what `screencap -d` takes. 64 bit
-    /// and on current hardware always past what a `u32` holds.
+    /// What `screencap -d` takes.
     pub physical: u64,
-    /// The logical id, which is what `input -d` takes. Unrelated to the
-    /// physical one: a fold numbers its two panels 0 and 3 where SurfaceFlinger
-    /// numbers them 4619827677550801152 and ...153, and each command rejects
-    /// the other's id outright.
+    /// What `input -d` takes.
     pub logical: u32,
 }
 
 /// The panel that is live. Foldables expose several and both `screencap` and
-/// `input` otherwise fall to the first, which is as often as not the one that
-/// is closed.
+/// `input` otherwise fall to the first, as often as not the one that is closed.
 pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
     let out = run_timeout(
         server,
@@ -346,12 +332,9 @@ pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
     active_viewport(&out.stdout)
 }
 
-/// The viewport `dumpsys display` marks active.
-///
-/// Read from there rather than from SurfaceFlinger's `powerMode` because
-/// `isActive` is the input system's own record of which panel is live — the
-/// question being asked — and because SurfaceFlinger never names the logical id
-/// at all.
+/// Read here rather than from SurfaceFlinger's `powerMode`: `isActive` is the
+/// input system's own record of which panel is live, and SurfaceFlinger never
+/// names the logical id at all.
 pub fn active_viewport(text: &str) -> Option<Display> {
     let record = text
         .split("DisplayViewport{")
@@ -365,7 +348,6 @@ pub fn active_viewport(text: &str) -> Option<Display> {
     })
 }
 
-/// The value written after `key`, up to whatever closes it.
 fn field<'a>(record: &'a str, key: &str) -> Option<&'a str> {
     let rest = record.split_once(key)?.1;
 
@@ -388,8 +370,7 @@ pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<Strin
 mod tests {
     use super::*;
 
-    /// A Pixel 10 Pro Fold, open, whose two panels are the reason any of this
-    /// exists. Trimmed of the geometry, which is not read.
+    /// A Pixel 10 Pro Fold, open, trimmed of the geometry that is not read.
     const FOLD: &str = "  mViewports=[DisplayViewport{type=INTERNAL, valid=true, isActive=true, \
 displayId=0, uniqueId='local:4619827677550801152', physicalPort=0, orientation=0, \
 deviceWidth=2076, deviceHeight=2152}, DisplayViewport{type=INTERNAL, valid=true, \
@@ -408,8 +389,7 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
         );
     }
 
-    /// Folded, the second viewport takes over. Nothing but `isActive` moves, so
-    /// reading position instead of that flag would answer the same either way.
+    /// Folded, the second viewport takes over; nothing but `isActive` moves.
     #[test]
     fn follows_the_flag_rather_than_the_order() {
         let folded = FOLD.replacen("isActive=true", "isActive=x", 1);

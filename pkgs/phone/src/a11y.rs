@@ -4,22 +4,27 @@ use anyhow::{bail, Result};
 
 use crate::adb::{self, Server};
 
-/// Where the dump lands on the device. uiautomator will not write to stdout on
-/// every vendor build, so it goes to a file that is read and removed in the same
-/// shell, which keeps the whole thing to one round trip.
+/// uiautomator will not write to stdout on every vendor build, so the dump goes
+/// to a file that is read and removed in the same shell.
 const REMOTE: &str = "uiautomator dump /sdcard/.phone-a11y.xml >/dev/null 2>&1; \
      cat /sdcard/.phone-a11y.xml; rm -f /sdcard/.phone-a11y.xml";
 
-/// A press that pulls focus, run device-side ahead of the real command.
-///
-/// Both the hierarchy dump and every key go to whichever window holds focus,
-/// which in split screen is whichever half was touched last — the other app,
-/// if someone is using it. Pressing first only helps if nothing can interleave,
-/// so it is prepended to the same shell rather than sent as its own command.
-fn focus_prefix(focus: Option<(i32, i32)>) -> String {
-    focus
-        .map(|(x, y)| format!("input tap {x} {y}; sleep 0.6; "))
-        .unwrap_or_default()
+/// A device to read and press, resolved once per invocation.
+pub struct Target {
+    pub server: Server,
+    pub serial: String,
+    pub display: Option<adb::Display>,
+    pub focus: Option<(i32, i32)>,
+}
+
+impl Target {
+    /// The dump and every key go to whichever window holds focus, so a press
+    /// that pulls it has to run in the same shell, where nothing can interleave.
+    fn prefix(&self) -> String {
+        self.focus
+            .map(|(x, y)| format!("input tap {x} {y}; sleep 0.6; "))
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,7 +36,6 @@ pub struct Bounds {
 }
 
 impl Bounds {
-    /// `[x1,y1][x2,y2]`, the only shape uiautomator emits.
     fn parse(raw: &str) -> Option<Self> {
         let (a, b) = raw.trim_start_matches('[').split_once("][")?;
         let (x1, y1) = a.split_once(',')?;
@@ -56,8 +60,7 @@ impl Bounds {
 
 #[derive(Clone, Debug)]
 pub struct Node {
-    /// Position in the emitted list. Stable only within one dump, which is why
-    /// it is handed out alongside the text rather than instead of it.
+    /// Stable only within one dump.
     pub index: usize,
     pub text: String,
     pub desc: String,
@@ -68,8 +71,6 @@ pub struct Node {
 }
 
 impl Node {
-    /// What to call this element in output a human or an agent reads. Falls
-    /// through to the class name so a nameless button is still addressable.
     pub fn label(&self) -> &str {
         for candidate in [&self.text, &self.desc, &self.res_id] {
             if !candidate.is_empty() {
@@ -77,12 +78,9 @@ impl Node {
             }
         }
 
-        short_class(&self.class)
+        self.class.rsplit('.').next().unwrap_or(&self.class)
     }
 
-    /// Whether `needle` names this element. Matched case-insensitively across
-    /// every field a caller might have read it from, because the label shown is
-    /// whichever field happened to be populated.
     pub fn matches(&self, needle: &str) -> bool {
         let needle = needle.to_lowercase();
 
@@ -92,15 +90,8 @@ impl Node {
     }
 }
 
-fn short_class(class: &str) -> &str {
-    class.rsplit('.').next().unwrap_or(class)
-}
-
-/// The interactive and text-bearing elements of the current screen.
-///
-/// The raw hierarchy is mostly layout containers — a screen with ten controls
-/// dumps a few hundred nodes. Only what can be read or pressed is kept, which
-/// is what makes the result small enough to act on.
+/// The elements that can be read or pressed. The rest of the hierarchy is
+/// layout containers, which are most of the several hundred nodes a dump holds.
 pub fn parse(xml: &str) -> Result<Vec<Node>> {
     let doc = roxmltree::Document::parse(xml)?;
     let mut nodes = Vec::new();
@@ -121,7 +112,6 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
             continue;
         };
 
-        // a zero-area node cannot be pressed and cannot be read
         if bounds.area() == 0 {
             continue;
         }
@@ -141,9 +131,9 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
     Ok(nodes)
 }
 
-pub async fn dump(server: &Server, serial: &str, focus: Option<(i32, i32)>) -> Result<Vec<Node>> {
-    let remote = format!("{}{REMOTE}", focus_prefix(focus));
-    let (ok, bytes) = adb::run_bytes(server, &["-s", serial, "exec-out", &remote]).await?;
+pub async fn dump(t: &Target) -> Result<Vec<Node>> {
+    let remote = format!("{}{REMOTE}", t.prefix());
+    let (ok, bytes) = adb::run_bytes(&t.server, &["-s", &t.serial, "exec-out", &remote]).await?;
     let xml = String::from_utf8_lossy(&bytes);
 
     if !ok || !xml.contains("<hierarchy") {
@@ -153,9 +143,8 @@ pub async fn dump(server: &Server, serial: &str, focus: Option<(i32, i32)>) -> R
     parse(&xml)
 }
 
-/// The one element `needle` names, or an error that says why it could not be
-/// narrowed to one. Ambiguity is reported rather than resolved by picking the
-/// first, since acting on the wrong control is worse than not acting.
+/// The one element `needle` names. Ambiguity is reported rather than resolved by
+/// picking the first, since acting on the wrong control is worse than not acting.
 pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
     if let Some(index) = needle
         .strip_prefix('@')
@@ -172,7 +161,6 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
         [] => bail!("nothing on screen matches '{needle}'"),
         [one] => Ok(one),
         many => {
-            // an exact label beats the substring hits it is buried in
             let exact: Vec<&&Node> = many
                 .iter()
                 .filter(|n| n.label().eq_ignore_ascii_case(needle))
@@ -193,29 +181,19 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
     }
 }
 
-/// One `input` invocation, aimed at the panel that is live.
-///
-/// Built as a single device-side command rather than as argv, because `input
-/// text` takes the rest of the line as its own words and flags — anything with
-/// a space in it has to reach the device already quoted.
-///
-/// `-d` is only written when a display was resolved: without it `input` aims at
-/// logical display 0, which is the right panel on everything that has one.
-async fn input(
-    server: &Server,
-    serial: &str,
-    display: Option<adb::Display>,
-    focus: Option<(i32, i32)>,
-    args: &str,
-) -> Result<()> {
-    let aim = display
+/// Sent as one device-side command, because `input text` reads the rest of the
+/// line as its own words and flags. Without `-d` it aims at logical display 0,
+/// which is the live panel on everything that has one.
+async fn input(t: &Target, args: &str) -> Result<()> {
+    let aim = t
+        .display
         .map(|d| format!(" -d {}", d.logical))
         .unwrap_or_default();
 
-    let remote = format!("{}input{aim} {args}", focus_prefix(focus));
+    let remote = format!("{}input{aim} {args}", t.prefix());
     let out = adb::run_timeout(
-        server,
-        &["-s", serial, "shell", &remote],
+        &t.server,
+        &["-s", &t.serial, "shell", &remote],
         Duration::from_secs(20),
     )
     .await?;
@@ -227,23 +205,13 @@ async fn input(
     }
 }
 
-pub async fn tap(
-    server: &Server,
-    serial: &str,
-    display: Option<adb::Display>,
-    focus: Option<(i32, i32)>,
-    x: i32,
-    y: i32,
-) -> Result<()> {
-    input(server, serial, display, focus, &format!("tap {x} {y}")).await
+pub async fn tap(t: &Target, x: i32, y: i32) -> Result<()> {
+    input(t, &format!("tap {x} {y}")).await
 }
 
-/// The characters `input text` cannot carry, sorted and deduplicated.
-///
-/// It renders each character through the device's KeyCharacterMap, which only
-/// spells out printable ASCII. Everything else — an accent, a newline, an emoji
-/// — is dropped on the way and the command still exits 0, so a half typed
-/// string is indistinguishable from a whole one.
+/// What `input text` cannot carry. It spells characters through the device
+/// KeyCharacterMap, which covers printable ASCII: the rest is dropped on the way
+/// and the command still exits 0.
 fn unsendable(text: &str) -> Vec<char> {
     let mut odd: Vec<char> = text
         .chars()
@@ -256,82 +224,33 @@ fn unsendable(text: &str) -> Vec<char> {
     odd
 }
 
-pub async fn type_text(
-    server: &Server,
-    serial: &str,
-    display: Option<adb::Display>,
-    focus: Option<(i32, i32)>,
-    text: &str,
-) -> Result<()> {
+pub async fn type_text(t: &Target, text: &str) -> Result<()> {
     let odd = unsendable(text);
 
     if !odd.is_empty() {
         bail!("cannot type {odd:?} — the device spells out ASCII only and drops the rest silently");
     }
 
-    input(
-        server,
-        serial,
-        display,
-        focus,
-        &format!("text {}", shell_quote(text)),
-    )
-    .await
+    input(t, &format!("text {}", shell_quote(text))).await
 }
 
-/// The keys worth naming when driving a phone.
-///
-/// `input keyevent` accepts many more, but it also accepts nonsense: an unknown
-/// name exits 0 and prints nothing, so the device can never report a typo. A
-/// name is checked here instead, and a bare number is left as the way to reach
-/// the codes not listed.
-const KEYS: &[&str] = &[
-    "APP_SWITCH",
-    "BACK",
-    "CALL",
-    "CAMERA",
-    "DEL",
-    "DPAD_CENTER",
-    "DPAD_DOWN",
-    "DPAD_LEFT",
-    "DPAD_RIGHT",
-    "DPAD_UP",
-    "ENDCALL",
-    "ENTER",
-    "ESCAPE",
-    "FORWARD_DEL",
-    "HOME",
-    "MEDIA_NEXT",
-    "MEDIA_PLAY_PAUSE",
-    "MEDIA_PREVIOUS",
-    "MENU",
-    "MOVE_END",
-    "MOVE_HOME",
-    "NOTIFICATION",
-    "PAGE_DOWN",
-    "PAGE_UP",
-    "POWER",
-    "SEARCH",
-    "SETTINGS",
-    "SLEEP",
-    "TAB",
-    "VOLUME_DOWN",
-    "VOLUME_MUTE",
-    "VOLUME_UP",
-    "WAKEUP",
-];
+/// `input keyevent` exits 0 on a name it does not know and prints nothing, so
+/// names are checked here. A bare number reaches the codes not listed.
+const KEYS: &str = "APP_SWITCH BACK CALL CAMERA DEL DPAD_CENTER DPAD_DOWN DPAD_LEFT DPAD_RIGHT \
+     DPAD_UP ENDCALL ENTER ESCAPE FORWARD_DEL HOME MEDIA_NEXT MEDIA_PLAY_PAUSE MEDIA_PREVIOUS \
+     MENU MOVE_END MOVE_HOME NOTIFICATION PAGE_DOWN PAGE_UP POWER SEARCH SETTINGS SLEEP TAB \
+     VOLUME_DOWN VOLUME_MUTE VOLUME_UP WAKEUP";
 
 fn keycode(name: &str) -> Result<String> {
     let name = name.trim().to_uppercase();
     let name = name.strip_prefix("KEYCODE_").unwrap_or(&name);
 
-    if name.parse::<u16>().is_ok() || KEYS.contains(&name) {
+    if name.parse::<u16>().is_ok() || KEYS.split_whitespace().any(|key| key == name) {
         return Ok(name.to_string());
     }
 
     let near: Vec<&str> = KEYS
-        .iter()
-        .copied()
+        .split_whitespace()
         .filter(|key| key.contains(name) || name.contains(key))
         .collect();
 
@@ -342,16 +261,10 @@ fn keycode(name: &str) -> Result<String> {
     bail!("unknown key '{name}' — did you mean {}?", near.join(", "))
 }
 
-pub async fn key(
-    server: &Server,
-    serial: &str,
-    display: Option<adb::Display>,
-    focus: Option<(i32, i32)>,
-    name: &str,
-) -> Result<()> {
+pub async fn key(t: &Target, name: &str) -> Result<()> {
     let code = keycode(name)?;
 
-    input(server, serial, display, focus, &format!("keyevent {code}")).await
+    input(t, &format!("keyevent {code}")).await
 }
 
 fn shell_quote(text: &str) -> String {
@@ -376,8 +289,6 @@ mod tests {
     fn keeps_only_what_can_be_read_or_pressed() {
         let nodes = parse(SAMPLE).expect("sample must parse");
 
-        // the root FrameLayout carries no text and no press, and the collapsed
-        // button has no area to aim at
         let labels: Vec<&str> = nodes.iter().map(|n| n.label()).collect();
         assert_eq!(labels, ["Sign in", "Email", "Log in"]);
     }
@@ -397,8 +308,6 @@ mod tests {
         assert_eq!(button.bounds.center(), (540, 550));
     }
 
-    /// An agent that taps the wrong control reports success, so a needle that
-    /// names two things has to fail rather than choose.
     #[test]
     fn refuses_an_ambiguous_needle() {
         let nodes = parse(SAMPLE).unwrap();
@@ -411,8 +320,6 @@ mod tests {
         );
     }
 
-    /// "Log in" is a substring of nothing else here, but a label that is exactly
-    /// the needle must win over one that merely contains it.
     #[test]
     fn an_exact_label_beats_the_substring_matches_around_it() {
         let xml = SAMPLE.replace(r#"text="Sign in""#, r#"text="Log in now""#);
@@ -429,8 +336,6 @@ mod tests {
         assert!(pick(&nodes, "@9").is_err());
     }
 
-    /// `input keyevent` exits 0 on a name it does not know and prints nothing,
-    /// so a typo that is not caught here reads as a key that was sent.
     #[test]
     fn refuses_a_key_the_device_would_silently_drop() {
         assert_eq!(keycode("back").unwrap(), "BACK");

@@ -11,8 +11,7 @@ use crate::ssh;
 pub const ADB_SERVER_PORT: u16 = 5037;
 
 /// What a host was last seen to offer. Probed on enable rather than on every
-/// survey: a mac does not grow an Android SDK between two refreshes, and the
-/// probe is a whole ssh round trip.
+/// survey: the probe is a whole ssh round trip.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Caps {
     #[serde(default)]
@@ -51,9 +50,8 @@ impl Caps {
     }
 }
 
-/// The only thing `phone` stores about a host. Hostname, port, user, keys and
-/// proxying all stay in ssh's config; this is just which hosts to look at and
-/// where the adb forward for each one landed.
+/// The only thing `phone` stores about a host: which ones to look at and where
+/// each adb forward landed. Everything else stays in ssh's config.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HostState {
     pub name: String,
@@ -83,9 +81,8 @@ pub struct Host {
     pub target: String,
 }
 
-/// Config files to read `Host` stanzas out of. `ssh -G` is what actually
-/// resolves an alias; these are only mined for the names worth resolving,
-/// because ssh has no "list every host you know" mode.
+/// Mined only for the names worth resolving, because ssh has no "list every
+/// host you know" mode. `ssh -G` does the resolving.
 fn config_files() -> Vec<PathBuf> {
     let mut files = Vec::new();
 
@@ -104,8 +101,7 @@ fn config_files() -> Vec<PathBuf> {
 
         out.push(file);
 
-        // one level deep: a distro drops its own snippets in through Include,
-        // and those carry real hosts. Nested includes are rare enough to skip.
+        // one level deep; nested includes are rare enough to skip
         for line in text.lines() {
             let Some(rest) = keyword(line, "include") else {
                 continue;
@@ -134,8 +130,7 @@ fn expand(path: &str) -> PathBuf {
     }
 }
 
-/// The value after `word` on a config line, case-insensitively, tolerating the
-/// `Key=value` form ssh also accepts.
+/// Case-insensitive, and tolerates the `Key=value` form ssh also accepts.
 fn keyword<'a>(line: &'a str, word: &str) -> Option<&'a str> {
     let line = line.trim();
     let (key, rest) = line.split_once([' ', '\t', '='])?;
@@ -143,9 +138,8 @@ fn keyword<'a>(line: &'a str, word: &str) -> Option<&'a str> {
     key.eq_ignore_ascii_case(word).then(|| rest.trim())
 }
 
-/// Every literal alias named by a `Host` stanza. Patterns are skipped: a
-/// wildcard is a rule about hosts, not a host, and `ssh -G '*'` resolves to
-/// nothing anyone can connect to.
+/// Every literal alias named by a `Host` stanza. A wildcard is a rule about
+/// hosts, not a host, and resolves to nothing anyone can connect to.
 pub fn aliases() -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
 
@@ -212,10 +206,9 @@ fn target(resolved: &str) -> Option<String> {
     ))
 }
 
-/// Every ssh host worth offering, one row per machine. Aliases that resolve to
-/// the same `user@host:port` are the same box under different names, so only
-/// the first is kept; otherwise a mac listed twice is surveyed twice and every
-/// device on it appears twice.
+/// Every ssh host worth offering, one row per machine. Aliases resolving to the
+/// same `user@host:port` are one box, and surveying it twice doubles its
+/// devices.
 pub async fn discover() -> Vec<Host> {
     let mut tasks = tokio::task::JoinSet::new();
 
@@ -246,13 +239,11 @@ pub async fn discover() -> Vec<Host> {
     out
 }
 
-/// What `host` can drive, in one round trip, or `None` if it never answered.
-/// The two are worth telling apart: a host with no Android SDK is a host to
-/// stop asking about, and an unreachable one is a route to go fix.
+/// What `host` can drive, or `None` if it never answered — a host with no SDK
+/// is one to stop asking about, an unreachable one is a route to go fix.
 ///
-/// A non-interactive ssh reads no login profile, so PATH is whatever sshd
-/// hands out; the login shell is asked for its own so a toolchain installed
-/// through a profile is still found.
+/// A non-interactive ssh reads no login profile, so the login shell is asked
+/// for its own PATH.
 pub async fn probe(host: &str) -> Option<Caps> {
     const SCRIPT: &str = r#"echo up
 PATH="$($SHELL -l -c 'printf %s "$PATH"' 2>/dev/null):$PATH"
@@ -271,9 +262,8 @@ exit 0"#;
     })
 }
 
-/// Brings the host's adb forward up and hands back the local port it landed on.
-/// The port is remembered so the next `phone` process finds the tunnel already
-/// there instead of opening a second one.
+/// The local port the host's adb forward landed on, remembered so the next
+/// `phone` process reuses the tunnel instead of opening a second one.
 pub async fn adb_tunnel(state: &mut HostState) -> anyhow::Result<u16> {
     if let Some(port) = state.tunnel_port {
         if ssh::forward(&state.name, port, ADB_SERVER_PORT)

@@ -99,8 +99,8 @@ impl Sweep {
 pub async fn probe(host: &str, port: u16, timeout: Duration) -> bool {
     let addr = format!("{host}:{port}");
 
-    match tokio::time::timeout(timeout, TcpStream::connect(&addr)).await {
-        Ok(Ok(_)) => true,
-        _ => false,
-    }
+    matches!(
+        tokio::time::timeout(timeout, TcpStream::connect(&addr)).await,
+        Ok(Ok(_))
+    )
 }

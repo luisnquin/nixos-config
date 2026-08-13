@@ -12,8 +12,7 @@ use crate::{ios, simctl};
 
 const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 
-/// The machine a hosted device hangs off. Nothing here can reach one without
-/// it, so a device that lost its host is an error rather than a fallback to
+/// The machine a hosted device hangs off. An error rather than a fallback to
 /// this machine, which would silently drive the wrong device.
 fn host_of(device: &Device) -> Result<&str> {
     device
@@ -72,9 +71,8 @@ pub async fn screenshot(
 
             let display = adb::active_display(server, &serial).await;
 
-            // exec-out keeps the pty's LF -> CRLF translation away from the PNG,
-            // but folds the device's stderr into the same stream, so the
-            // redirect has to run on the device, inside the quoted command.
+            // exec-out keeps CRLF translation off the PNG but folds stderr
+            // into it, so the redirect has to run device-side
             let remote = match display {
                 Some(d) => format!("screencap -p -d {} 2>/dev/null", d.physical),
                 None => "screencap -p 2>/dev/null".to_string(),
@@ -138,9 +136,9 @@ pub async fn screenshot(
     Ok(msg)
 }
 
-/// A notification daemon reads the icon off disk, so a capture that only went to
-/// the clipboard still needs a file to point at. One fixed name under the runtime
-/// dir: tmpfs, dies with the session, and every capture overwrites the last one.
+/// A notification daemon reads its icon off disk, so a clipboard-only capture
+/// still needs a file. One fixed name under the runtime dir, overwritten each
+/// time and gone with the session.
 fn preview(png: &[u8]) -> Option<PathBuf> {
     let dir = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
@@ -177,9 +175,8 @@ async fn notify(summary: &str, body: &str, icon: Option<&Path>) {
     let _ = cmd.status().await;
 }
 
-/// Feeds `bytes` to `cmd` on stdin and waits for it to exit. Only the front
-/// process is waited on: anything it forks off inherits the stderr pipe and can
-/// outlive it, so that pipe is read on failure alone.
+/// Only the front process is waited on: anything it forks inherits the stderr
+/// pipe and can outlive it, so that pipe is read on failure alone.
 async fn pipe_to(cmd: &mut tokio::process::Command, bytes: &[u8], what: &str) -> Result<()> {
     cmd.stdin(Stdio::piped()).stderr(Stdio::piped());
 
@@ -253,12 +250,9 @@ pub async fn logs_command(
     Ok(cmd)
 }
 
-/// scrcpy owns a window, not the terminal, so it is detached and the caller
-/// keeps running.
-///
-/// It works against a remote server unchanged: the encoder runs on the device
-/// and the H.264 stream rides the same adb connection as everything else, so
-/// nothing but the frames crosses the network.
+/// Detached, because scrcpy owns a window rather than the terminal. Works
+/// against a remote server unchanged: the encoder runs on the device and the
+/// stream rides the same adb connection.
 pub async fn mirror(server: &Server, device: &Device) -> Result<String> {
     if device.platform.is_hosted() {
         bail!("scrcpy cannot mirror {}", device.platform);
