@@ -14,8 +14,8 @@
   };
 in {
   programs.ssh.extraConfig = ''
-    Host mac-local
-      HostName rose.local
+    Host rose
+      User luisnquin
 
     Host ori0n ori0n.local
       Port 963
