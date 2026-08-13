@@ -144,7 +144,10 @@ pub async fn dump(server: &Server, serial: &str) -> Result<Vec<Node>> {
 /// narrowed to one. Ambiguity is reported rather than resolved by picking the
 /// first, since acting on the wrong control is worse than not acting.
 pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
-    if let Some(index) = needle.strip_prefix('@').and_then(|n| n.parse::<usize>().ok()) {
+    if let Some(index) = needle
+        .strip_prefix('@')
+        .and_then(|n| n.parse::<usize>().ok())
+    {
         return nodes
             .get(index)
             .ok_or_else(|| anyhow::anyhow!("no element @{index} in this snapshot"));
@@ -193,7 +196,31 @@ pub async fn tap(server: &Server, serial: &str, x: i32, y: i32) -> Result<()> {
     }
 }
 
+/// The characters `input text` cannot carry, sorted and deduplicated.
+///
+/// It renders each character through the device's KeyCharacterMap, which only
+/// spells out printable ASCII. Everything else — an accent, a newline, an emoji
+/// — is dropped on the way and the command still exits 0, so a half typed
+/// string is indistinguishable from a whole one.
+fn unsendable(text: &str) -> Vec<char> {
+    let mut odd: Vec<char> = text
+        .chars()
+        .filter(|c| !c.is_ascii_graphic() && *c != ' ')
+        .collect();
+
+    odd.sort_unstable();
+    odd.dedup();
+
+    odd
+}
+
 pub async fn type_text(server: &Server, serial: &str, text: &str) -> Result<()> {
+    let odd = unsendable(text);
+
+    if !odd.is_empty() {
+        bail!("cannot type {odd:?} — the device spells out ASCII only and drops the rest silently");
+    }
+
     // `input text` splits on spaces and reads the rest as its own flags, so the
     // device-side shell has to receive it as one already-quoted word.
     let quoted = format!("input text {}", shell_quote(text));
@@ -341,7 +368,10 @@ mod tests {
         let err = pick(&nodes, "i").unwrap_err().to_string();
 
         assert!(err.contains("matches 3 elements"), "{err}");
-        assert!(err.contains("@0"), "the alternatives must be addressable: {err}");
+        assert!(
+            err.contains("@0"),
+            "the alternatives must be addressable: {err}"
+        );
     }
 
     /// "Log in" is a substring of nothing else here, but a label that is exactly
@@ -378,12 +408,22 @@ mod tests {
     fn points_at_the_key_that_was_probably_meant() {
         let err = keycode("volume").unwrap_err().to_string();
 
-        assert!(err.contains("VOLUME_UP") && err.contains("VOLUME_DOWN"), "{err}");
+        assert!(
+            err.contains("VOLUME_UP") && err.contains("VOLUME_DOWN"),
+            "{err}"
+        );
     }
 
     #[test]
     fn quotes_text_so_the_device_shell_sees_one_word() {
         assert_eq!(shell_quote("two words"), "'two words'");
         assert_eq!(shell_quote("it's"), r"'it'\''s'");
+    }
+
+    #[test]
+    fn spanish_text_is_refused_rather_than_half_typed() {
+        assert!(unsendable("hola que tal").is_empty());
+        assert_eq!(unsendable("Menú de opciónes"), vec!['ó', 'ú']);
+        assert_eq!(unsendable("line\nbreak"), vec!['\n']);
     }
 }

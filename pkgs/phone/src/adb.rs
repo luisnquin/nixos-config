@@ -321,7 +321,7 @@ pub async fn pair(server: &Server, addr: &str, code: &str) -> Result<()> {
 /// The display whose panel is actually on. Foldables expose several internal
 /// displays and `screencap` defaults to "the first one found", which is usually
 /// the one that is off.
-pub async fn active_display(server: &Server, serial: &str) -> Option<u32> {
+pub async fn active_display(server: &Server, serial: &str) -> Option<u64> {
     let out = run_timeout(
         server,
         &[
@@ -337,13 +337,23 @@ pub async fn active_display(server: &Server, serial: &str) -> Option<u32> {
     .await
     .ok()?;
 
+    powered_display(&out.stdout)
+}
+
+/// The id of the first display reported powered on.
+///
+/// Ids are the physical display id SurfaceFlinger assigns, which is 64 bit and
+/// on current hardware always larger than a `u32` — parsing one into anything
+/// narrower discards every display and reports that none is on, which is
+/// indistinguishable here from a phone that has only one.
+pub fn powered_display(text: &str) -> Option<u64> {
     let mut current = None;
 
-    for line in out.stdout.lines() {
+    for line in text.lines() {
         let line = line.trim_end();
 
         if let Some(rest) = line.strip_prefix("Display ") {
-            if let Ok(id) = rest.trim().parse::<u32>() {
+            if let Ok(id) = rest.trim().parse::<u64>() {
                 current = Some(id);
             }
         }
@@ -366,4 +376,32 @@ pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<Strin
     .ok()?;
 
     out.trimmed().split_whitespace().next().map(str::to_string)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Taken from a Pixel 10 Pro Fold, whose two panels are the reason this
+    /// function exists. Both ids overflow a `u32`, so a narrower parse silently
+    /// answers "no display is on" for exactly the hardware it is meant to serve.
+    const FOLD: &str = "\
+Display 4619827677550801152
+    powerMode=Off
+Display 4619827677550801153
+    powerMode=On
+";
+
+    #[test]
+    fn reads_a_64_bit_display_id() {
+        assert_eq!(powered_display(FOLD), Some(4619827677550801153));
+    }
+
+    #[test]
+    fn answers_nothing_when_every_panel_is_off() {
+        assert_eq!(
+            powered_display(&FOLD.replace("powerMode=On", "powerMode=Off")),
+            None
+        );
+    }
 }
