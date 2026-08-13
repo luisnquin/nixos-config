@@ -11,8 +11,8 @@ upstream, and what landed that is worth adopting.
 - `flake.toml` — host/user metadata. `nix.stateVersion` and `nix.channel` are
   declarations of intent, not version markers: never bump `stateVersion` just
   because nixpkgs moved.
-- `overlays/inputs.nix` — wires flake inputs into `pkgs` (third-party overlays,
-  `sickdeck` built from the private git+ssh input, the home-manager news patch).
+- `overlays/inputs.nix` — wires flake inputs into `pkgs` (third-party overlays
+  and the home-manager news patch).
   Structural, not workarounds — but the fragile parts break on input bumps.
 - `overlays/nixpkgs.nix` — the audit target. Mixes temporary workarounds with
   permanent local packages.

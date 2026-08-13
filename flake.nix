@@ -68,13 +68,6 @@
       url = "github:luisnquin/clipz";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Private repo, so it cannot be a fetchFromGitHub fixed-output derivation:
-    # those build sandboxed without credentials. As a `flake = false` input it
-    # is fetched at eval time with the caller's ssh key and pinned in the lock.
-    sickdeck = {
-      url = "git+ssh://git@github.com/0xc000022070/sickdeck";
-      flake = false;
-    };
     nixcord = {
       url = "github:FlameFlag/nixcord";
       inputs = {

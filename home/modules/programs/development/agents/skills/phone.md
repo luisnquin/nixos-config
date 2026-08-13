@@ -5,7 +5,7 @@ pick a device, see what is on its screen, press it, type into it.
 
 `phone` reaches devices over adb, directly or through an ssh host that has its
 own adb server. iPhones and iOS simulators appear in `phone devices` but cannot
-be read or pressed — those live on `rose` and belong to the `sickdeck` skill.
+be read or pressed.
 
 ## Pick a device
 
