@@ -13,6 +13,11 @@ use clap::{Parser, Subcommand, ValueEnum};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    /// Press X,Y before reading or acting, to pull focus to the app meant
+    /// (split screen: the dump and every key follow whichever window has it)
+    #[arg(long, global = true, value_parser = parse_point)]
+    pub focus: Option<(i32, i32)>,
 }
 
 #[derive(Subcommand)]
@@ -116,7 +121,7 @@ pub enum Command {
         json: bool,
     },
 
-    /// Press an element, named by its text, description or @index
+    /// Press an element, named by its text, description, @index or X,Y
     Tap {
         what: String,
 
@@ -171,6 +176,17 @@ impl From<Shell> for clap_complete::Shell {
             Shell::Fish => clap_complete::Shell::Fish,
         }
     }
+}
+
+pub fn parse_point(s: &str) -> Result<(i32, i32), String> {
+    let (x, y) = s
+        .split_once(',')
+        .ok_or_else(|| "expected X,Y".to_string())?;
+
+    Ok((
+        x.trim().parse().map_err(|_| "bad x")?,
+        y.trim().parse().map_err(|_| "bad y")?,
+    ))
 }
 
 fn parse_range(s: &str) -> Result<RangeInclusive<u16>, String> {

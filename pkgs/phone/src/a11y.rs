@@ -10,6 +10,18 @@ use crate::adb::{self, Server};
 const REMOTE: &str = "uiautomator dump /sdcard/.phone-a11y.xml >/dev/null 2>&1; \
      cat /sdcard/.phone-a11y.xml; rm -f /sdcard/.phone-a11y.xml";
 
+/// A press that pulls focus, run device-side ahead of the real command.
+///
+/// Both the hierarchy dump and every key go to whichever window holds focus,
+/// which in split screen is whichever half was touched last — the other app,
+/// if someone is using it. Pressing first only helps if nothing can interleave,
+/// so it is prepended to the same shell rather than sent as its own command.
+fn focus_prefix(focus: Option<(i32, i32)>) -> String {
+    focus
+        .map(|(x, y)| format!("input tap {x} {y}; sleep 0.6; "))
+        .unwrap_or_default()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Bounds {
     pub x1: i32,
@@ -129,8 +141,9 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
     Ok(nodes)
 }
 
-pub async fn dump(server: &Server, serial: &str) -> Result<Vec<Node>> {
-    let (ok, bytes) = adb::run_bytes(server, &["-s", serial, "exec-out", REMOTE]).await?;
+pub async fn dump(server: &Server, serial: &str, focus: Option<(i32, i32)>) -> Result<Vec<Node>> {
+    let remote = format!("{}{REMOTE}", focus_prefix(focus));
+    let (ok, bytes) = adb::run_bytes(server, &["-s", serial, "exec-out", &remote]).await?;
     let xml = String::from_utf8_lossy(&bytes);
 
     if !ok || !xml.contains("<hierarchy") {
@@ -192,15 +205,17 @@ async fn input(
     server: &Server,
     serial: &str,
     display: Option<adb::Display>,
+    focus: Option<(i32, i32)>,
     args: &str,
 ) -> Result<()> {
     let aim = display
         .map(|d| format!(" -d {}", d.logical))
         .unwrap_or_default();
 
+    let remote = format!("{}input{aim} {args}", focus_prefix(focus));
     let out = adb::run_timeout(
         server,
-        &["-s", serial, "shell", &format!("input{aim} {args}")],
+        &["-s", serial, "shell", &remote],
         Duration::from_secs(20),
     )
     .await?;
@@ -216,10 +231,11 @@ pub async fn tap(
     server: &Server,
     serial: &str,
     display: Option<adb::Display>,
+    focus: Option<(i32, i32)>,
     x: i32,
     y: i32,
 ) -> Result<()> {
-    input(server, serial, display, &format!("tap {x} {y}")).await
+    input(server, serial, display, focus, &format!("tap {x} {y}")).await
 }
 
 /// The characters `input text` cannot carry, sorted and deduplicated.
@@ -244,6 +260,7 @@ pub async fn type_text(
     server: &Server,
     serial: &str,
     display: Option<adb::Display>,
+    focus: Option<(i32, i32)>,
     text: &str,
 ) -> Result<()> {
     let odd = unsendable(text);
@@ -256,6 +273,7 @@ pub async fn type_text(
         server,
         serial,
         display,
+        focus,
         &format!("text {}", shell_quote(text)),
     )
     .await
@@ -328,11 +346,12 @@ pub async fn key(
     server: &Server,
     serial: &str,
     display: Option<adb::Display>,
+    focus: Option<(i32, i32)>,
     name: &str,
 ) -> Result<()> {
     let code = keycode(name)?;
 
-    input(server, serial, display, &format!("keyevent {code}")).await
+    input(server, serial, display, focus, &format!("keyevent {code}")).await
 }
 
 fn shell_quote(text: &str) -> String {

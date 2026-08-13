@@ -244,7 +244,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Snapshot { target, json }) => {
             // uiautomator has no display flag; it reads whichever one holds focus
             let (server, serial, _) = driven(&mut reg, target.as_deref()).await?;
-            let nodes = a11y::dump(&server, &serial).await?;
+            let nodes = a11y::dump(&server, &serial, cli.focus).await?;
 
             if json {
                 print_elements_json(&nodes)?;
@@ -257,11 +257,21 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Tap { what, target }) => {
             let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
-            let nodes = a11y::dump(&server, &serial).await?;
+
+            // a literal point, for the screens no hierarchy describes — a game,
+            // a canvas, or the half of a split that does not hold focus
+            if let Ok((x, y)) = cli::parse_point(&what) {
+                a11y::tap(&server, &serial, display, cli.focus, x, y).await?;
+                eprintln!("phone: tapped {x},{y}");
+
+                return Ok(());
+            }
+
+            let nodes = a11y::dump(&server, &serial, cli.focus).await?;
             let node = a11y::pick(&nodes, &what)?;
             let (x, y) = node.bounds.center();
 
-            a11y::tap(&server, &serial, display, x, y).await?;
+            a11y::tap(&server, &serial, display, cli.focus, x, y).await?;
             eprintln!("phone: tapped {} at {x},{y}", node.label());
 
             Ok(())
@@ -270,7 +280,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Type { text, target }) => {
             let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
 
-            a11y::type_text(&server, &serial, display, &text).await?;
+            a11y::type_text(&server, &serial, display, cli.focus, &text).await?;
             eprintln!("phone: typed {} characters", text.chars().count());
 
             Ok(())
@@ -279,7 +289,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Key { name, target }) => {
             let (server, serial, display) = driven(&mut reg, target.as_deref()).await?;
 
-            a11y::key(&server, &serial, display, &name).await?;
+            a11y::key(&server, &serial, display, cli.focus, &name).await?;
             eprintln!("phone: sent {}", name.to_uppercase());
 
             Ok(())
