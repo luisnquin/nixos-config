@@ -1,10 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 1000">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -100 830 1000">
   <path
-    d="M555 200C500 270 435 130 375 200L50 630M250 570L50 630 110 430"
-    fill="none"
-    stroke="#000"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-width="90"
+    d="M804 873H391l-3-62 312 8-518-518 50-50 518 518-8-313 62 3v414z"
+    fill="#000"
+    transform="translate(0 -112)"
   />
 </svg>

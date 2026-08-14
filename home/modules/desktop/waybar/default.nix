@@ -66,13 +66,13 @@
           tooltip=""
 
           if [ "$inbound" -gt 0 ]; then
-            printf -v text '%s <span color="#b5e8e0"><span size="15pt">%s</span><span size="10pt" rise="1024">%s</span></span>' \
+            printf -v text '%s <span color="#b5e8e0">%s %s</span>' \
               "$text" "$inbound_icon" "$inbound"
             tooltip="SSH inbound: $inbound"
           fi
 
           if [ "$outbound" -gt 0 ]; then
-            printf -v text '%s <span color="#d8b4fe"><span size="15pt">%s</span><span size="10pt" rise="1024">%s</span></span>' \
+            printf -v text '%s <span color="#d8b4fe">%s %s</span>' \
               "$text" "$outbound_icon" "$outbound"
             tooltip="''${tooltip:+$tooltip · }SSH outbound: $outbound"
           fi
