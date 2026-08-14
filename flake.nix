@@ -71,10 +71,10 @@
     nixcord = {
       url = "github:FlameFlag/nixcord";
       inputs = {
-        flake-compat.follows = "";
         nixpkgs.follows = "nixpkgs";
         nixpkgs-nixcord.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "";
       };
     };
     ghostty = {
