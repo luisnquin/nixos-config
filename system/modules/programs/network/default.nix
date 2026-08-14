@@ -30,11 +30,12 @@
     };
 
     firewall = let
-      ports = [4000 5900 8081 9400];
+      ports = [4000 8081 9400];
     in {
       enable = true;
       allowedTCPPorts = ports;
       interfaces."wlo1".allowedTCPPorts = ports;
+      interfaces."tailscale0".allowedTCPPorts = [5900];
     };
 
     hostName = host.name;

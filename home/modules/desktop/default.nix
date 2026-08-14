@@ -15,6 +15,7 @@
     ./mouse.nix
     ./notifications.nix
     ./raffi.nix
+    ./wayvnc.nix
     ./xdg.nix
   ];
 
