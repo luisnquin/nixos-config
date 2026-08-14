@@ -21,6 +21,10 @@ pub enum Safety {
 pub struct Entry {
     pub label: String,
     pub bytes: Bytes,
+    /// Preformatted, because a newcomer can land on either side of the M/G
+    /// boundary and the panel has no unit logic of its own.
+    #[serde(default)]
+    pub bytes_label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     /// Unix seconds of last use, where the domain can determine it.
@@ -28,6 +32,10 @@ pub struct Entry {
     pub last_used: Option<i64>,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub reclaimable: Bytes,
+    /// Registered inside the newcomer window. A flag rather than a label prefix:
+    /// the panel filters on it, and a display string is a poor classification key.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub newcomer: bool,
 }
 
 impl Entry {
@@ -35,10 +43,17 @@ impl Entry {
         Self {
             label: label.into(),
             bytes,
+            bytes_label: crate::util::human(bytes),
             detail: None,
             last_used: None,
             reclaimable: 0,
+            newcomer: false,
         }
+    }
+
+    pub fn newcomer(mut self) -> Self {
+        self.newcomer = true;
+        self
     }
 
     pub fn detail(mut self, detail: impl Into<String>) -> Self {

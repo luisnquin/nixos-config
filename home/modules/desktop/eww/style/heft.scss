@@ -60,6 +60,12 @@
   min-height: 4px;
 }
 
+/* GTK draws a dashed focus ring around a scrolled window; nothing here is
+   keyboard-driven, so it is only noise. */
+.heft-scroll {
+  outline: none;
+}
+
 .heft-mover-delta {
   font-size: 9pt;
 }

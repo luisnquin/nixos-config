@@ -169,7 +169,7 @@ pub fn build_rollup(current: &Snapshot, previous: Option<&Snapshot>) -> Rollup {
         .map(|d| {
             d.entries
                 .iter()
-                .filter(|e| e.label.starts_with("new: "))
+                .filter(|e| e.newcomer)
                 .take(6)
                 .cloned()
                 .collect()

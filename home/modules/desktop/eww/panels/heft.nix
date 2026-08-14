@@ -68,34 +68,49 @@ in {
             (label :class "heft-meta" :halign "start"
               :text "''${round(heft_data.pct_used, 0)}% of ''${round(heft_data.filesystem.total / 1073741824, 0)}G used · ''${round(heft_data.reclaimable / 1073741824, 1)}G reclaimable")))
 
-        (box :class "heft-section" :orientation "v" :space-evenly false :spacing 6
-          (label :class "heft-section-title" :halign "start" :text "WHERE IT WENT")
-          (for domain in {heft_data.domains}
-            (heft-domain :domain {domain})))
+        ; Every data-dependent section lives in here. The layer-shell surface is
+        ; sized once, from `:initial`, and does not renegotiate when the poll
+        ; lands — so the panel's natural height has to be the same whether the
+        ; lists are empty or full, or the sections get stacked on top of one
+        ; another in an allocation that never grew.
+        ; `:visible` is deliberately absent throughout: eww shows a toggled-back
+        ; box without its parent renegotiating the allocation, so it paints over
+        ; its siblings. Empty sections say so in their title instead.
+        (scroll :class "heft-scroll" :vscroll true :height 620
+          (box :orientation "v" :space-evenly false :spacing 12
+            (box :class "heft-section" :orientation "v" :space-evenly false :spacing 6
+              (label :class "heft-section-title" :halign "start" :text "WHERE IT WENT")
+              (for domain in {heft_data.domains}
+                (heft-domain :domain {domain})))
 
-        (box :class "heft-section" :orientation "v" :space-evenly false :spacing 4
-          :visible {arraylength(heft_data.movers) > 0}
-          (label :class "heft-section-title" :halign "start" :text "MOVED SINCE LAST SCAN")
-          (for mover in {heft_data.movers}
-            (box :orientation "h" :space-evenly false
-              (label :class "heft-mover-name" :halign "start" :hexpand true :text {mover.label})
-              (label :class {mover.delta > 0 ? "heft-mover-delta grew" : "heft-mover-delta shrank"} :halign "end"
-                :text {mover.delta_label}))))
+            (box :class "heft-section" :orientation "v" :space-evenly false :spacing 4
+              (label :class "heft-section-title" :halign "start"
+                :text {arraylength(heft_data.movers) > 0
+                  ? "MOVED SINCE LAST SCAN"
+                  : "NO EARLIER SCAN TO COMPARE AGAINST"})
+              (for mover in {heft_data.movers}
+                (box :orientation "h" :space-evenly false
+                  (label :class "heft-mover-name" :halign "start" :hexpand true :text {mover.label})
+                  (label :class {mover.delta > 0 ? "heft-mover-delta grew" : "heft-mover-delta shrank"} :halign "end"
+                    :text {mover.delta_label}))))
 
-        (box :class "heft-section" :orientation "v" :space-evenly false :spacing 5
-          :visible {arraylength(heft_data.actions) > 0}
-          (label :class "heft-section-title" :halign "start" :text "RECLAIM")
-          (for action in {heft_data.actions}
-            (heft-action :action {action})))
+            (box :class "heft-section" :orientation "v" :space-evenly false :spacing 5
+              (label :class "heft-section-title" :halign "start"
+                :text {arraylength(heft_data.actions) > 0
+                  ? "RECLAIM"
+                  : "NOTHING WORTH RECLAIMING"})
+              (for action in {heft_data.actions}
+                (heft-action :action {action})))
 
-        (box :class "heft-section" :orientation "v" :space-evenly false :spacing 4
-          :visible {arraylength(heft_data.newcomers) > 0}
-          (label :class "heft-section-title" :halign "start" :text "NEW IN THE STORE")
-          (for entry in {heft_data.newcomers}
-            (box :orientation "h" :space-evenly false
-              (label :class "heft-entry-title" :halign "start" :hexpand true :limit-width 40 :text {entry.label})
-              (label :class "heft-entry-meta" :halign "end"
-                :text "''${round(entry.bytes / 1048576, 0)}M"))))
+            (box :class "heft-section" :orientation "v" :space-evenly false :spacing 4
+              (label :class "heft-section-title" :halign "start"
+                :text {arraylength(heft_data.newcomers) > 0
+                  ? "NEW IN THE STORE"
+                  : "NOTHING NEW IN THE STORE"})
+              (for entry in {heft_data.newcomers}
+                (box :orientation "h" :space-evenly false
+                  (label :class "heft-entry-title" :halign "start" :hexpand true :limit-width 40 :text {entry.label})
+                  (label :class "heft-entry-meta" :halign "end" :text {entry.bytes_label}))))))
 
         (label :class "heft-updated" :halign "end" :text {heft_data.updated_label})))
   '';

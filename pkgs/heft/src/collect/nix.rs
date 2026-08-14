@@ -467,7 +467,7 @@ impl NixCollector {
         for (bytes, path) in fresh.into_iter().take(8) {
             report
                 .entries
-                .push(Entry::new(format!("new: {}", store_name(path)), scale(bytes)));
+                .push(Entry::new(store_name(path), scale(bytes)).newcomer());
         }
     }
 }

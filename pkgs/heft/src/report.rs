@@ -131,8 +131,9 @@ pub fn render(snapshot: &Snapshot, previous: Option<&Snapshot>) -> String {
                 .map(|d| format!("  {}", style.dim(d)))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "  {:>7}  {}{}\n",
+                "  {:>7}  {}{}{}\n",
                 human(entry.bytes),
+                if entry.newcomer { "new: " } else { "" },
                 entry.label,
                 detail
             ));
