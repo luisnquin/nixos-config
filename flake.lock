@@ -469,11 +469,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786307769,
-        "narHash": "sha256-2xyde9Vusu/hZj02Ow8XHEd9ORpea8N8amJnWuEkWOQ=",
+        "lastModified": 1786312763,
+        "narHash": "sha256-2vyxEXJSVDBPaXLh0P3CjKrd96+u7+sPQe9Z/TYyfN8=",
         "owner": "0xc000022070",
         "repo": "hyprdysmorphic",
-        "rev": "1febf8f1e58070ac197375de2737aaae70d7e3f1",
+        "rev": "85a1f52af7d40566e4ae84e88c86a909277c05ed",
         "type": "github"
       },
       "original": {
