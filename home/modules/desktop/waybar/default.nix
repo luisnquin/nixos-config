@@ -34,8 +34,6 @@
 
       ewwToggleNetwork = ewwToggle "network";
 
-      ewwToggleGithub = ewwToggle "github";
-
       ewwToggleTailscale = ewwToggle "tailscale";
 
       ewwToggleHeft = ewwToggle "heft";
@@ -45,27 +43,6 @@
       heftWaybar = "${lib.getExe pkgs.heft} waybar"
         + " --warn-free ${toString config.services.heft.warnFreeGiB}"
         + " --critical-free ${toString config.services.heft.criticalFreeGiB}";
-
-      githubWaybar = pkgs.writeShellApplication {
-        name = "github-monitor-waybar";
-        runtimeInputs = with pkgs; [jq];
-        text = ''
-          cache=${lib.escapeShellArg "${config.xdg.cacheHome}/github-monitor/state.json"}
-          if [ ! -r "$cache" ]; then
-            jq -cn '{text:" …", tooltip:"GitHub monitor is waiting for its first refresh", class:"loading"}'
-            exit 0
-          fi
-
-          jq -c '
-            (.failed_count + .issue_count) as $total |
-            {text:(" " + ($total | tostring)),
-             tooltip:((.failed_count | tostring) + " failed of " + (.workflow_count | tostring) + " watched workflows · " +
-                      (.issue_count | tostring) + " relevant open issues" +
-                      (if (.errors | length) > 0 then " · " + ((.errors | length) | tostring) + " query errors" else "" end)),
-             class:(if (.errors | length) > 0 then "error" elif .failed_count > 0 then "failed" elif .issue_count > 0 then "issues" else "clear" end)}' \
-            "$cache"
-        '';
-      };
 
       sshWaybar = pkgs.writeShellApplication {
         name = "ssh-waybar";
@@ -202,7 +179,6 @@
 
         modules-right = [
           "custom/heft"
-          "custom/github-monitor"
           "custom/tailscale"
           "custom/ssh"
           "group/sysmon"
@@ -260,14 +236,6 @@
           interval = 300;
           tooltip = true;
           on-click = ewwToggleHeft;
-        };
-
-        "custom/github-monitor" = {
-          exec = "${lib.getExe githubWaybar}";
-          return-type = "json";
-          interval = 30;
-          tooltip = true;
-          on-click = ewwToggleGithub;
         };
 
         "clock" = {

@@ -1,10 +1,8 @@
 {
   imports = [
-    ./options.nix
     ./hyprland
     ./waybar
     ./eww
-    ./github-monitor.nix
     ./heft
     ./heft.nix
     ./awww

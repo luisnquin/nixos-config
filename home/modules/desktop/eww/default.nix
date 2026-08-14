@@ -14,7 +14,6 @@
     ./panels/sysmon.nix
     ./panels/battery.nix
     ./panels/network.nix
-    ./panels/github.nix
     ./panels/tailscale.nix
     ./panels/heft.nix
   ];
@@ -25,7 +24,6 @@
     ./style/sysmon.scss
     ./style/battery.scss
     ./style/network.scss
-    ./style/github.scss
     ./style/tailscale.scss
     ./style/heft.scss
   ];
