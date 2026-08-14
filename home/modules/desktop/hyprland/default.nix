@@ -314,7 +314,7 @@ in {
           _args = ["${lib.getExe pkgs.xdg-desktop-portal-hyprland}" "screencopy" "allow"];
         }
         {
-          _args = ["${lib.getExe config.programs.nixcord.finalPackage.discord}" "screencopy" "allow"];
+          _args = ["${lib.getExe pkgs.discord}" "screencopy" "allow"];
         }
       ];
 

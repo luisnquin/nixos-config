@@ -68,15 +68,6 @@
       url = "github:luisnquin/clipz";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixcord = {
-      url = "github:FlameFlag/nixcord";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        nixpkgs-nixcord.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-        treefmt-nix.follows = "";
-      };
-    };
     ghostty = {
       url = "github:ghostty-org/ghostty/tip";
       inputs = {
@@ -216,7 +207,6 @@
       inputs.nao.homeManagerModules.default
       inputs.clipz.homeManagerModules.default
       inputs."3mf2stl".homeModules.default
-      inputs.nixcord.homeModules.nixcord
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
       ./home/options
