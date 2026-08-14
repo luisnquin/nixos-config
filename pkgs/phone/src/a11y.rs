@@ -1,23 +1,39 @@
 use std::time::Duration;
 
 use anyhow::{bail, Result};
+use serde::Deserialize;
 
 use crate::adb::{self, Server};
+use crate::simctl;
 
 /// uiautomator will not write to stdout on every vendor build, so the dump goes
 /// to a file that is read and removed in the same shell.
 const REMOTE: &str = "uiautomator dump /sdcard/.phone-a11y.xml >/dev/null 2>&1; \
      cat /sdcard/.phone-a11y.xml; rm -f /sdcard/.phone-a11y.xml";
 
-/// A device to read and press, resolved once per invocation.
-pub struct Target {
+/// A device to read and press, resolved once per invocation. The two arms differ
+/// only in how a verb reaches the device: the elements they report and the
+/// coordinates they take are the same shape either way.
+pub enum Target {
+    Adb(Adb),
+    Simulator(Simulator),
+}
+
+pub struct Adb {
     pub server: Server,
     pub serial: String,
     pub display: Option<adb::Display>,
     pub focus: Option<(i32, i32)>,
 }
 
-impl Target {
+/// CoreSimulator is macOS-local, so the verbs run on the host that owns the
+/// simulator rather than over a transport pointed at it.
+pub struct Simulator {
+    pub host: String,
+    pub udid: String,
+}
+
+impl Adb {
     /// The dump and every key go to whichever window holds focus, so a press
     /// that pulls it has to run in the same shell, where nothing can interleave.
     fn prefix(&self) -> String {
@@ -27,7 +43,7 @@ impl Target {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 pub struct Bounds {
     pub x1: i32,
     pub y1: i32,
@@ -58,7 +74,7 @@ impl Bounds {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Node {
     /// Stable only within one dump.
     pub index: usize,
@@ -132,8 +148,13 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
 }
 
 pub async fn dump(t: &Target) -> Result<Vec<Node>> {
-    let remote = format!("{}{REMOTE}", t.prefix());
-    let (ok, bytes) = adb::run_bytes(&t.server, &["-s", &t.serial, "exec-out", &remote]).await?;
+    let a = match t {
+        Target::Adb(a) => a,
+        Target::Simulator(s) => return simctl::snapshot(&s.host, &s.udid).await,
+    };
+
+    let remote = format!("{}{REMOTE}", a.prefix());
+    let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
     let xml = String::from_utf8_lossy(&bytes);
 
     if !ok || !xml.contains("<hierarchy") {
@@ -184,16 +205,16 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
 /// Sent as one device-side command, because `input text` reads the rest of the
 /// line as its own words and flags. Without `-d` it aims at logical display 0,
 /// which is the live panel on everything that has one.
-async fn input(t: &Target, args: &str) -> Result<()> {
-    let aim = t
+async fn input(a: &Adb, args: &str) -> Result<()> {
+    let aim = a
         .display
         .map(|d| format!(" -d {}", d.logical))
         .unwrap_or_default();
 
-    let remote = format!("{}input{aim} {args}", t.prefix());
+    let remote = format!("{}input{aim} {args}", a.prefix());
     let out = adb::run_timeout(
-        &t.server,
-        &["-s", &t.serial, "shell", &remote],
+        &a.server,
+        &["-s", &a.serial, "shell", &remote],
         Duration::from_secs(20),
     )
     .await?;
@@ -206,7 +227,10 @@ async fn input(t: &Target, args: &str) -> Result<()> {
 }
 
 pub async fn tap(t: &Target, x: i32, y: i32) -> Result<()> {
-    input(t, &format!("tap {x} {y}")).await
+    match t {
+        Target::Adb(a) => input(a, &format!("tap {x} {y}")).await,
+        Target::Simulator(s) => simctl::tap(&s.host, &s.udid, x, y).await,
+    }
 }
 
 /// What `input text` cannot carry. It spells characters through the device
@@ -231,7 +255,10 @@ pub async fn type_text(t: &Target, text: &str) -> Result<()> {
         bail!("cannot type {odd:?} — the device spells out ASCII only and drops the rest silently");
     }
 
-    input(t, &format!("text {}", shell_quote(text))).await
+    match t {
+        Target::Adb(a) => input(a, &format!("text {}", shell_quote(text))).await,
+        Target::Simulator(s) => simctl::type_text(&s.host, &s.udid, text).await,
+    }
 }
 
 /// `input keyevent` exits 0 on a name it does not know and prints nothing, so
@@ -262,9 +289,13 @@ fn keycode(name: &str) -> Result<String> {
 }
 
 pub async fn key(t: &Target, name: &str) -> Result<()> {
-    let code = keycode(name)?;
-
-    input(t, &format!("keyevent {code}")).await
+    // Both sides are addressed by the Android key name, so `phone key home` is
+    // one command whatever answers it. Validated against the list each backend
+    // actually has rather than against a union of both.
+    match t {
+        Target::Adb(a) => input(a, &format!("keyevent {}", keycode(name)?)).await,
+        Target::Simulator(s) => simctl::key(&s.host, &s.udid, name).await,
+    }
 }
 
 fn shell_quote(text: &str) -> String {

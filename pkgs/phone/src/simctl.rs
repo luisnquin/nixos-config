@@ -184,6 +184,136 @@ pub async fn install(host: &str, udid: &str, path: &std::path::Path) -> Result<(
     Ok(())
 }
 
+/// Reading and pressing need the CoreSimulator and SimulatorKit frameworks,
+/// which `xcrun simctl` does not expose and which only load on macOS. The host
+/// carries its own `phone` linked against them, so what runs there is the same
+/// verb by the same name — this side only ferries it over ssh.
+const TOOL: &str = "phone";
+
+/// Android key names, because the caller says `phone key home` whatever is
+/// answering. Only the ones a handset and a simulator both have: `back` is
+/// deliberately absent, since iOS has no such button and a key silently swapped
+/// for a near miss is worse than one refused.
+const KEYS: &[(&str, &str)] = &[
+    ("app_switch", "app-switcher"),
+    ("del", "delete"),
+    ("dpad_down", "down"),
+    ("dpad_left", "left"),
+    ("dpad_right", "right"),
+    ("dpad_up", "up"),
+    ("enter", "enter"),
+    ("escape", "escape"),
+    ("forward_del", "delete"),
+    ("home", "home"),
+    ("power", "lock"),
+    ("sleep", "lock"),
+    ("space", "space"),
+    ("tab", "tab"),
+    ("volume_down", "volume-down"),
+    ("volume_up", "volume-up"),
+];
+
+fn button(name: &str) -> Result<&'static str> {
+    let name = name.trim().to_lowercase();
+    let name = name.strip_prefix("keycode_").unwrap_or(&name);
+
+    match KEYS.iter().find(|(android, _)| *android == name) {
+        Some((_, ios)) => Ok(ios),
+        None => bail!(
+            "a simulator has no '{name}' key (it takes: {})",
+            KEYS.iter()
+                .map(|(android, _)| *android)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+/// Marks the line the remote status is written on.
+const STATUS: &str = "phone-status:";
+
+/// Splits a remote run's stderr into the status the command exited with and the
+/// reason it printed. `None` for a session that never reached the command.
+fn outcome(stderr: &[u8]) -> (Option<i32>, String) {
+    let stderr = String::from_utf8_lossy(stderr);
+    let mut code = None;
+    let mut reason = Vec::new();
+
+    for line in stderr.lines() {
+        match line.strip_prefix(STATUS) {
+            Some(value) => code = value.trim().parse().ok(),
+            None => reason.push(line.strip_prefix("phone: ").unwrap_or(line)),
+        }
+    }
+
+    (code, reason.join("\n").trim().to_string())
+}
+
+/// One `phone` run on the host. The remote refuses an unknown key or an
+/// untypeable character, and that reason is the whole answer, so it is carried
+/// back rather than flattened into a failure.
+///
+/// The exit code is written into stderr and read back off it because not every
+/// ssh session carries one: a brokered one reports success whatever the command
+/// did, which would turn every refusal into an empty success here.
+async fn run(host: &str, args: &[&str], limit: Duration) -> Result<Vec<u8>> {
+    let script = format!("{TOOL} \"$@\"\nprintf '{STATUS}%s\\n' \"$?\" >&2");
+    let out = ssh::script(host, &script, args).output();
+    let out = tokio::time::timeout(limit, out)
+        .await
+        .map_err(|_| anyhow!("{host} did not answer in time"))??;
+
+    let (code, reason) = outcome(&out.stderr);
+
+    match code {
+        Some(0) => Ok(out.stdout),
+        // what a shell reports for a command it could not find
+        Some(127) => bail!("{host} has no {TOOL} to read or press a simulator with"),
+        Some(_) if !reason.is_empty() => bail!("{reason}"),
+        Some(code) => bail!("{TOOL} on {host} exited {code}"),
+        None if reason.is_empty() => bail!("{host} did not run {TOOL}"),
+        None => bail!("{reason}"),
+    }
+}
+
+pub async fn snapshot(host: &str, udid: &str) -> Result<Vec<crate::a11y::Node>> {
+    check(udid)?;
+
+    let bytes = run(host, &["snapshot", udid], Duration::from_secs(45)).await?;
+
+    Ok(serde_json::from_slice(&bytes)?)
+}
+
+pub async fn tap(host: &str, udid: &str, x: i32, y: i32) -> Result<()> {
+    check(udid)?;
+
+    let (x, y) = (x.to_string(), y.to_string());
+
+    run(host, &["tap", udid, &x, &y], Duration::from_secs(30)).await?;
+
+    Ok(())
+}
+
+pub async fn type_text(host: &str, udid: &str, text: &str) -> Result<()> {
+    check(udid)?;
+
+    // One key event per character on the far side, so the budget grows with the
+    // string rather than being a flat guess.
+    let limit = Duration::from_secs(30 + text.len() as u64 / 4);
+
+    run(host, &["text", udid, text], limit).await?;
+
+    Ok(())
+}
+
+pub async fn key(host: &str, udid: &str, name: &str) -> Result<()> {
+    check(udid)?;
+
+    run(host, &["key", udid, button(name)?], Duration::from_secs(30)).await?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +330,42 @@ mod tests {
     fn rejects_a_udid_that_could_carry_shell_syntax() {
         assert!(check("3F83A110-39DD-445A-AD47-7D487A0C818B").is_ok());
         assert!(check("$(rm -rf /)").is_err());
+    }
+
+    #[test]
+    fn takes_the_key_by_its_android_name() {
+        assert_eq!(button("home").unwrap(), "home");
+        assert_eq!(button("KEYCODE_VOLUME_UP").unwrap(), "volume-up");
+        assert_eq!(button("app_switch").unwrap(), "app-switcher");
+    }
+
+    /// iOS navigates back by a gesture or an on-screen control, so there is no
+    /// button to press and nothing to quietly substitute.
+    #[test]
+    fn refuses_a_key_the_platform_does_not_have() {
+        let err = button("back").unwrap_err().to_string();
+
+        assert!(err.contains("no 'back' key"), "{err}");
+        assert!(err.contains("home"), "the alternatives are listed: {err}");
+    }
+
+    #[test]
+    fn reads_the_remote_status_off_the_stream_that_carries_it() {
+        assert_eq!(outcome(b"phone-status:0\n"), (Some(0), String::new()));
+        assert_eq!(
+            outcome(b"phone: unknown key: wiggle\nphone-status:1\n"),
+            (Some(1), "unknown key: wiggle".to_string())
+        );
+    }
+
+    /// A session that never reached the command leaves no status behind, and
+    /// reporting that as a clean run would call every failure a success.
+    #[test]
+    fn tells_a_missing_status_apart_from_a_zero_one() {
+        assert_eq!(outcome(b""), (None, String::new()));
+        assert_eq!(
+            outcome(b"ssh: connect: host is down\n"),
+            (None, "ssh: connect: host is down".to_string())
+        );
     }
 }

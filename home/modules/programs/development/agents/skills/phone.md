@@ -1,11 +1,14 @@
 # Phone
 
-Drive the Android handsets and emulators on this desk with the `phone` CLI:
-pick a device, see what is on its screen, press it, type into it.
+Drive the Android handsets and emulators and the iOS simulators on this desk
+with the `phone` CLI: pick a device, see what is on its screen, press it, type
+into it.
 
-`phone` reaches devices over adb, directly or through an ssh host that has its
-own adb server. iPhones and iOS simulators appear in `phone devices` but cannot
-be read or pressed.
+`phone` reaches Android over adb, directly or through an ssh host that has its
+own adb server. A simulator has no such transport — CoreSimulator only runs on
+the Mac that owns it — so those verbs run as a `phone` on that host and come
+back over ssh. Either way the commands below are the same. iPhones appear in
+`phone devices` but can only be screenshotted and tailed, not read or pressed.
 
 ## Pick a device
 
@@ -51,6 +54,10 @@ phone key enter            # back, home, tab, volume_up, app_switch...
 `tap` refuses an ambiguous name and lists the candidates as `@index` rather than
 guessing. `type` carries printable ASCII only and refuses the rest outright,
 because the device drops what it cannot spell and still reports success.
+
+A simulator has no `back` button, so `phone key back` is refused there and the
+keys it does take are listed in the error. Everything else in this section reads
+the same on either platform.
 
 ## Focus, and why a snapshot can describe the wrong app
 

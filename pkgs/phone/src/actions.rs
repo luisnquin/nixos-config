@@ -14,7 +14,7 @@ const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 
 /// The machine a hosted device hangs off. An error rather than a fallback to
 /// this machine, which would silently drive the wrong device.
-fn host_of(device: &Device) -> Result<&str> {
+pub fn host_of(device: &Device) -> Result<&str> {
     device
         .host
         .as_deref()

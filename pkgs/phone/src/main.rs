@@ -20,12 +20,12 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use actions::Sink;
+use actions::{host_of, Sink};
 use adb::Server;
 use cli::{Cli, Command, HostAction};
 use connect::{Reporter, Step};
 use discover::survey;
-use model::View;
+use model::{Platform, View};
 use registry::Registry;
 
 #[tokio::main]
@@ -407,14 +407,26 @@ async fn drain(mut rx: UnboundedReceiver<Step>) {
 }
 
 /// A device to read and press. `uiautomator` and `input` ride the adb transport,
-/// so a handset here and an emulator on a mac behave alike; an iPhone has
-/// neither and needs the CoreSimulator frameworks on the host itself.
+/// so a handset here and an emulator on a mac behave alike. A simulator has no
+/// transport at all — CoreSimulator is macOS-local — so its verbs run on the
+/// host, which needs a `phone` of its own. An iPhone has neither.
 async fn driven(
     reg: &mut Registry,
     want: Option<&str>,
     focus: Option<(i32, i32)>,
 ) -> Result<a11y::Target> {
     let view = resolve(reg, want, true).await?;
+
+    if view.device.platform == Platform::Simulator {
+        if focus.is_some() {
+            bail!("--focus picks between displays; a simulator has one");
+        }
+
+        return Ok(a11y::Target::Simulator(a11y::Simulator {
+            host: host_of(&view.device)?.to_string(),
+            udid: simctl::udid(&view.device)?.to_string(),
+        }));
+    }
 
     if view.device.platform.is_hosted() {
         bail!(
@@ -428,12 +440,12 @@ async fn driven(
         .await
         .ok_or_else(|| anyhow::anyhow!("{} is not attached", view.device.label))?;
 
-    Ok(a11y::Target {
+    Ok(a11y::Target::Adb(a11y::Adb {
         display: adb::active_display(&view.server, &serial).await,
         server: view.server,
         serial,
         focus,
-    })
+    }))
 }
 
 fn print_elements(nodes: &[a11y::Node]) {
