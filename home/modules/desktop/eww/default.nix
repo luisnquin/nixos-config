@@ -16,6 +16,7 @@
     ./panels/network.nix
     ./panels/github.nix
     ./panels/tailscale.nix
+    ./panels/heft.nix
   ];
 
   styles = [
@@ -26,6 +27,7 @@
     ./style/network.scss
     ./style/github.scss
     ./style/tailscale.scss
+    ./style/heft.scss
   ];
 in {
   programs.eww = {

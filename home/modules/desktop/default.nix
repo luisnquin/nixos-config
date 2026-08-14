@@ -5,6 +5,8 @@
     ./waybar
     ./eww
     ./github-monitor.nix
+    ./heft
+    ./heft.nix
     ./awww
     ./fuzzel.nix
 

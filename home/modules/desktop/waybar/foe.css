@@ -46,6 +46,7 @@ window > box {
 #workspaces,
 #tray,
 #clock,
+#custom-heft,
 #custom-github-monitor,
 #custom-tailscale,
 #custom-ssh,
@@ -121,6 +122,7 @@ window > box {
 
 /* Right side */
 
+#custom-heft,
 #custom-tailscale,
 #custom-github-monitor,
 #cpu,
@@ -130,6 +132,23 @@ window > box {
 #network {
     padding-left: 6px;
     padding-right: 6px;
+}
+
+/* Disk headroom */
+
+#custom-heft {
+    color: rgba(181, 232, 224, 0.55);
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+#custom-heft.tight {
+    color: #f8bd96;
+}
+
+/* Steady colour, no blink: the disk sits near its limit for weeks. */
+#custom-heft.cramped {
+    color: #f28fad;
 }
 
 /* Tailscale */
@@ -284,6 +303,7 @@ window > box {
 /* Hover only for actually actionable modules */
 #custom-launcher:hover,
 #tray:hover,
+#custom-heft:hover,
 #custom-github-monitor:hover,
 #custom-tailscale:hover,
 #battery:hover,

@@ -1,0 +1,21 @@
+[package]
+name = "heft"
+version = "0.1.0"
+edition = "2021"
+description = "disk intelligence: where the space went, and what changed since yesterday"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+clap = { version = "4", features = ["derive"] }
+libc = "0.2"
+# bundled: the nix store DB is the only consumer and it is read-only, so a
+# vendored SQLite keeps the build hermetic and drops a pkg-config dependency.
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+strip = true

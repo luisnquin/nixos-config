@@ -38,6 +38,14 @@
 
       ewwToggleTailscale = ewwToggle "tailscale";
 
+      ewwToggleHeft = ewwToggle "heft";
+
+      # No jq here: `heft waybar` is itself a cache read that already emits the
+      # bar's JSON, and degrades to a placeholder before the first scan.
+      heftWaybar = "${lib.getExe pkgs.heft} waybar"
+        + " --warn-free ${toString config.services.heft.warnFreeGiB}"
+        + " --critical-free ${toString config.services.heft.criticalFreeGiB}";
+
       githubWaybar = pkgs.writeShellApplication {
         name = "github-monitor-waybar";
         runtimeInputs = with pkgs; [jq];
@@ -193,6 +201,7 @@
         ];
 
         modules-right = [
+          "custom/heft"
           "custom/github-monitor"
           "custom/tailscale"
           "custom/ssh"
@@ -242,6 +251,15 @@
           interval = 5;
           tooltip = true;
           on-click = ewwToggleTailscale;
+        };
+
+        "custom/heft" = {
+          exec = heftWaybar;
+          return-type = "json";
+          # the census runs on a timer; polling faster only re-reads a file
+          interval = 300;
+          tooltip = true;
+          on-click = ewwToggleHeft;
         };
 
         "custom/github-monitor" = {

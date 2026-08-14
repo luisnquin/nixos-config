@@ -1,0 +1,102 @@
+.heft-box {
+  background-color: rgba(29, 16, 58, 0.98);
+  border: 1px solid rgba(181, 232, 224, 0.14);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.heft-header {
+  border-bottom: 1px solid rgba(181, 232, 224, 0.10);
+  padding-bottom: 10px;
+}
+
+.heft-mark {
+  color: #b5e8e0;
+  font-size: 23pt;
+}
+
+.heft-title {
+  color: #ffffff;
+  font-size: 15pt;
+}
+
+.heft-meta,
+.heft-entry-meta,
+.heft-action-command,
+.heft-updated {
+  color: rgba(205, 214, 244, 0.48);
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.heft-section-title {
+  color: #b5e8e0;
+  font-size: 8pt;
+  letter-spacing: 1px;
+}
+
+.heft-domain-name,
+.heft-mover-name,
+.heft-entry-title {
+  color: #cdd6f4;
+}
+
+.heft-domain-size,
+.heft-action-frees {
+  color: #b5e8e0;
+  font-size: 9pt;
+}
+
+.heft-bar trough {
+  background-color: rgba(205, 214, 244, 0.07);
+  border-radius: 3px;
+  min-height: 4px;
+}
+
+.heft-bar progress {
+  background-color: #b5e8e0;
+  border-radius: 3px;
+  min-height: 4px;
+}
+
+.heft-mover-delta {
+  font-size: 9pt;
+}
+
+/* Growth is what costs space, so it is the one that gets the alarming colour. */
+.heft-mover-delta.grew {
+  color: #f28fad;
+}
+
+.heft-mover-delta.shrank {
+  color: #aac194;
+}
+
+.heft-action {
+  background-color: rgba(205, 214, 244, 0.045);
+  border: 1px solid rgba(205, 214, 244, 0.08);
+  border-radius: 6px;
+  padding: 7px 9px;
+}
+
+.heft-action:hover {
+  background-color: rgba(181, 232, 224, 0.10);
+  border-color: rgba(181, 232, 224, 0.20);
+}
+
+.heft-action.safe {
+  border-left: 3px solid #b5e8e0;
+}
+
+.heft-action.review {
+  border-left: 3px solid #f8bd96;
+}
+
+.heft-action.destructive {
+  border-left: 3px solid #f28fad;
+}
+
+.heft-action-label {
+  color: #cdd6f4;
+}
