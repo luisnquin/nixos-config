@@ -14,6 +14,7 @@
   ];
 
   programs.dconf.enable = true;
+  programs.wayvnc.enable = true;
 
   programs.xgreeter = {
     enable = true;

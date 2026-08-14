@@ -315,6 +315,9 @@ in {
           _args = ["${lib.getExe pkgs.obs-studio}" "screencopy" "allow"];
         }
         {
+          _args = ["${lib.getExe pkgs.wayvnc}" "screencopy" "allow"];
+        }
+        {
           _args = ["${lib.getExe pkgs.xdg-desktop-portal-hyprland}" "screencopy" "allow"];
         }
         {
