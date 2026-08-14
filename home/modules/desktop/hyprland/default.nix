@@ -130,6 +130,10 @@ in {
           };
         };
 
+        cursor = {
+          no_warps = true;
+        };
+
         misc = {
           disable_autoreload = true;
           disable_hyprland_logo = true;
