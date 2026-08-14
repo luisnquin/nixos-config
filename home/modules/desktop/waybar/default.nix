@@ -61,15 +61,19 @@
           fi
 
           text='<span color="#cba6f7" size="15pt">󰣀</span>'
+          inbound_icon=$'\ue9fd'
+          outbound_icon=$'\ue9fc'
           tooltip=""
 
           if [ "$inbound" -gt 0 ]; then
-            printf -v text '%s <span color="#b5e8e0">↓%s</span>' "$text" "$inbound"
+            printf -v text '%s <span color="#b5e8e0"><span size="15pt">%s</span><span size="10pt" rise="1024">%s</span></span>' \
+              "$text" "$inbound_icon" "$inbound"
             tooltip="SSH inbound: $inbound"
           fi
 
           if [ "$outbound" -gt 0 ]; then
-            printf -v text '%s <span color="#d8b4fe">↑%s</span>' "$text" "$outbound"
+            printf -v text '%s <span color="#d8b4fe"><span size="15pt">%s</span><span size="10pt" rise="1024">%s</span></span>' \
+              "$text" "$outbound_icon" "$outbound"
             tooltip="''${tooltip:+$tooltip · }SSH outbound: $outbound"
           fi
 

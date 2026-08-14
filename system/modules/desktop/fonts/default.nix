@@ -8,7 +8,8 @@
       for font in ${pkgs.ioskeley-mono.normal-NF}/share/fonts/truetype/*.ttf; do
         output="$out/share/fonts/truetype/$(basename "$font")"
         fontforge -lang=py -script ${./patch-custom-glyphs.py} \
-          "$font" ${./tailscale.svg} ${./memory.svg} "$output"
+          "$font" ${./tailscale.svg} ${./memory.svg} \
+          ${./ssh-outbound.svg} ${./ssh-inbound.svg} "$output"
       done
     '';
 in {
