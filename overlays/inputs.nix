@@ -17,6 +17,18 @@ with inputs; [
   (_final: _prev: {
     llm-agents = llm-agents.packages.${system};
   })
+  (_final: prev: {
+    pythonPackagesExtensions =
+      prev.pythonPackagesExtensions
+      ++ [
+        (_pythonFinal: pythonPrev: {
+          nanoemoji = pythonPrev.nanoemoji.overridePythonAttrs (old: {
+            src = old.src.overrideAttrs (_: {
+              outputHash = "sha256-FysyKC01XBnRiur5RR9fcsTxQqE8x0JJHSoe3q6JtKc=";
+            });
+          });
+        })
+      ];
   })
   hyprdysmorphic.overlays.default
   nixpkgs-extra.overlays.default
