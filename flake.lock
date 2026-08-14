@@ -455,6 +455,7 @@
         "aquamarine": "aquamarine",
         "hyprgraphics": "hyprgraphics",
         "hyprland": "hyprland",
+        "hyprland-guiutils": "hyprland-guiutils",
         "hyprlang": "hyprlang",
         "hyprlauncher": "hyprlauncher",
         "hyprtoolkit": "hyprtoolkit",
@@ -469,11 +470,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786312763,
-        "narHash": "sha256-2vyxEXJSVDBPaXLh0P3CjKrd96+u7+sPQe9Z/TYyfN8=",
+        "lastModified": 1786667995,
+        "narHash": "sha256-vZsQH4R7Y9zIpztUwRFHf5wEdmEoDoucagqTl5Ev9pI=",
         "owner": "0xc000022070",
         "repo": "hyprdysmorphic",
-        "rev": "85a1f52af7d40566e4ae84e88c86a909277c05ed",
+        "rev": "54fdae6866deaec82d978353fc9070a18b20d1f0",
         "type": "github"
       },
       "original": {
@@ -522,7 +523,10 @@
           "hyprdysmorphic",
           "hyprgraphics"
         ],
-        "hyprland-guiutils": "hyprland-guiutils",
+        "hyprland-guiutils": [
+          "hyprdysmorphic",
+          "hyprland-guiutils"
+        ],
         "hyprland-protocols": "hyprland-protocols",
         "hyprlang": [
           "hyprdysmorphic",
@@ -573,17 +577,14 @@
       "inputs": {
         "aquamarine": [
           "hyprdysmorphic",
-          "hyprland",
           "aquamarine"
         ],
         "hyprgraphics": [
           "hyprdysmorphic",
-          "hyprland",
           "hyprgraphics"
         ],
         "hyprlang": [
           "hyprdysmorphic",
-          "hyprland",
           "hyprlang"
         ],
         "hyprtoolkit": [
@@ -592,31 +593,27 @@
         ],
         "hyprutils": [
           "hyprdysmorphic",
-          "hyprland",
           "hyprutils"
         ],
         "hyprwayland-scanner": [
           "hyprdysmorphic",
-          "hyprland",
           "hyprwayland-scanner"
         ],
         "nixpkgs": [
           "hyprdysmorphic",
-          "hyprland",
           "nixpkgs"
         ],
         "systems": [
           "hyprdysmorphic",
-          "hyprland",
           "systems"
         ]
       },
       "locked": {
-        "lastModified": 1784533903,
-        "narHash": "sha256-Ee78BRFi+MrmgHmmW+2dZUEI1R3cssEzza0ar3fsNX8=",
+        "lastModified": 1786464504,
+        "narHash": "sha256-7sHwM86KILQyHDHDuE2SDBlQ2jvZ0EW3hY7sW009/cg=",
         "owner": "hyprwm",
         "repo": "hyprland-guiutils",
-        "rev": "a16ad89ed5fb4192c966018a80c652de8d96f748",
+        "rev": "4c30cf3097ea963c0e250749ee0c59f8b08816d6",
         "type": "github"
       },
       "original": {
