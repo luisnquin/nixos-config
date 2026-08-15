@@ -17,6 +17,15 @@
 
       context7.command = lib.getExe pkgs.context7-mcp;
 
+      firefox-devtools = {
+        command = lib.getExe pkgs.firefox-devtools-mcp;
+        args = [
+          "--connectExisting"
+          "--marionettePort"
+          "2828"
+        ];
+      };
+
       encore = rec {
         command = "encore";
         args = ["mcp" "run" "--app=gate-k9-mzni"];
