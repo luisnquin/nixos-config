@@ -179,11 +179,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1784586056,
-        "narHash": "sha256-5xUSoh5AmGsJ1U3IQmPsUVSFYzivKDgRN2mx35dWPfk=",
+        "lastModified": 1786775187,
+        "narHash": "sha256-DEU2CLVxYC9yhiU+ARow+r/i8b/GPwlo2zD22aaqYoI=",
         "owner": "luisnquin",
         "repo": "clipz",
-        "rev": "badbaca9e3cf2d3ee2fb0d4db2ad19302de9cdce",
+        "rev": "4ac0e5ec18382b743a9c7a3a6b0d5e52e6505ca2",
         "type": "github"
       },
       "original": {
