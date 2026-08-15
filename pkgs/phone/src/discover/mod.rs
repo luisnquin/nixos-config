@@ -135,7 +135,12 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
                 continue;
             };
 
-            claimed.insert(device.id.clone());
+            // a forwarded emulator answers this machine's adb server and its
+            // host's alike; the fleet is ordered by how far away the server is
+            if !claimed.insert(device.id.clone()) {
+                continue;
+            }
+
             views.push(View::new(device, reach).on(server.clone()));
         }
     }
@@ -199,6 +204,12 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
         views.push(View::new(stored, Reach::Online));
     }
 
+    // an alias learned above can reveal that a remembered row is a device this
+    // survey already listed under a stronger key. Folding here rather than on
+    // load means the survey that learns the alias is the one that stops showing
+    // two rows for the one device.
+    reg.fold_aliased(&claimed);
+
     for device in &reg.devices {
         if claimed.contains(&device.id) {
             continue;
@@ -238,7 +249,6 @@ async fn resolve_attached(
     server: &Server,
     dev: &adb::Attached,
 ) -> Option<(Device, Reach)> {
-    let platform = dev.platform();
     let key = scoped(server, &dev.serial);
 
     if dev.state != "device" {
@@ -246,7 +256,7 @@ async fn resolve_attached(
         let mut device = reg
             .by_alias(&key)
             .cloned()
-            .unwrap_or_else(|| Device::new(key, dev.serial.clone(), platform));
+            .unwrap_or_else(|| Device::new(key, dev.serial.clone(), dev.platform()));
 
         device.host = server.host().map(str::to_string);
 
@@ -258,40 +268,31 @@ async fn resolve_attached(
         ));
     }
 
-    if platform == Platform::Emulator {
-        let name = adb::avd_name(server, &dev.serial).await;
-
-        let label = if name.is_empty() { key.clone() } else { name };
-
-        let mut device = Device::new(key, label, Platform::Emulator);
-
-        device.model = dev.model.clone();
-        device.host = server.host().map(str::to_string);
-        device.add_alias(dev.serial.clone());
-
-        let stored = reg.upsert(device).clone();
-
-        return Some((
-            stored,
-            Reach::Attached {
-                serial: dev.serial.clone(),
-                wireless: false,
-            },
-        ));
-    }
-
     let ident = adb::identity(server, &dev.serial).await;
-    let id = ident.best_id().unwrap_or(key);
 
+    // the serial shape only says how this transport was opened: an emulator
+    // reached over tcp has no `emulator-` serial and is an emulator regardless
+    let platform = if ident.is_emulator() {
+        Platform::Emulator
+    } else {
+        dev.platform()
+    };
+
+    // an emulator keyed by its serial is a different device per adb server, and
+    // the one forwarded from a mac answers on both
+    let id = ident.best_id().unwrap_or_else(|| key.clone());
+
+    // a row already carrying this id as an alias is the same device under a
+    // weaker key; filing it again would leave both standing
     let mut device = reg
-        .get(&id)
+        .by_alias(&id)
         .cloned()
         .unwrap_or_else(|| Device::new(id.clone(), String::new(), platform));
 
     // an attach over an advertised address is the only moment the key and the
     // hardware id are provably one handset; fold the placeholder away
     if let Some((host, _)) = split_addr(&dev.serial) {
-        if let Some(stale) = reg.placeholder_at(&host, &id).cloned() {
+        if let Some(stale) = reg.placeholder_at(&host, &device.id).cloned() {
             device.absorb(&stale);
             reg.remove(&stale.id);
         }
@@ -306,15 +307,25 @@ async fn resolve_attached(
         device.model = dev.model.clone();
     }
 
+    // `adb devices -l` reports an emulator's system image as its model, the same
+    // for all of them; the AVD name is what was typed to start this one
+    if platform == Platform::Emulator {
+        let name = adb::avd_name(server, &dev.serial).await;
+
+        if !name.is_empty() {
+            device.label = name;
+        }
+    }
+
     if device.label.is_empty() {
         device.label = if device.model.is_empty() {
-            id.clone()
+            device.id.clone()
         } else {
             device.model.clone()
         };
     }
 
-    device.add_alias(scoped(server, &dev.serial));
+    device.add_alias(key);
 
     if !ident.android_id.is_empty() {
         device.add_alias(format!("android_id:{}", ident.android_id));

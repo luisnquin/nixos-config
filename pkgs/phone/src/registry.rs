@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -132,8 +133,50 @@ impl Registry {
         })
     }
 
+    /// Naming a device in full settles what a substring cannot: `emulator-5554`
+    /// is also a substring of `rose/emulator-5554`.
     pub fn find(&self, want: &str) -> Vec<&Device> {
+        let exact: Vec<&Device> = self.devices.iter().filter(|d| d.is(want)).collect();
+
+        if !exact.is_empty() {
+            return exact;
+        }
+
         self.devices.iter().filter(|d| d.matches(want)).collect()
+    }
+
+    /// Drops every row whose id another row already carries as an alias: they
+    /// are one device, filed twice because the weaker key was minted before a
+    /// transport gave up the stronger one. `keep` holds the ids the caller has
+    /// already built a view for, which must not vanish underneath it.
+    pub fn fold_aliased(&mut self, keep: &HashSet<String>) {
+        let mut i = 0;
+
+        while i < self.devices.len() {
+            let id = self.devices[i].id.clone();
+
+            let winner = if keep.contains(&id) {
+                None
+            } else {
+                self.devices
+                    .iter()
+                    .position(|d| d.id != id && d.aliases.iter().any(|a| a == &id))
+            };
+
+            let Some(winner) = winner else {
+                i += 1;
+                continue;
+            };
+
+            let stale = self.devices.remove(i);
+            let winner = if winner > i { winner - 1 } else { winner };
+
+            self.devices[winner].absorb(&stale);
+
+            if self.current.as_deref() == Some(stale.id.as_str()) {
+                self.current = Some(self.devices[winner].id.clone());
+            }
+        }
     }
 
     pub fn upsert(&mut self, device: Device) -> &mut Device {
@@ -232,5 +275,87 @@ impl Registry {
                 .position(|n| n == &h.name)
                 .unwrap_or(usize::MAX)
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{Endpoint, Platform};
+
+    fn device(id: &str, aliases: &[&str]) -> Device {
+        let mut d = Device::new(id, id, Platform::Android);
+
+        for alias in aliases {
+            d.add_alias(*alias);
+        }
+
+        d
+    }
+
+    #[test]
+    fn a_row_another_row_already_answers_to_is_folded_into_it() {
+        let mut reg = Registry {
+            devices: vec![
+                device("58281FDCG001K5", &["100.127.25.101:5555", "faraday"]),
+                device("100.127.25.101:5555", &[]),
+            ],
+            current: Some("100.127.25.101:5555".into()),
+            ..Default::default()
+        };
+
+        reg.fold_aliased(&HashSet::new());
+
+        assert_eq!(reg.devices.len(), 1);
+        assert_eq!(reg.devices[0].id, "58281FDCG001K5");
+        assert_eq!(
+            reg.current.as_deref(),
+            Some("58281FDCG001K5"),
+            "the default target follows the row it was folded into"
+        );
+        assert!(reg.by_alias("100.127.25.101:5555").is_some());
+    }
+
+    #[test]
+    fn what_the_caller_is_already_holding_a_view_of_stays() {
+        let mut reg = Registry {
+            devices: vec![
+                device("58281FDCG001K5", &["100.127.25.101:5555"]),
+                device("100.127.25.101:5555", &[]),
+            ],
+            ..Default::default()
+        };
+
+        reg.fold_aliased(&HashSet::from(["100.127.25.101:5555".to_string()]));
+
+        assert_eq!(reg.devices.len(), 2);
+    }
+
+    #[test]
+    fn two_rows_naming_each_other_still_settle_on_one() {
+        let mut reg = Registry {
+            devices: vec![device("a", &["b"]), device("b", &["a"])],
+            ..Default::default()
+        };
+
+        reg.fold_aliased(&HashSet::new());
+
+        assert_eq!(reg.devices.len(), 1);
+    }
+
+    #[test]
+    fn endpoints_survive_the_fold() {
+        let mut stale = device("100.127.25.101:41939", &[]);
+        stale.merge_endpoint(Endpoint::new("100.127.25.101", 41939));
+
+        let mut reg = Registry {
+            devices: vec![device("58281FDCG001K5", &["100.127.25.101:41939"]), stale],
+            ..Default::default()
+        };
+
+        reg.fold_aliased(&HashSet::new());
+
+        assert_eq!(reg.devices[0].endpoints.len(), 1);
+        assert_eq!(reg.devices[0].endpoints[0].port, 41939);
     }
 }

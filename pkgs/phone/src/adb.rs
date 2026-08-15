@@ -88,16 +88,29 @@ pub struct Identity {
 }
 
 impl Identity {
+    /// An emulator mints `ro.serialno` from its own build rather than from the
+    /// instance, so every emulator started from one system image answers the
+    /// same string. No handset serial has that shape.
+    pub fn is_emulator(&self) -> bool {
+        self.serialno.starts_with("EMULATOR")
+    }
+
     /// Android 10+ hides `ro.serialno` from unprivileged callers on some
-    /// vendors; the settings-provider id is the fallback key.
+    /// vendors; the settings-provider id is the fallback key. For an emulator it
+    /// is the only key, `ro.serialno` being the same for all of them.
     pub fn best_id(&self) -> Option<String> {
-        if !self.serialno.is_empty() {
-            Some(self.serialno.clone())
-        } else if !self.android_id.is_empty() {
-            Some(format!("android_id:{}", self.android_id))
-        } else {
-            None
+        let settings_id =
+            || (!self.android_id.is_empty()).then(|| format!("android_id:{}", self.android_id));
+
+        if self.is_emulator() {
+            return settings_id();
         }
+
+        if !self.serialno.is_empty() {
+            return Some(self.serialno.clone());
+        }
+
+        settings_id()
     }
 }
 
@@ -402,6 +415,37 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
                 logical: 3,
             })
         );
+    }
+
+    #[test]
+    fn an_emulator_is_keyed_by_the_only_id_that_varies_per_instance() {
+        let emu = Identity {
+            serialno: "EMULATOR36X6X11X0".into(),
+            android_id: "29a1ed706918672b".into(),
+            model: "sdk gphone64 arm64".into(),
+        };
+        let handset = Identity {
+            serialno: "58281FDCG001K5".into(),
+            android_id: "28aeb91fdbf85825".into(),
+            model: "Pixel 10 Pro Fold".into(),
+        };
+
+        assert_eq!(
+            emu.best_id().as_deref(),
+            Some("android_id:29a1ed706918672b"),
+            "every emulator from one image shares ro.serialno"
+        );
+        assert_eq!(handset.best_id().as_deref(), Some("58281FDCG001K5"));
+    }
+
+    #[test]
+    fn an_emulator_with_nothing_to_key_on_is_unidentified() {
+        let emu = Identity {
+            serialno: "EMULATOR36X6X11X0".into(),
+            ..Identity::default()
+        };
+
+        assert_eq!(emu.best_id(), None);
     }
 
     #[test]

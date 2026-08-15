@@ -6,7 +6,10 @@ use tokio::io::AsyncWriteExt;
 use crate::model::View;
 
 /// fzf reads the candidates from a pipe but draws on /dev/tty, so the prompt
-/// still works when `phone` is itself inside a pipeline.
+/// still works when `phone` is itself inside a pipeline. With no terminal at all
+/// — a script, an agent, a cron job — there is nothing to draw on, and asking
+/// gets `inappropriate ioctl for device` instead of an answer. The ambiguity has
+/// to come back as an error that names the way out of it.
 pub async fn pick(views: &[View], prompt: &str) -> Result<usize> {
     if views.is_empty() {
         bail!("no device to choose from");
@@ -14,6 +17,20 @@ pub async fn pick(views: &[View], prompt: &str) -> Result<usize> {
 
     if views.len() == 1 {
         return Ok(0);
+    }
+
+    if std::fs::File::open("/dev/tty").is_err() {
+        let rows: Vec<String> = views
+            .iter()
+            .map(|v| format!("  {:<32} {}", v.device.id, v.device.label))
+            .collect();
+
+        bail!(
+            "{} devices match, and there is no terminal to choose on; \
+             name one by the id on the left, or set PHONE_TARGET:\n{}",
+            views.len(),
+            rows.join("\n")
+        );
     }
 
     let rows: String = views

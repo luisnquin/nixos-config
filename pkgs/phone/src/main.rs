@@ -493,11 +493,19 @@ async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         .filter(|s| !s.is_empty());
 
     let mut candidates: Vec<View> = match &want {
-        Some(w) => views
-            .iter()
-            .filter(|v| v.device.matches(w))
-            .cloned()
-            .collect(),
+        Some(w) => {
+            let exact: Vec<View> = views.iter().filter(|v| v.device.is(w)).cloned().collect();
+
+            if exact.is_empty() {
+                views
+                    .iter()
+                    .filter(|v| v.device.matches(w))
+                    .cloned()
+                    .collect()
+            } else {
+                exact
+            }
+        }
         None => views.clone(),
     };
 

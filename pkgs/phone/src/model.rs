@@ -156,6 +156,16 @@ impl Device {
         }
     }
 
+    /// An exact hit on one of the names this device is filed under. Substring
+    /// matching is what makes a target quick to type, and also what makes
+    /// `emulator-5554` name `rose/emulator-5554` as well; typing one in full has
+    /// to settle that.
+    pub fn is(&self, want: &str) -> bool {
+        let eq = |s: &str| s.eq_ignore_ascii_case(want);
+
+        eq(&self.id) || eq(&self.label) || self.aliases.iter().any(|a| eq(a))
+    }
+
     pub fn matches(&self, want: &str) -> bool {
         let want = want.to_lowercase();
 
@@ -424,6 +434,25 @@ mod tests {
         assert_eq!(attached.blocked(), None);
         assert_eq!(sim.blocked(), None, "a hosted device shoots from its host");
         assert_eq!(listed.blocked(), Some(Blocked::Disconnected));
+    }
+
+    #[test]
+    fn naming_a_device_in_full_beats_being_a_substring_of_another() {
+        let local = Device::new("emulator-5554", "nyx-remote-android", Platform::Emulator);
+        let hosted = Device::new(
+            "rose/emulator-5554",
+            "nyx-remote-android",
+            Platform::Emulator,
+        );
+
+        assert!(hosted.matches("emulator-5554"), "substrings still match");
+
+        assert!(local.is("emulator-5554"));
+        assert!(!hosted.is("emulator-5554"));
+        assert!(
+            hosted.is("ROSE/emulator-5554"),
+            "ids are not case sensitive"
+        );
     }
 
     #[test]
