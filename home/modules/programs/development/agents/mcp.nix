@@ -45,6 +45,8 @@
         startup_timeout_sec = 5;
       };
 
+      linear.url = "https://mcp.linear.app/mcp";
+
       nixos.command = lib.getExe pkgs.mcp-nixos;
 
       sequential-thinking.command = lib.getExe pkgs.mcp-server-sequential-thinking;
