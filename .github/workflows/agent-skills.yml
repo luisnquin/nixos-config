@@ -1,0 +1,86 @@
+name: Bump agent skills
+run-name: Agent skills · bump pinned sources
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-flake:
+    name: Update agentic-flake input
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update agentic-flake input
+        run: nix flake update agentic-flake
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automated/bump-agentic-flake
+          title: "flake-update(agentic-flake): flake @ latest git"
+          commit-message: "flake-update(agentic-flake): flake @ latest git"
+          body: "Update the `agentic-flake` input in `flake.lock`."
+          delete-branch: true
+
+  discover:
+    name: Discover pins
+    runs-on: ubuntu-latest
+    outputs:
+      pins: ${{ steps.list.outputs.pins }}
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v7
+
+      - name: List pinned sources
+        id: list
+        run: |
+          files=(home/modules/programs/development/agents/skills.nix)
+          echo "pins=$(.github/scripts/bump-fetchers.sh list "${files[@]}")" >>"$GITHUB_OUTPUT"
+
+  bump:
+    name: Bump ${{ matrix.pin.owner }}/${{ matrix.pin.repo }}
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pin: ${{ fromJSON(needs.discover.outputs.pins) }}
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Bump pin
+        id: bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          nix shell nixpkgs#nix-prefetch-github -c \
+            .github/scripts/bump-fetchers.sh bump \
+            "${{ matrix.pin.file }}" "${{ matrix.pin.owner }}" "${{ matrix.pin.repo }}"
+
+      - name: Open pull request
+        if: steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automated/bump-${{ matrix.pin.owner }}-${{ matrix.pin.repo }}
+          title: "chore: bump ${{ matrix.pin.owner }}/${{ matrix.pin.repo }} to ${{ steps.bump.outputs.short }}"
+          commit-message: "chore: bump ${{ matrix.pin.owner }}/${{ matrix.pin.repo }} to ${{ steps.bump.outputs.short }}"
+          body: |
+            `${{ matrix.pin.file }}` pin moved to the upstream default branch HEAD.
+
+            ${{ steps.bump.outputs.compare }}
+          delete-branch: true
