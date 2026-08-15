@@ -1,5 +1,43 @@
 #!/usr/bin/env zsh
 
+rgf() {
+  emulate -L zsh
+
+  local pattern="$1"
+  shift 2>/dev/null || true
+
+  if [[ -z "$pattern" ]]; then
+    echo "Usage: rgf <pattern> [path ...]" >&2
+    return 1
+  fi
+
+  local -a paths=("$@")
+  (( ${#paths} )) || paths=(.)
+
+  local selected
+  selected="$(
+    rg --line-number --no-heading --color=never --smart-case -- "$pattern" "${paths[@]}" |
+      fzf \
+        --delimiter=: \
+        --prompt="rg > " \
+        --preview='bat --color=always --highlight-line {2} -- {1}' \
+        --preview-window='right:60%:+{2}-5'
+  )"
+
+  [[ -n "$selected" ]] || return 0
+
+  local file="${selected%%:*}"
+  local match="${selected#*:}"
+  local line="${match%%:*}"
+
+  if [[ ! -f "$file" || "$line" != <-> ]]; then
+    echo "Could not parse selected match: $selected" >&2
+    return 1
+  fi
+
+  command nano "+${line}" -- "$file"
+}
+
 unzip_copy_loop() {
   emulate -L zsh
 
