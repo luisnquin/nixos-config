@@ -60,6 +60,11 @@ in {
           "mobile-developer"
         ];
       })
+      (vercel-labs.skills {
+        plugins = [
+          "find-skills"
+        ];
+      })
       (wshobson.agents {
         plugins = [
           "typescript-advanced-types"
