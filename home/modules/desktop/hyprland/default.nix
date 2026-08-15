@@ -263,6 +263,18 @@ in {
           pin = true;
         }
         {
+          name = "steam-xwayland-fake-fullscreen";
+          match = {
+            class = "^steam_app_[0-9]+$";
+            xwayland = true;
+            fullscreen_state_client = 2;
+          };
+          fullscreen_state = "2 0";
+          suppress_event = "fullscreen fullscreenoutput";
+          content = "game";
+          idle_inhibit = "fullscreen";
+        }
+        {
           name = "raffi-float";
           match = {class = "^com\\.chmouel\\.raffi$";};
           float = true;
