@@ -30,15 +30,6 @@ in {
           plugins = ["nixgrep"];
         })
       (mkInlineSkill {
-          "flake-update" = {
-            description = "Update flake inputs in this dotfiles repo — bump nixpkgs, home-manager or any single input, then audit whether the pinned/patched overlays can be dropped, catch renamed or removed NixOS/home-manager options, and surface new upstream options and packages worth adopting. Use for any nix flake update, input bump or lock refresh.";
-            tags = ["nix"];
-            content = builtins.readFile ./skills/flake-update.md;
-          };
-        } {
-          plugins = ["flake-update"];
-        })
-      (mkInlineSkill {
           "phone" = {
             description = "Drive the Android handsets and emulators on this desk with the `phone` CLI — pick a device, screenshot it, list the elements on screen, tap by name or coordinate, type, send keys, and handle split screen focus and foldable displays. Use for any hands-on Android device automation from this host.";
             tags = ["mobile"];
@@ -95,6 +86,28 @@ in {
           plugins = [
             "android-firmware-lab"
             "voice-orchestrator"
+          ];
+        })
+
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "lkshrk";
+            repo = "linear-ai";
+            rev = "1c238ce8ed817cf578ea63b9031bbaddd8455717";
+            sha256 = "sha256-jsh2sguJ3REPi89IfMqpRYnXloVWyOje5jcs9T/+IUA=";
+            rootDir = "skills";
+          };
+        } {
+          plugins = [
+            "linear-status"
+            "linear-create-issue"
+            "linear-refine"
+            "linear-implement"
+            "linear-close"
+            "linear-doctor"
+            "linear-nontech-intake"
+            "linear-review"
+            "linear-repo-reconcile"
           ];
         })
     ];
