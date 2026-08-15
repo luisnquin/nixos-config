@@ -4,7 +4,7 @@
   pkgs,
   libx,
   lib,
-  dropdowns,
+  ghosttyDropCmd,
   ...
 }: let
   inherit (lib.generators) mkLuaInline;
@@ -172,8 +172,7 @@ in
     (b "${mainMod} + SHIFT + M" (dspExec "${lib.getExe pkgs.hyprstfu} -unmute-all"))
     (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
     (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
-    (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.tmux \"${dropdowns.ghosttyDropCmd}\""))
-    (b "${mainMod} + J" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.herdr \"${dropdowns.herdrDropCmd}\""))
+    (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.tmux \"${ghosttyDropCmd}\""))
     (b "${mainMod} + V" (dspExec "voice-agent-toggle"))
     (b "${mainMod} + SHIFT + V" (dspExec "voice-agent-cancel"))
 

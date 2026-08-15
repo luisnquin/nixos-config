@@ -9,11 +9,6 @@ args @ {
 
   ghosttyDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux";
 
-  herdrDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.herdr --keybind=clear --keybind=ctrl+shift+c=copy_to_clipboard --keybind=ctrl+shift+v=paste_from_clipboard -e ${pkgs.writeShellScript "herdr-scratchpad" ''
-    export ZDOTDIR=${lib.escapeShellArg config.programs.zsh.dotDir}
-    exec ${lib.getExe pkgs.herdr} --session hub
-  ''}";
-
   waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''
     pkill waybar 2>/dev/null || true
     sleep 0.1
@@ -25,7 +20,6 @@ args @ {
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("${waybarRestart}")
     hl.exec_cmd("[workspace special:hyprdrop silent] ${ghosttyDropCmd}")
-    hl.exec_cmd("[workspace special:hyprdrop silent] ${herdrDropCmd}")
   '';
 
   waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
@@ -248,13 +242,6 @@ in {
           center = true;
         }
         {
-          name = "ghostty-herdr";
-          match = {class = "^ghostty\\.herdr$";};
-          float = true;
-          size = "1280 720";
-          center = true;
-        }
-        {
           name = "waybar-nmtui";
           match = {class = "^waybar\\.nmtui$";};
           float = true;
@@ -297,7 +284,7 @@ in {
         sensitivity = -0.5;
       };
 
-      bind = import ./binds.nix (args // {dropdowns = {inherit ghosttyDropCmd herdrDropCmd;};});
+      bind = import ./binds.nix (args // {inherit ghosttyDropCmd;});
 
       permission = [
         {

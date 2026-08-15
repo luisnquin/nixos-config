@@ -7,6 +7,7 @@
     ./heft.nix
     ./awww
     ./fuzzel.nix
+    ./herdr.nix
 
     ./clipboard.nix
     ./color-picker.nix
