@@ -28,6 +28,10 @@
         "zen.welcome-screen.seen" = true;
         "zen.urlbar.behavior" = "float";
         "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
+
+        # marionette sets this to true and only clears it on a clean shutdown;
+        # left on, gecko fakes window focus and dead keys stop composing (á, ñ)
+        "focusmanager.testmode" = false;
       };
 
       presets.betterfox.enable = true;
