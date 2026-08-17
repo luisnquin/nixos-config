@@ -25,7 +25,7 @@ jobs:
         run: nix flake update agentic-flake
 
       - name: Open pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: automated/bump-agentic-flake
           title: "flake-update(agentic-flake): flake @ latest git"
@@ -74,7 +74,7 @@ jobs:
 
       - name: Open pull request
         if: steps.bump.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: automated/bump-${{ matrix.pin.owner }}-${{ matrix.pin.repo }}
           title: "chore: bump ${{ matrix.pin.owner }}/${{ matrix.pin.repo }} to ${{ steps.bump.outputs.short }}"
