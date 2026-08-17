@@ -199,6 +199,8 @@
           allowed_domains = allowedDomains;
         };
       }
+      else if target == "grok"
+      then { }
       else throw "Unsupported agent permission target: ${target}";
 
     audioArgsPart = lib.optionalString (audioArgs != "") "${audioArgs} ";
