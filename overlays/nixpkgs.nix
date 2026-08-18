@@ -91,6 +91,7 @@
         (old.patches or [])
         ++ [
           ./patches/lazygit/hide-personal-authors.patch
+          ./patches/lazygit/shift-delete-in-text-inputs.patch
         ];
     });
   })

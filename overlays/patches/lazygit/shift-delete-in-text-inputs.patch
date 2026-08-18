@@ -1,0 +1,21 @@
+diff --git a/pkg/gocui/edit.go b/pkg/gocui/edit.go
+index 649379fb6..ad999f563 100644
+--- a/pkg/gocui/edit.go
++++ b/pkg/gocui/edit.go
+@@ -33,6 +33,16 @@ var (
+ 
+ // SimpleEditor is used as the default gocui editor.
+ func SimpleEditor(v *View, key Key) bool {
++	// Terminals that report modifiers for special keys deliver shift+delete and
++	// shift+backspace with ModShift set. Shift adds no meaning to either key in a
++	// text area, and the bindings below match modifiers exactly, so without this
++	// the keypress would be dropped. Arrow keys are deliberately left alone:
++	// shift+up/down is a real binding elsewhere.
++	switch key.KeyName() {
++	case KeyDelete, KeyBackspace:
++		key = NewKey(key.KeyName(), key.Str(), key.Mod()&^ModShift)
++	}
++
+ 	switch {
+ 	case lo.SomeBy(backspaceWordKeybinding, func(k Key) bool { return key.Equals(k) }),
+ 		key.Equals(NewKeyStrMod("w", ModCtrl)):
