@@ -64,10 +64,6 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    clipz = {
-      url = "github:luisnquin/clipz";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     ghostty = {
       url = "github:ghostty-org/ghostty/tip";
       inputs = {
@@ -205,10 +201,10 @@
       inputs.black-terminal.homeModules.default
       inputs.agentic-flake.homeModules.default
       inputs.nao.homeManagerModules.default
-      inputs.clipz.homeManagerModules.default
       inputs."3mf2stl".homeModules.default
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
+      ./pkgs/clipz/hm-modules
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")
     ];

@@ -172,26 +172,6 @@
         "type": "github"
       }
     },
-    "clipz": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1786775187,
-        "narHash": "sha256-DEU2CLVxYC9yhiU+ARow+r/i8b/GPwlo2zD22aaqYoI=",
-        "owner": "luisnquin",
-        "repo": "clipz",
-        "rev": "4ac0e5ec18382b743a9c7a3a6b0d5e52e6505ca2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "luisnquin",
-        "repo": "clipz",
-        "type": "github"
-      }
-    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -1161,7 +1141,6 @@
         "agentic-flake": "agentic-flake",
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
-        "clipz": "clipz",
         "disko": "disko",
         "encore": "encore",
         "flake-parts": "flake-parts",

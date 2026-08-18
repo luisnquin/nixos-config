@@ -35,5 +35,4 @@ with inputs; [
   agentic-flake.overlays.default
   hermes-agent.overlays.default
   inputs.herdr.overlays.default
-  clipz.overlays.default
 ]
