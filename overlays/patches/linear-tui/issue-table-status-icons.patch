@@ -1,0 +1,270 @@
+diff --git a/internal/tui/issues_table.go b/internal/tui/issues_table.go
+index 0128689..f811f82 100644
+--- a/internal/tui/issues_table.go
++++ b/internal/tui/issues_table.go
+@@ -16,20 +16,41 @@ const (
+ 	IconChildPrefix = "└─"
+ )
+ 
+-// formatPriority formats a priority value into a display string with icon and label.
++// priorityIcon maps a priority to its severity glyph and color.
+ // Linear priority: 0 = No priority, 1 = Urgent, 2 = High, 3 = Normal, 4 = Low.
+-func formatPriority(priority int, theme Theme) (string, tcell.Color) {
++func priorityIcon(priority int, theme Theme) (string, tcell.Color) {
+ 	switch priority {
+ 	case 1:
+-		return Icons.Priority + " Urgent", theme.StatusCanceled // Red for urgent
++		return PriorityIcons.Urgent, theme.StatusCanceled
+ 	case 2:
+-		return Icons.Priority + " High", theme.StatusInProgress // Yellow for high
++		return PriorityIcons.High, theme.StatusInProgress
+ 	case 3:
+-		return Icons.Priority + " Normal", theme.Foreground // Default for normal
++		return PriorityIcons.Normal, theme.Foreground
+ 	case 4:
+-		return Icons.Priority + " Low", theme.SecondaryText // Gray for low
++		return PriorityIcons.Low, theme.SecondaryText
+ 	default:
+-		return "-", theme.SecondaryText // No priority
++		return PriorityIcons.None, theme.SecondaryText
++	}
++}
++
++// stateIcon maps a workflow state to its glyph and color. The list query only
++// carries the state name, so the name is what there is to match on, and any
++// state a workspace invents falls back to the unstarted circle.
++func stateIcon(state string, theme Theme) (string, tcell.Color) {
++	lowered := strings.ToLower(state)
++	switch {
++	case strings.Contains(lowered, "done"), strings.Contains(lowered, "complete"):
++		return StateIcons.Done, theme.StatusDone
++	case strings.Contains(lowered, "cancel"), strings.Contains(lowered, "duplicate"):
++		return StateIcons.Canceled, theme.SecondaryText
++	case strings.Contains(lowered, "review"):
++		return StateIcons.InReview, theme.StatusInProgress
++	case strings.Contains(lowered, "progress"), strings.Contains(lowered, "started"):
++		return StateIcons.InProgress, theme.StatusInProgress
++	case strings.Contains(lowered, "backlog"):
++		return StateIcons.Backlog, theme.SecondaryText
++	default:
++		return StateIcons.Todo, theme.StatusTodo
+ 	}
+ }
+ 
+@@ -106,8 +127,8 @@ func setIssuesTableHeader(table *tview.Table, theme Theme) {
+ 		expansion int
+ 	}{
+ 		{" ID", 1},
+-		{"State", 1},
+-		{"Priority", 1},
++		{"S", 0},
++		{"P", 0},
+ 		{"Assignee", 2},
+ 		{Icons.Attachment, 0},
+ 		{"Title", 8},
+@@ -415,41 +436,15 @@ func renderIssuesTableModel(table *tview.Table, rows []IssueRow, idToIssue map[s
+ 			SetTextColor(theme.SecondaryText).
+ 			SetAlign(tview.AlignLeft))
+ 
+-		// State with color based on state
+-		state := issue.State
+-		var stateColor tcell.Color
+-		var stateIcon string
+-
+-		// Color code states
+-		lowerState := strings.ToLower(state)
+-		switch {
+-		case strings.Contains(lowerState, "done") || strings.Contains(lowerState, "complete"):
+-			stateColor = theme.StatusDone
+-			stateIcon = Icons.Done
+-		case strings.Contains(lowerState, "progress"):
+-			stateColor = theme.StatusInProgress
+-			stateIcon = Icons.InProgress
+-		case strings.Contains(lowerState, "cancel"):
+-			stateColor = theme.StatusCanceled
+-			stateIcon = Icons.Done
+-		default:
+-			stateColor = theme.StatusTodo
+-			stateIcon = Icons.Todo
+-		}
+-
+-		if len(state) > 12 {
+-			state = state[:12]
+-		}
+-
+-		table.SetCell(row, columnState, tview.NewTableCell(stateIcon+" "+state).
+-			SetTextColor(stateColor).
+-			SetAlign(tview.AlignLeft))
++		icon, iconColor := stateIcon(issue.State, theme)
++		table.SetCell(row, columnState, tview.NewTableCell(icon).
++			SetTextColor(iconColor).
++			SetAlign(tview.AlignCenter))
+ 
+-		// Priority
+-		priorityText, priorityColor := formatPriority(issue.Priority, theme)
+-		table.SetCell(row, columnPriority, tview.NewTableCell(priorityText).
+-			SetTextColor(priorityColor).
+-			SetAlign(tview.AlignLeft))
++		icon, iconColor = priorityIcon(issue.Priority, theme)
++		table.SetCell(row, columnPriority, tview.NewTableCell(icon).
++			SetTextColor(iconColor).
++			SetAlign(tview.AlignCenter))
+ 
+ 		// Assignee
+ 		assignee := issue.Assignee
+@@ -543,12 +538,8 @@ func renderIssueRow(issue linearapi.Issue) []string {
+ 		identifier = identifier[:10]
+ 	}
+ 
+-	state := issue.State
+-	if len(state) > 10 {
+-		state = state[:10]
+-	}
+-
+-	priorityText, _ := formatPriority(issue.Priority, LinearTheme)
++	state, _ := stateIcon(issue.State, LinearTheme)
++	priority, _ := priorityIcon(issue.Priority, LinearTheme)
+ 
+ 	assignee := issue.Assignee
+ 	if assignee == "" {
+@@ -558,5 +549,5 @@ func renderIssueRow(issue linearapi.Issue) []string {
+ 		assignee = assignee[:10]
+ 	}
+ 
+-	return []string{identifier, state, priorityText, assignee, attachmentMarker(&issue), issue.Title}
++	return []string{identifier, state, priority, assignee, attachmentMarker(&issue), issue.Title}
+ }
+diff --git a/internal/tui/issues_table_test.go b/internal/tui/issues_table_test.go
+index 830d765..629e1e5 100644
+--- a/internal/tui/issues_table_test.go
++++ b/internal/tui/issues_table_test.go
+@@ -29,7 +29,7 @@ func TestRenderIssueRow(t *testing.T) {
+ 				Attachments: []linearapi.Attachment{{ID: "attachment-1"}},
+ 			},
+ 			wantID:         "LIN-1",
+-			wantState:      "Todo",
++			wantState:      StateIcons.Todo,
+ 			wantAttachment: Icons.Attachment,
+ 		},
+ 		{
+@@ -43,7 +43,7 @@ func TestRenderIssueRow(t *testing.T) {
+ 				Priority:   2, // High priority
+ 			},
+ 			wantID:    "LIN-2",
+-			wantState: "In Progres", // truncated to 10 chars
++			wantState: StateIcons.InProgress,
+ 		},
+ 		{
+ 			name: "long identifier truncated",
+@@ -57,7 +57,7 @@ func TestRenderIssueRow(t *testing.T) {
+ 				Cycle:      &linearapi.CycleRef{ID: "cycle-13", Number: 13},
+ 			},
+ 			wantID:    "VERY-LONG-", // truncated to 10 chars
+-			wantState: "Done",
++			wantState: StateIcons.Done,
+ 		},
+ 	}
+ 
+@@ -131,3 +131,57 @@ func TestSetIssuesTableHeaderCoversEveryColumn(t *testing.T) {
+ 		t.Errorf("title header = %q, want Title", got)
+ 	}
+ }
++
++// TestStateIconDistinguishesWorkflowStages guards the substitution the tables
++// rely on: once the state name is gone, a stage that falls through to the same
++// glyph as another is indistinguishable on screen.
++func TestStateIconDistinguishesWorkflowStages(t *testing.T) {
++	stages := map[string]string{
++		"Backlog":     StateIcons.Backlog,
++		"Todo":        StateIcons.Todo,
++		"In Progress": StateIcons.InProgress,
++		"In Review":   StateIcons.InReview,
++		"Done":        StateIcons.Done,
++		"Canceled":    StateIcons.Canceled,
++		"Duplicate":   StateIcons.Canceled,
++		"Triage":      StateIcons.Todo,
++	}
++	for state, want := range stages {
++		if got, _ := stateIcon(state, LinearTheme); got != want {
++			t.Errorf("stateIcon(%q) = %q, want %q", state, got, want)
++		}
++	}
++
++	seen := map[string]string{}
++	for state, icon := range stages {
++		if state == "Duplicate" || state == "Triage" {
++			continue
++		}
++		if other, clash := seen[icon]; clash {
++			t.Errorf("states %q and %q share icon %q", state, other, icon)
++		}
++		seen[icon] = state
++	}
++}
++
++// TestPriorityIconRisesWithSeverity keeps the ramp monotonic: the glyphs are
++// only readable as severity if a higher priority never gets a shorter bar.
++func TestPriorityIconRisesWithSeverity(t *testing.T) {
++	ramp := []string{
++		PriorityIcons.None,
++		PriorityIcons.Low,
++		PriorityIcons.Normal,
++		PriorityIcons.High,
++		PriorityIcons.Urgent,
++	}
++	// Linear counts down from urgent, so severity order is 0, 4, 3, 2, 1.
++	for position, priority := range []int{0, 4, 3, 2, 1} {
++		got, _ := priorityIcon(priority, LinearTheme)
++		if got != ramp[position] {
++			t.Errorf("priorityIcon(%d) = %q, want %q", priority, got, ramp[position])
++		}
++	}
++	if urgent, _ := priorityIcon(1, LinearTheme); urgent != PriorityIcons.Urgent {
++		t.Errorf("urgent icon = %q, want %q", urgent, PriorityIcons.Urgent)
++	}
++}
+diff --git a/internal/tui/theme.go b/internal/tui/theme.go
+index 1edd51b..32a3d3a 100644
+--- a/internal/tui/theme.go
++++ b/internal/tui/theme.go
+@@ -144,6 +144,40 @@ func colorTag(color tcell.Color) string {
+ }
+ 
+ // Icons for various UI elements.
++// StateIcons stand in for the workflow state name in the issue tables, and
++// follow Linear's own shapes: an open circle fills up as work advances.
++var StateIcons = struct {
++	Backlog    string
++	Todo       string
++	InProgress string
++	InReview   string
++	Done       string
++	Canceled   string
++}{
++	Backlog:    "◌",
++	Todo:       "○",
++	InProgress: "◐",
++	InReview:   "◑",
++	Done:       "✔",
++	Canceled:   "⊘",
++}
++
++// PriorityIcons ramp from no priority to urgent. A rising bar carries the
++// severity on its own, which a label cannot do in a single cell.
++var PriorityIcons = struct {
++	None   string
++	Low    string
++	Normal string
++	High   string
++	Urgent string
++}{
++	None:   "·",
++	Low:    "▁",
++	Normal: "▃",
++	High:   "▅",
++	Urgent: "▇",
++}
++
+ var Icons = struct {
+ 	Team       string
+ 	Project    string

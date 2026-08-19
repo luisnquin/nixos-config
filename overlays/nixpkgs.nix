@@ -187,13 +187,15 @@
     # Upstream drops image links on the floor; the first patch resolves them
     # against the Kitty graphics protocol, which ghostty speaks. The second
     # trades the issue table's empty planning columns for the title and an
-    # attachment marker, and narrows the navigation tree.
+    # attachment marker. The third collapses the state and priority columns
+    # into single severity glyphs.
     linear-tui = prev.linear-tui.overrideAttrs (old: {
       patches =
         (old.patches or [])
         ++ [
           ./patches/linear-tui/terminal-image-rendering.patch
           ./patches/linear-tui/issue-table-layout.patch
+          ./patches/linear-tui/issue-table-status-icons.patch
         ];
     });
   })
