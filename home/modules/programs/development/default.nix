@@ -14,6 +14,7 @@
     ./ee.nix
     ./encore.nix
     ./etc.nix
+    ./linear.nix
     ./node.nix
     ./processors.nix
     ./python.nix
