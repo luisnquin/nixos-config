@@ -182,4 +182,16 @@
   # Everything ./pkgs defines — first-party and packaged upstreams alike —
   # lands on `pkgs.<name>`, so no module has to be wired its own way.
   (final: _prev: import ../pkgs final)
+  (_final: prev: {
+    # Must stay after the ./pkgs import, which is what defines `linear-tui`.
+    # Upstream drops image links on the floor; the patch resolves them against
+    # the Kitty graphics protocol, which ghostty speaks.
+    linear-tui = prev.linear-tui.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/linear-tui/terminal-image-rendering.patch
+        ];
+    });
+  })
 ]

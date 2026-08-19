@@ -1,0 +1,1141 @@
+diff --git a/cmd/linear-tui/main.go b/cmd/linear-tui/main.go
+index 02b9b4b..7ae7ca6 100644
+--- a/cmd/linear-tui/main.go
++++ b/cmd/linear-tui/main.go
+@@ -119,6 +119,8 @@ func runTUI() int {
+ 		return 1
+ 	}
+ 
++	cfg.UseBearer = resolved.Source == auth.TokenSourceOAuth
++
+ 	logLevel := parseLogLevel(cfg.LogLevel)
+ 	if err := logger.Init(cfg.LogFile, logLevel); err != nil {
+ 		fmt.Fprintf(os.Stderr, "Error initializing logger: %v\n", err)
+@@ -136,7 +138,7 @@ func runTUI() int {
+ 
+ 	clientCfg := linearapi.ClientConfig{
+ 		Token:     cfg.LinearAPIKey,
+-		UseBearer: resolved.Source == auth.TokenSourceOAuth,
++		UseBearer: cfg.UseBearer,
+ 		Endpoint:  cfg.APIEndpoint,
+ 		Timeout:   cfg.Timeout,
+ 	}
+diff --git a/internal/config/config.go b/internal/config/config.go
+index f027ea1..a3b346f 100644
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -18,6 +18,9 @@ const (
+ 	CacheTTLEnv       = "LINEAR_CACHE_TTL"
+ 	LogFileEnv        = "LINEAR_LOG_FILE"
+ 	LogLevelEnv       = "LINEAR_LOG_LEVEL"
++	// ImagesEnv forces terminal image rendering on or off, overriding the
++	// terminal capability sniffing.
++	ImagesEnv = "LINEAR_IMAGES"
+ )
+ 
+ // Default configuration values.
+@@ -55,6 +58,10 @@ type Config struct {
+ 	// It may be a personal API key or an OAuth access token resolved at startup.
+ 	LinearAPIKey string
+ 
++	// UseBearer marks LinearAPIKey as an OAuth access token, which has to be
++	// sent as a bearer token rather than as a bare personal API key.
++	UseBearer bool
++
+ 	// APIEndpoint is the Linear GraphQL API endpoint (useful for testing).
+ 	APIEndpoint string
+ 
+diff --git a/internal/tui/app.go b/internal/tui/app.go
+index 86f03ee..9b3f87c 100644
+--- a/internal/tui/app.go
++++ b/internal/tui/app.go
+@@ -253,6 +253,10 @@ type App struct {
+ 	// Details pane sub-view focus
+ 	focusedDetailsView     bool // false = description, true = comments
+ 	detailsCommentsVisible bool // Tracks whether comments view is shown
++
++	// Terminal graphics for images embedded in descriptions and comments
++	images            *imageRenderer
++	detailsImageWidth int // Last known details width, to re-fit placements
+ }
+ 
+ // FocusTarget indicates which pane has focus.
+@@ -309,6 +313,9 @@ func NewApp(api *linearapi.Client, cfg config.Config, templates []config.AgentPr
+ 	app.queueUpdateDraw = func(f func()) {
+ 		app.app.QueueUpdateDraw(f)
+ 	}
++	app.images = newImageRenderer(cfg, func() {
++		app.queueUpdateDraw(app.updateDetailsView)
++	})
+ 
+ 	app.applyThemeStyles()
+ 
+@@ -318,9 +325,29 @@ func NewApp(api *linearapi.Client, cfg config.Config, templates []config.AgentPr
+ 	return app
+ }
+ 
++// refitImages re-renders the details pane after a resize so image placements
++// match the new column budget. Runs after every draw, so it must stay cheap
++// and must not touch the UI outside of a queued update.
++func (a *App) refitImages() {
++	if !a.images.hasSupport() || a.detailsDescriptionView == nil {
++		return
++	}
++	width := bodyWidth(a.detailsDescriptionView)
++	if width == a.detailsImageWidth {
++		return
++	}
++	a.detailsImageWidth = width
++	if !a.images.hasPlacements() {
++		return
++	}
++	go a.queueUpdateDraw(a.updateDetailsView)
++}
++
+ // Run starts the application and blocks until it exits.
+ func (a *App) Run() error {
+ 	a.app.SetRoot(a.pages, true).EnableMouse(true)
++	a.app.SetAfterDrawFunc(func(tcell.Screen) { a.refitImages() })
++	defer a.images.close()
+ 
+ 	// Load initial data asynchronously
+ 	a.loadInitialData()
+diff --git a/internal/tui/details_view.go b/internal/tui/details_view.go
+index 559a32b..0b5a69a 100644
+--- a/internal/tui/details_view.go
++++ b/internal/tui/details_view.go
+@@ -2,6 +2,7 @@ package tui
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"strings"
+ 
+ 	"github.com/charmbracelet/glamour"
+@@ -46,6 +47,43 @@ func renderMarkdown(content string) string {
+ 	return strings.TrimSpace(rendered)
+ }
+ 
++// writeMarkdownBody renders markdown into the details pane, replacing image
++// links with terminal graphics placements when the terminal supports them.
++// Rendered text goes through ansiWriter (ANSI to tview tags) while placeholder
++// cells carry tview tags already and are written to the view directly; both
++// target the same view, so document order is preserved.
++func (a *App) writeMarkdownBody(ansiWriter io.Writer, view *tview.TextView, content string, width int) {
++	segments := splitMarkdownImages(content)
++	if !a.images.hasSupport() || len(segments) == 1 {
++		_, _ = fmt.Fprint(ansiWriter, renderMarkdown(content))
++		return
++	}
++
++	for _, segment := range segments {
++		if segment.image {
++			_, _ = fmt.Fprint(view, "\n"+a.images.render(segment.url, segment.alt, width))
++			continue
++		}
++		text := strings.TrimSpace(segment.text)
++		if text == "" {
++			continue
++		}
++		_, _ = fmt.Fprint(ansiWriter, renderMarkdown(text)+"\n")
++	}
++}
++
++// attachmentImageIndent aligns attachment images with the attachment list.
++const attachmentImageIndent = 2
++
++// bodyWidth is the column budget available for images in view.
++func bodyWidth(view *tview.TextView) int {
++	_, _, width, _ := view.GetInnerRect()
++	if width <= 0 {
++		return 80
++	}
++	return width
++}
++
+ func formatIssueReference(ref linearapi.IssueRef) string {
+ 	if ref.Identifier == "" {
+ 		return ref.ID
+@@ -252,6 +290,9 @@ func (a *App) updateDetailsView() {
+ 				source = " (" + source + ")"
+ 			}
+ 			headerLines = append(headerLines, fmt.Sprintf("  %s%s%s[-] %s%s[-]", accentColor, title, source, keyColor, attachment.URL))
++			if block := a.images.renderAttachment(attachment.URL, bodyWidth(a.detailsDescriptionView)-attachmentImageIndent); block != "" {
++				headerLines = append(headerLines, indentLines(block, strings.Repeat(" ", attachmentImageIndent)))
++			}
+ 		}
+ 	}
+ 
+@@ -274,8 +315,7 @@ func (a *App) updateDetailsView() {
+ 
+ 		// Render description as markdown and write through ANSIWriter
+ 		// ANSIWriter translates ANSI escape codes to tview color tags
+-		renderedDesc := renderMarkdown(issue.Description)
+-		_, _ = fmt.Fprint(writer, renderedDesc)
++		a.writeMarkdownBody(writer, a.detailsDescriptionView, issue.Description, bodyWidth(a.detailsDescriptionView))
+ 	} else {
+ 		_, _ = fmt.Fprintf(writer, "%sNo description available[-]", keyColor)
+ 	}
+@@ -309,8 +349,7 @@ func (a *App) updateDetailsView() {
+ 			_, _ = fmt.Fprint(commentsWriter, "\n")
+ 
+ 			// Render comment body as markdown
+-			renderedComment := renderMarkdown(comment.Body)
+-			_, _ = fmt.Fprint(commentsWriter, renderedComment)
++			a.writeMarkdownBody(commentsWriter, a.detailsCommentsView, comment.Body, bodyWidth(a.detailsCommentsView))
+ 
+ 			// Add separator between comments (but not after the last one)
+ 			if i < len(issue.Comments)-1 {
+diff --git a/internal/tui/kitty_cellsize_unix.go b/internal/tui/kitty_cellsize_unix.go
+new file mode 100644
+index 0000000..a55e73a
+--- /dev/null
++++ b/internal/tui/kitty_cellsize_unix.go
+@@ -0,0 +1,19 @@
++//go:build !windows
++
++package tui
++
++import (
++	"os"
++
++	"golang.org/x/sys/unix"
++)
++
++// terminalCellPixelSize returns the pixel size of a single cell as reported by
++// the terminal, or zeroes when it does not report pixel dimensions.
++func terminalCellPixelSize() (int, int) {
++	ws, err := unix.IoctlGetWinsize(int(os.Stdout.Fd()), unix.TIOCGWINSZ)
++	if err != nil || ws == nil || ws.Col == 0 || ws.Row == 0 {
++		return 0, 0
++	}
++	return int(ws.Xpixel) / int(ws.Col), int(ws.Ypixel) / int(ws.Row)
++}
+diff --git a/internal/tui/kitty_cellsize_windows.go b/internal/tui/kitty_cellsize_windows.go
+new file mode 100644
+index 0000000..cb91edf
+--- /dev/null
++++ b/internal/tui/kitty_cellsize_windows.go
+@@ -0,0 +1,9 @@
++//go:build windows
++
++package tui
++
++// terminalCellPixelSize has no equivalent on Windows consoles; callers fall
++// back to the default cell geometry.
++func terminalCellPixelSize() (int, int) {
++	return 0, 0
++}
+diff --git a/internal/tui/kitty_diacritics.go b/internal/tui/kitty_diacritics.go
+new file mode 100644
+index 0000000..3a96d85
+--- /dev/null
++++ b/internal/tui/kitty_diacritics.go
+@@ -0,0 +1,45 @@
++package tui
++
++// rowColumnDiacritics maps a row/column index to the combining character that
++// encodes it in a Kitty Unicode placeholder cell. Copied verbatim from kitty's
++// gen/rowcolumn-diacritics.txt (Unicode 6.0.0 combining class 230).
++var rowColumnDiacritics = [...]rune{
++	0x0305, 0x030D, 0x030E, 0x0310, 0x0312, 0x033D, 0x033E, 0x033F,
++	0x0346, 0x034A, 0x034B, 0x034C, 0x0350, 0x0351, 0x0352, 0x0357,
++	0x035B, 0x0363, 0x0364, 0x0365, 0x0366, 0x0367, 0x0368, 0x0369,
++	0x036A, 0x036B, 0x036C, 0x036D, 0x036E, 0x036F, 0x0483, 0x0484,
++	0x0485, 0x0486, 0x0487, 0x0592, 0x0593, 0x0594, 0x0595, 0x0597,
++	0x0598, 0x0599, 0x059C, 0x059D, 0x059E, 0x059F, 0x05A0, 0x05A1,
++	0x05A8, 0x05A9, 0x05AB, 0x05AC, 0x05AF, 0x05C4, 0x0610, 0x0611,
++	0x0612, 0x0613, 0x0614, 0x0615, 0x0616, 0x0617, 0x0657, 0x0658,
++	0x0659, 0x065A, 0x065B, 0x065D, 0x065E, 0x06D6, 0x06D7, 0x06D8,
++	0x06D9, 0x06DA, 0x06DB, 0x06DC, 0x06DF, 0x06E0, 0x06E1, 0x06E2,
++	0x06E4, 0x06E7, 0x06E8, 0x06EB, 0x06EC, 0x0730, 0x0732, 0x0733,
++	0x0735, 0x0736, 0x073A, 0x073D, 0x073F, 0x0740, 0x0741, 0x0743,
++	0x0745, 0x0747, 0x0749, 0x074A, 0x07EB, 0x07EC, 0x07ED, 0x07EE,
++	0x07EF, 0x07F0, 0x07F1, 0x07F3, 0x0816, 0x0817, 0x0818, 0x0819,
++	0x081B, 0x081C, 0x081D, 0x081E, 0x081F, 0x0820, 0x0821, 0x0822,
++	0x0823, 0x0825, 0x0826, 0x0827, 0x0829, 0x082A, 0x082B, 0x082C,
++	0x082D, 0x0951, 0x0953, 0x0954, 0x0F82, 0x0F83, 0x0F86, 0x0F87,
++	0x135D, 0x135E, 0x135F, 0x17DD, 0x193A, 0x1A17, 0x1A75, 0x1A76,
++	0x1A77, 0x1A78, 0x1A79, 0x1A7A, 0x1A7B, 0x1A7C, 0x1B6B, 0x1B6D,
++	0x1B6E, 0x1B6F, 0x1B70, 0x1B71, 0x1B72, 0x1B73, 0x1CD0, 0x1CD1,
++	0x1CD2, 0x1CDA, 0x1CDB, 0x1CE0, 0x1DC0, 0x1DC1, 0x1DC3, 0x1DC4,
++	0x1DC5, 0x1DC6, 0x1DC7, 0x1DC8, 0x1DC9, 0x1DCB, 0x1DCC, 0x1DD1,
++	0x1DD2, 0x1DD3, 0x1DD4, 0x1DD5, 0x1DD6, 0x1DD7, 0x1DD8, 0x1DD9,
++	0x1DDA, 0x1DDB, 0x1DDC, 0x1DDD, 0x1DDE, 0x1DDF, 0x1DE0, 0x1DE1,
++	0x1DE2, 0x1DE3, 0x1DE4, 0x1DE5, 0x1DE6, 0x1DFE, 0x20D0, 0x20D1,
++	0x20D4, 0x20D5, 0x20D6, 0x20D7, 0x20DB, 0x20DC, 0x20E1, 0x20E7,
++	0x20E9, 0x20F0, 0x2CEF, 0x2CF0, 0x2CF1, 0x2DE0, 0x2DE1, 0x2DE2,
++	0x2DE3, 0x2DE4, 0x2DE5, 0x2DE6, 0x2DE7, 0x2DE8, 0x2DE9, 0x2DEA,
++	0x2DEB, 0x2DEC, 0x2DED, 0x2DEE, 0x2DEF, 0x2DF0, 0x2DF1, 0x2DF2,
++	0x2DF3, 0x2DF4, 0x2DF5, 0x2DF6, 0x2DF7, 0x2DF8, 0x2DF9, 0x2DFA,
++	0x2DFB, 0x2DFC, 0x2DFD, 0x2DFE, 0x2DFF, 0xA66F, 0xA67C, 0xA67D,
++	0xA6F0, 0xA6F1, 0xA8E0, 0xA8E1, 0xA8E2, 0xA8E3, 0xA8E4, 0xA8E5,
++	0xA8E6, 0xA8E7, 0xA8E8, 0xA8E9, 0xA8EA, 0xA8EB, 0xA8EC, 0xA8ED,
++	0xA8EE, 0xA8EF, 0xA8F0, 0xA8F1, 0xAAB0, 0xAAB2, 0xAAB3, 0xAAB7,
++	0xAAB8, 0xAABE, 0xAABF, 0xAAC1, 0xFE20, 0xFE21, 0xFE22, 0xFE23,
++	0xFE24, 0xFE25, 0xFE26, 0x10A0F, 0x10A38, 0x1D185, 0x1D186, 0x1D187,
++	0x1D188, 0x1D189, 0x1D1AA, 0x1D1AB, 0x1D1AC, 0x1D1AD, 0x1D242, 0x1D243,
++	0x1D244,
++}
+diff --git a/internal/tui/kitty_images.go b/internal/tui/kitty_images.go
+new file mode 100644
+index 0000000..d966d1a
+--- /dev/null
++++ b/internal/tui/kitty_images.go
+@@ -0,0 +1,658 @@
++package tui
++
++import (
++	"bytes"
++	"context"
++	"encoding/base64"
++	"errors"
++	"fmt"
++	"image"
++	"image/color"
++	_ "image/gif"
++	_ "image/jpeg"
++	"image/png"
++	"io"
++	"mime"
++	"net/http"
++	"net/url"
++	"os"
++	"os/exec"
++	"regexp"
++	"strings"
++	"sync"
++	"time"
++
++	"github.com/roeyazroel/linear-tui/internal/config"
++	"github.com/roeyazroel/linear-tui/internal/logger"
++)
++
++const (
++	// imagePlaceholderRune is the Kitty graphics protocol Unicode placeholder.
++	// A cell holding it renders the slice of the image identified by the cell
++	// foreground color, at the row/column encoded in its combining diacritics.
++	imagePlaceholderRune = '\U0010EEEE'
++
++	imageMaxCellRows     = 20
++	imageMaxCellCols     = 100
++	imageFetchTimeout    = 30 * time.Second
++	imageMaxDownloadSize = 16 << 20
++	imageCacheEntries    = 24
++	imageChunkSize       = 4096
++	tmuxQueryTimeout     = 2 * time.Second
++
++	// Fallback cell geometry for terminals that do not report pixel sizes.
++	defaultCellPixelWidth  = 9
++	defaultCellPixelHeight = 18
++)
++
++type imageLoadState int
++
++const (
++	imageLoading imageLoadState = iota
++	imageReady
++	imageFailed
++)
++
++// kittyImage is one remote image tracked for the lifetime of the session.
++type kittyImage struct {
++	id     uint32
++	state  imageLoadState
++	err    error
++	src    image.Image
++	cols   int
++	rows   int
++	placed bool
++	seq    int64
++}
++
++// imageRenderer downloads images referenced from markdown and hands the
++// terminal Kitty graphics placements for them. Placements are virtual: the
++// terminal only paints an image where placeholder cells are drawn, so tview
++// keeps full control of scrolling and clipping.
++type imageRenderer struct {
++	mu      sync.Mutex
++	enabled bool
++	out     io.Writer
++	client  *http.Client
++	token   string
++	bearer  bool
++	tmux    bool
++	images  map[string]*kittyImage
++	nextID  uint32
++	seq     int64
++	notify  func()
++}
++
++func newImageRenderer(cfg config.Config, notify func()) *imageRenderer {
++	r := &imageRenderer{
++		enabled: kittyGraphicsEnabled(),
++		out:     os.Stdout,
++		token:   cfg.LinearAPIKey,
++		bearer:  cfg.UseBearer,
++		tmux:    insideTmux(),
++		images:  make(map[string]*kittyImage),
++		nextID:  1,
++		notify:  notify,
++	}
++	r.client = &http.Client{
++		Timeout: imageFetchTimeout,
++		CheckRedirect: func(req *http.Request, via []*http.Request) error {
++			if len(via) >= 5 {
++				return errors.New("too many redirects")
++			}
++			// Linear redirects uploads to pre-signed storage URLs; the API
++			// token must not travel to whatever host that turns out to be.
++			if req.URL.Host != via[0].URL.Host {
++				req.Header.Del("Authorization")
++			}
++			return nil
++		},
++	}
++	return r
++}
++
++// kittyGraphicsEnabled reports whether images should be drawn at all.
++// LINEAR_IMAGES overrides the terminal sniffing in both directions.
++func kittyGraphicsEnabled() bool {
++	switch strings.ToLower(strings.TrimSpace(os.Getenv(config.ImagesEnv))) {
++	case "0", "false", "off", "never":
++		return false
++	case "1", "true", "on", "always":
++		return isTerminalWriter(os.Stdout)
++	}
++
++	if !isTerminalWriter(os.Stdout) {
++		return false
++	}
++	// Inside tmux the graphics escapes only reach the terminal through DCS
++	// passthrough, and without it every image would come out as a block of
++	// empty cells. Links read better than that.
++	if insideTmux() && !tmuxPassthroughEnabled() {
++		logger.Warning("tui.images: disabled, tmux needs `set -g allow-passthrough on`")
++		return false
++	}
++	if os.Getenv("KITTY_WINDOW_ID") != "" || os.Getenv("GHOSTTY_RESOURCES_DIR") != "" {
++		return true
++	}
++	term := strings.ToLower(os.Getenv("TERM"))
++	if strings.Contains(term, "kitty") || strings.Contains(term, "ghostty") {
++		return true
++	}
++	switch strings.ToLower(os.Getenv("TERM_PROGRAM")) {
++	case "ghostty", "kitty":
++		return true
++	}
++	return false
++}
++
++func isTerminalWriter(f *os.File) bool {
++	info, err := f.Stat()
++	if err != nil {
++		return false
++	}
++	return info.Mode()&os.ModeCharDevice != 0
++}
++
++func insideTmux() bool {
++	return os.Getenv("TMUX") != ""
++}
++
++// tmuxPassthroughEnabled asks the running server whether it forwards escape
++// sequences it does not understand.
++func tmuxPassthroughEnabled() bool {
++	ctx, cancel := context.WithTimeout(context.Background(), tmuxQueryTimeout)
++	defer cancel()
++
++	out, err := exec.CommandContext(ctx, "tmux", "show", "-gv", "allow-passthrough").Output()
++	if err != nil {
++		logger.Warning("tui.images: tmux allow-passthrough query failed error=%v", err)
++		return false
++	}
++	return strings.TrimSpace(string(out)) == "on"
++}
++
++// markdownSegment is either a run of markdown text or a single image link.
++type markdownSegment struct {
++	text  string
++	url   string
++	alt   string
++	image bool
++}
++
++var markdownImagePattern = regexp.MustCompile(`!\[([^\]]*)\]\(\s*<?([^)>\s]+)>?(?:\s+"[^"]*"|\s+'[^']*')?\s*\)`)
++
++// splitMarkdownImages cuts content at every markdown image link, keeping the
++// surrounding text in document order.
++func splitMarkdownImages(content string) []markdownSegment {
++	matches := markdownImagePattern.FindAllStringSubmatchIndex(content, -1)
++	if len(matches) == 0 {
++		return []markdownSegment{{text: content}}
++	}
++
++	segments := make([]markdownSegment, 0, len(matches)*2+1)
++	last := 0
++	for _, m := range matches {
++		if m[0] > last {
++			segments = append(segments, markdownSegment{text: content[last:m[0]]})
++		}
++		segments = append(segments, markdownSegment{
++			alt:   content[m[2]:m[3]],
++			url:   content[m[4]:m[5]],
++			image: true,
++		})
++		last = m[1]
++	}
++	if last < len(content) {
++		segments = append(segments, markdownSegment{text: content[last:]})
++	}
++	return segments
++}
++
++// render returns the tview markup that displays imageURL, starting the
++// download on first use. Callers must run on the UI goroutine: a ready image
++// is handed to the terminal from here.
++func (r *imageRenderer) render(imageURL, alt string, maxCols int) string {
++	if r == nil || !r.enabled {
++		return ""
++	}
++
++	entry, fresh := r.entry(imageURL)
++	if fresh {
++		go r.fetch(imageURL, entry)
++	}
++
++	r.mu.Lock()
++	defer r.mu.Unlock()
++
++	switch entry.state {
++	case imageLoading:
++		return placeholderNotice("loading image…", alt)
++	case imageFailed:
++		return placeholderNotice(fmt.Sprintf("image unavailable (%v)", entry.err), alt)
++	}
++
++	block, err := r.placeLocked(entry, imageURL, maxCols)
++	if err != nil {
++		return placeholderNotice(fmt.Sprintf("image unavailable (%v)", err), alt)
++	}
++	return block
++}
++
++// renderAttachment returns the markup that displays an issue attachment, or an
++// empty string while it is still loading and for anything that turns out not
++// to be an image. Most attachments are plain links, so failures stay silent
++// here instead of printing a notice under every one of them.
++func (r *imageRenderer) renderAttachment(attachmentURL string, maxCols int) string {
++	if r == nil || !r.enabled || !attachmentIsRenderable(attachmentURL) {
++		return ""
++	}
++
++	entry, fresh := r.entry(attachmentURL)
++	if fresh {
++		go r.fetch(attachmentURL, entry)
++	}
++
++	r.mu.Lock()
++	defer r.mu.Unlock()
++
++	if entry.state != imageReady {
++		return ""
++	}
++	block, err := r.placeLocked(entry, attachmentURL, maxCols)
++	if err != nil {
++		return ""
++	}
++	return block
++}
++
++// placeLocked hands the terminal the placement for a decoded image and returns
++// the cells that display it. r.mu must be held.
++func (r *imageRenderer) placeLocked(entry *kittyImage, imageURL string, maxCols int) (string, error) {
++	cols, rows := placementSize(entry.src.Bounds().Dx(), entry.src.Bounds().Dy(), maxCols)
++	if cols <= 0 || rows <= 0 {
++		return "", errors.New("image too small to display")
++	}
++
++	if !entry.placed || entry.cols != cols || entry.rows != rows {
++		entry.cols, entry.rows = cols, rows
++		if err := r.transmit(entry); err != nil {
++			entry.state = imageFailed
++			entry.err = err
++			entry.placed = false
++			logger.Warning("tui.images: transmit failed url=%s error=%v", imageURL, err)
++			return "", err
++		}
++		entry.placed = true
++	}
++
++	return placeholderBlock(entry.id, cols, rows), nil
++}
++
++// attachmentIsRenderable reports whether an attachment is worth downloading.
++// Linear-hosted uploads carry no file extension, so they are probed and sorted
++// out by their content type; every other host must name an image in the path,
++// so opening an issue never reaches out to GitHub, Slack or the like.
++func attachmentIsRenderable(attachmentURL string) bool {
++	parsed, err := url.Parse(attachmentURL)
++	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
++		return false
++	}
++	if isLinearUploadHost(parsed.Host) {
++		return true
++	}
++
++	path := strings.ToLower(parsed.Path)
++	for _, ext := range imageURLExtensions {
++		if strings.HasSuffix(path, ext) {
++			return true
++		}
++	}
++	return false
++}
++
++// entry returns the tracked image for imageURL, creating it when unknown.
++func (r *imageRenderer) entry(imageURL string) (*kittyImage, bool) {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++
++	r.seq++
++	if entry, ok := r.images[imageURL]; ok {
++		entry.seq = r.seq
++		return entry, false
++	}
++
++	entry := &kittyImage{id: r.nextID, seq: r.seq}
++	r.nextID++
++	r.images[imageURL] = entry
++	r.evictLocked()
++	return entry, true
++}
++
++// evictLocked drops the least recently rendered images once the cache grows
++// past imageCacheEntries, releasing the terminal-side copies as well.
++func (r *imageRenderer) evictLocked() {
++	for len(r.images) > imageCacheEntries {
++		var oldestURL string
++		var oldest *kittyImage
++		for imageURL, entry := range r.images {
++			if oldest == nil || entry.seq < oldest.seq {
++				oldestURL, oldest = imageURL, entry
++			}
++		}
++		if oldest == nil {
++			return
++		}
++		r.deleteLocked(oldest)
++		delete(r.images, oldestURL)
++	}
++}
++
++// fetch downloads and decodes an image off the UI goroutine.
++func (r *imageRenderer) fetch(imageURL string, entry *kittyImage) {
++	img, err := r.download(imageURL)
++
++	r.mu.Lock()
++	if err != nil {
++		entry.state = imageFailed
++		entry.err = err
++		logger.Warning("tui.images: fetch failed url=%s error=%v", imageURL, err)
++	} else {
++		entry.state = imageReady
++		entry.src = img
++	}
++	r.mu.Unlock()
++
++	if r.notify != nil {
++		r.notify()
++	}
++}
++
++func (r *imageRenderer) download(imageURL string) (image.Image, error) {
++	parsed, err := url.Parse(imageURL)
++	if err != nil {
++		return nil, fmt.Errorf("invalid url: %w", err)
++	}
++	if parsed.Scheme != "http" && parsed.Scheme != "https" {
++		return nil, fmt.Errorf("unsupported scheme %q", parsed.Scheme)
++	}
++
++	ctx, cancel := context.WithTimeout(context.Background(), imageFetchTimeout)
++	defer cancel()
++
++	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
++	if err != nil {
++		return nil, err
++	}
++	if r.token != "" && isLinearUploadHost(parsed.Host) {
++		if r.bearer {
++			req.Header.Set("Authorization", "Bearer "+r.token)
++		} else {
++			req.Header.Set("Authorization", r.token)
++		}
++	}
++
++	resp, err := r.client.Do(req)
++	if err != nil {
++		return nil, err
++	}
++	defer func() { _ = resp.Body.Close() }()
++
++	if resp.StatusCode != http.StatusOK {
++		return nil, fmt.Errorf("http %d", resp.StatusCode)
++	}
++	// Checked before the body is read so a video attachment costs its headers
++	// and nothing else. A missing or opaque type still goes to the decoder,
++	// which sniffs the actual bytes.
++	if mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type")); err == nil &&
++		!strings.HasPrefix(mediaType, "image/") && mediaType != "application/octet-stream" {
++		return nil, fmt.Errorf("not an image (%s)", mediaType)
++	}
++
++	data, err := io.ReadAll(io.LimitReader(resp.Body, imageMaxDownloadSize+1))
++	if err != nil {
++		return nil, err
++	}
++	if len(data) > imageMaxDownloadSize {
++		return nil, errors.New("image too large")
++	}
++
++	img, _, err := image.Decode(bytes.NewReader(data))
++	if err != nil {
++		return nil, fmt.Errorf("decode: %w", err)
++	}
++	return img, nil
++}
++
++var imageURLExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
++
++func isLinearUploadHost(host string) bool {
++	host = strings.ToLower(host)
++	return host == "linear.app" || strings.HasSuffix(host, ".linear.app")
++}
++
++// placementSize fits an image of w×h pixels into a cell box that keeps its
++// aspect ratio, bounded by the available columns and imageMaxCellRows.
++func placementSize(w, h, maxCols int) (cols, rows int) {
++	if w <= 0 || h <= 0 {
++		return 0, 0
++	}
++
++	cellW, cellH := cellPixelSize()
++	maxCols = min(maxCols, imageMaxCellCols)
++	if maxCols < 1 {
++		return 0, 0
++	}
++
++	cols = min(maxCols, (w+cellW-1)/cellW)
++	rows = (h*cols*cellW/w + cellH - 1) / cellH
++	if rows > imageMaxCellRows {
++		rows = imageMaxCellRows
++		cols = min(maxCols, max(1, w*rows*cellH/(h*cellW)))
++	}
++	return max(cols, 1), max(rows, 1)
++}
++
++func cellPixelSize() (int, int) {
++	w, h := terminalCellPixelSize()
++	if w <= 0 || h <= 0 {
++		return defaultCellPixelWidth, defaultCellPixelHeight
++	}
++	return w, h
++}
++
++// transmit sends the image data and (re)creates its virtual placement. The
++// escape codes neither move the cursor nor paint anything on their own, so
++// they are safe to emit between tcell frames.
++func (r *imageRenderer) transmit(entry *kittyImage) error {
++	cellW, cellH := cellPixelSize()
++	payload, err := encodePNG(entry.src, entry.cols*cellW, entry.rows*cellH)
++	if err != nil {
++		return err
++	}
++
++	encoded := base64.StdEncoding.EncodeToString(payload)
++	first := true
++	for len(encoded) > 0 {
++		size := min(imageChunkSize, len(encoded))
++		chunk := encoded[:size]
++		encoded = encoded[size:]
++
++		more := 0
++		if len(encoded) > 0 {
++			more = 1
++		}
++
++		header := fmt.Sprintf("m=%d", more)
++		if first {
++			header = fmt.Sprintf("a=T,U=1,q=2,f=100,t=d,i=%d,p=1,c=%d,r=%d,m=%d",
++				entry.id, entry.cols, entry.rows, more)
++			first = false
++		}
++		if err := r.writeSequence(fmt.Sprintf("\x1b_G%s;%s\x1b\\", header, chunk)); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// writeSequence hands one graphics escape to the terminal. tmux drops APC
++// sequences it does not know, so inside it they travel in a DCS passthrough
++// with every embedded ESC doubled.
++func (r *imageRenderer) writeSequence(seq string) error {
++	if r.tmux {
++		seq = "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
++	}
++	_, err := io.WriteString(r.out, seq)
++	return err
++}
++
++func (r *imageRenderer) deleteLocked(entry *kittyImage) {
++	if !entry.placed {
++		return
++	}
++	_ = r.writeSequence(fmt.Sprintf("\x1b_Ga=d,d=I,i=%d,q=2\x1b\\", entry.id))
++	entry.placed = false
++}
++
++// hasSupport reports whether image rendering is active for this session.
++func (r *imageRenderer) hasSupport() bool {
++	return r != nil && r.enabled
++}
++
++// hasPlacements reports whether anything is currently handed to the terminal,
++// which is what makes a re-layout worth the redraw.
++func (r *imageRenderer) hasPlacements() bool {
++	if r == nil || !r.enabled {
++		return false
++	}
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	for _, entry := range r.images {
++		if entry.placed {
++			return true
++		}
++	}
++	return false
++}
++
++// close releases every image the terminal still holds for this session.
++func (r *imageRenderer) close() {
++	if r == nil || !r.enabled {
++		return
++	}
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	for _, entry := range r.images {
++		r.deleteLocked(entry)
++	}
++}
++
++// placeholderBlock builds the cells that make the terminal paint image id.
++// Every cell carries the image id in its foreground color plus the row and
++// column diacritics for the slice it shows.
++func placeholderBlock(id uint32, cols, rows int) string {
++	cols = min(cols, len(rowColumnDiacritics))
++	rows = min(rows, len(rowColumnDiacritics))
++
++	var b strings.Builder
++	b.Grow(rows * (cols*8 + 16))
++	for row := range rows {
++		fmt.Fprintf(&b, "[#%06x]", id&0xFFFFFF)
++		for col := range cols {
++			b.WriteRune(imagePlaceholderRune)
++			b.WriteRune(rowColumnDiacritics[row])
++			b.WriteRune(rowColumnDiacritics[col])
++		}
++		b.WriteString("[-]\n")
++	}
++	return b.String()
++}
++
++// indentLines prefixes every line of a placeholder block and drops its trailing
++// newline, so callers can treat the block as a single line of their layout.
++func indentLines(block, prefix string) string {
++	lines := strings.Split(strings.TrimSuffix(block, "\n"), "\n")
++	for i, line := range lines {
++		lines[i] = prefix + line
++	}
++	return strings.Join(lines, "\n")
++}
++
++func placeholderNotice(message, alt string) string {
++	if alt = strings.TrimSpace(alt); alt != "" {
++		return fmt.Sprintf("[::d]%s: %s[-:-:-]\n", alt, message)
++	}
++	return fmt.Sprintf("[::d]%s[-:-:-]\n", message)
++}
++
++// encodePNG scales src into a boxW×boxH canvas, keeping its aspect ratio, so
++// the terminal never has to resample and the payload stays small.
++func encodePNG(src image.Image, boxW, boxH int) ([]byte, error) {
++	if boxW <= 0 || boxH <= 0 {
++		return nil, errors.New("empty placement box")
++	}
++
++	canvas := image.NewNRGBA(image.Rect(0, 0, boxW, boxH))
++	drawScaled(canvas, src)
++
++	var buf bytes.Buffer
++	if err := png.Encode(&buf, canvas); err != nil {
++		return nil, err
++	}
++	return buf.Bytes(), nil
++}
++
++// drawScaled box-filters src into dst, centered and aspect-preserving.
++func drawScaled(dst *image.NRGBA, src image.Image) {
++	bounds := src.Bounds()
++	srcW, srcH := bounds.Dx(), bounds.Dy()
++	dstW, dstH := dst.Bounds().Dx(), dst.Bounds().Dy()
++
++	scale := min(float64(dstW)/float64(srcW), float64(dstH)/float64(srcH))
++	targetW := max(1, int(float64(srcW)*scale))
++	targetH := max(1, int(float64(srcH)*scale))
++	offsetX := (dstW - targetW) / 2
++	offsetY := (dstH - targetH) / 2
++
++	for y := range targetH {
++		y0 := bounds.Min.Y + y*srcH/targetH
++		y1 := max(y0+1, bounds.Min.Y+(y+1)*srcH/targetH)
++		for x := range targetW {
++			x0 := bounds.Min.X + x*srcW/targetW
++			x1 := max(x0+1, bounds.Min.X+(x+1)*srcW/targetW)
++			dst.SetNRGBA(offsetX+x, offsetY+y, averageColor(src, x0, y0, x1, y1))
++		}
++	}
++}
++
++func averageColor(src image.Image, x0, y0, x1, y1 int) color.NRGBA {
++	var r, g, b, a uint64
++	var count uint64
++	for y := y0; y < y1; y++ {
++		for x := x0; x < x1; x++ {
++			cr, cg, cb, ca := src.At(x, y).RGBA()
++			r += uint64(cr)
++			g += uint64(cg)
++			b += uint64(cb)
++			a += uint64(ca)
++			count++
++		}
++	}
++	if count == 0 {
++		return color.NRGBA{}
++	}
++	// RGBA() returns alpha-premultiplied 16-bit values; undo both.
++	alpha := a / count
++	if alpha == 0 {
++		return color.NRGBA{}
++	}
++	unpremultiply := func(v uint64) uint8 {
++		return uint8(min(v/count*0xFFFF/alpha, 0xFFFF) >> 8)
++	}
++	return color.NRGBA{
++		R: unpremultiply(r),
++		G: unpremultiply(g),
++		B: unpremultiply(b),
++		A: uint8(alpha >> 8),
++	}
++}
+diff --git a/internal/tui/kitty_images_test.go b/internal/tui/kitty_images_test.go
+new file mode 100644
+index 0000000..7368b72
+--- /dev/null
++++ b/internal/tui/kitty_images_test.go
+@@ -0,0 +1,192 @@
++package tui
++
++import (
++	"bytes"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++
++	"github.com/gdamore/tcell/v2"
++	"github.com/rivo/tview"
++	"github.com/roeyazroel/linear-tui/internal/config"
++)
++
++func TestSplitMarkdownImagesKeepsDocumentOrder(t *testing.T) {
++	content := "intro\n\n![screenshot](https://uploads.linear.app/a.png)\n\noutro"
++
++	segments := splitMarkdownImages(content)
++	if len(segments) != 3 {
++		t.Fatalf("segments = %d, want 3", len(segments))
++	}
++	if segments[0].image || !strings.Contains(segments[0].text, "intro") {
++		t.Errorf("first segment = %+v, want intro text", segments[0])
++	}
++	if !segments[1].image || segments[1].url != "https://uploads.linear.app/a.png" || segments[1].alt != "screenshot" {
++		t.Errorf("second segment = %+v, want the image link", segments[1])
++	}
++	if segments[2].image || !strings.Contains(segments[2].text, "outro") {
++		t.Errorf("third segment = %+v, want outro text", segments[2])
++	}
++}
++
++func TestSplitMarkdownImagesWithoutImages(t *testing.T) {
++	segments := splitMarkdownImages("just [a link](https://example.com)")
++	if len(segments) != 1 || segments[0].image {
++		t.Fatalf("segments = %+v, want a single text segment", segments)
++	}
++}
++
++func TestPlaceholderBlockEncodesRowsAndColumns(t *testing.T) {
++	block := placeholderBlock(7, 2, 2)
++
++	lines := strings.Split(strings.TrimSuffix(block, "\n"), "\n")
++	if len(lines) != 2 {
++		t.Fatalf("lines = %d, want 2", len(lines))
++	}
++	for row, line := range lines {
++		if !strings.HasPrefix(line, "[#000007]") || !strings.HasSuffix(line, "[-]") {
++			t.Fatalf("line %d = %q, want the image id as foreground color", row, line)
++		}
++		cells := strings.TrimSuffix(strings.TrimPrefix(line, "[#000007]"), "[-]")
++		want := string([]rune{
++			imagePlaceholderRune, rowColumnDiacritics[row], rowColumnDiacritics[0],
++			imagePlaceholderRune, rowColumnDiacritics[row], rowColumnDiacritics[1],
++		})
++		if cells != want {
++			t.Errorf("row %d cells = %q, want %q", row, cells, want)
++		}
++	}
++}
++
++func TestPlacementSizeKeepsAspectWithinBudget(t *testing.T) {
++	cellW, cellH := cellPixelSize()
++
++	cols, rows := placementSize(cellW*10, cellH*5, 40)
++	if cols != 10 || rows != 5 {
++		t.Fatalf("cols, rows = %d, %d; want 10, 5", cols, rows)
++	}
++
++	cols, _ = placementSize(cellW*400, cellH*10, 30)
++	if cols != 30 {
++		t.Errorf("cols = %d, want the full column budget of 30", cols)
++	}
++
++	_, rows = placementSize(cellW*10, cellH*400, 30)
++	if rows > imageMaxCellRows {
++		t.Errorf("rows = %d, want at most %d", rows, imageMaxCellRows)
++	}
++}
++
++// TestPlaceholderCellsSurviveTviewDraw guards the assumption the whole feature
++// rests on: tview and tcell must hand the terminal the placeholder rune with
++// both diacritics and the exact 24-bit foreground color, or the terminal has
++// no way to tell which image slice a cell stands for.
++func TestPlaceholderCellsSurviveTviewDraw(t *testing.T) {
++	screen := tcell.NewSimulationScreen("UTF-8")
++	if err := screen.Init(); err != nil {
++		t.Fatal(err)
++	}
++	screen.SetSize(20, 5)
++
++	view := tview.NewTextView()
++	view.SetDynamicColors(true).SetWrap(false)
++	view.SetRect(0, 0, 20, 5)
++	view.SetText(placeholderBlock(7, 3, 2))
++	view.Draw(screen)
++	screen.Show()
++
++	cells, width, _ := screen.GetContents()
++	for row := range 2 {
++		for col := range 3 {
++			cell := cells[row*width+col]
++			if len(cell.Runes) != 3 || cell.Runes[0] != imagePlaceholderRune {
++				t.Errorf("cell (%d,%d) = %q, want placeholder plus two diacritics", row, col, cell.Runes)
++				continue
++			}
++			if cell.Runes[1] != rowColumnDiacritics[row] || cell.Runes[2] != rowColumnDiacritics[col] {
++				t.Errorf("cell (%d,%d) diacritics = %q, want row %d column %d", row, col, cell.Runes[1:], row, col)
++			}
++			if fg, _, _ := cell.Style.Decompose(); fg != tcell.NewHexColor(7) {
++				t.Errorf("cell (%d,%d) foreground = %v, want the image id", row, col, fg)
++			}
++		}
++	}
++}
++
++func TestAttachmentIsRenderable(t *testing.T) {
++	cases := map[string]bool{
++		"https://uploads.linear.app/c6161c13/1fc683fc-5a29": true,
++		"https://example.com/screenshot.PNG":                true,
++		"https://github.com/example/pull/1":                 false,
++		"https://example.com/recording.mp4":                 false,
++		"ftp://example.com/a.png":                           false,
++		"not a url":                                         false,
++	}
++	for attachmentURL, want := range cases {
++		if got := attachmentIsRenderable(attachmentURL); got != want {
++			t.Errorf("attachmentIsRenderable(%q) = %v, want %v", attachmentURL, got, want)
++		}
++	}
++}
++
++// TestDownloadRejectsNonImageContentType covers the Linear attachments that
++// carry no file extension: recordings and documents must be dropped on their
++// headers instead of being read into memory and failing to decode.
++func TestDownloadRejectsNonImageContentType(t *testing.T) {
++	var served bool
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		w.Header().Set("Content-Type", "video/mp4")
++		w.WriteHeader(http.StatusOK)
++		served = true
++		_, _ = w.Write([]byte("not an image at all"))
++	}))
++	defer server.Close()
++
++	renderer := newImageRenderer(config.Config{}, nil)
++	if _, err := renderer.download(server.URL + "/attachment"); err == nil || !strings.Contains(err.Error(), "not an image") {
++		t.Fatalf("download error = %v, want a content type rejection", err)
++	}
++	if !served {
++		t.Fatal("handler never ran")
++	}
++}
++
++func TestIndentLinesKeepsBlockAsOneLayoutLine(t *testing.T) {
++	indented := indentLines(placeholderBlock(1, 2, 2), "  ")
++
++	if strings.HasSuffix(indented, "\n") {
++		t.Error("indented block still ends with a newline")
++	}
++	for _, line := range strings.Split(indented, "\n") {
++		if !strings.HasPrefix(line, "  [#") {
++			t.Errorf("line = %q, want the indent before the color tag", line)
++		}
++	}
++}
++
++// TestWriteSequenceWrapsForTmux pins the escaping that makes images survive a
++// multiplexer: tmux forwards an unknown sequence only inside a DCS
++// passthrough, and only when every ESC of the payload is doubled.
++func TestWriteSequenceWrapsForTmux(t *testing.T) {
++	const sequence = "\x1b_Ga=T,U=1;payload\x1b\\"
++
++	var direct bytes.Buffer
++	renderer := &imageRenderer{out: &direct}
++	if err := renderer.writeSequence(sequence); err != nil {
++		t.Fatal(err)
++	}
++	if direct.String() != sequence {
++		t.Errorf("outside tmux = %q, want the sequence untouched", direct.String())
++	}
++
++	var wrapped bytes.Buffer
++	renderer = &imageRenderer{out: &wrapped, tmux: true}
++	if err := renderer.writeSequence(sequence); err != nil {
++		t.Fatal(err)
++	}
++	want := "\x1bPtmux;\x1b\x1b_Ga=T,U=1;payload\x1b\x1b\\\x1b\\"
++	if wrapped.String() != want {
++		t.Errorf("inside tmux = %q, want %q", wrapped.String(), want)
++	}
++}
