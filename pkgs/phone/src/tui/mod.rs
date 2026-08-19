@@ -139,6 +139,8 @@ fn on_normal_key(app: &mut App, key: KeyEvent) {
         KeyCode::Char('G') | KeyCode::End => app.select_edge(true),
         KeyCode::Enter | KeyCode::Char('c') => app.connect_selected(),
         KeyCode::Char('d') => app.disconnect_selected(),
+        KeyCode::Char('b') => app.boot_selected(),
+        KeyCode::Char('S') => app.stop_selected(),
         KeyCode::Char('s') => app.shot_selected(),
         KeyCode::Char('m') => app.mirror_selected(),
         KeyCode::Char('p') => app.pin_selected(),

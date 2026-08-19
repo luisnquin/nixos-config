@@ -19,12 +19,14 @@ pub struct Caps {
     #[serde(default)]
     pub simctl: bool,
     #[serde(default)]
+    pub emulator: bool,
+    #[serde(default)]
     pub tunneld: bool,
 }
 
 impl Caps {
     pub fn any(self) -> bool {
-        self.adb || self.simctl || self.tunneld
+        self.adb || self.simctl || self.emulator || self.tunneld
     }
 
     pub fn label(self) -> String {
@@ -36,6 +38,10 @@ impl Caps {
 
         if self.simctl {
             parts.push("simctl");
+        }
+
+        if self.emulator {
+            parts.push("emulator");
         }
 
         if self.tunneld {
@@ -249,6 +255,7 @@ pub async fn probe(host: &str) -> Option<Caps> {
 PATH="$($SHELL -l -c 'printf %s "$PATH"' 2>/dev/null):$PATH"
 command -v adb >/dev/null 2>&1 && echo adb
 command -v xcrun >/dev/null 2>&1 && xcrun simctl help >/dev/null 2>&1 && echo simctl
+command -v emulator >/dev/null 2>&1 && echo emulator
 curl -s --max-time 2 -o /dev/null http://127.0.0.1:49151/ && echo tunneld
 exit 0"#;
 
@@ -258,6 +265,7 @@ exit 0"#;
     said("up").then(|| Caps {
         adb: said("adb"),
         simctl: said("simctl"),
+        emulator: said("emulator"),
         tunneld: said("tunneld"),
     })
 }

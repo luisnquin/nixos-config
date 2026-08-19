@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::adb::EMULATOR_BUILD_SERIAL;
 use crate::hosts::HostState;
-use crate::model::{discovered_id, now, Device, PLACEHOLDER_PREFIX};
+use crate::model::{discovered_id, is_transport_alias, now, Device, PLACEHOLDER_PREFIX};
 
 /// The id prefix placeholders carried before discovery sources were named.
 const LEGACY_PLACEHOLDER_PREFIX: &str = "tailnet:";
@@ -57,6 +58,8 @@ impl Registry {
     /// the id is worth migrating — discovery rebuilds the rest, and a stale id
     /// shows the same device twice.
     fn migrate(&mut self) {
+        self.drop_shared_emulator_keys();
+
         let mut renamed: Vec<(String, String)> = Vec::new();
 
         for device in &mut self.devices {
@@ -77,6 +80,23 @@ impl Registry {
             if self.current.as_deref() == Some(old.as_str()) {
                 self.current = Some(new);
             }
+        }
+    }
+
+    /// Rows keyed by the build serial every emulator shares. Each one merged
+    /// however many emulators ran from that image into a single record, with
+    /// aliases and a label taken from whichever answered last — so nothing in it
+    /// names a device. Discovery mints a real key on the next attach.
+    fn drop_shared_emulator_keys(&mut self) {
+        let doomed: Vec<String> = self
+            .devices
+            .iter()
+            .filter(|d| d.id.starts_with(EMULATOR_BUILD_SERIAL))
+            .map(|d| d.id.clone())
+            .collect();
+
+        for id in doomed {
+            self.remove(&id);
         }
     }
 
@@ -179,8 +199,30 @@ impl Registry {
         }
     }
 
+    /// Takes every transport name this device now answers to off whatever row
+    /// used to hold it. Those names are leases, and the device just seen
+    /// answering is the one holding it.
+    fn evict_stale_leases(&mut self, holder: usize) {
+        let claimed: Vec<String> = self.devices[holder]
+            .aliases
+            .iter()
+            .filter(|a| is_transport_alias(a))
+            .cloned()
+            .collect();
+
+        if claimed.is_empty() {
+            return;
+        }
+
+        for (i, device) in self.devices.iter_mut().enumerate() {
+            if i != holder {
+                device.aliases.retain(|a| !claimed.contains(a));
+            }
+        }
+    }
+
     pub fn upsert(&mut self, device: Device) -> &mut Device {
-        match self.devices.iter().position(|d| d.id == device.id) {
+        let at = match self.devices.iter().position(|d| d.id == device.id) {
             Some(i) => {
                 let existing = &mut self.devices[i];
 
@@ -213,13 +255,17 @@ impl Registry {
                     existing.last_connected = device.last_connected;
                 }
 
-                &mut self.devices[i]
+                i
             }
             None => {
                 self.devices.push(device);
-                self.devices.last_mut().expect("just pushed")
+                self.devices.len() - 1
             }
-        }
+        };
+
+        self.evict_stale_leases(at);
+
+        &mut self.devices[at]
     }
 
     pub fn touch(&mut self, id: &str) {
@@ -291,6 +337,63 @@ mod tests {
         }
 
         d
+    }
+
+    #[test]
+    fn a_transport_name_follows_the_device_last_seen_answering_to_it() {
+        let mut reg = Registry {
+            devices: vec![device("android_id:29a1ed70", &["rose/emulator-5554"])],
+            ..Default::default()
+        };
+
+        let mut booted = device("android_id:6a2c0a1c", &[]);
+        booted.add_alias("rose/emulator-5554");
+
+        reg.upsert(booted);
+
+        assert_eq!(reg.devices[0].aliases, Vec::<String>::new());
+        assert_eq!(
+            reg.by_alias("rose/emulator-5554").unwrap().id,
+            "android_id:6a2c0a1c"
+        );
+    }
+
+    #[test]
+    fn a_hardware_id_is_not_a_lease_and_stays_where_it_is() {
+        let mut reg = Registry {
+            devices: vec![device("58281FDCG001K5", &["android_id:28aeb91f"])],
+            ..Default::default()
+        };
+
+        let mut other = device("peer:tailscale:nLhm", &[]);
+        other.add_alias("android_id:28aeb91f");
+
+        reg.upsert(other);
+
+        assert_eq!(reg.devices[0].aliases, ["android_id:28aeb91f"]);
+    }
+
+    /// Every emulator from one system image answered `ro.serialno` with the same
+    /// string, so a row keyed by it is however many emulators in a trench coat.
+    #[test]
+    fn a_row_keyed_by_the_shared_build_serial_does_not_survive_a_load() {
+        let mut reg = Registry {
+            devices: vec![
+                device(
+                    "EMULATOR36X6X11X0",
+                    &["emulator-5554", "android_id:29a1ed70"],
+                ),
+                device("58281FDCG001K5", &[]),
+            ],
+            current: Some("EMULATOR36X6X11X0".into()),
+            ..Default::default()
+        };
+
+        reg.migrate();
+
+        assert_eq!(reg.devices.len(), 1);
+        assert_eq!(reg.devices[0].id, "58281FDCG001K5");
+        assert_eq!(reg.current, None, "the default target cannot point at it");
     }
 
     #[test]

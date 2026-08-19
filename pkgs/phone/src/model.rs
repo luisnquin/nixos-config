@@ -10,6 +10,21 @@ pub const PLACEHOLDER_PREFIX: &str = "peer:";
 
 pub const EMULATOR_SERIAL_PREFIX: &str = "emulator-";
 
+/// Whether a name says where a device answered rather than which device it is.
+/// An adb serial, a `host/serial` pair and a `host:port` are all leases: the
+/// port an emulator frees is handed to the next one to boot, so a row may hold
+/// such a name only until another device is seen answering to it.
+pub fn is_transport_alias(name: &str) -> bool {
+    let name = name.rsplit('/').next().unwrap_or(name);
+
+    if name.starts_with(EMULATOR_SERIAL_PREFIX) {
+        return true;
+    }
+
+    name.rsplit_once(':')
+        .is_some_and(|(host, port)| !host.is_empty() && port.parse::<u16>().is_ok())
+}
+
 /// The source is part of the key so two sources naming the same machine do not
 /// collide.
 pub fn discovered_id(source: &str, key: &str) -> String {
@@ -302,10 +317,21 @@ impl Device {
 /// Runtime reachability, recomputed on every survey and never persisted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reach {
-    Attached { serial: String, wireless: bool },
-    Unauthorized { serial: String },
+    Attached {
+        serial: String,
+        wireless: bool,
+    },
+    Unauthorized {
+        serial: String,
+    },
     Online,
-    Offline { last_seen: Option<Unix> },
+    /// Defined on its host and not running. Unlike `Known`, which is only a
+    /// memory of something once seen, this was read off the host just now: it
+    /// is there, and it can be started.
+    Off,
+    Offline {
+        last_seen: Option<Unix>,
+    },
     Known,
 }
 
@@ -331,6 +357,7 @@ impl Reach {
             },
             Reach::Unauthorized { .. } => "unauthorized".into(),
             Reach::Online => "online".into(),
+            Reach::Off => "off".into(),
             Reach::Offline { last_seen } => match last_seen {
                 Some(t) => format!("offline {}", ago(*t)),
                 None => "offline".into(),
@@ -345,8 +372,9 @@ impl Reach {
             Reach::Attached { .. } => 0,
             Reach::Online => 1,
             Reach::Unauthorized { .. } => 2,
-            Reach::Known => 3,
-            Reach::Offline { .. } => 4,
+            Reach::Off => 3,
+            Reach::Known => 4,
+            Reach::Offline { .. } => 5,
         }
     }
 }
@@ -412,6 +440,17 @@ pub enum Blocked {
 
 #[cfg(test)]
 mod tests {
+
+    /// A device that is off is on its host right now and can be started; a
+    /// known one is only a memory of something once seen. Sorting them the
+    /// other way round would offer the worse of the two first.
+    #[test]
+    fn off_outranks_what_is_only_remembered() {
+        assert!(Reach::Online.rank() < Reach::Off.rank());
+        assert!(Reach::Off.rank() < Reach::Known.rank());
+        assert!(Reach::Known.rank() < Reach::Offline { last_seen: None }.rank());
+        assert_eq!(Reach::Off.label(), "off");
+    }
     use super::*;
 
     #[test]
@@ -453,6 +492,19 @@ mod tests {
             hosted.is("ROSE/emulator-5554"),
             "ids are not case sensitive"
         );
+    }
+
+    #[test]
+    fn tells_where_a_device_answered_apart_from_which_device_it_is() {
+        assert!(is_transport_alias("emulator-5554"));
+        assert!(is_transport_alias("rose/emulator-5554"));
+        assert!(is_transport_alias("100.127.25.101:41939"));
+        assert!(is_transport_alias("faraday:5555"));
+
+        assert!(!is_transport_alias("58281FDCG001K5"));
+        assert!(!is_transport_alias("android_id:29a1ed706918672b"));
+        assert!(!is_transport_alias("rose/00008101-000C601611D2001E"));
+        assert!(!is_transport_alias("peer:tailscale:ncBC9WsKTg11CNTRL"));
     }
 
     #[test]

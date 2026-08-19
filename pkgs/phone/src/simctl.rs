@@ -27,11 +27,14 @@ struct SimJson {
     state: String,
 }
 
-pub async fn devices(host: &str) -> Vec<Device> {
+/// Every simulator that exists on `host`, each with whether it is running.
+/// Asking only for the booted ones would hide what could be started, which is
+/// the whole of what a caller needs before it can boot anything.
+pub async fn devices(host: &str) -> Vec<(Device, bool)> {
     let bytes = ssh::output(
         {
             let mut cmd = ssh::command(host);
-            cmd.arg("xcrun simctl list devices booted -j");
+            cmd.arg("xcrun simctl list devices available -j");
             cmd
         },
         Duration::from_secs(20),
@@ -50,7 +53,7 @@ pub async fn devices(host: &str) -> Vec<Device> {
 
     for (runtime, sims) in list.devices {
         for sim in sims {
-            if sim.state != "Booted" || sim.udid.is_empty() {
+            if sim.udid.is_empty() {
                 continue;
             }
 
@@ -64,11 +67,11 @@ pub async fn devices(host: &str) -> Vec<Device> {
             device.host = Some(host.to_string());
             device.add_alias(sim.udid);
 
-            out.push(device);
+            out.push((device, sim.state == "Booted"));
         }
     }
 
-    out.sort_by(|a, b| a.label.cmp(&b.label));
+    out.sort_by(|a, b| a.0.label.cmp(&b.0.label));
 
     out
 }
@@ -168,20 +171,19 @@ pub async fn install(host: &str, udid: &str, path: &std::path::Path) -> Result<(
         bail!("could not copy {} to {host}", path.display());
     }
 
-    let out = ssh::script(
-        host,
-        r#"xcrun simctl install "$1" "$2" 2>&1"#,
-        &[udid, &remote],
-    )
-    .output();
+    // the remote status is read off stderr for the same reason `run` does it: a
+    // brokered ssh session reports success whatever the command did
+    let script =
+        format!("xcrun simctl install \"$1\" \"$2\" >&2\nprintf '{STATUS}%s\\n' \"$?\" >&2");
 
+    let out = ssh::script(host, &script, &[udid, &remote]).output();
     let out = tokio::time::timeout(Duration::from_secs(120), out).await??;
 
-    if !out.status.success() {
-        bail!("{}", String::from_utf8_lossy(&out.stdout).trim());
+    match outcome(&out.stderr) {
+        (Some(0), _) => Ok(()),
+        (_, reason) if !reason.is_empty() => bail!("{reason}"),
+        _ => bail!("{host} did not say whether the install landed"),
     }
-
-    Ok(())
 }
 
 /// Reading and pressing need the CoreSimulator and SimulatorKit frameworks,
@@ -284,6 +286,39 @@ pub async fn snapshot(host: &str, udid: &str) -> Result<Vec<crate::a11y::Node>> 
     Ok(serde_json::from_slice(&bytes)?)
 }
 
+/// The panel in points and the factor that maps them to the pixels a screenshot
+/// comes back in. Taps and element bounds are both in points, so nothing else
+/// needs it — until a crop taken from bounds has to be found in an image.
+pub async fn size(host: &str, udid: &str) -> Result<crate::a11y::Size> {
+    check(udid)?;
+
+    let bytes = run(host, &["size", udid], Duration::from_secs(30)).await?;
+
+    Ok(serde_json::from_slice(&bytes)?)
+}
+
+pub async fn swipe(
+    host: &str,
+    udid: &str,
+    from: (i32, i32),
+    to: (i32, i32),
+    ms: u64,
+) -> Result<()> {
+    check(udid)?;
+
+    let args = [from.0, from.1, to.0, to.1].map(|v| v.to_string());
+    let ms = ms.to_string();
+
+    run(
+        host,
+        &["swipe", udid, &args[0], &args[1], &args[2], &args[3], &ms],
+        Duration::from_secs(30 + ms.parse::<u64>().unwrap_or(0) / 1000),
+    )
+    .await?;
+
+    Ok(())
+}
+
 pub async fn tap(host: &str, udid: &str, x: i32, y: i32) -> Result<()> {
     check(udid)?;
 
@@ -310,6 +345,43 @@ pub async fn key(host: &str, udid: &str, name: &str) -> Result<()> {
     check(udid)?;
 
     run(host, &["key", udid, button(name)?], Duration::from_secs(30)).await?;
+
+    Ok(())
+}
+
+/// Boots `udid` and returns once the system is up, not once the process is.
+/// `bootstatus` is what waits; `open` is only there so the window appears, and
+/// a headless boot is still a usable device without it.
+pub async fn boot(host: &str, udid: &str) -> Result<()> {
+    const SCRIPT: &str = r#"xcrun simctl boot "$1" 2>/dev/null
+open -a Simulator 2>/dev/null
+xcrun simctl bootstatus "$1" -b >&2"#;
+
+    check(udid)?;
+
+    let out = ssh::script(host, SCRIPT, &[udid])
+        .output()
+        .await
+        .map_err(|e| anyhow!("{host}: {e}"))?;
+
+    if !out.status.success() {
+        bail!("{host}: {}", String::from_utf8_lossy(&out.stderr).trim());
+    }
+
+    Ok(())
+}
+
+pub async fn shutdown(host: &str, udid: &str) -> Result<()> {
+    check(udid)?;
+
+    let out = ssh::script(host, r#"exec xcrun simctl shutdown "$1""#, &[udid])
+        .output()
+        .await
+        .map_err(|e| anyhow!("{host}: {e}"))?;
+
+    if !out.status.success() {
+        bail!("{host}: {}", String::from_utf8_lossy(&out.stderr).trim());
+    }
 
     Ok(())
 }

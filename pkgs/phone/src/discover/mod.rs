@@ -10,10 +10,17 @@ use crate::model::{
     discovered_id, Device, Endpoint, Pin, Platform, Reach, View, PLACEHOLDER_PREFIX,
 };
 use crate::registry::Registry;
+use crate::ssh::Where;
 
 /// The name discovery files tailnet peers under. Sources are named so two of
 /// them can claim the same machine without colliding.
 const TAILSCALE: &str = "tailscale";
+
+/// Key prefix for an AVD read off a host's SDK. It is not a hardware id — the
+/// row is rebuilt from the host on every survey and never stored, because an
+/// AVD that is deleted should stop being offered rather than linger as a name
+/// nothing can boot.
+const AVD_PREFIX: &str = "avd:";
 
 /// Every adb server worth asking, this machine's first. Servers never talk to
 /// each other, so the fleet is assembled client-side, one forward per enabled
@@ -83,13 +90,21 @@ async fn attached(fleet: &[Server]) -> Vec<(Server, Vec<adb::Attached>)> {
 
 /// Devices that are only ever driven by running commands on their host: iPhones
 /// behind a tunneld, and simulators, which have no socket to forward at all.
-async fn hosted(enabled: &[(String, Caps)]) -> Vec<Device> {
+async fn hosted(enabled: &[(String, Caps)]) -> Vec<(Device, bool)> {
     let mut tasks = tokio::task::JoinSet::new();
 
     for (host, caps) in enabled.iter().cloned() {
         if caps.tunneld {
             let host = host.clone();
-            tasks.spawn(async move { crate::ios::devices(&host).await });
+
+            // a tunneld that lists an iPhone is listing one that is plugged in
+            tasks.spawn(async move {
+                crate::ios::devices(&host)
+                    .await
+                    .into_iter()
+                    .map(|d| (d, true))
+                    .collect::<Vec<_>>()
+            });
         }
 
         if caps.simctl {
@@ -101,6 +116,49 @@ async fn hosted(enabled: &[(String, Caps)]) -> Vec<Device> {
 
     while let Some(Ok(found)) = tasks.join_next().await {
         out.extend(found);
+    }
+
+    out.sort_by(|a, b| a.0.label.cmp(&b.0.label));
+
+    out
+}
+
+/// AVDs defined on this machine and on every host that has the emulator, which
+/// `adb` cannot report: it only ever sees one that is already running.
+async fn bootable(enabled: &[(String, Caps)]) -> Vec<Device> {
+    let mut tasks = tokio::task::JoinSet::new();
+
+    tasks.spawn(async move { (None, crate::avd::list(&Where::Here).await) });
+
+    for (host, caps) in enabled.iter().cloned() {
+        // adb rather than the emulator cap alone: a host with adb has an SDK,
+        // and hosts enabled before the cap existed have it recorded as false
+        if !(caps.adb || caps.emulator) {
+            continue;
+        }
+
+        tasks.spawn(async move {
+            let found = crate::avd::list(&Where::On(host.clone())).await;
+
+            (Some(host), found)
+        });
+    }
+
+    let mut out = Vec::new();
+
+    while let Some(Ok((host, names))) = tasks.join_next().await {
+        for name in names {
+            let id = match &host {
+                Some(host) => format!("{AVD_PREFIX}{host}/{name}"),
+                None => format!("{AVD_PREFIX}{name}"),
+            };
+
+            let mut device = Device::new(id, name, Platform::Emulator);
+
+            device.host = host.clone();
+
+            out.push(device);
+        }
     }
 
     out.sort_by(|a, b| a.label.cmp(&b.label));
@@ -121,8 +179,12 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
         .map(|h| (h.name.clone(), h.caps))
         .collect();
 
-    let (fleet_devices, hosted_devices, peers) =
-        tokio::join!(attached(&fleet), hosted(&enabled), tailscale::peers());
+    let (fleet_devices, hosted_devices, avds, peers) = tokio::join!(
+        attached(&fleet),
+        hosted(&enabled),
+        bootable(&enabled),
+        tailscale::peers()
+    );
 
     let peers = peers.unwrap_or_default();
 
@@ -196,12 +258,50 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     // drops often enough that a device listed only while reachable cannot be
     // selected or made the default. `last_connected` stays unset, since a bare
     // `phone connect` reaches for the most recent device.
-    for device in hosted_devices {
+    for (device, booted) in hosted_devices {
         claimed.insert(device.id.clone());
+
+        // only a running simulator is worth remembering: the row exists to
+        // outlive a dropped tunnel, and one that was never started has nothing
+        // to outlive. Storing the rest would also keep offering a simulator
+        // long after it was deleted from the host.
+        if !booted {
+            views.push(View::new(device, Reach::Off));
+            continue;
+        }
 
         let stored = reg.upsert(device).clone();
 
         views.push(View::new(stored, Reach::Online));
+    }
+
+    // an AVD whose emulator is already running was listed above under the
+    // hardware id that emulator reported, and the two are the same device
+    let mut off: Vec<String> = Vec::new();
+
+    for mut device in avds {
+        if views
+            .iter()
+            .any(|v| v.device.host == device.host && v.device.is(&device.label))
+        {
+            continue;
+        }
+
+        // the SDK names an AVD but says nothing about what it emulates, and the
+        // row it supersedes was written while the thing was running and adb
+        // could be asked
+        if let Some(seen) = reg
+            .devices
+            .iter()
+            .find(|d| d.platform == Platform::Emulator && d.is(&device.label))
+        {
+            device.model = seen.model.clone();
+        }
+
+        off.push(device.label.clone());
+        claimed.insert(device.id.clone());
+
+        views.push(View::new(device, Reach::Off));
     }
 
     // an alias learned above can reveal that a remembered row is a device this
@@ -212,6 +312,13 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
 
     for device in &reg.devices {
         if claimed.contains(&device.id) {
+            continue;
+        }
+
+        // a remembered emulator that the SDK just listed as bootable is that
+        // AVD, filed under the hardware id it had while it ran. `off` says
+        // where it is and how to start it, which `known` cannot
+        if device.platform == Platform::Emulator && off.iter().any(|name| device.is(name)) {
             continue;
         }
 

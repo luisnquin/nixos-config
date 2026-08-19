@@ -87,12 +87,14 @@ pub struct Identity {
     pub model: String,
 }
 
+/// What an emulator answers `ro.serialno` with. It is minted from the system
+/// image rather than the instance, so every emulator started from one image
+/// shares it and no handset serial has the shape.
+pub const EMULATOR_BUILD_SERIAL: &str = "EMULATOR";
+
 impl Identity {
-    /// An emulator mints `ro.serialno` from its own build rather than from the
-    /// instance, so every emulator started from one system image answers the
-    /// same string. No handset serial has that shape.
     pub fn is_emulator(&self) -> bool {
-        self.serialno.starts_with("EMULATOR")
+        self.serialno.starts_with(EMULATOR_BUILD_SERIAL)
     }
 
     /// Android 10+ hides `ro.serialno` from unprivileged callers on some
@@ -367,6 +369,55 @@ fn field<'a>(record: &'a str, key: &str) -> Option<&'a str> {
     Some(&rest[..rest.find([',', '\'', '}']).unwrap_or(rest.len())])
 }
 
+/// The panel in pixels. Element bounds and taps are in pixels on Android, so
+/// this is the one space there — unlike a simulator, which reports points.
+/// `wm size` answers for the default display unless the panel is named, which
+/// matters on a fold, where the closed and open panels differ.
+pub async fn screen_size(
+    server: &Server,
+    serial: &str,
+    display: Option<Display>,
+) -> Option<(i32, i32)> {
+    let aim = display
+        .map(|d| format!(" -d {}", d.logical))
+        .unwrap_or_default();
+    let out = run_timeout(
+        server,
+        &["-s", serial, "shell", &format!("wm size{aim}")],
+        Duration::from_secs(8),
+    )
+    .await
+    .ok()?;
+
+    parse_wm_size(&out.stdout)
+}
+
+/// `wm size` prints the physical size and, when something has overridden it, an
+/// override line as well. The override is what everything else reports.
+pub fn parse_wm_size(text: &str) -> Option<(i32, i32)> {
+    let mut found = None;
+
+    for line in text.lines() {
+        let Some((_, dims)) = line.rsplit_once(": ") else {
+            continue;
+        };
+
+        let Some((w, h)) = dims.trim().split_once('x') else {
+            continue;
+        };
+
+        let dims = (w.trim().parse().ok()?, h.trim().parse().ok()?);
+
+        if line.starts_with("Physical size") {
+            found = Some(dims);
+        } else if line.starts_with("Override size") {
+            return Some(dims);
+        }
+    }
+
+    found
+}
+
 pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<String> {
     let out = run_timeout(
         server,
@@ -446,6 +497,19 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
         };
 
         assert_eq!(emu.best_id(), None);
+    }
+
+    #[test]
+    fn an_override_is_what_the_rest_of_the_system_reports() {
+        assert_eq!(
+            parse_wm_size("Physical size: 1080x2400\n"),
+            Some((1080, 2400))
+        );
+        assert_eq!(
+            parse_wm_size("Physical size: 1440x3120\nOverride size: 1080x2340\n"),
+            Some((1080, 2340))
+        );
+        assert_eq!(parse_wm_size("mumble\n"), None);
     }
 
     #[test]

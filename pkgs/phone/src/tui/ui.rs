@@ -213,6 +213,7 @@ fn reach_style(reach: &Reach) -> Style {
         Reach::Attached { .. } => Color::Green,
         Reach::Online => Color::Cyan,
         Reach::Unauthorized { .. } => Color::Yellow,
+        Reach::Off => Color::Blue,
         Reach::Known => Color::DarkGray,
         Reach::Offline { .. } => Color::Red,
     };

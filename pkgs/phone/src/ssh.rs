@@ -119,3 +119,55 @@ pub async fn free_port() -> Result<u16> {
 
     Ok(port)
 }
+
+/// A machine to run a shell command on. `Here` is not a host name: this process
+/// already has a shell on this machine, and reaching it through ssh would need a
+/// loopback config nothing else in the tool depends on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Where {
+    Here,
+    On(String),
+}
+
+impl Where {
+    pub fn of(host: Option<&str>) -> Self {
+        match host.filter(|h| !h.is_empty()) {
+            Some(host) => Where::On(host.to_string()),
+            None => Where::Here,
+        }
+    }
+
+    pub fn host(&self) -> Option<&str> {
+        match self {
+            Where::Here => None,
+            Where::On(host) => Some(host),
+        }
+    }
+
+    pub fn label(&self) -> &str {
+        self.host().unwrap_or("this machine")
+    }
+
+    /// `script` with `args` bound to `$1`, `$2`, … either way, so a caller writes
+    /// one script and never interpolates a name into it.
+    pub fn run(&self, script: &str, args: &[&str]) -> Command {
+        match self {
+            Where::Here => {
+                let mut cmd = Command::new("sh");
+
+                cmd.arg("-c").arg(script).arg("sh").args(args);
+                cmd.stdin(Stdio::null());
+
+                cmd
+            }
+            Where::On(host) => self::script(host, script, args),
+        }
+    }
+
+    pub async fn text(&self, script: &str, args: &[&str], limit: Duration) -> String {
+        match output(self.run(script, args), limit).await {
+            Ok(bytes) => String::from_utf8_lossy(&bytes).trim().to_string(),
+            Err(_) => String::new(),
+        }
+    }
+}

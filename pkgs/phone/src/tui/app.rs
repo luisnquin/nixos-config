@@ -455,6 +455,35 @@ impl App {
         });
     }
 
+    pub fn boot_selected(&mut self) {
+        let Some(view) = self.selected() else { return };
+
+        let device = view.device.clone();
+        let label = device.label.clone();
+
+        if crate::actions::running(&view.reach) {
+            self.push_log(Level::Note, format!("{label} is already running"));
+
+            return;
+        }
+
+        self.spawn(format!("boot {label}"), move |_reg, rep| async move {
+            crate::actions::boot(&device, crate::actions::BOOT_TIMEOUT, &rep).await
+        });
+    }
+
+    pub fn stop_selected(&mut self) {
+        let Some(view) = self.selected() else { return };
+
+        let device = view.device.clone();
+        let reach = view.reach.clone();
+
+        self.spawn(
+            format!("stop {}", device.label),
+            move |_reg, _rep| async move { crate::actions::stop(&device, &reach).await },
+        );
+    }
+
     pub fn disconnect_selected(&mut self) {
         let Some(view) = self.selected() else { return };
 
@@ -558,7 +587,14 @@ impl App {
         self.shot = Some(shot);
 
         self.spawn(format!("shot {label}"), move |_reg, rep| async move {
-            actions::screenshot(&server, &device, &Sink::Clipboard, &rep).await
+            actions::screenshot(
+                &server,
+                &device,
+                &Sink::Clipboard,
+                &rep,
+                &actions::Shot::default(),
+            )
+            .await
         });
     }
 
@@ -752,13 +788,20 @@ impl App {
     /// Footer hints for the selected row. Offering `connect` or `pin` on a
     /// device that has no adb transport at all only invites the keystroke.
     pub fn hints(&self) -> &'static [&'static str] {
+        const OFF: &[&str] = &["b boot", "h hosts", "/ filter", "? help", "q quit"];
+
+        if self.selected().is_some_and(|v| v.reach == Reach::Off) {
+            return OFF;
+        }
+
         const HOSTED: &[&str] = &[
-            "s shot", "l logs", "u use", "h hosts", "/ filter", "? help", "q quit",
+            "s shot", "l logs", "u use", "S stop", "h hosts", "/ filter", "? help", "q quit",
         ];
         const EMULATOR: &[&str] = &[
             "enter connect",
             "s shot",
             "m mirror",
+            "S stop",
             "l logs",
             "h hosts",
             "/ filter",

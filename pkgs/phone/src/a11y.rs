@@ -69,8 +69,54 @@ impl Bounds {
         ((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
     }
 
+    /// Grown by `pad` on every side, clamped to the panel it came from.
+    pub fn padded(&self, pad: i32, within: Option<(i32, i32)>) -> Self {
+        let (w, h) = within.unwrap_or((i32::MAX, i32::MAX));
+
+        Bounds {
+            x1: (self.x1 - pad).max(0),
+            y1: (self.y1 - pad).max(0),
+            x2: (self.x2 + pad).min(w),
+            y2: (self.y2 + pad).min(h),
+        }
+    }
+
+    pub fn width(&self) -> i32 {
+        (self.x2 - self.x1).max(0)
+    }
+
+    pub fn height(&self) -> i32 {
+        (self.y2 - self.y1).max(0)
+    }
+
     fn area(&self) -> i64 {
         ((self.x2 - self.x1) as i64).max(0) * ((self.y2 - self.y1) as i64).max(0)
+    }
+}
+
+/// The panel in the space its element bounds and taps are given in, and the
+/// factor that maps that space to the pixels a screenshot comes back in.
+/// Android reports both in pixels, so `scale` is 1 there; a simulator reports
+/// points and screenshots at 2x or 3x, which is what makes a crop taken from
+/// element bounds land somewhere else entirely.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+pub struct Size {
+    pub width: f64,
+    pub height: f64,
+    pub scale: f64,
+}
+
+impl Size {
+    /// Where `bounds` falls in the screenshot.
+    pub fn in_pixels(self, bounds: Bounds) -> Bounds {
+        let at = |v: i32| (f64::from(v) * self.scale).round() as i32;
+
+        Bounds {
+            x1: at(bounds.x1),
+            y1: at(bounds.y1),
+            x2: at(bounds.x2),
+            y2: at(bounds.y2),
+        }
     }
 }
 
@@ -147,12 +193,34 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
     Ok(nodes)
 }
 
+/// uiautomator loses to a window that is still being laid out and answers with
+/// nothing at all rather than with a partial tree, so a dump taken right after a
+/// tap is worth asking for twice before calling the screen unreadable.
+const DUMP_TRIES: usize = 3;
+
 pub async fn dump(t: &Target) -> Result<Vec<Node>> {
     let a = match t {
         Target::Adb(a) => a,
         Target::Simulator(s) => return simctl::snapshot(&s.host, &s.udid).await,
     };
 
+    let mut last = None;
+
+    for attempt in 0..DUMP_TRIES {
+        if attempt > 0 {
+            tokio::time::sleep(Duration::from_millis(600)).await;
+        }
+
+        match dump_once(a).await {
+            Ok(nodes) => return Ok(nodes),
+            Err(e) => last = Some(e),
+        }
+    }
+
+    Err(last.expect("the loop runs at least once"))
+}
+
+async fn dump_once(a: &Adb) -> Result<Vec<Node>> {
     let remote = format!("{}{REMOTE}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
     let xml = String::from_utf8_lossy(&bytes);
@@ -162,6 +230,24 @@ pub async fn dump(t: &Target) -> Result<Vec<Node>> {
     }
 
     parse(&xml)
+}
+
+/// The panel, in the space `bounds` and taps use.
+pub async fn size(t: &Target) -> Result<Size> {
+    match t {
+        Target::Adb(a) => {
+            let (width, height) = adb::screen_size(&a.server, &a.serial, a.display)
+                .await
+                .ok_or_else(|| anyhow::anyhow!("could not read the panel size"))?;
+
+            Ok(Size {
+                width: f64::from(width),
+                height: f64::from(height),
+                scale: 1.0,
+            })
+        }
+        Target::Simulator(s) => simctl::size(&s.host, &s.udid).await,
+    }
 }
 
 /// The one element `needle` names. Ambiguity is reported rather than resolved by
@@ -202,6 +288,14 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
     }
 }
 
+/// Whether anything on screen answers to `needle`. Unlike `pick`, how many do
+/// is not the question: two matches still means it is there. `@index` is not
+/// accepted, and callers reject it before asking — it numbers the rows of one
+/// dump, so across two it answers about the length of a list, not about a thing.
+pub fn present(nodes: &[Node], needle: &str) -> bool {
+    nodes.iter().any(|n| n.matches(needle))
+}
+
 /// Sent as one device-side command, because `input text` reads the rest of the
 /// line as its own words and flags. Without `-d` it aims at logical display 0,
 /// which is the live panel on everything that has one.
@@ -230,6 +324,69 @@ pub async fn tap(t: &Target, x: i32, y: i32) -> Result<()> {
     match t {
         Target::Adb(a) => input(a, &format!("tap {x} {y}")).await,
         Target::Simulator(s) => simctl::tap(&s.host, &s.udid, x, y).await,
+    }
+}
+
+/// A drag from one point to the other over `hold`. A long press is the same
+/// gesture with both ends in one place: what a device tells apart is how long a
+/// touch lasts, not how far it travelled.
+pub async fn swipe(t: &Target, from: (i32, i32), to: (i32, i32), hold: Duration) -> Result<()> {
+    let ms = hold.as_millis().max(1);
+    let ((x1, y1), (x2, y2)) = (from, to);
+
+    match t {
+        Target::Adb(a) => input(a, &format!("swipe {x1} {y1} {x2} {y2} {ms}")).await,
+        Target::Simulator(s) => simctl::swipe(&s.host, &s.udid, from, to, ms as u64).await,
+    }
+}
+
+/// Where a swipe in `direction` starts and ends. It runs through the middle of
+/// the panel, over `amount` of its length, and stays inside the margins: a drag
+/// begun at the very edge is a system gesture — back, notifications, app switch
+/// — and never reaches the app.
+pub fn along(size: Size, direction: Direction, amount: f64) -> ((i32, i32), (i32, i32)) {
+    let amount = amount.clamp(0.05, 0.8);
+    let (w, h) = (size.width, size.height);
+
+    let (span, mid) = match direction {
+        Direction::Up | Direction::Down => (h, w / 2.0),
+        Direction::Left | Direction::Right => (w, h / 2.0),
+    };
+
+    let travel = span * amount;
+    let (near, far) = ((span - travel) / 2.0, (span + travel) / 2.0);
+
+    let point = |along: f64| match direction {
+        Direction::Up | Direction::Down => (mid.round() as i32, along.round() as i32),
+        Direction::Left | Direction::Right => (along.round() as i32, mid.round() as i32),
+    };
+
+    // the finger moves the way it is named, so the content follows it
+    match direction {
+        Direction::Up | Direction::Left => (point(far), point(near)),
+        Direction::Down | Direction::Right => (point(near), point(far)),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl std::str::FromStr for Direction {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s.trim().to_lowercase().as_str() {
+            "up" => Ok(Direction::Up),
+            "down" => Ok(Direction::Down),
+            "left" => Ok(Direction::Left),
+            "right" => Ok(Direction::Right),
+            other => bail!("'{other}' is not a direction (up, down, left, right)"),
+        }
     }
 }
 
@@ -365,6 +522,96 @@ mod tests {
 
         assert_eq!(pick(&nodes, "@1").unwrap().desc, "Email");
         assert!(pick(&nodes, "@9").is_err());
+    }
+
+    const PANEL: Size = Size {
+        width: 1080.0,
+        height: 2400.0,
+        scale: 1.0,
+    };
+
+    #[test]
+    fn a_swipe_runs_through_the_middle_and_stops_short_of_the_edges() {
+        let (from, to) = along(PANEL, Direction::Up, 0.6);
+
+        assert_eq!(from, (540, 1920), "the finger starts low and travels up");
+        assert_eq!(to, (540, 480));
+        assert!(to.1 > 0, "an edge-to-edge drag is a system gesture");
+
+        let (from, to) = along(PANEL, Direction::Down, 0.6);
+        assert_eq!((from, to), ((540, 480), (540, 1920)));
+
+        let (from, to) = along(PANEL, Direction::Left, 0.5);
+        assert_eq!((from, to), ((810, 1200), (270, 1200)));
+    }
+
+    #[test]
+    fn an_absurd_amount_is_clamped_rather_than_refused() {
+        let (from, to) = along(PANEL, Direction::Up, 4.0);
+
+        assert!(from.1 <= 2400 && to.1 >= 0, "{from:?} to {to:?}");
+    }
+
+    /// A simulator reports bounds in points and screenshots at 3x, so a crop
+    /// taken from bounds unscaled lands in the top-left ninth of the frame.
+    #[test]
+    fn element_bounds_are_found_in_the_frame_through_the_scale() {
+        let ios = Size {
+            width: 440.0,
+            height: 956.0,
+            scale: 3.0,
+        };
+
+        let button = Bounds {
+            x1: 20,
+            y1: 100,
+            x2: 420,
+            y2: 148,
+        };
+
+        assert_eq!(
+            ios.in_pixels(button),
+            Bounds {
+                x1: 60,
+                y1: 300,
+                x2: 1260,
+                y2: 444
+            }
+        );
+        assert_eq!(PANEL.in_pixels(button), button, "android reports pixels");
+    }
+
+    #[test]
+    fn padding_an_element_stays_on_the_panel() {
+        let edge = Bounds {
+            x1: 0,
+            y1: 10,
+            x2: 1080,
+            y2: 90,
+        };
+
+        assert_eq!(
+            edge.padded(24, Some((1080, 2400))),
+            Bounds {
+                x1: 0,
+                y1: 0,
+                x2: 1080,
+                y2: 114
+            }
+        );
+    }
+
+    #[test]
+    fn presence_does_not_care_how_many_things_match() {
+        let nodes = parse(SAMPLE).unwrap();
+
+        assert!(present(&nodes, "i"), "ambiguous is still present");
+        assert!(!present(&nodes, "Log out"));
+
+        assert!(
+            !present(&nodes, "@2"),
+            "an index is a row number in one dump, not a name a later dump can answer to"
+        );
     }
 
     #[test]
