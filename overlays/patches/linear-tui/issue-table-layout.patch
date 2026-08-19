@@ -1,0 +1,603 @@
+diff --git a/internal/linearapi/client.go b/internal/linearapi/client.go
+index 0bf6e65..89a8bee 100644
+--- a/internal/linearapi/client.go
++++ b/internal/linearapi/client.go
+@@ -1299,6 +1299,14 @@ func (c *Client) searchIssuesPage(ctx context.Context, params FetchIssuesParams,
+ 						}
+ 					}
+ 				}
++				// Only the first attachment is asked for: the tables show
++				// whether an issue has any, and pulling the whole connection for
++				// every row of every page is not worth the query cost.
++				Attachments struct {
++					Nodes []struct {
++						ID graphql.String
++					}
++				} `graphql:"attachments(first: 1)"`
+ 			}
+ 			PageInfo struct {
+ 				HasNextPage graphql.Boolean
+@@ -1479,6 +1487,14 @@ func (c *Client) fetchIssuesWithFilterPage(ctx context.Context, params FetchIssu
+ 						}
+ 					}
+ 				}
++				// Only the first attachment is asked for: the tables show
++				// whether an issue has any, and pulling the whole connection for
++				// every row of every page is not worth the query cost.
++				Attachments struct {
++					Nodes []struct {
++						ID graphql.String
++					}
++				} `graphql:"attachments(first: 1)"`
+ 			}
+ 			PageInfo struct {
+ 				HasNextPage graphql.Boolean
+diff --git a/internal/tui/app.go b/internal/tui/app.go
+index 9b3f87c..a7286c4 100644
+--- a/internal/tui/app.go
++++ b/internal/tui/app.go
+@@ -884,11 +884,11 @@ func (a *App) buildLayout() {
+ 	a.detailsView = a.buildDetailsView()
+ 	a.statusBar = a.buildStatusBar()
+ 
+-	// Create horizontal split: navigation (20%) | issues (50%) | details (30%)
++	// Horizontal split: navigation 15%, issues 50%, details 35%.
+ 	contentFlex := tview.NewFlex().
+-		AddItem(a.navigationTree, 0, 2, true).
+-		AddItem(a.issuesColumn, 0, 5, false).
+-		AddItem(a.detailsView, 0, 3, false)
++		AddItem(a.navigationTree, 0, 3, true).
++		AddItem(a.issuesColumn, 0, 10, false).
++		AddItem(a.detailsView, 0, 7, false)
+ 
+ 	// Create vertical layout: content + status bar
+ 	a.mainLayout = tview.NewFlex().
+@@ -1721,9 +1721,9 @@ func (a *App) applyRichFiltersToParams(params *linearapi.FetchIssuesParams) {
+ func (a *App) updateIssuesColumnLayout() {
+ 	a.issuesColumn.Clear()
+ 
+-	// Add My Issues table if there are any
++	// Add My Issues table if there are any, with twice the room of the rest
+ 	if len(a.myIssueRows) > 0 {
+-		a.issuesColumn.AddItem(a.myIssuesTable, 0, 1, false)
++		a.issuesColumn.AddItem(a.myIssuesTable, 0, 2, false)
+ 	}
+ 
+ 	// Always add Other Issues table
+diff --git a/internal/tui/issues_table.go b/internal/tui/issues_table.go
+index b9ac0de..0128689 100644
+--- a/internal/tui/issues_table.go
++++ b/internal/tui/issues_table.go
+@@ -80,6 +80,47 @@ const (
+ 	IssuesSectionOther
+ )
+ 
++// Issue table columns. Cycle, due date, estimate and milestone live in the
++// details pane only: they are almost always empty and the room they took made
++// every title unreadable.
++const (
++	columnIdentifier = iota
++	columnState
++	columnPriority
++	columnAssignee
++	columnAttachments
++	columnTitle
++	columnCount
++)
++
++// setIssuesTableHeader writes the header row. Both the widget constructor and
++// every re-render go through it so the two can never drift apart.
++func setIssuesTableHeader(table *tview.Table, theme Theme) {
++	headerStyle := tcell.StyleDefault.
++		Foreground(theme.HeaderText).
++		Background(theme.HeaderBg).
++		Bold(true)
++
++	headers := []struct {
++		text      string
++		expansion int
++	}{
++		{" ID", 1},
++		{"State", 1},
++		{"Priority", 1},
++		{"Assignee", 2},
++		{Icons.Attachment, 0},
++		{"Title", 8},
++	}
++	for column, header := range headers {
++		table.SetCell(0, column, tview.NewTableCell(header.text).
++			SetStyle(headerStyle).
++			SetAlign(tview.AlignLeft).
++			SetSelectable(false).
++			SetExpansion(header.expansion))
++	}
++}
++
+ // buildIssuesTable creates and configures an issues table widget with the given title.
+ // The table will use the provided getIssue and getRow functions for lookups.
+ func (a *App) buildIssuesTable(title string, section IssuesSection) *tview.Table {
+@@ -97,57 +138,7 @@ func (a *App) buildIssuesTable(title string, section IssuesSection) *tview.Table
+ 		Background(a.theme.SelectionBg).
+ 		Bold(true))
+ 
+-	// Set column headers with better styling
+-	headerStyle := tcell.StyleDefault.
+-		Foreground(a.theme.HeaderText).
+-		Background(a.theme.HeaderBg).
+-		Bold(true)
+-
+-	table.SetCell(0, 0, tview.NewTableCell(" ID").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 1, tview.NewTableCell("State").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 2, tview.NewTableCell("Priority").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 3, tview.NewTableCell("Assignee").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(2))
+-	table.SetCell(0, 4, tview.NewTableCell("Cycle").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 5, tview.NewTableCell("Due").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 6, tview.NewTableCell("Est").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 7, tview.NewTableCell("Milestone").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(2))
+-	table.SetCell(0, 8, tview.NewTableCell("Title").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(6))
++	setIssuesTableHeader(table, a.theme)
+ 
+ 	// Set fixed column widths
+ 	table.SetFixed(1, 0)
+@@ -393,57 +384,7 @@ func (a *App) getRowForIssueInSection(issueID string, section IssuesSection) int
+ func renderIssuesTableModel(table *tview.Table, rows []IssueRow, idToIssue map[string]*linearapi.Issue, selectedIssueID string, theme Theme) {
+ 	table.Clear()
+ 
+-	// Set column headers with better styling
+-	headerStyle := tcell.StyleDefault.
+-		Foreground(theme.HeaderText).
+-		Background(theme.HeaderBg).
+-		Bold(true)
+-
+-	table.SetCell(0, 0, tview.NewTableCell(" ID").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 1, tview.NewTableCell("State").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 2, tview.NewTableCell("Priority").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 3, tview.NewTableCell("Assignee").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(2))
+-	table.SetCell(0, 4, tview.NewTableCell("Cycle").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 5, tview.NewTableCell("Due").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 6, tview.NewTableCell("Est").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(1))
+-	table.SetCell(0, 7, tview.NewTableCell("Milestone").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(2))
+-	table.SetCell(0, 8, tview.NewTableCell("Title").
+-		SetStyle(headerStyle).
+-		SetAlign(tview.AlignLeft).
+-		SetSelectable(false).
+-		SetExpansion(6))
++	setIssuesTableHeader(table, theme)
+ 
+ 	// Add issue rows using the hierarchical structure
+ 	for i, issueRow := range rows {
+@@ -470,7 +411,7 @@ func renderIssuesTableModel(table *tview.Table, rows []IssueRow, idToIssue map[s
+ 			}
+ 		}
+ 
+-		table.SetCell(row, 0, tview.NewTableCell(identifierPrefix+identifier).
++		table.SetCell(row, columnIdentifier, tview.NewTableCell(identifierPrefix+identifier).
+ 			SetTextColor(theme.SecondaryText).
+ 			SetAlign(tview.AlignLeft))
+ 
+@@ -500,13 +441,13 @@ func renderIssuesTableModel(table *tview.Table, rows []IssueRow, idToIssue map[s
+ 			state = state[:12]
+ 		}
+ 
+-		table.SetCell(row, 1, tview.NewTableCell(stateIcon+" "+state).
++		table.SetCell(row, columnState, tview.NewTableCell(stateIcon+" "+state).
+ 			SetTextColor(stateColor).
+ 			SetAlign(tview.AlignLeft))
+ 
+ 		// Priority
+ 		priorityText, priorityColor := formatPriority(issue.Priority, theme)
+-		table.SetCell(row, 2, tview.NewTableCell(priorityText).
++		table.SetCell(row, columnPriority, tview.NewTableCell(priorityText).
+ 			SetTextColor(priorityColor).
+ 			SetAlign(tview.AlignLeft))
+ 
+@@ -521,55 +462,17 @@ func renderIssuesTableModel(table *tview.Table, rows []IssueRow, idToIssue map[s
+ 			assignee = assignee[:15]
+ 		}
+ 
+-		table.SetCell(row, 3, tview.NewTableCell(assignee).
++		table.SetCell(row, columnAssignee, tview.NewTableCell(assignee).
+ 			SetTextColor(assigneeColor).
+ 			SetAlign(tview.AlignLeft))
+ 
+-		cycle := formatCycleName(issue.Cycle)
+-		cycleColor := theme.Foreground
+-		if cycle == "-" {
+-			cycleColor = theme.SecondaryText
+-		}
+-		if len(cycle) > 15 {
+-			cycle = cycle[:15]
+-		}
+-		table.SetCell(row, 4, tview.NewTableCell(cycle).
+-			SetTextColor(cycleColor).
+-			SetAlign(tview.AlignLeft))
+-
+-		dueDate := formatDueDate(issue.DueDate)
+-		dueColor := theme.Foreground
+-		if dueDate == "-" {
+-			dueColor = theme.SecondaryText
+-		}
+-		table.SetCell(row, 5, tview.NewTableCell(dueDate).
+-			SetTextColor(dueColor).
+-			SetAlign(tview.AlignLeft))
+-
+-		estimate := formatEstimate(issue.Estimate)
+-		estimateColor := theme.Foreground
+-		if estimate == "-" {
+-			estimateColor = theme.SecondaryText
+-		}
+-		table.SetCell(row, 6, tview.NewTableCell(estimate).
+-			SetTextColor(estimateColor).
+-			SetAlign(tview.AlignLeft))
+-
+-		milestone := formatMilestoneName(issue.ProjectMilestone)
+-		milestoneColor := theme.Foreground
+-		if milestone == "-" {
+-			milestoneColor = theme.SecondaryText
+-		}
+-		if len(milestone) > 18 {
+-			milestone = milestone[:18]
+-		}
+-		table.SetCell(row, 7, tview.NewTableCell(milestone).
+-			SetTextColor(milestoneColor).
+-			SetAlign(tview.AlignLeft))
++		table.SetCell(row, columnAttachments, tview.NewTableCell(attachmentMarker(issue)).
++			SetTextColor(theme.SecondaryText).
++			SetAlign(tview.AlignCenter))
+ 
+ 		// Title
+ 		title := issue.Title
+-		table.SetCell(row, 8, tview.NewTableCell(title).
++		table.SetCell(row, columnTitle, tview.NewTableCell(title).
+ 			SetTextColor(theme.Foreground).
+ 			SetAlign(tview.AlignLeft))
+ 	}
+@@ -589,26 +492,26 @@ func renderIssuesTableModel(table *tview.Table, rows []IssueRow, idToIssue map[s
+ 		table.Select(selectedRow, 0)
+ 	} else {
+ 		// Show empty state message
+-		table.SetCell(1, 0, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 1, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 2, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 3, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 4, tview.NewTableCell("No issues").
+-			SetTextColor(theme.SecondaryText).
+-			SetAlign(tview.AlignCenter).
+-			SetSelectable(false))
+-		table.SetCell(1, 5, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 6, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 7, tview.NewTableCell("").SetSelectable(false))
+-		table.SetCell(1, 8, tview.NewTableCell("").SetSelectable(false))
++		for column := range columnCount {
++			cell := tview.NewTableCell("").SetSelectable(false)
++			if column == columnTitle {
++				cell = tview.NewTableCell("No issues").
++					SetTextColor(theme.SecondaryText).
++					SetAlign(tview.AlignLeft).
++					SetSelectable(false)
++			}
++			table.SetCell(1, column, cell)
++		}
+ 	}
+ }
+ 
+-func formatCycleName(cycle *linearapi.CycleRef) string {
+-	if cycle == nil {
+-		return "-"
++// attachmentMarker reports whether an issue carries attachments. The list query
++// only asks for the first one, so this is a presence flag and not a count.
++func attachmentMarker(issue *linearapi.Issue) string {
++	if len(issue.Attachments) == 0 {
++		return ""
+ 	}
+-	return cycle.DisplayName()
++	return Icons.Attachment
+ }
+ 
+ func formatDueDate(dueDate *string) string {
+@@ -655,17 +558,5 @@ func renderIssueRow(issue linearapi.Issue) []string {
+ 		assignee = assignee[:10]
+ 	}
+ 
+-	cycle := formatCycleName(issue.Cycle)
+-	if len(cycle) > 10 {
+-		cycle = cycle[:10]
+-	}
+-
+-	dueDate := formatDueDate(issue.DueDate)
+-	estimate := formatEstimate(issue.Estimate)
+-	milestone := formatMilestoneName(issue.ProjectMilestone)
+-	if len(milestone) > 10 {
+-		milestone = milestone[:10]
+-	}
+-
+-	return []string{identifier, state, priorityText, assignee, cycle, dueDate, estimate, milestone, issue.Title}
++	return []string{identifier, state, priorityText, assignee, attachmentMarker(&issue), issue.Title}
+ }
+diff --git a/internal/tui/issues_table_test.go b/internal/tui/issues_table_test.go
+index 0699a56..830d765 100644
+--- a/internal/tui/issues_table_test.go
++++ b/internal/tui/issues_table_test.go
+@@ -4,33 +4,33 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"github.com/rivo/tview"
+ 	"github.com/roeyazroel/linear-tui/internal/linearapi"
+ )
+ 
+ func TestRenderIssueRow(t *testing.T) {
+ 	tests := []struct {
+-		name      string
+-		issue     linearapi.Issue
+-		wantLen   int
+-		wantID    string
+-		wantState string
+-		wantCycle string
++		name           string
++		issue          linearapi.Issue
++		wantID         string
++		wantState      string
++		wantAttachment string
+ 	}{
+ 		{
+ 			name: "normal issue",
+ 			issue: linearapi.Issue{
+-				ID:         "test-1",
+-				Identifier: "LIN-1",
+-				Title:      "Test Issue",
+-				State:      "Todo",
+-				Assignee:   "John Doe",
+-				Priority:   3, // Normal priority
+-				Cycle:      &linearapi.CycleRef{ID: "cycle-1", Name: "Launch", Number: 12},
++				ID:          "test-1",
++				Identifier:  "LIN-1",
++				Title:       "Test Issue",
++				State:       "Todo",
++				Assignee:    "John Doe",
++				Priority:    3, // Normal priority
++				Cycle:       &linearapi.CycleRef{ID: "cycle-1", Name: "Launch", Number: 12},
++				Attachments: []linearapi.Attachment{{ID: "attachment-1"}},
+ 			},
+-			wantLen:   9,
+-			wantID:    "LIN-1",
+-			wantState: "Todo",
+-			wantCycle: "Launch",
++			wantID:         "LIN-1",
++			wantState:      "Todo",
++			wantAttachment: Icons.Attachment,
+ 		},
+ 		{
+ 			name: "unassigned issue",
+@@ -42,10 +42,8 @@ func TestRenderIssueRow(t *testing.T) {
+ 				Assignee:   "",
+ 				Priority:   2, // High priority
+ 			},
+-			wantLen:   9,
+ 			wantID:    "LIN-2",
+ 			wantState: "In Progres", // truncated to 10 chars
+-			wantCycle: "-",
+ 		},
+ 		{
+ 			name: "long identifier truncated",
+@@ -58,31 +56,28 @@ func TestRenderIssueRow(t *testing.T) {
+ 				Priority:   1, // Urgent priority
+ 				Cycle:      &linearapi.CycleRef{ID: "cycle-13", Number: 13},
+ 			},
+-			wantLen:   9,
+ 			wantID:    "VERY-LONG-", // truncated to 10 chars
+ 			wantState: "Done",
+-			wantCycle: "Cycle 13",
+ 		},
+ 	}
+ 
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+ 			row := renderIssueRow(tt.issue)
+-			if len(row) != tt.wantLen {
+-				t.Errorf("renderIssueRow() length = %d, want %d", len(row), tt.wantLen)
++			if len(row) != columnCount {
++				t.Fatalf("renderIssueRow() length = %d, want %d", len(row), columnCount)
+ 			}
+-			if len(row) > 0 && row[0] != tt.wantID {
+-				t.Errorf("renderIssueRow()[0] = %q, want %q", row[0], tt.wantID)
++			if row[columnIdentifier] != tt.wantID {
++				t.Errorf("identifier column = %q, want %q", row[columnIdentifier], tt.wantID)
+ 			}
+-			if len(row) > 1 && row[1] != tt.wantState {
+-				t.Errorf("renderIssueRow()[1] = %q, want %q", row[1], tt.wantState)
++			if row[columnState] != tt.wantState {
++				t.Errorf("state column = %q, want %q", row[columnState], tt.wantState)
+ 			}
+-			// Column 2 is now Priority
+-			if len(row) > 3 && tt.issue.Assignee == "" && row[3] != "Unassigned" {
+-				t.Errorf("renderIssueRow()[3] = %q, want %q", row[3], "Unassigned")
++			if tt.issue.Assignee == "" && row[columnAssignee] != "Unassigned" {
++				t.Errorf("assignee column = %q, want %q", row[columnAssignee], "Unassigned")
+ 			}
+-			if len(row) > 4 && row[4] != tt.wantCycle {
+-				t.Errorf("renderIssueRow()[4] = %q, want %q", row[4], tt.wantCycle)
++			if row[columnAttachments] != tt.wantAttachment {
++				t.Errorf("attachments column = %q, want %q", row[columnAttachments], tt.wantAttachment)
+ 			}
+ 		})
+ 	}
+@@ -103,23 +98,36 @@ func TestRenderIssueRow_Truncation(t *testing.T) {
+ 	row := renderIssueRow(issue)
+ 
+ 	// Identifier should be truncated to 10 chars
+-	if len(row[0]) > 10 {
++	if len(row[columnIdentifier]) > 10 {
+ 		t.Errorf("Identifier length = %d, want <= 10", len(row[0]))
+ 	}
+ 
+ 	// State should be truncated to 10 chars
+-	if len(row[1]) > 10 {
++	if len(row[columnState]) > 10 {
+ 		t.Errorf("State length = %d, want <= 10", len(row[1]))
+ 	}
+ 
+-	// Priority is column 2 (no truncation needed for formatted priority)
+-	// Assignee should be truncated to 10 chars (now column 3)
+-	if len(row[3]) > 10 {
+-		t.Errorf("Assignee length = %d, want <= 10", len(row[3]))
++	// Priority needs no truncation once formatted
++	if len(row[columnAssignee]) > 10 {
++		t.Errorf("Assignee length = %d, want <= 10", len(row[columnAssignee]))
+ 	}
++}
++
++// TestSetIssuesTableHeaderCoversEveryColumn keeps the header helper and the
++// column constants from drifting apart: a header short of columnCount would
++// leave a rendered cell without a title above it.
++func TestSetIssuesTableHeaderCoversEveryColumn(t *testing.T) {
++	table := tview.NewTable()
++
++	setIssuesTableHeader(table, LinearTheme)
+ 
+-	// Cycle should be truncated to 10 chars (now column 4)
+-	if len(row[4]) > 10 {
+-		t.Errorf("Cycle length = %d, want <= 10", len(row[4]))
++	if got := table.GetColumnCount(); got != columnCount {
++		t.Fatalf("header columns = %d, want %d", got, columnCount)
++	}
++	if got := table.GetCell(0, columnAttachments).Text; got != Icons.Attachment {
++		t.Errorf("attachments header = %q, want %q", got, Icons.Attachment)
++	}
++	if got := table.GetCell(0, columnTitle).Text; got != "Title" {
++		t.Errorf("title header = %q, want Title", got)
+ 	}
+ }
+diff --git a/internal/tui/planning_collaboration_test.go b/internal/tui/planning_collaboration_test.go
+index 36b88c7..138eb0b 100644
+--- a/internal/tui/planning_collaboration_test.go
++++ b/internal/tui/planning_collaboration_test.go
+@@ -10,7 +10,10 @@ import (
+ 	"github.com/roeyazroel/linear-tui/internal/linearapi"
+ )
+ 
+-func TestRenderIssueRow_IncludesPlanningFields(t *testing.T) {
++// TestRenderIssueRow_KeepsPlanningFieldsOutOfTheTable pins the column trade:
++// planning metadata is reachable in the details pane, and the width it used to
++// take now belongs to the title.
++func TestRenderIssueRow_KeepsPlanningFieldsOutOfTheTable(t *testing.T) {
+ 	dueDate := "2026-06-15"
+ 	estimate := 5.0
+ 	issue := linearapi.Issue{
+@@ -30,20 +33,18 @@ func TestRenderIssueRow_IncludesPlanningFields(t *testing.T) {
+ 	}
+ 
+ 	row := renderIssueRow(issue)
+-	if len(row) != 9 {
+-		t.Fatalf("renderIssueRow() length = %d, want 9: %#v", len(row), row)
++	if len(row) != columnCount {
++		t.Fatalf("renderIssueRow() length = %d, want %d: %#v", len(row), columnCount, row)
+ 	}
+-	if row[5] != dueDate {
+-		t.Fatalf("due date column = %q, want %q", row[5], dueDate)
+-	}
+-	if row[6] != "5" {
+-		t.Fatalf("estimate column = %q, want 5", row[6])
+-	}
+-	if row[7] != "Beta" {
+-		t.Fatalf("milestone column = %q, want Beta", row[7])
++	for _, dropped := range []string{dueDate, "Beta", "Launch"} {
++		for _, column := range row {
++			if column == dropped {
++				t.Fatalf("row = %#v, want no %q column", row, dropped)
++			}
++		}
+ 	}
+-	if row[8] != issue.Title {
+-		t.Fatalf("title column = %q, want %q", row[8], issue.Title)
++	if row[columnTitle] != issue.Title {
++		t.Fatalf("title column = %q, want %q", row[columnTitle], issue.Title)
+ 	}
+ }
+ 
+diff --git a/internal/tui/theme.go b/internal/tui/theme.go
+index bb2cd42..1edd51b 100644
+--- a/internal/tui/theme.go
++++ b/internal/tui/theme.go
+@@ -152,6 +152,7 @@ var Icons = struct {
+ 	InProgress string
+ 	Done       string
+ 	Priority   string
++	Attachment string
+ }{
+ 	Team:       "📁 ",
+ 	Project:    "📄 ",
+@@ -160,4 +161,5 @@ var Icons = struct {
+ 	InProgress: "◐ ",
+ 	Done:       "✔ ", // or ●
+ 	Priority:   "⚡",
++	Attachment: "•",
+ }
