@@ -31,7 +31,7 @@ in {
         })
       (mkInlineSkill {
           "phone" = {
-            description = "Drive the Android handsets and emulators on this desk with the `phone` CLI — pick a device, screenshot it, list the elements on screen, tap by name or coordinate, type, send keys, and handle split screen focus and foldable displays. Use for any hands-on Android device automation from this host.";
+            description = "Drive the Android handsets and emulators and the iOS simulators on this desk with the `phone` CLI — boot a simulator or AVD from cold, pick a device, screenshot or crop it, list the elements on screen, tap, hold, swipe, type, send keys, wait for the screen to catch up, and run a whole sequence of those against one device. Use for any hands-on mobile device automation from this host.";
             tags = ["mobile"];
             content = builtins.readFile ./skills/phone.md;
           };

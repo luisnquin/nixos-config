@@ -4,11 +4,16 @@ Drive the Android handsets and emulators and the iOS simulators on this desk
 with the `phone` CLI: pick a device, see what is on its screen, press it, type
 into it.
 
-`phone` reaches Android over adb, directly or through an ssh host that has its
+`phone` reaches Android over adb, directly or through an ssh host running its
 own adb server. A simulator has no such transport — CoreSimulator only runs on
 the Mac that owns it — so those verbs run as a `phone` on that host and come
-back over ssh. Either way the commands below are the same. iPhones appear in
-`phone devices` but can only be screenshotted and tailed, not read or pressed.
+back over ssh. Either way the commands below are the same. A physical iPhone
+shows up in `phone devices` but can only be screenshotted and tailed, not read
+or pressed.
+
+**Every verb documents itself: `phone help <verb>` carries its flags, worked
+examples and what it is for.** This file covers only what the CLI cannot tell
+you about the devices themselves.
 
 ## Pick a device
 
@@ -18,52 +23,52 @@ phone use faraday          # the default for every later command
 phone connect faraday      # bring the transport up if it is not attached
 ```
 
-Every command also takes `--target <name>` for a one-off. A device shown as
-`known` or `offline` needs `connect` first; `attached` is ready.
+`-t <name>` targets one command without changing the default, and `PHONE_TARGET`
+does the same for a whole shell.
 
-## See the screen
+The state column says what to do next:
 
-Two ways, and they answer different questions.
+| state | meaning | next step |
+| --- | --- | --- |
+| `attached`, `online` | ready to drive | nothing |
+| `off` | defined on its host, not running | `phone boot` |
+| `known` | remembered, not visible anywhere right now | `phone connect` |
+| `offline` | last seen at an address that no longer answers | `phone connect` |
+| `unauthorized` | plugged in, waiting on the dialog | accept it on the device |
+
+## The loop
+
+A screen cannot be acted on until it has been read: `snapshot` to get names,
+press one of those names, `wait` for the result, read again. Never `sleep` — a
+screenshot taken right after a tap returns the frame that was already up, and
+`wait` returns the moment the answer is yes.
+
+Every invocation surveys the hosts first, which costs seconds whatever the verb
+is. When the steps are known in advance put them in one `do`, which pays that
+once:
 
 ```
-phone shot                 # PNG to the clipboard
-phone shot -o /tmp/s.png   # or to a file
-phone snapshot             # the elements that can be named, one per line
-phone snapshot --json
+phone do "tap 'Log in'" "wait Inbox" "shot --crop @2"
 ```
 
-`snapshot` gives text, descriptions and `@index` handles that `tap` accepts. It
-is empty on anything drawn rather than laid out — a game, a canvas, a video —
-and there `shot` plus a coordinate is the only way through.
+`snapshot` is text and usually answers the question; a full screenshot costs
+roughly 1500 tokens to read, so `shot --crop <element>` when only one control
+matters.
 
-Do not call `adb exec-out screencap -p` by hand on a foldable. With both panels
-powered it writes `[Warning] Multiple displays were found...` into stdout, ahead
-of the PNG, and the file is not an image. `phone shot` passes the display id and
-is unaffected.
+## Coordinate spaces
 
-## Press and type
-
-```
-phone tap "Log in"         # by text, description or resource id
-phone tap @62              # by the index snapshot printed
-phone tap 540,1200         # by coordinate
-phone type "rust lang"
-phone key enter            # back, home, tab, volume_up, app_switch...
-```
-
-`tap` refuses an ambiguous name and lists the candidates as `@index` rather than
-guessing. `type` carries printable ASCII only and refuses the rest outright,
-because the device drops what it cannot spell and still reports success.
-
-A simulator has no `back` button, so `phone key back` is refused there and the
-keys it does take are listed in the error. Everything else in this section reads
-the same on either platform.
+Android reports element bounds, taps and screenshots all in pixels. A simulator
+reports bounds and taps in **points** while screenshotting at 2x or 3x, so a
+coordinate read off an iOS screenshot is not a coordinate that can be tapped.
+`phone` converts internally — `--crop @N` is right on both — but a coordinate
+worked out by eye from an image has to be divided by the `scale` that
+`phone size` reports.
 
 ## Focus, and why a snapshot can describe the wrong app
 
 `uiautomator` and every keyevent go to the window holding focus. In split screen
 that is whichever half was touched last, so a snapshot taken while someone uses
-the other half describes that app, and `phone key back` lands in it.
+the other half describes *that* app, and `phone key back` lands in it.
 
 `--focus X,Y` presses a point first, in the same device-side shell as the command
 that follows, so nothing interleaves:
@@ -73,15 +78,15 @@ phone --focus 297,1971 snapshot
 ```
 
 It still loses to someone actively tapping the other half. A coordinate tap is
-routed by position rather than focus, so `phone shot` to look and `phone tap X,Y`
-to act works when nothing else does.
+routed by position rather than by focus, so `phone shot` to look and
+`phone tap X,Y` to act works when nothing else does.
 
 ## Foldables
 
 Two panels, and Android keeps two unrelated id namespaces for them: a 64-bit
 SurfaceFlinger id that `screencap` takes, and a small logical id that `input`
-takes. `phone` reads both from `dumpsys display` and follows the live one, so
-folding and unfolding mid-session needs no flag.
+takes. `phone` reads both out of `dumpsys display` and follows whichever is
+live, so folding and unfolding mid-session needs no flag.
 
 To fold from the CLI, for a test:
 
@@ -93,9 +98,16 @@ adb shell cmd device_state state reset # hand it back to the hinge sensor
 
 Always `reset` afterwards, or the sensor stays overridden.
 
+## Not covered yet
+
+No screen recording, no app lifecycle (`launch`, `stop`, `open <url>`), no port
+forwarding, and no creating an AVD or a simulator that does not exist yet —
+`boot` only starts one that is already defined. Those still mean
+`adb`/`simctl`/`avdmanager` over ssh by hand.
+
 ## Acting blind
 
-A coordinate tap on a screen you have not looked at will hit whatever is there,
+A coordinate tap on a screen nobody has looked at will hit whatever is there,
 and app state changes are not undone by a second tap. Shoot, read the image,
 then tap. If a press turns out to have opened or toggled something, say so and
 put it back.
