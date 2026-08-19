@@ -9,6 +9,7 @@ use clap::{Parser, Subcommand, ValueEnum};
     name = "phone",
     about = "drive the handsets, emulators and iPhone on this desk",
     long_about = "Run without a command to open the device browser.",
+    after_help = OVERVIEW,
     version
 )]
 pub struct Cli {
@@ -26,6 +27,49 @@ pub struct Cli {
     pub focus: Option<(i32, i32)>,
 }
 
+/// Shown under `--help`. An agent that arrives here with no other
+/// documentation has to be able to get from it to a working command, so it
+/// describes the loop the verbs are meant to be used in rather than listing
+/// them again.
+const OVERVIEW: &str = r#"How this is meant to be used
+
+  A screen cannot be acted on until it has been read, so the loop is: pick a
+  device, read what is on it, press something by the name you just read, wait
+  for the result, read again.
+
+    phone devices            # what exists; `boot` anything listed as `off`
+    phone use pixel_7-api36  # the default for every later command, set once
+    phone snapshot           # read: every element on screen, by name
+    phone tap "Log in"       # act: by a name that came from the snapshot
+    phone wait Dashboard     # let the screen catch up before reading again
+    phone shot --crop @2     # look, for anything text cannot describe
+
+  Steps known in advance belong in one `do`, which runs them against one device:
+
+    phone do "tap 'Log in'" "wait Dashboard" "shot --crop @2"
+
+Two things worth knowing before scripting it
+
+  Every invocation surveys the hosts before it acts, which costs around eight
+  seconds whatever the verb is. `do` pays that once for a whole sequence, so a
+  loop of separate calls is mostly waiting.
+
+  Reading the screen costs tokens: a full frame is roughly 1500, while a
+  --crop of one control, or --scale 0.3 --jpeg 60 of the whole thing, is a
+  fraction of that. `snapshot` is text and usually answers the question anyway.
+
+Naming things
+
+  -t <name> targets one command and PHONE_TARGET a whole shell; both beat the
+  default set by `use`. A name matches on text, model, host or alias, and an
+  ambiguous one is refused with the candidates listed rather than guessed at.
+
+  @index numbers the rows of one snapshot only. Two commands are two dumps and
+  the screen may have moved between them, so name elements by their text unless
+  the index came from the command immediately before.
+
+Every verb carries its own examples: phone help <verb>."#;
+
 /// How far a directional swipe travels when nothing says otherwise. Named so
 /// that dispatch can tell "the default" from a figure the caller chose.
 pub const DEFAULT_AMOUNT: f64 = 0.6;
@@ -33,6 +77,13 @@ pub const DEFAULT_AMOUNT: f64 = 0.6;
 #[derive(Subcommand)]
 pub enum Command {
     /// List every reachable and remembered device
+    #[command(after_help = r#"Examples:
+  phone devices
+  phone devices --json
+
+The state column says what to do next: `attached` and `online` are ready to
+drive, `off` exists but is not running and takes `boot`, `known` and `offline`
+take `connect`."#)]
     Devices {
         /// Emit JSON instead of a table
         #[arg(long)]
@@ -40,6 +91,13 @@ pub enum Command {
     },
 
     /// Bring up a transport to a device, trying history before discovery
+    #[command(after_help = r#"Examples:
+  phone connect             # the most recent device
+  phone connect faraday
+  phone connect --no-sweep  # skip the port sweep when an address is remembered
+
+Brings up a transport to a device that is already running. To start one that is
+not, see `phone boot`."#)]
     Connect {
         #[arg(id = "device")]
         target: Option<String>,
@@ -58,6 +116,12 @@ pub enum Command {
     },
 
     /// Drop a wireless transport
+    #[command(after_help = r#"Examples:
+  phone disconnect        # the device in use
+  phone disconnect --all  # every wireless transport at once
+
+Only drops the transport. The device keeps running, and `connect` brings it
+back without a new pairing."#)]
     Disconnect {
         #[arg(id = "device")]
         target: Option<String>,
@@ -68,6 +132,13 @@ pub enum Command {
     },
 
     /// Pair with a device that is in wireless-debugging pairing mode
+    #[command(after_help = r#"Examples:
+  phone pair 314159                        # address found over mDNS
+  phone pair 314159 --addr 192.168.1.40:37021
+
+Needed once per handset, from Developer options > Wireless debugging > Pair
+device with pairing code. The code and the port are both shown in that dialog
+and both expire when it closes. Emulators and simulators never need this."#)]
     Pair {
         /// Six digit code from the pairing dialog
         code: String,
@@ -78,6 +149,13 @@ pub enum Command {
     },
 
     /// Restart adbd on a fixed port so later reconnects skip discovery
+    #[command(after_help = r#"Examples:
+  phone pin              # port 5555 on the device in use
+  phone pin --port 5678
+
+A paired handset picks a fresh port every time it reconnects, which is what
+makes `connect` sweep for it. Pinning one costs a few seconds now and saves that
+sweep on every later connect. Does not survive a reboot of the device."#)]
     Pin {
         #[arg(id = "device")]
         target: Option<String>,
@@ -87,18 +165,42 @@ pub enum Command {
     },
 
     /// Set the device other commands target by default
+    #[command(after_help = r#"Examples:
+  phone use pixel_7-api36  # every later command targets it
+  phone use                # settle on the default already in force
+
+Set once at the start of a session rather than passing -t to every command. A
+-t or PHONE_TARGET on a single command still wins over it."#)]
     Use {
         #[arg(id = "device")]
         target: Option<String>,
     },
 
     /// Drop a device from the registry
+    #[command(after_help = r#"Examples:
+  phone forget galaxy-s26-plus
+
+Removes what was remembered about it: its address, its alias, its pairing. It
+reappears the next time it is discovered, so this is for a device that is gone
+for good or one whose remembered address is wrong."#)]
     Forget {
         #[arg(id = "device")]
         target: String,
     },
 
     /// Screenshot to the clipboard
+    #[command(after_help = r#"Examples:
+  phone shot                         # PNG to the clipboard
+  phone shot -o /tmp/s.png           # to a file; "-" writes the image to stdout
+  phone shot --crop "Log in"         # just that control, padded
+  phone shot --crop @12 --pad 40     # the element snapshot numbered 12
+  phone shot --crop 0,2000,1080,300  # an explicit X,Y,W,H rectangle
+  phone shot --scale 0.3 --jpeg 60   # the whole screen for a fraction of the bytes
+  phone shot --settle                # let the screen stop changing first
+
+A full frame costs roughly 1500 tokens to read, and most looks are aimed at one
+control. Crop it, or scale it down, or use `snapshot` instead when the answer is
+text."#)]
     Shot {
         #[arg(id = "device")]
         target: Option<String>,
@@ -129,6 +231,14 @@ pub enum Command {
     },
 
     /// The panel, in the space taps and element bounds use
+    #[command(after_help = r#"Examples:
+  phone size  # on Android -> 1080x2400 pixels
+  phone size  # on a simulator -> 402x874 points (1206x2622 pixels, scale 3)
+  phone size --json
+
+Android works in pixels throughout. A simulator reports bounds and takes taps in
+points while screenshotting at 2x or 3x, so a coordinate measured by eye off an
+iOS screenshot has to be divided by `scale` before it can be tapped."#)]
     Size {
         #[arg(id = "device")]
         target: Option<String>,
@@ -139,24 +249,57 @@ pub enum Command {
     },
 
     /// Stream logs for a package name or bundle id
+    #[command(after_help = r#"Examples:
+  phone logs com.example.app
+  phone logs -t faraday com.example.app
+
+A package name on Android, a bundle id on a simulator or an iPhone."#)]
     Logs { app: String },
 
     /// scrcpy mirror
+    #[command(after_help = r#"Examples:
+  phone mirror
+
+Opens a scrcpy window on this machine, so it needs a display and is for a person
+watching rather than for a script. To see a screen without one, use `snapshot`
+or `shot`."#)]
     Mirror {
         #[arg(id = "device")]
         target: Option<String>,
     },
 
     /// Install an apk, or a .app bundle on a simulator
+    #[command(after_help = r#"Examples:
+  phone install ./app/build/outputs/apk/debug/app-debug.apk
+  phone install -t "iPhone 17 Pro" ./build/Debug-iphonesimulator/App.app
+
+An .apk goes to a handset or an emulator, a .app bundle to a simulator. The file
+is read here and sent to whichever host holds the device, so a path on this
+machine is what it wants. Launching what was installed is not covered yet."#)]
     Install { apk: PathBuf },
 
     /// Choose which ssh hosts to survey for devices
+    #[command(after_help = r#"Examples:
+  phone hosts              # what each host was found to offer
+  phone hosts enable rose  # probe it, and survey it from then on
+  phone hosts disable rose
+
+Only enabled hosts are surveyed, so each one adds to what every command costs.
+Enabling a host again re-probes what it can drive."#)]
     Hosts {
         #[command(subcommand)]
         action: Option<HostAction>,
     },
 
     /// List what is on screen, as elements that can be named
+    #[command(after_help = r#"Examples:
+  phone snapshot
+  phone snapshot --json
+  phone --focus 297,1971 snapshot  # pull focus first, in split screen
+
+The cheapest way to see a screen, and the one that gives names to press. Empty
+on anything drawn rather than laid out — a game, a canvas, a video — and there
+`shot` plus a coordinate is the only way through."#)]
     Snapshot {
         #[arg(id = "device")]
         target: Option<String>,
@@ -167,9 +310,24 @@ pub enum Command {
     },
 
     /// Press an element, named by its text, description, @index or X,Y
+    #[command(after_help = r#"Examples:
+  phone tap "Log in"  # by text, content description or resource id
+  phone tap @62       # by the index `snapshot` printed
+  phone tap 540,1200  # by coordinate, where there are no elements to name
+
+An ambiguous name is refused with the candidates listed as @index rather than
+guessed at. Those indices number the rows of one dump, so name an element by its
+text unless the index came from the command immediately before."#)]
     Tap { what: String },
 
     /// Hold an element down, named as `tap` names one
+    #[command(after_help = r#"Examples:
+  phone press Settings  # held for 800ms
+  phone press @12 --hold 2s
+  phone press 540,1200 --hold 1s
+
+A hold is what opens a context menu, starts an icon rearrange or selects text. A
+tap on the same element does something else entirely."#)]
     Press {
         what: String,
 
@@ -179,6 +337,16 @@ pub enum Command {
     },
 
     /// Drag between two points, or scroll the screen a direction
+    #[command(after_help = r#"Examples:
+  phone swipe up                     # scrolls a list down: the content follows the finger
+  phone swipe down --amount 0.3      # across less of the panel
+  phone swipe left --duration 800ms  # slow enough to drag rather than fling
+  phone swipe 540,1800 540,700       # between two points
+  phone swipe Photos Trash           # or between two elements
+
+--amount is a fraction of the panel and belongs to a directional swipe only. A
+directional swipe stays clear of the edges, because a drag begun at the very
+edge is a system gesture and never reaches the app."#)]
     Swipe {
         /// X,Y, an element, or a direction (up, down, left, right)
         from: String,
@@ -196,6 +364,13 @@ pub enum Command {
     },
 
     /// Block until an element appears, or stop waiting and fail
+    #[command(after_help = r#"Examples:
+  phone wait Dashboard
+  phone wait --gone "Loading..." --timeout 10s
+
+Exits 0 the moment the answer is yes and non-zero if it never is, which is both
+quicker and more honest than a sleep: a screenshot taken straight after a tap
+returns the frame that was already up. Takes a name, not an @index."#)]
     Wait {
         what: String,
 
@@ -208,12 +383,41 @@ pub enum Command {
     },
 
     /// Type into whatever holds focus
+    #[command(after_help = r#"Examples:
+  phone tap "Search"
+  phone type "rust lang"
+  phone key enter
+
+Goes to whatever holds focus, so tap the field first. Printable ASCII only, and
+anything else is refused outright: the device drops what it cannot spell and
+still reports success."#)]
     Type { text: String },
 
     /// Send a key, by keycode name (back, home, enter, tab…)
+    #[command(after_help = r#"Examples:
+  phone key enter
+  phone key home
+  phone key app_switch
+  phone key back  # on Android this navigates, and can leave a form losing it
+
+A simulator has no back button; when a key is refused the ones it does take are
+listed."#)]
     Key { name: String },
 
     /// Run several screen verbs against one device, surveying once
+    #[command(after_help = r#"Examples:
+  phone do "tap 'Log in'" "wait Inbox" "shot --crop @2"
+  phone do -t pixel_7-api36 "swipe up --amount 0.5" "wait Calendar" "snapshot"
+
+Every invocation of `phone` surveys the hosts before it acts, which costs around
+eight seconds whatever the verb is. `do` pays that once and runs each step
+against the same device, so three steps cost eight seconds rather than
+twenty-four.
+
+Each step is a whole command, quoted, and takes the flags it takes on its own.
+Steps run in order and stop at the first failure, which is reported with its
+number. Only verbs that read or press a screen can be sequenced, and -t/--focus
+belong on `do` rather than on a step."#)]
     Do {
         /// Each a whole command, quoted: `phone do "tap Login" "wait Inbox"`
         #[arg(required = true)]
@@ -221,6 +425,19 @@ pub enum Command {
     },
 
     /// Start a simulator or emulator and wait until it can be driven
+    #[command(after_help = r#"Examples:
+  phone boot "iPhone 17 Pro"  # a simulator, on whichever host has it
+  phone boot medium_phone     # an AVD, here or on a host
+  phone boot --timeout 5m nyx-remote-android
+
+Returns only once the device can actually be driven, not when the process
+starts: a simulator answers immediately and an emulator shows its window well
+before its system is up, and a tap sent at either moment is lost. Booting one
+that is already running says so and exits 0, so it is safe in front of a script.
+
+`phone devices` lists what can be booted as `off`. Expect 20-30s. This starts
+something already defined; creating an AVD or a simulator is still `avdmanager`
+or `simctl create`."#)]
     Boot {
         #[arg(id = "device")]
         target: Option<String>,
@@ -231,12 +448,24 @@ pub enum Command {
     },
 
     /// Stop a running simulator or emulator
+    #[command(after_help = r#"Examples:
+  phone shutdown medium_phone
+  phone shutdown "iPhone 17 Pro"
+
+Stopping one that is not running is a no-op. Handsets cannot be stopped."#)]
     Shutdown {
         #[arg(id = "device")]
         target: Option<String>,
     },
 
     /// Check the tools and daemons this depends on
+    #[command(after_help = r#"Examples:
+  phone doctor
+
+Reports what is missing rather than what is wrong with a device: adb, the
+clipboard, the ssh hosts that answer and what each one still offers. Run it when
+a command fails in a way that looks like a tool is absent, not when a device
+will not respond."#)]
     Doctor,
 
     /// Print a shell completion script
@@ -360,6 +589,61 @@ fn parse_range(s: &str) -> Result<RangeInclusive<u16>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every invocation printed under `--help`, from the overview and from each
+    /// verb alike. A line is a command up to its `#`, which is what lets the
+    /// examples be checked rather than merely written.
+    fn documented_invocations() -> Vec<String> {
+        use clap::CommandFactory;
+
+        fn collect(cmd: &clap::Command, out: &mut Vec<String>) {
+            if let Some(help) = cmd.get_after_help() {
+                for line in help.to_string().lines() {
+                    let line = line.trim();
+
+                    if let Some(rest) = line.strip_prefix("phone ") {
+                        let command = rest.split(" #").next().unwrap_or(rest);
+
+                        out.push(command.trim().to_string());
+                    }
+                }
+            }
+
+            for sub in cmd.get_subcommands() {
+                collect(sub, out);
+            }
+        }
+
+        let mut out = Vec::new();
+        collect(&Cli::command(), &mut out);
+
+        out
+    }
+
+    /// Help that does not parse is worse than no help: an agent reads it, runs
+    /// it verbatim and gets a usage error back from the tool that suggested it.
+    #[test]
+    fn every_example_in_the_help_runs() {
+        let examples = documented_invocations();
+
+        assert!(
+            examples.len() > 65,
+            "expected the help to carry examples, found {}",
+            examples.len()
+        );
+
+        for example in examples {
+            let words = shell_words::split(&example)
+                .unwrap_or_else(|e| panic!("`phone {example}` is not a command line: {e}"));
+
+            if let Err(e) = Cli::try_parse_from(std::iter::once("phone".to_string()).chain(words)) {
+                panic!(
+                    "`phone {example}` is in --help but does not parse:\n{}",
+                    e.to_string().lines().next().unwrap_or_default()
+                );
+            }
+        }
+    }
 
     /// A subcommand that names an argument the same as a global one silently
     /// takes it over, and the global stops reaching that subcommand at all.
