@@ -416,12 +416,8 @@ async fn resolve_attached(
 
     // `adb devices -l` reports an emulator's system image as its model, the same
     // for all of them; the AVD name is what was typed to start this one
-    if platform == Platform::Emulator {
-        let name = adb::avd_name(server, &dev.serial).await;
-
-        if !name.is_empty() {
-            device.label = name;
-        }
+    if platform == Platform::Emulator && !ident.avd.is_empty() {
+        device.label = ident.avd.clone();
     }
 
     if device.label.is_empty() {

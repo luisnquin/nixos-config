@@ -5,6 +5,7 @@ use anyhow::{anyhow, bail, Result};
 use tokio::process::Command;
 
 use crate::model::Platform;
+use crate::ssh;
 
 /// Which adb server a command talks to. Servers never speak to each other, but
 /// the client picks its server per invocation, so one forward per host and a
@@ -85,6 +86,8 @@ pub struct Identity {
     pub serialno: String,
     pub android_id: String,
     pub model: String,
+    /// The name the emulator was started under. Empty on anything else.
+    pub avd: String,
 }
 
 /// What an emulator answers `ro.serialno` with. It is minted from the system
@@ -93,6 +96,40 @@ pub struct Identity {
 pub const EMULATOR_BUILD_SERIAL: &str = "EMULATOR";
 
 impl Identity {
+    fn parse(out: &str) -> Self {
+        let mut ident = Identity::default();
+        let mut boot_serialno = String::new();
+        let mut avd_kernel = String::new();
+
+        for line in out.lines() {
+            let Some((key, value)) = line.trim().split_once('=') else {
+                continue;
+            };
+
+            let value = value.trim().to_string();
+
+            match key {
+                "serialno" => ident.serialno = value,
+                "boot_serialno" => boot_serialno = value,
+                "model" => ident.model = value,
+                "avd" => ident.avd = value,
+                "avd_kernel" => avd_kernel = value,
+                "android_id" if value != "null" => ident.android_id = value,
+                _ => {}
+            }
+        }
+
+        if ident.serialno.is_empty() {
+            ident.serialno = boot_serialno;
+        }
+
+        if ident.avd.is_empty() {
+            ident.avd = avd_kernel;
+        }
+
+        ident
+    }
+
     pub fn is_emulator(&self) -> bool {
         self.serialno.starts_with(EMULATOR_BUILD_SERIAL)
     }
@@ -168,8 +205,40 @@ pub async fn run_bytes(server: &Server, args: &[&str]) -> Result<(bool, Vec<u8>)
     Ok((out.status.success(), out.stdout))
 }
 
+/// `adb` lives inside the SDK rather than in any system path, and a
+/// non-interactive ssh reads no login profile, so the login shell is asked for
+/// its own PATH the way host probing is.
+const REMOTE_ADB: &str = r#"PATH="$($SHELL -l -c 'printf %s "$PATH"' 2>/dev/null):$PATH"
+exec adb "$@""#;
+
+/// A read that only asks a host what it already knows, run on the host itself
+/// rather than through its forwarded adb server.
+///
+/// adb's protocol takes several round trips per command, and each of those
+/// crosses the link to the host; one ssh session crosses it once. Against a
+/// host a few hundred milliseconds away that is the difference between a survey
+/// that takes seconds and one that does not. Only reads go this way: `install`
+/// sends a file that exists on this machine, and a screenshot comes back as
+/// bytes, so both still want the forward.
+async fn read(server: &Server, args: &[&str], limit: Duration) -> Result<Output> {
+    let Server::Remote { host, .. } = server else {
+        return run_timeout(server, args, limit).await;
+    };
+
+    let out = tokio::time::timeout(limit, ssh::script(host, REMOTE_ADB, args).output())
+        .await
+        .map_err(|_| anyhow!("adb {} timed out on {host}", args.join(" ")))?
+        .map_err(|e| anyhow!("running adb on {host}: {e}"))?;
+
+    Ok(Output {
+        status: out.status,
+        stdout: String::from_utf8_lossy(&out.stdout).replace('\r', ""),
+        stderr: String::from_utf8_lossy(&out.stderr).replace('\r', ""),
+    })
+}
+
 pub async fn devices(server: &Server) -> Result<Vec<Attached>> {
-    let out = run_timeout(server, &["devices", "-l"], Duration::from_secs(10)).await?;
+    let out = read(server, &["devices", "-l"], Duration::from_secs(15)).await?;
 
     if !out.ok() {
         bail!("adb devices failed: {}", out.stderr.trim());
@@ -214,68 +283,35 @@ pub fn parse_devices(text: &str) -> Vec<Attached> {
     out
 }
 
-pub async fn getprop(server: &Server, serial: &str, prop: &str) -> String {
-    match run_timeout(
+/// Everything that names a device, asked for in one device-side shell. Each
+/// `adb shell` is a round trip, and against a host reached over the network
+/// that costs far more than the properties themselves, so a survey that asked
+/// for them one at a time spent seconds waiting rather than reading.
+///
+/// `ro.kernel.qemu.avd_name` is the older spelling of the AVD name, and
+/// `settings get` answers the literal `null` when the row is unset.
+const IDENTITY: &str = concat!(
+    r#"echo "serialno=$(getprop ro.serialno)";"#,
+    r#"echo "boot_serialno=$(getprop ro.boot.serialno)";"#,
+    r#"echo "model=$(getprop ro.product.model)";"#,
+    r#"echo "avd=$(getprop ro.boot.qemu.avd_name)";"#,
+    r#"echo "avd_kernel=$(getprop ro.kernel.qemu.avd_name)";"#,
+    r#"echo "android_id=$(settings get secure android_id)""#,
+);
+
+pub async fn identity(server: &Server, serial: &str) -> Identity {
+    let out = match read(
         server,
-        &["-s", serial, "shell", "getprop", prop],
-        Duration::from_secs(5),
+        &["-s", serial, "shell", IDENTITY],
+        Duration::from_secs(15),
     )
     .await
     {
-        Ok(o) if o.ok() => o.trimmed().to_string(),
-        _ => String::new(),
-    }
-}
+        Ok(o) if o.ok() => o.stdout,
+        _ => return Identity::default(),
+    };
 
-pub async fn identity(server: &Server, serial: &str) -> Identity {
-    let (serialno, boot_serialno, android_id, model) = tokio::join!(
-        getprop(server, serial, "ro.serialno"),
-        getprop(server, serial, "ro.boot.serialno"),
-        async {
-            match run_timeout(
-                server,
-                &[
-                    "-s",
-                    serial,
-                    "shell",
-                    "settings",
-                    "get",
-                    "secure",
-                    "android_id",
-                ],
-                Duration::from_secs(5),
-            )
-            .await
-            {
-                Ok(o) if o.ok() && o.trimmed() != "null" => o.trimmed().to_string(),
-                _ => String::new(),
-            }
-        },
-        getprop(server, serial, "ro.product.model"),
-    );
-
-    Identity {
-        serialno: if serialno.is_empty() {
-            boot_serialno
-        } else {
-            serialno
-        },
-        android_id,
-        model,
-    }
-}
-
-/// AVD name. `adb devices -l` reports the system image as `model`, identical
-/// across every emulator. Read as a property because `adb emu` is resolved
-/// client-side and would dial this machine's loopback.
-pub async fn avd_name(server: &Server, serial: &str) -> String {
-    let name = getprop(server, serial, "ro.boot.qemu.avd_name").await;
-
-    if !name.is_empty() {
-        return name;
-    }
-
-    getprop(server, serial, "ro.kernel.qemu.avd_name").await
+    Identity::parse(&out)
 }
 
 pub async fn connect(server: &Server, addr: &str) -> Result<()> {
@@ -468,17 +504,54 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
         );
     }
 
+    /// The one shell answers for every device, so a handset leaves the emulator
+    /// keys blank and an older emulator answers under the kernel spelling.
+    #[test]
+    fn one_shell_answers_for_every_kind_of_device() {
+        let emu = Identity::parse(
+            "serialno=EMULATOR36X6X11X0\r\nboot_serialno=EMULATOR36X6X11X0\r\n\
+             model=sdk_gphone64_arm64\r\navd=\r\navd_kernel=pixel_7-api36\r\n\
+             android_id=6a2c0a1c04bc476d\r\n",
+        );
+
+        assert_eq!(emu.serialno, "EMULATOR36X6X11X0");
+        assert_eq!(
+            emu.avd, "pixel_7-api36",
+            "falls back to the kernel spelling"
+        );
+        assert_eq!(emu.android_id, "6a2c0a1c04bc476d");
+        assert!(emu.is_emulator());
+
+        let handset = Identity::parse(
+            "serialno=\nboot_serialno=58281FDCG001K5\nmodel=Pixel 10 Pro Fold\n\
+             avd=\navd_kernel=\nandroid_id=null\n",
+        );
+
+        assert_eq!(
+            handset.serialno, "58281FDCG001K5",
+            "a vendor that hides ro.serialno still boots with one"
+        );
+        assert_eq!(handset.model, "Pixel 10 Pro Fold");
+        assert!(handset.avd.is_empty());
+        assert!(
+            handset.android_id.is_empty(),
+            "an unset settings row reads as the literal null"
+        );
+    }
+
     #[test]
     fn an_emulator_is_keyed_by_the_only_id_that_varies_per_instance() {
         let emu = Identity {
             serialno: "EMULATOR36X6X11X0".into(),
             android_id: "29a1ed706918672b".into(),
             model: "sdk gphone64 arm64".into(),
+            ..Default::default()
         };
         let handset = Identity {
             serialno: "58281FDCG001K5".into(),
             android_id: "28aeb91fdbf85825".into(),
             model: "Pixel 10 Pro Fold".into(),
+            ..Default::default()
         };
 
         assert_eq!(
