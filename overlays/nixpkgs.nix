@@ -92,6 +92,7 @@
         ++ [
           ./patches/lazygit/hide-personal-authors.patch
           ./patches/lazygit/shift-delete-in-text-inputs.patch
+          ./patches/lazygit/submodules-dashboard.patch
         ];
     });
   })

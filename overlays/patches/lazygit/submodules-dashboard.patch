@@ -1,0 +1,1457 @@
+diff --git a/docs-master/Config.md b/docs-master/Config.md
+index 857a4e359..4f466aab1 100644
+--- a/docs-master/Config.md
++++ b/docs-master/Config.md
+@@ -252,6 +252,12 @@ gui:
+   # If true, show the number of lines changed per file in the Files view
+   showNumstatInFilesView: false
+ 
++  # If true (default), show each submodule's own branch, divergence from its
++  # upstream, and working tree state in the Submodules view.
++  # This reads the status of every submodule on each refresh, so it can be turned
++  # off in projects with very many (or very large) submodules.
++  showSubmoduleStatus: true
++
+   # If true, show a random tip in the command log when Lazygit starts
+   showRandomTip: true
+ 
+diff --git a/pkg/commands/git.go b/pkg/commands/git.go
+index 69cddfa48..447137c66 100644
+--- a/pkg/commands/git.go
++++ b/pkg/commands/git.go
+@@ -52,6 +52,7 @@ type Loaders struct {
+ 	ReflogCommitLoader *git_commands.ReflogCommitLoader
+ 	RemoteLoader       *git_commands.RemoteLoader
+ 	StashLoader        *git_commands.StashLoader
++	SubmoduleLoader    *git_commands.SubmoduleLoader
+ 	TagLoader          *git_commands.TagLoader
+ 	Worktrees          *git_commands.WorktreeLoader
+ }
+@@ -150,6 +151,7 @@ func NewGitCommandAux(
+ 	commitLoader := git_commands.NewCommitLoader(cmn, cmd, statusCommands.WorkingTreeState, gitCommon)
+ 	reflogCommitLoader := git_commands.NewReflogCommitLoader(cmn, cmd)
+ 	remoteLoader := git_commands.NewRemoteLoader(cmn, cmd)
++	submoduleLoader := git_commands.NewSubmoduleLoader(gitCommon)
+ 	worktreeLoader := git_commands.NewWorktreeLoader(gitCommon)
+ 	stashLoader := git_commands.NewStashLoader(cmn, cmd)
+ 	tagLoader := git_commands.NewTagLoader(cmn, cmd)
+@@ -186,6 +188,7 @@ func NewGitCommandAux(
+ 			RemoteLoader:       remoteLoader,
+ 			Worktrees:          worktreeLoader,
+ 			StashLoader:        stashLoader,
++			SubmoduleLoader:    submoduleLoader,
+ 			TagLoader:          tagLoader,
+ 		},
+ 		RepoPaths: repoPaths,
+diff --git a/pkg/commands/git_commands/submodule.go b/pkg/commands/git_commands/submodule.go
+index 7400f0514..e44361463 100644
+--- a/pkg/commands/git_commands/submodule.go
++++ b/pkg/commands/git_commands/submodule.go
+@@ -81,6 +81,8 @@ func (self *SubmoduleCommands) GetConfigs(parentModule *models.SubmoduleConfig)
+ 				}
+ 			} else if url, ok := firstMatch(line, `\s*url\s*=\s*(.*)\s*`); ok {
+ 				configs[lastConfigIdx].Url = url
++			} else if description, ok := firstMatch(line, `\s*description\s*=\s*(.*)\s*`); ok {
++				configs[lastConfigIdx].Summary = strings.Trim(description, `"`)
+ 			}
+ 		}
+ 	}
+diff --git a/pkg/commands/git_commands/submodule_loader.go b/pkg/commands/git_commands/submodule_loader.go
+new file mode 100644
+index 000000000..539f11659
+--- /dev/null
++++ b/pkg/commands/git_commands/submodule_loader.go
+@@ -0,0 +1,344 @@
++package git_commands
++
++import (
++	"os"
++	"path/filepath"
++	"strconv"
++	"strings"
++
++	"github.com/jesseduffield/lazygit/pkg/commands/models"
++	"github.com/samber/lo"
++	"golang.org/x/sync/errgroup"
++)
++
++// Reading a submodule's status means one `git status` per submodule, so a
++// project with many of them would otherwise fork a process per submodule at
++// once on every refresh. They're independent repos, so they parallelise well;
++// this just keeps the burst bounded.
++const maxConcurrentSubmoduleStatusReads = 8
++
++type SubmoduleLoader struct {
++	*GitCommon
++}
++
++func NewSubmoduleLoader(gitCommon *GitCommon) *SubmoduleLoader {
++	return &SubmoduleLoader{GitCommon: gitCommon}
++}
++
++// LoadStatuses reads each submodule's own repository state, keyed by the
++// submodule's path relative to the superproject's worktree (i.e. FullPath, so
++// nested submodules get their whole path and don't collide with a same-named
++// submodule elsewhere in the tree).
++//
++// A submodule whose status can't be read is left out of the map rather than
++// given a zero status, so that the panel can tell "no repo state to show" from
++// "clean repo".
++func (self *SubmoduleLoader) LoadStatuses(configs []*models.SubmoduleConfig, background bool) map[string]*models.SubmoduleStatus {
++	statuses := make([]*models.SubmoduleStatus, len(configs))
++	var recordedHeads map[string]string
++
++	errg := errgroup.Group{}
++	errg.SetLimit(maxConcurrentSubmoduleStatusReads)
++	errg.Go(func() error {
++		recordedHeads = self.loadRecordedHeads(configs)
++		return nil
++	})
++	for i, config := range configs {
++		errg.Go(func() error {
++			status, err := self.loadStatus(config, background)
++			if err != nil {
++				// One unreadable submodule mustn't cost us the others' statuses.
++				self.Log.Errorf("failed to read status of submodule %s: %v", config.FullPath(), err)
++				return nil
++			}
++			statuses[i] = status
++			return nil
++		})
++	}
++	_ = errg.Wait()
++
++	result := make(map[string]*models.SubmoduleStatus, len(configs))
++	for i, config := range configs {
++		if statuses[i] == nil {
++			continue
++		}
++		statuses[i].RecordedHead = recordedHeads[config.FullPath()]
++		result[config.FullPath()] = statuses[i]
++	}
++
++	self.loadExtras(configs, result)
++
++	return result
++}
++
++// loadExtras fills in the parts of a status that need the status itself to know
++// whether they're worth reading: how far a submodule has drifted from the commit
++// its parent pins, and how many lines its uncommitted changes touch. Both are
++// skipped for the submodules they don't apply to, so a project whose submodules
++// are all clean and in step pays nothing for them.
++func (self *SubmoduleLoader) loadExtras(
++	configs []*models.SubmoduleConfig,
++	statuses map[string]*models.SubmoduleStatus,
++) {
++	errg := errgroup.Group{}
++	errg.SetLimit(maxConcurrentSubmoduleStatusReads)
++
++	for _, config := range configs {
++		status := statuses[config.FullPath()]
++		if status == nil {
++			continue
++		}
++
++		path := filepath.Join(self.repoPaths.WorktreePath(), config.FullPath())
++
++		if status.PointerDiffers() {
++			errg.Go(func() error {
++				status.BehindRecorded, status.AheadOfRecorded = self.distanceFromRecorded(path, status)
++				return nil
++			})
++		}
++
++		if status.Staged+status.Unstaged+status.Conflicted > 0 && status.Head != "" {
++			errg.Go(func() error {
++				status.LinesAdded, status.LinesDeleted = self.diffStat(path)
++				return nil
++			})
++		}
++	}
++
++	_ = errg.Wait()
++}
++
++// distanceFromRecorded measures the submodule's HEAD against the commit its
++// parent pins, so that a stale pointer says by how much it's stale.
++func (self *SubmoduleLoader) distanceFromRecorded(path string, status *models.SubmoduleStatus) (int, int) {
++	cmdArgs := NewGitCmd("rev-list").
++		Dir(path).
++		Arg("--count", "--left-right", status.RecordedHead+"..."+status.Head).
++		ToArgv()
++
++	output, err := forOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
++	if err != nil {
++		// Typically the pinned commit isn't in the submodule's object store (it
++		// was never fetched). We still know the two differ, we just can't say
++		// by how much.
++		self.Log.Errorf("failed to measure submodule %s against its pinned commit: %v", path, err)
++		return 0, 0
++	}
++
++	// The output is "<behind>\t<ahead>": the commits the pinned one has that
++	// HEAD lacks, then the ones HEAD has that it lacks.
++	fields := strings.Fields(output)
++	if len(fields) != 2 {
++		return 0, 0
++	}
++
++	behind, _ := strconv.Atoi(fields[0])
++	ahead, _ := strconv.Atoi(fields[1])
++
++	return behind, ahead
++}
++
++// diffStat totals the lines the submodule's uncommitted changes to tracked files
++// add and delete.
++func (self *SubmoduleLoader) diffStat(path string) (int, int) {
++	cmdArgs := NewGitCmd("diff").
++		Dir(path).
++		Arg("--numstat", "HEAD").
++		ToArgv()
++
++	output, err := forOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
++	if err != nil {
++		self.Log.Errorf("failed to read diff stat of submodule %s: %v", path, err)
++		return 0, 0
++	}
++
++	added, deleted := 0, 0
++	for line := range strings.SplitSeq(output, "\n") {
++		// Each line is "<added>\t<deleted>\t<path>", with "-" for both counts
++		// on a binary file.
++		fields := strings.Split(line, "\t")
++		if len(fields) < 3 {
++			continue
++		}
++		if value, err := strconv.Atoi(fields[0]); err == nil {
++			added += value
++		}
++		if value, err := strconv.Atoi(fields[1]); err == nil {
++			deleted += value
++		}
++	}
++
++	return added, deleted
++}
++
++// loadRecordedHeads reads the commit each submodule is pinned to in the index of
++// the module that contains it — which for a nested submodule is its parent
++// module, not the superproject — so the panel can tell that a submodule has
++// moved on from what the project records. One `git ls-files` per containing
++// module covers all of its submodules at once.
++func (self *SubmoduleLoader) loadRecordedHeads(configs []*models.SubmoduleConfig) map[string]string {
++	recordedHeads := map[string]string{}
++
++	byParent := lo.GroupBy(configs, func(config *models.SubmoduleConfig) *models.SubmoduleConfig {
++		return config.ParentModule
++	})
++
++	for parent, children := range byParent {
++		dir := self.repoPaths.WorktreePath()
++		if parent != nil {
++			dir = filepath.Join(dir, parent.FullPath())
++		}
++
++		// Paths are relative to the module whose index we're reading, so they
++		// are the plain Path rather than the FullPath.
++		paths := lo.Map(children, func(child *models.SubmoduleConfig, _ int) string {
++			return child.Path
++		})
++
++		cmdArgs := NewGitCmd("ls-files").
++			Dir(dir).
++			Arg("--stage", "-z", "--").
++			Arg(paths...).
++			ToArgv()
++
++		output, err := forOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
++		if err != nil {
++			self.Log.Errorf("failed to read recorded submodule commits in %s: %v", dir, err)
++			continue
++		}
++
++		fullPathsByPath := lo.SliceToMap(children, func(child *models.SubmoduleConfig) (string, string) {
++			return child.Path, child.FullPath()
++		})
++
++		// Each NUL-terminated entry looks like "<mode> <sha> <stage>\t<path>";
++		// gitlinks (mode 160000) are the submodule pointers we're after.
++		for entry := range strings.SplitSeq(output, "\x00") {
++			mode, rest, found := strings.Cut(entry, " ")
++			if !found || mode != "160000" {
++				continue
++			}
++			sha, rest, found := strings.Cut(rest, " ")
++			if !found {
++				continue
++			}
++			_, path, found := strings.Cut(rest, "\t")
++			if !found {
++				continue
++			}
++			if fullPath, ok := fullPathsByPath[path]; ok {
++				recordedHeads[fullPath] = sha
++			}
++		}
++	}
++
++	return recordedHeads
++}
++
++func (self *SubmoduleLoader) loadStatus(config *models.SubmoduleConfig, background bool) (*models.SubmoduleStatus, error) {
++	// Resolve against the repo this commands object was created for rather than
++	// the process working directory, so a read from a still-running refresh
++	// keeps addressing that repo after the user switched to another one; same
++	// reasoning as GetConfigs.
++	path := filepath.Join(self.repoPaths.WorktreePath(), config.FullPath())
++
++	if _, err := os.Stat(filepath.Join(path, ".git")); err != nil {
++		// The submodule hasn't been cloned into the worktree yet. Don't run git
++		// in there: with no repository of its own, it would climb up to the
++		// superproject and we'd report the parent's status as the child's.
++		return &models.SubmoduleStatus{Cloned: false}, nil
++	}
++
++	cmdArgs := NewGitCmd("status").
++		Dir(path).
++		Arg("--porcelain=v2", "--branch", "--untracked-files=normal").
++		ToArgv()
++
++	// forOtherRepo: GIT_DIR/GIT_WORK_TREE in the environment point at the
++	// superproject and would win over the -C above.
++	cmdObj := forOtherRepo(self.cmd.New(cmdArgs)).DontLog()
++	if !background {
++		// Same trade-off as the files refresh makes: a foreground refresh takes
++		// the optional lock so git persists its refreshed stat-cache (keeping
++		// later reads fast), a background one leaves it suppressed so it can't
++		// contend for the submodule's index.lock.
++		cmdObj.RemoveEnvVar(OptionalLocksEnvVar)
++	}
++
++	output, err := cmdObj.RunWithOutput()
++	if err != nil {
++		return nil, err
++	}
++
++	return parseSubmoduleStatus(output), nil
++}
++
++// parseSubmoduleStatus reads `git status --porcelain=v2 --branch` output, whose
++// header lines carry the branch and its divergence from its upstream, and whose
++// entry lines each describe one changed path:
++//
++//	# branch.head <branch>|(detached)
++//	# branch.upstream <upstream>
++//	# branch.ab +<ahead> -<behind>
++//	1 <XY> ...         ordinary change
++//	2 <XY> ...         rename/copy
++//	u <XY> ...         unmerged
++//	? <path>           untracked
++//
++// In <XY>, X is the change staged in the index and Y the one in the worktree,
++// with '.' meaning unchanged, so a path can count as both staged and unstaged.
++func parseSubmoduleStatus(output string) *models.SubmoduleStatus {
++	status := &models.SubmoduleStatus{Cloned: true}
++
++	for line := range strings.SplitSeq(strings.ReplaceAll(output, "\r\n", "\n"), "\n") {
++		switch {
++		case strings.HasPrefix(line, "# branch.oid "):
++			if oid := strings.TrimPrefix(line, "# branch.oid "); oid != "(initial)" {
++				status.Head = oid
++			}
++		case strings.HasPrefix(line, "# branch.head "):
++			if head := strings.TrimPrefix(line, "# branch.head "); head != "(detached)" {
++				status.Branch = head
++			}
++		case strings.HasPrefix(line, "# branch.upstream "):
++			status.Upstream = strings.TrimPrefix(line, "# branch.upstream ")
++		case strings.HasPrefix(line, "# branch.ab "):
++			status.Ahead, status.Behind = parseAheadBehind(strings.TrimPrefix(line, "# branch.ab "))
++		case strings.HasPrefix(line, "1 "), strings.HasPrefix(line, "2 "):
++			fields := strings.Fields(line)
++			if len(fields) < 2 || len(fields[1]) < 2 {
++				continue
++			}
++			if fields[1][0] != '.' {
++				status.Staged++
++			}
++			if fields[1][1] != '.' {
++				status.Unstaged++
++			}
++		case strings.HasPrefix(line, "u "):
++			status.Conflicted++
++		case strings.HasPrefix(line, "? "):
++			status.Untracked++
++		}
++	}
++
++	return status
++}
++
++// parseAheadBehind parses the "+<ahead> -<behind>" value of the branch.ab
++// header. Both counts are relative to the remote-tracking ref as last fetched.
++func parseAheadBehind(field string) (int, int) {
++	values := strings.Fields(field)
++	if len(values) != 2 {
++		return 0, 0
++	}
++
++	ahead, err1 := strconv.Atoi(strings.TrimPrefix(values[0], "+"))
++	behind, err2 := strconv.Atoi(strings.TrimPrefix(values[1], "-"))
++	if err1 != nil || err2 != nil {
++		return 0, 0
++	}
++
++	return ahead, behind
++}
+diff --git a/pkg/commands/git_commands/submodule_loader_test.go b/pkg/commands/git_commands/submodule_loader_test.go
+new file mode 100644
+index 000000000..584c2ebbc
+--- /dev/null
++++ b/pkg/commands/git_commands/submodule_loader_test.go
+@@ -0,0 +1,107 @@
++package git_commands
++
++import (
++	"testing"
++
++	"github.com/jesseduffield/lazygit/pkg/commands/models"
++	"github.com/stretchr/testify/assert"
++)
++
++func TestParseSubmoduleStatus(t *testing.T) {
++	scenarios := []struct {
++		testName string
++		output   string
++		expected *models.SubmoduleStatus
++	}{
++		{
++			testName: "clean branch in sync with its upstream",
++			output: `# branch.oid ce59834e0306b1317c42cc9ca987a8e5100b133c
++# branch.head master
++# branch.upstream origin/master
++# branch.ab +0 -0
++`,
++			expected: &models.SubmoduleStatus{
++				Cloned:   true,
++				Head:     "ce59834e0306b1317c42cc9ca987a8e5100b133c",
++				Branch:   "master",
++				Upstream: "origin/master",
++			},
++		},
++		{
++			testName: "commits pending in both directions",
++			output: `# branch.oid ce59834e0306b1317c42cc9ca987a8e5100b133c
++# branch.head master
++# branch.upstream origin/master
++# branch.ab +2 -3
++`,
++			expected: &models.SubmoduleStatus{
++				Cloned:   true,
++				Head:     "ce59834e0306b1317c42cc9ca987a8e5100b133c",
++				Branch:   "master",
++				Upstream: "origin/master",
++				Ahead:    2,
++				Behind:   3,
++			},
++		},
++		{
++			testName: "a path changed in both the index and the worktree counts as both",
++			output: `# branch.oid ce59834e0306b1317c42cc9ca987a8e5100b133c
++# branch.head master
++# branch.upstream origin/master
++# branch.ab +1 -0
++1 .M N... 100644 100644 100644 7898192 7898192 a.txt
++1 A. N... 000000 100644 100644 0000000 19d9cc8 s.txt
++2 R. N... 100644 100644 100644 7898192 7898192 R100 new.txt	old.txt
++u UU N... 100644 100644 100644 100644 7898192 7898192 7898192 conflicted.txt
++? u.txt
++`,
++			expected: &models.SubmoduleStatus{
++				Cloned:     true,
++				Head:       "ce59834e0306b1317c42cc9ca987a8e5100b133c",
++				Branch:     "master",
++				Upstream:   "origin/master",
++				Ahead:      1,
++				Staged:     2,
++				Unstaged:   1,
++				Untracked:  1,
++				Conflicted: 1,
++			},
++		},
++		{
++			testName: "detached head, which is how a submodule is normally checked out",
++			output: `# branch.oid 9182dcd32e578d8c7f300a0b820fa3d077b84222
++# branch.head (detached)
++`,
++			expected: &models.SubmoduleStatus{
++				Cloned: true,
++				Head:   "9182dcd32e578d8c7f300a0b820fa3d077b84222",
++			},
++		},
++		{
++			testName: "unborn branch, before the first commit",
++			output: `# branch.oid (initial)
++# branch.head master
++`,
++			expected: &models.SubmoduleStatus{
++				Cloned: true,
++				Branch: "master",
++			},
++		},
++		{
++			testName: "crlf line endings",
++			output:   "# branch.oid ce59834\r\n# branch.head master\r\n? u.txt\r\n",
++			expected: &models.SubmoduleStatus{
++				Cloned:    true,
++				Head:      "ce59834",
++				Branch:    "master",
++				Untracked: 1,
++			},
++		},
++	}
++
++	for _, s := range scenarios {
++		t.Run(s.testName, func(t *testing.T) {
++			assert.Equal(t, s.expected, parseSubmoduleStatus(s.output))
++		})
++	}
++}
+diff --git a/pkg/commands/models/submodule_config.go b/pkg/commands/models/submodule_config.go
+index 7df0d131a..e3be85315 100644
+--- a/pkg/commands/models/submodule_config.go
++++ b/pkg/commands/models/submodule_config.go
+@@ -6,6 +6,10 @@ type SubmoduleConfig struct {
+ 	Name string
+ 	Path string
+ 	Url  string
++	// Summary is the non-standard .gitmodules `description` field: git itself
++	// ignores it, but projects use it to say what each submodule is for. Named
++	// Summary because Description is taken by the list-item method below.
++	Summary string
+ 
+ 	ParentModule *SubmoduleConfig // nil if top-level
+ }
+diff --git a/pkg/commands/models/submodule_status.go b/pkg/commands/models/submodule_status.go
+new file mode 100644
+index 000000000..d0e69fc3c
+--- /dev/null
++++ b/pkg/commands/models/submodule_status.go
+@@ -0,0 +1,78 @@
++package models
++
++// SubmoduleStatus is a submodule's state as read from its own repository rather
++// than from the superproject: the branch it has checked out, how far that branch
++// has diverged from its upstream, and whether its working tree is dirty. It's
++// what lets the submodules panel work as a dashboard over every repo the project
++// is made of, instead of having to enter each one to find out that it has commits
++// waiting to be pushed.
++type SubmoduleStatus struct {
++	// Cloned is false for a submodule that hasn't been initialised and updated
++	// yet: its directory is there, but there's no repository in it to read.
++	Cloned bool
++
++	// Branch is the checked-out branch, empty when HEAD is detached (which is
++	// the normal state for a submodule the superproject checked out itself).
++	Branch string
++	// Head is the hash HEAD points at, empty on an unborn branch.
++	Head string
++
++	// Upstream is the tracking branch, e.g. "origin/master". Empty when the
++	// checked-out branch has none, in which case Ahead and Behind are zero and
++	// mean nothing.
++	Upstream string
++	// Ahead and Behind count commits against the upstream *as last fetched*,
++	// i.e. what a push and a pull would carry right now. Same semantics as the
++	// branches panel's divergence, which is also read from the remote-tracking
++	// ref rather than from the remote.
++	Ahead  int
++	Behind int
++
++	// RecordedHead is the commit the parent module's index has for this
++	// submodule, i.e. the one a fresh clone of the parent would check out. It's
++	// empty when it couldn't be read.
++	RecordedHead string
++	// AheadOfRecorded and BehindRecorded count the commits between RecordedHead
++	// and Head, so that a submodule whose pointer the parent hasn't caught up
++	// with says by how much. Both are zero when the two agree, and also when
++	// they differ but the distance couldn't be measured (e.g. the recorded
++	// commit isn't in the submodule's object store).
++	AheadOfRecorded int
++	BehindRecorded  int
++
++	// Working tree counts, by the same categories `git status` reports:
++	// Untracked counts entries, so an untracked directory counts as one.
++	Staged     int
++	Unstaged   int
++	Untracked  int
++	Conflicted int
++
++	// LinesAdded and LinesDeleted total the uncommitted changes to tracked
++	// files, i.e. what `git diff HEAD --numstat` reports. Untracked files aren't
++	// in there, the same way the files panel's numstat leaves them out.
++	LinesAdded   int
++	LinesDeleted int
++}
++
++func (self *SubmoduleStatus) IsDetached() bool {
++	return self.Cloned && self.Branch == ""
++}
++
++func (self *SubmoduleStatus) HasUpstream() bool {
++	return self.Upstream != ""
++}
++
++func (self *SubmoduleStatus) IsDirty() bool {
++	return self.ChangeCount() > 0
++}
++
++func (self *SubmoduleStatus) ChangeCount() int {
++	return self.Staged + self.Unstaged + self.Untracked + self.Conflicted
++}
++
++// PointerDiffers reports whether the submodule is checked out at a different
++// commit than the parent module records for it, i.e. the parent needs a commit
++// of its own (or the submodule needs updating) for the two to agree.
++func (self *SubmoduleStatus) PointerDiffers() bool {
++	return self.Cloned && self.RecordedHead != "" && self.Head != "" && self.RecordedHead != self.Head
++}
+diff --git a/pkg/config/user_config.go b/pkg/config/user_config.go
+index 9738186d9..35e4e8794 100644
+--- a/pkg/config/user_config.go
++++ b/pkg/config/user_config.go
+@@ -160,6 +160,9 @@ type GuiConfig struct {
+ 	FileTreeSortCaseSensitive bool `yaml:"fileTreeSortCaseSensitive"`
+ 	// If true, show the number of lines changed per file in the Files view
+ 	ShowNumstatInFilesView bool `yaml:"showNumstatInFilesView"`
++	// If true (default), show each submodule's own branch, divergence from its upstream, and working tree state in the Submodules view.
++	// This reads the status of every submodule on each refresh, so it can be turned off in projects with very many (or very large) submodules.
++	ShowSubmoduleStatus bool `yaml:"showSubmoduleStatus"`
+ 	// If true, show a random tip in the command log when Lazygit starts
+ 	ShowRandomTip bool `yaml:"showRandomTip"`
+ 	// If true, show the command log
+@@ -906,6 +909,7 @@ func GetDefaultConfigForPlatform(platform string) *UserConfig {
+ 			FileTreeSortOrder:                   "mixed",
+ 			FileTreeSortCaseSensitive:           true,
+ 			ShowNumstatInFilesView:              false,
++			ShowSubmoduleStatus:                 true,
+ 			ShowRandomTip:                       true,
+ 			ShowIcons:                           false,
+ 			NerdFontsVersion:                    "",
+diff --git a/pkg/gui/context/submodules_context.go b/pkg/gui/context/submodules_context.go
+index 5428da044..6ea62057a 100644
+--- a/pkg/gui/context/submodules_context.go
++++ b/pkg/gui/context/submodules_context.go
+@@ -22,7 +22,11 @@ func NewSubmodulesContext(c *ContextCommon) *SubmodulesContext {
+ 	)
+ 
+ 	getDisplayStrings := func(_ int, _ int) [][]string {
+-		return presentation.GetSubmoduleListDisplayStrings(viewModel.GetItems())
++		return presentation.GetSubmoduleListDisplayStrings(
++			viewModel.GetItems(),
++			c.Model().SubmoduleStatuses,
++			c.Tr,
++		)
+ 	}
+ 
+ 	return &SubmodulesContext{
+diff --git a/pkg/gui/controllers/helpers/refresh_helper.go b/pkg/gui/controllers/helpers/refresh_helper.go
+index 6672fab26..adef8d773 100644
+--- a/pkg/gui/controllers/helpers/refresh_helper.go
++++ b/pkg/gui/controllers/helpers/refresh_helper.go
+@@ -1196,12 +1196,39 @@ func (self *RefreshHelper) refreshFilesAndSubmodules(captured capturedFilesState
+ 		return err
+ 	}
+ 
+-	if err := self.refreshStateFiles(captured, env, configs); err != nil {
+-		return err
++	// Reading the submodules' own repos is a `git status` per submodule, none of
++	// which the files refresh depends on, so run them alongside it: this scope
++	// then costs the slower of the two rather than their sum. It stays inside
++	// this worker (rather than being left to run detached) because the task
++	// driving the refresh is what keeps lazygit busy for repo-switch purposes.
++	var submoduleStatuses map[string]*models.SubmoduleStatus
++	statusWg := sync.WaitGroup{}
++	statusWg.Add(1)
++	go utils.Safe(func() {
++		defer statusWg.Done()
++		if self.c.UserConfig().Gui.ShowSubmoduleStatus {
++			submoduleStatuses = env.git.Loaders.SubmoduleLoader.LoadStatuses(configs, env.background)
++		}
++	})
++
++	filesErr := self.refreshStateFiles(captured, env, configs)
++
++	// The files view doesn't show submodule statuses, so let it render without
++	// waiting on them.
++	self.refreshView(self.c.Contexts().Files, env)
++
++	statusWg.Wait()
++	if filesErr != nil {
++		return filesErr
+ 	}
+ 
++	// The statuses are published after refreshStateFiles has queued its own
++	// model write, so this bounce lands behind it: the submodules view renders
++	// once, with both the configs and their statuses.
++	self.onUIThreadUnlessRepoChanged(env, func() {
++		self.c.Model().SubmoduleStatuses = submoduleStatuses
++	})
+ 	self.refreshView(self.c.Contexts().Submodules, env)
+-	self.refreshView(self.c.Contexts().Files, env)
+ 
+ 	return nil
+ }
+diff --git a/pkg/gui/controllers/submodules_controller.go b/pkg/gui/controllers/submodules_controller.go
+index a2dd22ed3..8c347dd72 100644
+--- a/pkg/gui/controllers/submodules_controller.go
++++ b/pkg/gui/controllers/submodules_controller.go
+@@ -10,6 +10,7 @@ import (
+ 	"github.com/jesseduffield/lazygit/pkg/gui/context"
+ 	"github.com/jesseduffield/lazygit/pkg/gui/style"
+ 	"github.com/jesseduffield/lazygit/pkg/gui/types"
++	"github.com/jesseduffield/lazygit/pkg/i18n"
+ 	"github.com/jesseduffield/lazygit/pkg/utils"
+ )
+ 
+@@ -113,10 +114,12 @@ func (self *SubmodulesController) GetOnRenderToMain() func() {
+ 				task = types.NewRenderStringTask("No submodules")
+ 			} else {
+ 				prefix := fmt.Sprintf(
+-					"Name: %s\nPath: %s\nUrl:  %s\n\n",
+-					style.FgGreen.Sprint(submodule.FullName()),
+-					style.FgYellow.Sprint(submodule.FullPath()),
+-					style.FgCyan.Sprint(submodule.Url),
++					"%s%s%s%s%s\n",
++					submoduleField("Name", style.FgGreen.Sprint(submodule.FullName())),
++					descriptionField(submodule, self.c.Tr),
++					submoduleField("Path", style.FgYellow.Sprint(submodule.FullPath())),
++					submoduleField("Url", style.FgCyan.Sprint(submodule.Url)),
++					self.statusSummary(submodule),
+ 				)
+ 
+ 				file := self.c.Helpers().WorkingTree.FileForSubmodule(submodule)
+@@ -139,6 +142,121 @@ func (self *SubmodulesController) GetOnRenderToMain() func() {
+ 	}
+ }
+ 
++// submoduleField renders one line of the submodule summary, with the labels
++// wide enough for the longest of them so the values line up in a column.
++func submoduleField(label string, value string) string {
++	return fmt.Sprintf("%-12s %s\n", label+":", value)
++}
++
++// descriptionField renders the non-standard `description` key from .gitmodules,
++// which git ignores but projects use to say what a submodule is for. Most
++// repos don't set it, so the line is omitted entirely rather than left blank.
++func descriptionField(submodule *models.SubmoduleConfig, tr *i18n.TranslationSet) string {
++	if submodule.Summary == "" {
++		return ""
++	}
++
++	return submoduleField(tr.SubmoduleStatusDescription, submodule.Summary)
++}
++
++// statusSummary describes the submodule's own repo state, so that the panel
++// answers "what shape is this repo in" without having to enter it. It's empty
++// when the status isn't loaded: either they're turned off, or this is the first
++// refresh and they haven't landed yet.
++func (self *SubmodulesController) statusSummary(submodule *models.SubmoduleConfig) string {
++	status := self.c.Model().SubmoduleStatuses[submodule.FullPath()]
++	if status == nil {
++		return ""
++	}
++
++	tr := self.c.Tr
++
++	if !status.Cloned {
++		return "\n" + submoduleField(tr.SubmoduleStatusBranch, style.FgRed.Sprint(tr.SubmoduleNotCloned))
++	}
++
++	branch := style.FgCyan.Sprint(status.Branch)
++	if status.IsDetached() {
++		branch = style.FgYellow.Sprint(utils.ResolvePlaceholderString(
++			tr.SubmoduleDetachedAt,
++			map[string]string{"hash": utils.ShortHash(status.Head)},
++		))
++	}
++
++	summary := "\n" + submoduleField(tr.SubmoduleStatusBranch, branch)
++
++	if status.HasUpstream() {
++		divergence := style.FgGreen.Sprint(tr.SubmoduleStatusInSync)
++		if status.Ahead > 0 || status.Behind > 0 {
++			divergence = style.FgYellow.Sprintf("↓%d ↑%d", status.Behind, status.Ahead)
++		}
++		summary += submoduleField(tr.SubmoduleStatusUpstream, style.FgCyan.Sprint(status.Upstream))
++		summary += submoduleField(tr.SubmoduleStatusDivergence, divergence)
++	} else {
++		summary += submoduleField(tr.SubmoduleStatusUpstream, style.FgRed.Sprint(tr.SubmoduleStatusNoUpstream))
++	}
++
++	summary += submoduleField(tr.SubmoduleStatusWorkingTree, worktreeSummary(status, tr))
++
++	return summary + submoduleField(tr.SubmoduleStatusParent, parentSummary(status, tr))
++}
++
++// parentSummary describes the commit the parent module pins this submodule to.
++// When it isn't the commit that's checked out here, the parent needs a commit
++// of its own before anyone else gets what we're looking at.
++func parentSummary(status *models.SubmoduleStatus, tr *i18n.TranslationSet) string {
++	if status.RecordedHead == "" {
++		return style.FgRed.Sprint(tr.SubmoduleStatusNoUpstream)
++	}
++
++	hash := style.FgYellow.Sprint(utils.ShortHash(status.RecordedHead))
++
++	if !status.PointerDiffers() {
++		return fmt.Sprintf("%s %s", hash, style.FgGreen.Sprint(tr.SubmoduleStatusParentMatches))
++	}
++
++	distance := ""
++	if status.AheadOfRecorded > 0 || status.BehindRecorded > 0 {
++		distance = fmt.Sprintf(" (↓%d ↑%d)", status.BehindRecorded, status.AheadOfRecorded)
++	}
++
++	return fmt.Sprintf("%s %s", hash, style.FgMagenta.Sprint(tr.SubmoduleStatusParentDiffers+distance))
++}
++
++// worktreeSummary spells out the counts the list view compresses into a single
++// number, e.g. "2 unstaged, 1 untracked".
++func worktreeSummary(status *models.SubmoduleStatus, tr *i18n.TranslationSet) string {
++	if !status.IsDirty() {
++		return style.FgGreen.Sprint(tr.SubmoduleStatusClean)
++	}
++
++	parts := []string{}
++	for _, part := range []struct {
++		count int
++		label string
++	}{
++		{status.Conflicted, tr.SubmoduleStatusConflicted},
++		{status.Staged, tr.SubmoduleStatusStaged},
++		{status.Unstaged, tr.SubmoduleStatusUnstaged},
++		{status.Untracked, tr.SubmoduleStatusUntracked},
++	} {
++		if part.count > 0 {
++			parts = append(parts, fmt.Sprintf("%d %s", part.count, part.label))
++		}
++	}
++
++	summary := style.FgRed.Sprint(strings.Join(parts, ", "))
++
++	if status.LinesAdded > 0 || status.LinesDeleted > 0 {
++		summary += fmt.Sprintf(" (%s %s)",
++			style.FgGreen.Sprintf("+%d", status.LinesAdded),
++			style.FgRed.Sprintf("-%d", status.LinesDeleted),
++		)
++	}
++
++	return summary
++}
++
+ func (self *SubmodulesController) enter(submodule *models.SubmoduleConfig) error {
+ 	return self.c.Helpers().Repos.EnterSubmodule(submodule)
+ }
+diff --git a/pkg/gui/presentation/submodules.go b/pkg/gui/presentation/submodules.go
+index c7b51c6d8..5ee2b1b3d 100644
+--- a/pkg/gui/presentation/submodules.go
++++ b/pkg/gui/presentation/submodules.go
+@@ -1,29 +1,200 @@
+ package presentation
+ 
+ import (
+-	"strings"
++	"fmt"
+ 
+ 	"github.com/jesseduffield/lazygit/pkg/commands/models"
++	"github.com/jesseduffield/lazygit/pkg/gui/style"
++	"github.com/jesseduffield/lazygit/pkg/i18n"
+ 	"github.com/jesseduffield/lazygit/pkg/theme"
++	"github.com/jesseduffield/lazygit/pkg/utils"
+ 	"github.com/samber/lo"
+ )
+ 
+-func GetSubmoduleListDisplayStrings(submodules []*models.SubmoduleConfig) [][]string {
+-	return lo.Map(submodules, func(submodule *models.SubmoduleConfig, _ int) []string {
+-		return getSubmoduleDisplayStrings(submodule)
++func GetSubmoduleListDisplayStrings(
++	submodules []*models.SubmoduleConfig,
++	statuses map[string]*models.SubmoduleStatus,
++	tr *i18n.TranslationSet,
++) [][]string {
++	prefixes := submoduleTreePrefixes(submodules)
++
++	return lo.Map(submodules, func(submodule *models.SubmoduleConfig, i int) []string {
++		return getSubmoduleDisplayStrings(submodule, prefixes[i], statuses[submodule.FullPath()], tr)
+ 	})
+ }
+ 
+-func getSubmoduleDisplayStrings(s *models.SubmoduleConfig) []string {
+-	name := s.Name
+-	if s.ParentModule != nil {
+-		count := 0
+-		for p := s.ParentModule; p != nil; p = p.ParentModule {
+-			count++
++func getSubmoduleDisplayStrings(
++	s *models.SubmoduleConfig,
++	prefix string,
++	status *models.SubmoduleStatus,
++	tr *i18n.TranslationSet,
++) []string {
++	cols := []string{style.FgDefault.Sprint(prefix) + theme.DefaultTextColor.Sprint(s.Name)}
++	if status == nil {
++		// Statuses are either turned off or not loaded yet; render the name
++		// alone rather than a row of empty columns that would shift once they
++		// land.
++		return cols
++	}
++
++	return append(cols,
++		submoduleBranchString(status, tr),
++		submoduleDivergenceString(status),
++		submoduleWorktreeString(status),
++		submoduleNumstatString(status),
++		submodulePinString(status),
++	)
++}
++
++// submoduleTreePrefixes draws the tree the submodules form: a submodule nested
++// inside another hangs off it, and the branch lines of the levels above it are
++// carried down so the whole thing reads as one tree rather than as indentation.
++//
++// It works off whatever slice it's given, which may be a filtered subset of the
++// repo's submodules, so a submodule whose parent isn't in the list is treated as
++// a root: the tree describes what's on screen.
++func submoduleTreePrefixes(submodules []*models.SubmoduleConfig) []string {
++	present := lo.SliceToMap(submodules, func(s *models.SubmoduleConfig) (*models.SubmoduleConfig, struct{}) {
++		return s, struct{}{}
++	})
++
++	parentOf := func(s *models.SubmoduleConfig) *models.SubmoduleConfig {
++		if s.ParentModule == nil {
++			return nil
++		}
++		if _, ok := present[s.ParentModule]; !ok {
++			return nil
++		}
++		return s.ParentModule
++	}
++
++	// A submodule is the last of its siblings if no later one shares its parent,
++	// which is what decides whether its own line is a corner and whether its
++	// children's lines carry a vertical through this level.
++	isLast := make(map[*models.SubmoduleConfig]bool, len(submodules))
++	lastForParent := map[*models.SubmoduleConfig]*models.SubmoduleConfig{}
++	for _, submodule := range submodules {
++		lastForParent[parentOf(submodule)] = submodule
++	}
++	for _, submodule := range lastForParent {
++		isLast[submodule] = true
++	}
++
++	return lo.Map(submodules, func(submodule *models.SubmoduleConfig, _ int) string {
++		prefix := "├─ "
++		if isLast[submodule] {
++			prefix = "└─ "
+ 		}
+-		indentation := strings.Repeat("  ", count)
+-		name = indentation + "- " + s.Name
++
++		for ancestor := parentOf(submodule); ancestor != nil; ancestor = parentOf(ancestor) {
++			if isLast[ancestor] {
++				prefix = "   " + prefix
++			} else {
++				prefix = "│  " + prefix
++			}
++		}
++
++		return prefix
++	})
++}
++
++func submoduleBranchString(status *models.SubmoduleStatus, tr *i18n.TranslationSet) string {
++	if !status.Cloned {
++		return style.FgRed.Sprint(tr.SubmoduleNotCloned)
++	}
++
++	if status.IsDetached() {
++		// A submodule the parent checked out is normally on a detached HEAD, so
++		// this is a plain fact rather than a warning.
++		return style.FgYellow.Sprint(utils.ResolvePlaceholderString(
++			tr.SubmoduleDetachedAt,
++			map[string]string{"hash": utils.ShortHash(status.Head)},
++		))
++	}
++
++	return style.FgCyan.Sprint(status.Branch)
++}
++
++// submoduleDivergenceString renders the commits waiting to be pushed and pulled
++// the way the branches panel does, so "↓2↑1" means the same thing in both. A
++// branch with no upstream gets a "?" instead: there's nothing to be ahead or
++// behind of, which is a different state from being in sync.
++func submoduleDivergenceString(status *models.SubmoduleStatus) string {
++	if !status.Cloned {
++		return ""
++	}
++
++	if !status.HasUpstream() {
++		return style.FgMagenta.Sprint("?")
++	}
++
++	if status.Ahead == 0 && status.Behind == 0 {
++		return style.FgGreen.Sprint("✓")
++	}
++
++	result := ""
++	if status.Behind > 0 {
++		result += fmt.Sprintf("↓%d", status.Behind)
++	}
++	if status.Ahead > 0 {
++		result += fmt.Sprintf("↑%d", status.Ahead)
++	}
++
++	return style.FgYellow.Sprint(result)
++}
++
++// submoduleWorktreeString renders how dirty the working tree is as a single
++// count, coloured by whether committing is all that's left to do (green:
++// everything is staged) or there's still work outside the index (red).
++func submoduleWorktreeString(status *models.SubmoduleStatus) string {
++	if !status.Cloned || !status.IsDirty() {
++		return ""
++	}
++
++	if status.Conflicted > 0 {
++		return style.FgRed.Sprintf("!%d", status.Conflicted)
++	}
++
++	textStyle := style.FgRed
++	if status.Unstaged == 0 && status.Untracked == 0 {
++		textStyle = style.FgGreen
++	}
++
++	return textStyle.Sprintf("*%d", status.ChangeCount())
++}
++
++// submoduleNumstatString shows the size of those changes in lines, in the same
++// green/red the files panel uses for its numstat.
++func submoduleNumstatString(status *models.SubmoduleStatus) string {
++	if status.LinesAdded == 0 && status.LinesDeleted == 0 {
++		return ""
++	}
++
++	return style.FgGreen.Sprintf("+%d", status.LinesAdded) +
++		" " + style.FgRed.Sprintf("-%d", status.LinesDeleted)
++}
++
++// submodulePinString flags a submodule checked out at a different commit than
++// the parent module pins it to: until the parent commits the new pin, nobody
++// cloning the project gets what's checked out here. It's a different axis from
++// the divergence column, so it gets its own arrow (⇡/⇣) rather than ↑/↓.
++func submodulePinString(status *models.SubmoduleStatus) string {
++	if !status.PointerDiffers() {
++		return ""
++	}
++
++	result := ""
++	if status.BehindRecorded > 0 {
++		result += fmt.Sprintf("⇣%d", status.BehindRecorded)
++	}
++	if status.AheadOfRecorded > 0 {
++		result += fmt.Sprintf("⇡%d", status.AheadOfRecorded)
++	}
++	if result == "" {
++		// The two commits differ but we couldn't measure the distance, e.g. the
++		// pinned commit was never fetched into the submodule.
++		result = "≠"
+ 	}
+ 
+-	return []string{theme.DefaultTextColor.Sprint(name)}
++	return style.FgMagenta.Sprint(result)
+ }
+diff --git a/pkg/gui/presentation/submodules_test.go b/pkg/gui/presentation/submodules_test.go
+new file mode 100644
+index 000000000..4c43f8177
+--- /dev/null
++++ b/pkg/gui/presentation/submodules_test.go
+@@ -0,0 +1,74 @@
++package presentation
++
++import (
++	"testing"
++
++	"github.com/jesseduffield/lazygit/pkg/commands/models"
++	"github.com/stretchr/testify/assert"
++)
++
++func TestSubmoduleTreePrefixes(t *testing.T) {
++	// Submodules arrive depth-first: a submodule is always followed by its own
++	// children, so the tree only needs to know who each one's parent is.
++	sub := func(name string, parent *models.SubmoduleConfig) *models.SubmoduleConfig {
++		return &models.SubmoduleConfig{Name: name, Path: name, ParentModule: parent}
++	}
++
++	scenarios := []struct {
++		testName string
++		build    func() []*models.SubmoduleConfig
++		expected []string
++	}{
++		{
++			testName: "no submodules",
++			build:    func() []*models.SubmoduleConfig { return nil },
++			expected: []string{},
++		},
++		{
++			testName: "flat list",
++			build: func() []*models.SubmoduleConfig {
++				return []*models.SubmoduleConfig{sub("a", nil), sub("b", nil), sub("c", nil)}
++			},
++			expected: []string{"├─ ", "├─ ", "└─ "},
++		},
++		{
++			testName: "children of a non-last submodule carry its line down",
++			build: func() []*models.SubmoduleConfig {
++				a := sub("a", nil)
++				return []*models.SubmoduleConfig{a, sub("a1", a), sub("a2", a), sub("b", nil)}
++			},
++			expected: []string{"├─ ", "│  ├─ ", "│  └─ ", "└─ "},
++		},
++		{
++			testName: "children of the last submodule don't",
++			build: func() []*models.SubmoduleConfig {
++				b := sub("b", nil)
++				return []*models.SubmoduleConfig{sub("a", nil), b, sub("b1", b)}
++			},
++			expected: []string{"├─ ", "└─ ", "   └─ "},
++		},
++		{
++			testName: "grandchildren",
++			build: func() []*models.SubmoduleConfig {
++				a := sub("a", nil)
++				a1 := sub("a1", a)
++				return []*models.SubmoduleConfig{a, a1, sub("a1a", a1), sub("a2", a)}
++			},
++			expected: []string{"└─ ", "   ├─ ", "   │  └─ ", "   └─ "},
++		},
++		{
++			testName: "a submodule whose parent was filtered out is a root",
++			build: func() []*models.SubmoduleConfig {
++				missing := sub("missing", nil)
++				return []*models.SubmoduleConfig{sub("a", nil), sub("orphan", missing)}
++			},
++			expected: []string{"├─ ", "└─ "},
++		},
++	}
++
++	for _, s := range scenarios {
++		t.Run(s.testName, func(t *testing.T) {
++			assert.Equal(t, s.expected, submoduleTreePrefixes(s.build()))
++		})
++	}
++}
+diff --git a/pkg/gui/types/common.go b/pkg/gui/types/common.go
+index 75cb53018..d13bf39d9 100644
+--- a/pkg/gui/types/common.go
++++ b/pkg/gui/types/common.go
+@@ -340,17 +340,22 @@ func (self *MenuItem) ID() string {
+ }
+ 
+ type Model struct {
+-	CommitFiles     []*models.CommitFile
+-	Files           []*models.File
+-	Submodules      []*models.SubmoduleConfig
+-	Branches        []*models.Branch
+-	Commits         []*models.Commit
+-	StashEntries    []*models.StashEntry
+-	SubCommits      []*models.Commit
+-	Remotes         []*models.Remote
+-	Worktrees       []*models.Worktree
+-	PullRequests    []*models.GithubPullRequest
+-	PullRequestsMap map[string]*models.GithubPullRequest
++	CommitFiles []*models.CommitFile
++	Files       []*models.File
++	Submodules  []*models.SubmoduleConfig
++	// SubmoduleStatuses holds each submodule's own repo state, keyed by the
++	// submodule's path relative to this repo's worktree. It's loaded separately
++	// from (and more slowly than) the configs above, so a submodule can be in
++	// Submodules with no entry here yet.
++	SubmoduleStatuses map[string]*models.SubmoduleStatus
++	Branches          []*models.Branch
++	Commits           []*models.Commit
++	StashEntries      []*models.StashEntry
++	SubCommits        []*models.Commit
++	Remotes           []*models.Remote
++	Worktrees         []*models.Worktree
++	PullRequests      []*models.GithubPullRequest
++	PullRequestsMap   map[string]*models.GithubPullRequest
+ 
+ 	// FilteredReflogCommits are the ones that appear in the reflog panel.
+ 	// When in filtering mode we only include the ones that match the given path
+diff --git a/pkg/i18n/english.go b/pkg/i18n/english.go
+index 6d41d31d6..ab774774d 100644
+--- a/pkg/i18n/english.go
++++ b/pkg/i18n/english.go
+@@ -759,6 +759,23 @@ type TranslationSet struct {
+ 	SubCommitsTitle                       string
+ 	ExitSubview                           string
+ 	SubmodulesTitle                       string
++	SubmoduleNotCloned                    string
++	SubmoduleDetachedAt                   string
++	SubmoduleStatusBranch                 string
++	SubmoduleStatusUpstream               string
++	SubmoduleStatusNoUpstream             string
++	SubmoduleStatusDivergence             string
++	SubmoduleStatusInSync                 string
++	SubmoduleStatusWorkingTree            string
++	SubmoduleStatusClean                  string
++	SubmoduleStatusStaged                 string
++	SubmoduleStatusUnstaged               string
++	SubmoduleStatusUntracked              string
++	SubmoduleStatusConflicted             string
++	SubmoduleStatusParent                 string
++	SubmoduleStatusParentMatches          string
++	SubmoduleStatusParentDiffers          string
++	SubmoduleStatusDescription            string
+ 	NavigationTitle                       string
+ 	SuggestionsCheatsheetTitle            string
+ 	// Unlike the cheatsheet title above, the real suggestions title has a little message saying press tab to focus
+@@ -1921,6 +1938,23 @@ func EnglishTranslationSet() *TranslationSet {
+ 		SubCommitsTitle:                          "Sub-commits",
+ 		ExitSubview:                              "Exit subview",
+ 		SubmodulesTitle:                          "Submodules",
++		SubmoduleNotCloned:                       "not cloned",
++		SubmoduleDetachedAt:                      "detached at {{.hash}}",
++		SubmoduleStatusBranch:                    "Branch",
++		SubmoduleStatusUpstream:                  "Upstream",
++		SubmoduleStatusNoUpstream:                "none",
++		SubmoduleStatusDivergence:                "Divergence",
++		SubmoduleStatusInSync:                    "in sync",
++		SubmoduleStatusWorkingTree:               "Worktree",
++		SubmoduleStatusClean:                     "clean",
++		SubmoduleStatusStaged:                    "staged",
++		SubmoduleStatusUnstaged:                  "unstaged",
++		SubmoduleStatusUntracked:                 "untracked",
++		SubmoduleStatusConflicted:                "conflicted",
++		SubmoduleStatusParent:                    "Parent",
++		SubmoduleStatusParentMatches:             "matches HEAD",
++		SubmoduleStatusParentDiffers:             "differs from HEAD",
++		SubmoduleStatusDescription:               "Description",
+ 		NavigationTitle:                          "List panel navigation",
+ 		SuggestionsCheatsheetTitle:               "Suggestions",
+ 		SuggestionsTitle:                         "Suggestions (press %s to focus)",
+diff --git a/pkg/integration/tests/submodule/add.go b/pkg/integration/tests/submodule/add.go
+index a82a71227..282707650 100644
+--- a/pkg/integration/tests/submodule/add.go
++++ b/pkg/integration/tests/submodule/add.go
+@@ -37,9 +37,9 @@ var Add = NewIntegrationTest(NewIntegrationTestArgs{
+ 			)
+ 
+ 		t.Views().Main().TopLines(
+-			Contains("Name: my_submodule"),
+-			Contains("Path: my_submodule_path"),
+-			Contains("Url:  ../other_repo"),
++			Contains("Name:        my_submodule"),
++			Contains("Path:        my_submodule_path"),
++			Contains("Url:         ../other_repo"),
+ 		)
+ 
+ 		t.Views().Files().Focus().
+diff --git a/pkg/integration/tests/submodule/enter_nested.go b/pkg/integration/tests/submodule/enter_nested.go
+index 1fc96425c..2e5e39fc5 100644
+--- a/pkg/integration/tests/submodule/enter_nested.go
++++ b/pkg/integration/tests/submodule/enter_nested.go
+@@ -16,22 +16,22 @@ var EnterNested = NewIntegrationTest(NewIntegrationTestArgs{
+ 	Run: func(t *TestDriver, keys config.KeybindingConfig) {
+ 		t.Views().Submodules().Focus().
+ 			Lines(
+-				Equals("outerSubName").IsSelected(),
+-				Equals("  - innerSubName"),
++				Contains("└─ outerSubName").IsSelected(),
++				Contains("   └─ innerSubName"),
+ 			).
+ 			Tap(func() {
+ 				t.Views().Main().ContainsLines(
+-					Contains("Name: outerSubName"),
+-					Contains("Path: modules/outerSubPath"),
+-					Contains("Url:  ../outerSubmodule"),
++					Contains("Name:        outerSubName"),
++					Contains("Path:        modules/outerSubPath"),
++					Contains("Url:         ../outerSubmodule"),
+ 				)
+ 			}).
+ 			SelectNextItem().
+ 			Tap(func() {
+ 				t.Views().Main().ContainsLines(
+-					Contains("Name: outerSubName/innerSubName"),
+-					Contains("Path: modules/outerSubPath/modules/innerSubPath"),
+-					Contains("Url:  ../innerSubmodule"),
++					Contains("Name:        outerSubName/innerSubName"),
++					Contains("Path:        modules/outerSubPath/modules/innerSubPath"),
++					Contains("Url:         ../innerSubmodule"),
+ 				)
+ 			}).
+ 			// enter the nested submodule
+diff --git a/pkg/integration/tests/submodule/remove_nested.go b/pkg/integration/tests/submodule/remove_nested.go
+index b143096cd..73fa5578a 100644
+--- a/pkg/integration/tests/submodule/remove_nested.go
++++ b/pkg/integration/tests/submodule/remove_nested.go
+@@ -21,8 +21,8 @@ var RemoveNested = NewIntegrationTest(NewIntegrationTestArgs{
+ 
+ 		t.Views().Submodules().Focus().
+ 			Lines(
+-				Equals("outerSubName").IsSelected(),
+-				Equals("  - innerSubName"),
++				Contains("└─ outerSubName").IsSelected(),
++				Contains("   └─ innerSubName"),
+ 			).
+ 			SelectNextItem().
+ 			Press(keys.Universal.Remove).
+@@ -33,7 +33,7 @@ var RemoveNested = NewIntegrationTest(NewIntegrationTestArgs{
+ 					Confirm()
+ 			}).
+ 			Lines(
+-				Equals("outerSubName").IsSelected(),
++				Contains("└─ outerSubName").IsSelected(),
+ 			).
+ 			Press(keys.Universal.GoInto)
+ 
+diff --git a/pkg/integration/tests/submodule/status.go b/pkg/integration/tests/submodule/status.go
+new file mode 100644
+index 000000000..45c44cb39
+--- /dev/null
++++ b/pkg/integration/tests/submodule/status.go
+@@ -0,0 +1,43 @@
++package submodule
++
++import (
++	"github.com/jesseduffield/lazygit/pkg/config"
++	. "github.com/jesseduffield/lazygit/pkg/integration/components"
++)
++
++var Status = NewIntegrationTest(NewIntegrationTestArgs{
++	Description:  "Show a submodule's own branch, divergence from its upstream, and dirty state without entering it",
++	ExtraCmdArgs: []string{},
++	Skip:         false,
++	SetupConfig:  func(cfg *config.AppConfig) {},
++	SetupRepo: func(shell *Shell) {
++		shell.EmptyCommit("first commit")
++		shell.CloneIntoSubmodule("my_submodule_name", "my_submodule_path")
++		shell.GitAddAll()
++		shell.Commit("add submodule")
++
++		shell.Chdir("my_submodule_path")
++		shell.EmptyCommit("commit waiting to be pushed")
++		shell.CreateFile("untracked_file", "untracked")
++		shell.Chdir("..")
++	},
++	Run: func(t *TestDriver, keys config.KeybindingConfig) {
++		t.Views().Submodules().Focus().
++			Lines(
++				Contains("└─ my_submodule_name").
++					Contains("master").
++					Contains("↑1").
++					Contains("*1").
++					Contains("⇡1").
++					IsSelected(),
++			)
++
++		t.Views().Main().
++			Content(Contains("Branch:      master")).
++			Content(Contains("Upstream:    origin/master")).
++			Content(Contains("Divergence:  ↓0 ↑1")).
++			Content(Contains("Worktree:    1 untracked")).
++			Content(Contains("Parent:      ")).
++			Content(Contains("differs from HEAD (↓0 ↑1)"))
++	},
++})
+diff --git a/pkg/integration/tests/submodule/status_nested.go b/pkg/integration/tests/submodule/status_nested.go
+new file mode 100644
+index 000000000..01ba31463
+--- /dev/null
++++ b/pkg/integration/tests/submodule/status_nested.go
+@@ -0,0 +1,52 @@
++package submodule
++
++import (
++	"github.com/jesseduffield/lazygit/pkg/config"
++	. "github.com/jesseduffield/lazygit/pkg/integration/components"
++)
++
++var StatusNested = NewIntegrationTest(NewIntegrationTestArgs{
++	Description:  "Show nested submodules as a tree, with the description from .gitmodules",
++	ExtraCmdArgs: []string{},
++	Skip:         false,
++	SetupConfig:  func(cfg *config.AppConfig) {},
++	SetupRepo: func(shell *Shell) {
++		setupNestedSubmodules(shell)
++
++		shell.Chdir("..")
++		shell.CreateDir("secondSubmodule")
++		shell.Chdir("secondSubmodule")
++		shell.Init()
++		shell.CreateFileAndAdd("second", "second")
++		shell.Commit("initial second commit")
++
++		shell.Chdir("../repo")
++		shell.RunCommand([]string{"git", "-c", "protocol.file.allow=always", "submodule", "add", "--name", "secondSubName", "../secondSubmodule", "modules/secondSubPath"})
++		// `description` isn't a key git knows about; it's ours to render.
++		shell.RunCommand([]string{"git", "config", "-f", ".gitmodules", "submodule.outerSubName.description", "The outer one"})
++		shell.Commit("add dependency as secondSubmodule")
++	},
++	Run: func(t *TestDriver, keys config.KeybindingConfig) {
++		t.Views().Submodules().Focus().
++			Lines(
++				Contains("├─ outerSubName").IsSelected(),
++				Contains("│  └─ innerSubName"),
++				Contains("└─ secondSubName"),
++			).
++			Tap(func() {
++				t.Views().Main().
++					Content(Contains("Name:        outerSubName")).
++					Content(Contains("Description: The outer one"))
++			}).
++			SelectNextItem().
++			Tap(func() {
++				t.Views().Main().
++					Content(Contains("Name:        outerSubName/innerSubName")).
++					// a submodule checked out by its parent sits on a detached HEAD
++					Content(Contains("Branch:      detached at")).
++					Content(Contains("Upstream:    none")).
++					// nothing sets a description for this one
++					Content(DoesNotContain("Description:"))
++			})
++	},
++})
+diff --git a/pkg/integration/tests/test_list.go b/pkg/integration/tests/test_list.go
+index 15ef6f8c7..01c11a66a 100644
+--- a/pkg/integration/tests/test_list.go
++++ b/pkg/integration/tests/test_list.go
+@@ -455,6 +455,8 @@ var tests = []*components.IntegrationTest{
+ 	submodule.Stage,
+ 	submodule.StageAllWithDirtySubmodule,
+ 	submodule.StageDirtyOnly,
++	submodule.Status,
++	submodule.StatusNested,
+ 	sync.FetchAndAutoForwardBranchesAllBranches,
+ 	sync.FetchAndAutoForwardBranchesAllBranchesCheckedOutInOtherWorktree,
+ 	sync.FetchAndAutoForwardBranchesNone,
+diff --git a/schema-master/config.json b/schema-master/config.json
+index 45a2b9efe..ac1615ed9 100644
+--- a/schema-master/config.json
++++ b/schema-master/config.json
+@@ -762,6 +762,11 @@
+           "description": "If true, show the number of lines changed per file in the Files view",
+           "default": false
+         },
++        "showSubmoduleStatus": {
++          "type": "boolean",
++          "description": "If true (default), show each submodule's own branch, divergence from its upstream, and working tree state in the Submodules view.\nThis reads the status of every submodule on each refresh, so it can be turned off in projects with very many (or very large) submodules.",
++          "default": true
++        },
+         "showRandomTip": {
+           "type": "boolean",
+           "description": "If true, show a random tip in the command log when Lazygit starts",
