@@ -179,6 +179,19 @@
         '';
     });
   })
+  (_final: prev: {
+    # The sidebar collapse toggle is a one-cell icon in the bottom-right corner:
+    # unhittable with a finger over ssh from a phone. The icon stays where it is,
+    # only its press area grows — left and up, never onto the divider column,
+    # which upstream keeps draggable down to its last row.
+    herdr = prev.herdr.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/herdr/larger-sidebar-toggle-hit-area.patch
+        ];
+    });
+  })
   # Everything ./pkgs defines — first-party and packaged upstreams alike —
   # lands on `pkgs.<name>`, so no module has to be wired its own way.
   (final: _prev: import ../pkgs final)

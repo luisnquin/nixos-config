@@ -1,0 +1,76 @@
+--- a/src/ui.rs
++++ b/src/ui.rs
+@@ -79,7 +79,8 @@
+         agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect, agent_panel_entries,
+         agent_panel_scroll_for_target, agent_panel_scroll_metrics, agent_panel_scrollbar_rect,
+         agent_panel_toggle_rect, all_agent_panel_entries, collapsed_sidebar_sections,
+-        collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
++        collapsed_sidebar_toggle_hit_rect, collapsed_sidebar_toggle_rect,
++        compute_workspace_card_areas, expanded_sidebar_sections, expanded_sidebar_toggle_hit_rect,
+         expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
+         workspace_drop_slots, workspace_group_chevron_rect, workspace_list_entries,
+         workspace_list_entries_expanded, workspace_list_rect, workspace_list_scroll_metrics,
+--- a/src/ui/sidebar.rs
++++ b/src/ui/sidebar.rs
+@@ -1561,6 +1561,47 @@
+     )
+ }
+ 
++/// A one-cell icon is not a target a finger can land on over ssh from a phone.
++/// The icon keeps its cell; only the press area grows, leftwards and upwards so
++/// the divider column stays draggable down to its last row.
++const SIDEBAR_TOGGLE_HIT_WIDTH: u16 = 8;
++const SIDEBAR_TOGGLE_HIT_HEIGHT: u16 = 2;
++
++fn toggle_hit_rect(area: Rect, icon: Rect, width: u16) -> Rect {
++    if icon == Rect::default() {
++        return Rect::default();
++    }
++    let height = SIDEBAR_TOGGLE_HIT_HEIGHT.min(area.height);
++    let right = icon.x + icon.width;
++    let x = right.saturating_sub(width).max(area.x);
++    let y = (icon.y + icon.height).saturating_sub(height).max(area.y);
++    Rect::new(x, y, right.saturating_sub(x), height)
++}
++
++pub(crate) fn collapsed_sidebar_toggle_hit_rect(area: Rect) -> Rect {
++    // The collapsed strip is four columns wide, so the icon takes the whole
++    // content row rather than the eight columns it cannot have.
++    let icon = collapsed_sidebar_toggle_rect(area);
++    let content_w = area.width.saturating_sub(1);
++    let right_pad = content_w.saturating_sub(icon.x.saturating_sub(area.x) + icon.width);
++    toggle_hit_rect(
++        area,
++        Rect {
++            width: icon.width + right_pad,
++            ..icon
++        },
++        content_w,
++    )
++}
++
++pub(crate) fn expanded_sidebar_toggle_hit_rect(area: Rect) -> Rect {
++    toggle_hit_rect(
++        area,
++        expanded_sidebar_toggle_rect(area),
++        SIDEBAR_TOGGLE_HIT_WIDTH,
++    )
++}
++
+ fn render_sidebar_toggle(
+     app: &AppState,
+     frame: &mut Frame,
+--- a/src/app/input/sidebar.rs
++++ b/src/app/input/sidebar.rs
+@@ -253,9 +253,9 @@
+ 
+     pub(super) fn on_sidebar_toggle(&self, col: u16, row: u16) -> bool {
+         let rect = if self.sidebar_collapsed {
+-            crate::ui::collapsed_sidebar_toggle_rect(self.view.sidebar_rect)
++            crate::ui::collapsed_sidebar_toggle_hit_rect(self.view.sidebar_rect)
+         } else {
+-            crate::ui::expanded_sidebar_toggle_rect(self.view.sidebar_rect)
++            crate::ui::expanded_sidebar_toggle_hit_rect(self.view.sidebar_rect)
+         };
+         rect.width > 0
+             && col >= rect.x
