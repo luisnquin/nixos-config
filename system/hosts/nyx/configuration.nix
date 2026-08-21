@@ -21,11 +21,9 @@
     cpu.intel.updateMicrocode = true;
   };
 
-  time = {
-    inherit (host) timeZone;
-    # Without this option, the machine will have a UTC time
-    hardwareClockInLocalTime = true;
-  };
+  time.timeZone = host.timeZone;
+
+  services.chrony.enable = true;
 
   i18n.defaultLocale = host.i18nLocale;
   # location.provider = "geoclue2";
