@@ -40,4 +40,9 @@ in {
     yuckConfig = lib.concatMapStringsSep "\n" (panel: panel.yuck) panels;
     scssConfig = lib.concatMapStringsSep "\n" builtins.readFile styles;
   };
+
+  systemd.user.services.eww.Service = {
+    Restart = "on-failure";
+    RestartSec = 5;
+  };
 }
