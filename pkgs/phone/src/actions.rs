@@ -477,7 +477,11 @@ pub async fn boot(device: &Device, timeout: Duration, rep: &Reporter) -> Result<
 
             rep.try_(format!("booting {label} on {host}"));
 
-            tokio::time::timeout(timeout, simctl::boot(host, simctl::udid(device)?))
+            // strictly longer than the deadline above, so the message that comes
+            // back is the one that names the device rather than the host
+            let backstop = timeout + Duration::from_secs(5);
+
+            tokio::time::timeout(timeout, simctl::boot(host, simctl::udid(device)?, backstop))
                 .await
                 .map_err(|_| anyhow!("{label} was still not up after {}s", timeout.as_secs()))??;
 

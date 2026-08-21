@@ -112,17 +112,35 @@ fn check(udid: &str) -> Result<()> {
 
 /// simctl writes a screenshot to a path, never to a stream, so the file has to
 /// be made and read back on the host rather than piped straight out.
+///
+/// Everything simctl says is kept. Silencing it left nothing to report but the
+/// ssh session, which for a device that is merely off means waiting out the
+/// timeout and then blaming the host — and on a failure that did not hang, an
+/// empty `cat` that read as a screenshot.
 pub async fn screenshot(host: &str, udid: &str) -> Result<Vec<u8>> {
     check(udid)?;
 
-    const SCRIPT: &str = r#"f="$(mktemp -t phone-shot).png"
-xcrun simctl io "$1" screenshot --type=png "$f" >/dev/null 2>&1
-cat "$f" 2>/dev/null
-rm -f "$f""#;
+    // `mktemp -t` makes the file without the suffix, so both names go. `|| exit`
+    // so the status that comes back is the one simctl set rather than the one
+    // `cat` sets for a file simctl never wrote.
+    const SCRIPT: &str = r#"f="$(mktemp -t phone-shot)"
+trap 'rm -f "$f" "$f.png"' EXIT
+xcrun simctl io "$1" screenshot --type=png "$f.png" >&2 || exit
+cat "$f.png""#;
 
-    ssh::output(ssh::script(host, SCRIPT, &[udid]), Duration::from_secs(45))
-        .await
-        .map_err(|_| anyhow!("{host} did not answer in time"))
+    // the capture itself is instant; what this waits on is ~3 MB of PNG coming
+    // back over ssh, and that link is not always a fast one. Measured at 54 kB/s
+    // to rose, a panel takes about a minute, so 45s was a coin toss.
+    let mut ran = ssh::run(host, SCRIPT, &[udid], Duration::from_secs(180)).await?;
+    let png = std::mem::take(&mut ran.stdout);
+
+    landed(host, "simctl io screenshot", ran)?;
+
+    if png.is_empty() {
+        bail!("{host} wrote no image of the simulator");
+    }
+
+    Ok(png)
 }
 
 pub fn logs_command(host: &str, udid: &str, app: &str) -> Result<std::process::Command> {
@@ -171,16 +189,18 @@ pub async fn install(host: &str, udid: &str, path: &std::path::Path) -> Result<(
         bail!("could not copy {} to {host}", path.display());
     }
 
-    // the remote status is read off stderr for the same reason `run` does it: a
-    // brokered ssh session reports success whatever the command did
-    let script =
-        format!("xcrun simctl install \"$1\" \"$2\" >&2\nprintf '{STATUS}%s\\n' \"$?\" >&2");
+    // simctl writes what went wrong to stdout as often as to stderr, and only
+    // one of the two carries the status back
+    let ran = ssh::run(
+        host,
+        "xcrun simctl install \"$1\" \"$2\" >&2",
+        &[udid, &remote],
+        Duration::from_secs(120),
+    )
+    .await?;
 
-    let out = ssh::script(host, &script, &[udid, &remote]).output();
-    let out = tokio::time::timeout(Duration::from_secs(120), out).await??;
-
-    match outcome(&out.stderr) {
-        (Some(0), _) => Ok(()),
+    match (ran.status, ran.said) {
+        (ssh::Status::Code(0), _) => Ok(()),
         (_, reason) if !reason.is_empty() => bail!("{reason}"),
         _ => bail!("{host} did not say whether the install landed"),
     }
@@ -231,50 +251,23 @@ fn button(name: &str) -> Result<&'static str> {
     }
 }
 
-/// Marks the line the remote status is written on.
-const STATUS: &str = "phone-status:";
-
-/// Splits a remote run's stderr into the status the command exited with and the
-/// reason it printed. `None` for a session that never reached the command.
-fn outcome(stderr: &[u8]) -> (Option<i32>, String) {
-    let stderr = String::from_utf8_lossy(stderr);
-    let mut code = None;
-    let mut reason = Vec::new();
-
-    for line in stderr.lines() {
-        match line.strip_prefix(STATUS) {
-            Some(value) => code = value.trim().parse().ok(),
-            None => reason.push(line.strip_prefix("phone: ").unwrap_or(line)),
-        }
-    }
-
-    (code, reason.join("\n").trim().to_string())
-}
-
 /// One `phone` run on the host. The remote refuses an unknown key or an
 /// untypeable character, and that reason is the whole answer, so it is carried
 /// back rather than flattened into a failure.
-///
-/// The exit code is written into stderr and read back off it because not every
-/// ssh session carries one: a brokered one reports success whatever the command
-/// did, which would turn every refusal into an empty success here.
 async fn run(host: &str, args: &[&str], limit: Duration) -> Result<Vec<u8>> {
-    let script = format!("{TOOL} \"$@\"\nprintf '{STATUS}%s\\n' \"$?\" >&2");
-    let out = ssh::script(host, &script, args).output();
-    let out = tokio::time::timeout(limit, out)
-        .await
-        .map_err(|_| anyhow!("{host} did not answer in time"))??;
+    let ran = ssh::run(host, &format!("{TOOL} \"$@\""), args, limit).await?;
 
-    let (code, reason) = outcome(&out.stderr);
-
-    match code {
-        Some(0) => Ok(out.stdout),
+    match ran.status {
+        ssh::Status::Code(0) => Ok(ran.stdout),
         // what a shell reports for a command it could not find
-        Some(127) => bail!("{host} has no {TOOL} to read or press a simulator with"),
-        Some(_) if !reason.is_empty() => bail!("{reason}"),
-        Some(code) => bail!("{TOOL} on {host} exited {code}"),
-        None if reason.is_empty() => bail!("{host} did not run {TOOL}"),
-        None => bail!("{reason}"),
+        ssh::Status::Code(127) => bail!("{host} has no {TOOL} to read or press a simulator with"),
+        ssh::Status::Code(_) if !ran.said.is_empty() => bail!("{}", ran.said),
+        ssh::Status::Code(code) => bail!("{TOOL} on {host} exited {code}"),
+        ssh::Status::Garbled(said) => {
+            bail!("{host} ended {TOOL} with '{said}' rather than a status")
+        }
+        ssh::Status::Missing if ran.said.is_empty() => bail!("{host} did not run {TOOL}"),
+        ssh::Status::Missing => bail!("{}", ran.said),
     }
 }
 
@@ -349,41 +342,69 @@ pub async fn key(host: &str, udid: &str, name: &str) -> Result<()> {
     Ok(())
 }
 
+/// A `simctl` verb run for whether it worked rather than for what it printed.
+/// The reason the far side gave is the whole answer where there is one; the
+/// rest are for when it gave none, which is where a device that refused and a
+/// session that dropped stop looking alike.
+fn landed(host: &str, what: &str, ran: ssh::Ran) -> Result<()> {
+    match ran.status {
+        ssh::Status::Code(0) => Ok(()),
+        ssh::Status::Code(_) if !ran.said.is_empty() => bail!("{}", ran.said),
+        ssh::Status::Code(code) => bail!("{what} on {host} exited {code}"),
+        ssh::Status::Garbled(said) => {
+            bail!("{host} ended {what} with '{said}' rather than a status")
+        }
+        ssh::Status::Missing if ran.said.is_empty() => bail!("{host} did not run {what}"),
+        ssh::Status::Missing => bail!("{}", ran.said),
+    }
+}
+
 /// Boots `udid` and returns once the system is up, not once the process is.
 /// `bootstatus` is what waits; `open` is only there so the window appears, and
 /// a headless boot is still a usable device without it.
-pub async fn boot(host: &str, udid: &str) -> Result<()> {
+///
+/// `limit` is a backstop rather than the deadline. The caller holds one of its
+/// own and knows which device it is waiting on, so it is the one that should
+/// answer — which only holds if what is passed here is strictly longer than it.
+pub async fn boot(host: &str, udid: &str, limit: Duration) -> Result<()> {
+    // booting a device that is already up is an error worth ignoring, since
+    // bootstatus answers for both cases and it is the one being asked
     const SCRIPT: &str = r#"xcrun simctl boot "$1" 2>/dev/null
 open -a Simulator 2>/dev/null
 xcrun simctl bootstatus "$1" -b >&2"#;
 
     check(udid)?;
 
-    let out = ssh::script(host, SCRIPT, &[udid])
-        .output()
-        .await
-        .map_err(|e| anyhow!("{host}: {e}"))?;
-
-    if !out.status.success() {
-        bail!("{host}: {}", String::from_utf8_lossy(&out.stderr).trim());
-    }
-
-    Ok(())
+    landed(
+        host,
+        "simctl bootstatus",
+        ssh::run(host, SCRIPT, &[udid], limit).await?,
+    )
 }
 
 pub async fn shutdown(host: &str, udid: &str) -> Result<()> {
     check(udid)?;
 
-    let out = ssh::script(host, r#"exec xcrun simctl shutdown "$1""#, &[udid])
-        .output()
-        .await
-        .map_err(|e| anyhow!("{host}: {e}"))?;
+    let ran = ssh::run(
+        host,
+        r#"exec xcrun simctl shutdown "$1""#,
+        &[udid],
+        Duration::from_secs(60),
+    )
+    .await?;
 
-    if !out.status.success() {
-        bail!("{host}: {}", String::from_utf8_lossy(&out.stderr).trim());
+    if already_down(&ran.said) {
+        return Ok(());
     }
 
-    Ok(())
+    landed(host, "simctl shutdown", ran)
+}
+
+/// A device that is already down is the state that was asked for, and simctl
+/// reports it as a failure to reach it. Now that its status is read at all, the
+/// refusal has to be recognised or `stop` starts failing on a stopped device.
+fn already_down(said: &str) -> bool {
+    said.contains("current state: Shutdown")
 }
 
 #[cfg(test)]
@@ -396,6 +417,17 @@ mod tests {
             runtime_label("com.apple.CoreSimulator.SimRuntime.iOS-26-5"),
             "iOS 26.5"
         );
+    }
+
+    #[test]
+    fn a_device_that_was_already_down_is_not_a_failed_shutdown() {
+        assert!(already_down(
+            "Unable to shutdown device in current state: Shutdown"
+        ));
+        assert!(!already_down(
+            "Unable to shutdown device in current state: Booted"
+        ));
+        assert!(!already_down("Invalid device: nope"));
     }
 
     #[test]
@@ -419,25 +451,5 @@ mod tests {
 
         assert!(err.contains("no 'back' key"), "{err}");
         assert!(err.contains("home"), "the alternatives are listed: {err}");
-    }
-
-    #[test]
-    fn reads_the_remote_status_off_the_stream_that_carries_it() {
-        assert_eq!(outcome(b"phone-status:0\n"), (Some(0), String::new()));
-        assert_eq!(
-            outcome(b"phone: unknown key: wiggle\nphone-status:1\n"),
-            (Some(1), "unknown key: wiggle".to_string())
-        );
-    }
-
-    /// A session that never reached the command leaves no status behind, and
-    /// reporting that as a clean run would call every failure a success.
-    #[test]
-    fn tells_a_missing_status_apart_from_a_zero_one() {
-        assert_eq!(outcome(b""), (None, String::new()));
-        assert_eq!(
-            outcome(b"ssh: connect: host is down\n"),
-            (None, "ssh: connect: host is down".to_string())
-        );
     }
 }
