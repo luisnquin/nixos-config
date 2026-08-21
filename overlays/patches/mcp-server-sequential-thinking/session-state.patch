@@ -1,0 +1,112 @@
+diff --git a/src/sequentialthinking/index.ts b/src/sequentialthinking/index.ts
+index d56da1a..9e084a2 100644
+--- a/src/sequentialthinking/index.ts
++++ b/src/sequentialthinking/index.ts
+@@ -105,8 +105,10 @@ server.registerTool(
+       thoughtHistoryLength: z.number()
+     },
+   },
+-  async (args) => {
+-    const result = thinkingServer.processThought(args);
++  async (args, extra) => {
++    const metadataSession = extra._meta?.["io.nyx/session-id"];
++    const sessionId = typeof metadataSession === "string" ? metadataSession : "direct";
++    const result = thinkingServer.processThought(args, sessionId);
+ 
+     if (result.isError) {
+       return result;
+diff --git a/src/sequentialthinking/lib.ts b/src/sequentialthinking/lib.ts
+index 387d323..d2e2dc9 100644
+--- a/src/sequentialthinking/lib.ts
++++ b/src/sequentialthinking/lib.ts
+@@ -12,9 +12,13 @@ interface ThoughtData {
+   nextThoughtNeeded: boolean;
+ }
+ 
++interface SessionState {
++  thoughtHistory: ThoughtData[];
++  branches: Record<string, ThoughtData[]>;
++}
++
+ export class SequentialThinkingServer {
+-  private thoughtHistory: ThoughtData[] = [];
+-  private branches: Record<string, ThoughtData[]> = {};
++  private sessions = new Map<string, SessionState>();
+   private disableThoughtLogging: boolean;
+ 
+   constructor() {
+@@ -49,7 +53,15 @@ export class SequentialThinkingServer {
+ └${border}┘`;
+   }
+ 
+-  public processThought(input: ThoughtData): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
++  public processThought(input: ThoughtData, sessionId = "direct"): { content: Array<{ type: "text"; text: string }>; isError?: boolean } {
+     try {
++      let session = this.sessions.get(sessionId);
++      if (!session) {
++        session = {
++          thoughtHistory: [],
++          branches: {},
++        };
++        this.sessions.set(sessionId, session);
++      }
+       // Validation happens at the tool registration layer via Zod
+       // Adjust totalThoughts if thoughtNumber exceeds it
+       if (input.thoughtNumber > input.totalThoughts) {
+@@ -57,13 +69,13 @@ export class SequentialThinkingServer {
+         input.totalThoughts = input.thoughtNumber;
+       }
+ 
+-      this.thoughtHistory.push(input);
++      session.thoughtHistory.push(input);
+ 
+       if (input.branchFromThought && input.branchId) {
+-        if (!this.branches[input.branchId]) {
+-          this.branches[input.branchId] = [];
++        if (!session.branches[input.branchId]) {
++          session.branches[input.branchId] = [];
+         }
+-        this.branches[input.branchId].push(input);
++        session.branches[input.branchId].push(input);
+       }
+ 
+       if (!this.disableThoughtLogging) {
+@@ -78,8 +90,8 @@ export class SequentialThinkingServer {
+             thoughtNumber: input.thoughtNumber,
+             totalThoughts: input.totalThoughts,
+             nextThoughtNeeded: input.nextThoughtNeeded,
+-            branches: Object.keys(this.branches),
+-            thoughtHistoryLength: this.thoughtHistory.length
++            branches: Object.keys(session.branches),
++            thoughtHistoryLength: session.thoughtHistory.length
+           }, null, 2)
+         }]
+       };
+diff --git a/src/sequentialthinking/__tests__/lib.test.ts b/src/sequentialthinking/__tests__/lib.test.ts
+index f0a98df..b742aaf 100644
+--- a/src/sequentialthinking/__tests__/lib.test.ts
++++ b/src/sequentialthinking/__tests__/lib.test.ts
+@@ -173,6 +173,25 @@ describe('SequentialThinkingServer', () => {
+       expect(data.branches.length).toBe(1);
+     });
++
++    it('tracks gateway sessions independently', () => {
++      const input = {
++        thought: 'A thought',
++        thoughtNumber: 1,
++        totalThoughts: 1,
++        nextThoughtNeeded: false
++      };
++
++      server.processThought(input, 'client-a');
++      const clientA = server.processThought(input, 'client-a');
++      const clientB = server.processThought(input, 'client-b');
++      const clientAData = JSON.parse(clientA.content[0].text);
++      const clientBData = JSON.parse(clientB.content[0].text);
++
++      expect(clientAData.thoughtHistoryLength).toBe(2);
++      expect(clientBData.thoughtHistoryLength).toBe(1);
++    });
+   });
+ 
+   describe('processThought - edge cases', () => {

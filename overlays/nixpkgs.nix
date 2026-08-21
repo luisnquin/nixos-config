@@ -146,6 +146,15 @@
     });
   })
   (_final: prev: {
+    mcp-server-sequential-thinking = prev.mcp-server-sequential-thinking.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/mcp-server-sequential-thinking/session-state.patch
+        ];
+    });
+  })
+  (_final: prev: {
     browsers = prev.browsers.overrideAttrs (old: {
       patches =
         (old.patches or [])
