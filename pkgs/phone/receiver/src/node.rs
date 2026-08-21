@@ -14,11 +14,15 @@ pub struct Node {
     pub class: String,
     pub clickable: bool,
     pub bounds: Bounds,
+    /// Every frame this element sits inside, nearest first. The controlling
+    /// host crops to these when asked for a control rather than for the words
+    /// on it, and a run of wrappers drawn on one frame counts as one box.
+    pub ancestors: Vec<Bounds>,
 }
 
 /// Points, not pixels. Android reports the panel in pixels and iOS reports it in
 /// points; each side taps in whatever it reported, so nothing has to convert.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct Bounds {
     pub x1: i32,
     pub y1: i32,
@@ -49,26 +53,35 @@ pub fn flatten(tree: &Value) -> Vec<Node> {
 
     if let Some(roots) = tree.get("roots").and_then(Value::as_array) {
         for root in roots {
-            walk(root, &mut nodes);
+            walk(root, &[], &mut nodes);
         }
     }
 
     nodes
 }
 
-fn walk(node: &Value, out: &mut Vec<Node>) {
-    if let Some(mapped) = map(node, out.len()) {
+fn walk(node: &Value, enclosing: &[Bounds], out: &mut Vec<Node>) {
+    if let Some(mapped) = map(node, out.len(), enclosing) {
         out.push(mapped);
     }
 
+    let nested;
+    let enclosing = match bounds(node) {
+        Some(frame) if enclosing.first() != Some(&frame) => {
+            nested = [&[frame][..], enclosing].concat();
+            &nested
+        }
+        _ => enclosing,
+    };
+
     if let Some(children) = node.get("children").and_then(Value::as_array) {
         for child in children {
-            walk(child, out);
+            walk(child, enclosing, out);
         }
     }
 }
 
-fn map(node: &Value, index: usize) -> Option<Node> {
+fn map(node: &Value, index: usize, enclosing: &[Bounds]) -> Option<Node> {
     if node.get("hidden").and_then(Value::as_bool).unwrap_or(false) {
         return None;
     }
@@ -101,6 +114,7 @@ fn map(node: &Value, index: usize) -> Option<Node> {
         class,
         clickable,
         bounds,
+        ancestors: enclosing.to_vec(),
     })
 }
 
@@ -229,6 +243,24 @@ mod tests {
 
         assert_eq!(nodes[1].desc, "Search");
         assert_eq!(nodes[1].text, "Hola");
+    }
+
+    /// A crop of a label is a crop of the words on a control. The frames above
+    /// it are what the controlling host widens to, and it counts them from the
+    /// element outwards.
+    #[test]
+    fn an_element_carries_the_frames_it_sits_inside() {
+        let nodes = flatten(&tree());
+
+        assert_eq!(
+            nodes[0].ancestors,
+            [Bounds {
+                x1: 0,
+                y1: 0,
+                x2: 440,
+                y2: 956
+            }]
+        );
     }
 
     /// `index` addresses a node in the emitted list, so it has to count what
