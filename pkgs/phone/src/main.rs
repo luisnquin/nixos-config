@@ -217,7 +217,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Logs { app }) => {
-            let view = resolve(&mut reg, want(None).as_deref(), true).await?;
+            let view = driving(&mut reg, want(None).as_deref(), true).await?;
             let err = actions::logs_command(&view.server, &view.device, &app)
                 .await?
                 .exec();
@@ -226,7 +226,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Mirror { target }) => {
-            let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+            let view = driving(&mut reg, want(target).as_deref(), true).await?;
 
             eprintln!(
                 "phone: {}",
@@ -237,7 +237,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Install { apk }) => {
-            let view = resolve(&mut reg, want(None).as_deref(), true).await?;
+            let view = driving(&mut reg, want(None).as_deref(), true).await?;
 
             let (rep, drain) = reporter();
             let res = actions::install(&view.server, &view.device, &apk, &rep).await;
@@ -396,7 +396,7 @@ impl Session {
         want: Option<&str>,
         focus: Option<(i32, i32)>,
     ) -> Result<Self> {
-        let view = resolve(reg, want, true).await?;
+        let view = driving(reg, want, true).await?;
         let target = target_of(&view, focus).await?;
 
         Ok(Session {
@@ -888,6 +888,41 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
     Ok(())
 }
 
+/// Resolves a device that is about to be read, pressed or handed an app, which
+/// is every verb except the ones whose job is to change what a device *is*:
+/// `boot`, `connect`, `use`, `forget`.
+///
+/// A device that is defined and not running is the state a caller hits
+/// constantly and fixes with one command, and every layer below this words it
+/// differently — simctl says "Unable to lookup in current state: Shutdown", the
+/// receiver says "not booted", `simctl io` says nothing at all and waits out the
+/// timeout. All three answer with a udid rather than the name that was typed,
+/// and none names the fix. The survey that finds the device already knows, so
+/// it is answered here once, in the name it was asked in.
+async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
+    let view = resolve(reg, want, prefer_recent).await?;
+
+    if view.reach == model::Reach::Off {
+        let label = &view.device.label;
+
+        bail!(
+            "{label} is off; start it with `phone boot {}`",
+            quoted(label)
+        );
+    }
+
+    Ok(view)
+}
+
+/// A name with a space in it is one argument only if the shell is told so, and
+/// every simulator is named like that.
+fn quoted(label: &str) -> String {
+    match label.contains(char::is_whitespace) {
+        true => format!("\"{label}\""),
+        false => label.to_string(),
+    }
+}
+
 async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
     let views = survey(reg).await;
     reg.save()?;
@@ -1188,4 +1223,15 @@ fn which(bin: &str) -> bool {
     std::env::var_os("PATH")
         .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_name_that_needs_quoting_is_handed_back_ready_to_paste() {
+        assert_eq!(quoted("iPhone 17 Pro Max"), "\"iPhone 17 Pro Max\"");
+        assert_eq!(quoted("faraday"), "faraday");
+    }
 }
