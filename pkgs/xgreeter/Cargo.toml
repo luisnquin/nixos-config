@@ -1,0 +1,27 @@
+[package]
+name = "xgreeter"
+version = "0.1.0"
+edition = "2021"
+description = "0xc000022070's greeter - a ctOS-flavored ratatui frontend for greetd"
+license = "MIT"
+
+[[bin]]
+name = "xgreeter"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+greetd_ipc = { version = "0.10", features = ["tokio-codec"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "process", "sync", "time"] }
+futures = "0.3"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+anyhow = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+panic = "abort"
