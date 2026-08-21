@@ -35,7 +35,7 @@ index 387d323..d2e2dc9 100644
    private disableThoughtLogging: boolean;
  
    constructor() {
-@@ -49,7 +53,15 @@ export class SequentialThinkingServer {
+@@ -49,8 +53,16 @@ export class SequentialThinkingServer {
  └${border}┘`;
    }
  
@@ -86,7 +86,7 @@ diff --git a/src/sequentialthinking/__tests__/lib.test.ts b/src/sequentialthinki
 index f0a98df..b742aaf 100644
 --- a/src/sequentialthinking/__tests__/lib.test.ts
 +++ b/src/sequentialthinking/__tests__/lib.test.ts
-@@ -173,6 +173,25 @@ describe('SequentialThinkingServer', () => {
+@@ -173,5 +173,23 @@ describe('SequentialThinkingServer', () => {
        expect(data.branches.length).toBe(1);
      });
 +
