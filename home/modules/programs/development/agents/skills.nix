@@ -88,6 +88,7 @@ in {
             "voice-orchestrator"
             "jetson-nixos"
             "mobile-nixos-port"
+            "commit"
           ];
         })
 
