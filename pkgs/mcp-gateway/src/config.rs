@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
 
 use serde::Deserialize;
 
@@ -15,6 +16,8 @@ pub struct Server {
     pub args: Vec<String>,
     #[serde(default)]
     pub env: HashMap<String, String>,
+    #[serde(default)]
+    pub credentials: HashMap<String, PathBuf>,
     #[serde(default)]
     pub scope: Scope,
     #[serde(default = "default_timeout")]

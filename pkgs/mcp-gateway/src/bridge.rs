@@ -304,6 +304,16 @@ impl Connection {
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .kill_on_drop(true);
+        for (name, path) in &definition.credentials {
+            let value = std::fs::read_to_string(path)
+                .map_err(|source| BridgeError::Credential {
+                    path: path.clone(),
+                    source,
+                })?
+                .trim_end_matches(['\r', '\n'])
+                .to_owned();
+            command.env(name, value);
+        }
         if let Some(workspace) = workspace {
             command.current_dir(workspace);
         }
@@ -680,6 +690,11 @@ pub enum BridgeError {
     UnknownClient,
     #[error("cannot start MCP server: {0}")]
     Spawn(std::io::Error),
+    #[error("cannot read MCP credential {path}: {source}")]
+    Credential {
+        path: PathBuf,
+        source: std::io::Error,
+    },
     #[error("MCP server did not expose stdio")]
     MissingPipe,
     #[error("cannot encode MCP message: {0}")]
