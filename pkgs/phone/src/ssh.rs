@@ -60,6 +60,102 @@ pub fn script(host: &str, script: &str, args: &[&str]) -> Command {
     cmd
 }
 
+/// Marks the line a remote run's exit code is written on.
+const STATUS: &str = "phone-status:";
+
+/// How a remote command ended, which is not always a number.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Status {
+    /// It ran, and exited with this.
+    Code(i32),
+    /// The status line arrived carrying something that is not a code. The
+    /// command ran and its outcome is lost, which is not the same as never
+    /// having reached it — this one is not worth retrying.
+    Garbled(String),
+    /// No status line at all: the session died before the command ended, or
+    /// never opened. The one case where trying again is the right answer.
+    Missing,
+}
+
+/// What a remote command did.
+pub struct Ran {
+    pub status: Status,
+    /// Bytes, because some of what comes back this way is a PNG.
+    pub stdout: Vec<u8>,
+    /// Everything the remote said that was not the status line.
+    pub said: String,
+}
+
+impl Ran {
+    pub fn ok(&self) -> bool {
+        self.status == Status::Code(0)
+    }
+
+    pub fn text(&self) -> String {
+        String::from_utf8_lossy(&self.stdout).trim().to_string()
+    }
+}
+
+/// `script` on `host`, with the exit code carried back inside stderr rather
+/// than read off the ssh process: not every session carries one. A brokered
+/// session reports success whatever the command did, which would turn every
+/// remote refusal into a silent success here.
+pub async fn run(host: &str, script: &str, args: &[&str], limit: Duration) -> Result<Ran> {
+    let out = self::script(host, &wrapped(script), args).output();
+    let out = tokio::time::timeout(limit, out)
+        .await
+        .map_err(|_| anyhow!("{host} did not answer in time"))??;
+
+    let (status, said) = outcome(&out.stderr);
+
+    Ok(Ran {
+        status,
+        stdout: out.stdout,
+        said,
+    })
+}
+
+/// The status line runs after the script, which only happens if the script
+/// leaves a shell behind to run it — and a script is free to end in `exit`, or
+/// to hand its process to `exec`. A subshell confines both: they end it rather
+/// than the shell holding the line, `$?` still reads what it ended with, and
+/// stdout still flows through untouched.
+///
+/// Wrapping rather than documenting the constraint, because a caller that
+/// breaks it is not told: a script that got no status back is indistinguishable
+/// from a session that dropped, so the failure would read as a dead host.
+fn wrapped(script: &str) -> String {
+    format!("(\n{script}\n)\nprintf '{STATUS}%s\\n' \"$?\" >&2")
+}
+
+/// Splits a remote run's stderr into how the command ended and the reason it
+/// printed.
+fn outcome(stderr: &[u8]) -> (Status, String) {
+    let stderr = String::from_utf8_lossy(stderr);
+    let mut status = Status::Missing;
+    let mut reason = Vec::new();
+
+    for line in stderr.lines() {
+        // a command whose last line of stderr had no newline on it leaves the
+        // marker glued to the end of that line, so it is looked for anywhere
+        match line.split_once(STATUS) {
+            Some((before, value)) => {
+                status = match value.trim().parse() {
+                    Ok(code) => Status::Code(code),
+                    Err(_) => Status::Garbled(value.trim().to_string()),
+                };
+
+                if !before.is_empty() {
+                    reason.push(before.strip_prefix("phone: ").unwrap_or(before));
+                }
+            }
+            None => reason.push(line.strip_prefix("phone: ").unwrap_or(line)),
+        }
+    }
+
+    (status, reason.join("\n").trim().to_string())
+}
+
 pub async fn output(mut cmd: Command, limit: Duration) -> Result<Vec<u8>> {
     let out = tokio::time::timeout(limit, cmd.stderr(Stdio::null()).output())
         .await
@@ -169,5 +265,95 @@ impl Where {
             Ok(bytes) => String::from_utf8_lossy(&bytes).trim().to_string(),
             Err(_) => String::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ran(script: &str) -> (Status, String, String) {
+        let out = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(wrapped(script))
+            .output()
+            .expect("running sh");
+
+        let (status, said) = outcome(&out.stderr);
+
+        (
+            status,
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            said,
+        )
+    }
+
+    #[test]
+    fn reads_the_remote_status_off_the_stream_that_carries_it() {
+        assert_eq!(
+            outcome(b"phone-status:0\n"),
+            (Status::Code(0), String::new())
+        );
+        assert_eq!(
+            outcome(b"phone: unknown key: wiggle\nphone-status:1\n"),
+            (Status::Code(1), "unknown key: wiggle".to_string())
+        );
+    }
+
+    /// A session that never reached the command leaves no status behind, and
+    /// reporting that as a clean run would call every failure a success.
+    #[test]
+    fn tells_a_missing_status_apart_from_a_zero_one() {
+        assert_eq!(outcome(b""), (Status::Missing, String::new()));
+        assert_eq!(
+            outcome(b"ssh: connect: host is down\n"),
+            (Status::Missing, "ssh: connect: host is down".to_string())
+        );
+    }
+
+    /// A command that ran and lost its outcome is not a session that never got
+    /// there: only one of the two is worth trying again.
+    #[test]
+    fn tells_a_status_that_is_not_a_number_apart_from_no_status() {
+        assert_eq!(
+            outcome(b"phone-status:killed\n").0,
+            Status::Garbled("killed".to_string())
+        );
+    }
+
+    /// stderr with no newline on its last line arrives with the marker stuck to
+    /// the end of it, and reading the status only at the start of a line would
+    /// call that a dropped session.
+    #[test]
+    fn finds_the_status_behind_a_line_that_was_never_terminated() {
+        assert_eq!(
+            outcome(b"Password:phone-status:1\n"),
+            (Status::Code(1), "Password:".to_string())
+        );
+    }
+
+    /// The whole point of the subshell, and it only holds if a real shell
+    /// behaves the way it is supposed to — so this runs one.
+    #[test]
+    fn a_script_that_ends_by_leaving_the_shell_still_reports_its_status() {
+        assert_eq!(
+            ran("echo out; exit 3"),
+            (Status::Code(3), "out".into(), String::new())
+        );
+        assert_eq!(
+            ran("exit 0"),
+            (Status::Code(0), String::new(), String::new())
+        );
+    }
+
+    /// `exec` replaces the shell with the command, which would take the status
+    /// line with it. Inside a subshell it replaces only the subshell.
+    #[test]
+    fn a_script_that_hands_its_process_away_still_reports_its_status() {
+        assert_eq!(
+            ran("exec printf hi"),
+            (Status::Code(0), "hi".into(), String::new())
+        );
+        assert_eq!(ran("exec false").0, Status::Code(1));
     }
 }
