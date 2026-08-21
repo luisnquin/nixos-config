@@ -64,6 +64,7 @@
           ./patches/codex/default-yolo.patch
           ./patches/codex/status-line-short-cwd.patch
           ./patches/codex/status-line-effective-reasoning.patch
+          ./patches/codex/unload-unsubscribed-threads.patch
         ];
 
       postPatch =
