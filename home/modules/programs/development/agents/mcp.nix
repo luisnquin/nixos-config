@@ -35,8 +35,6 @@
   programs.mcp = {
     enable = true;
     servers = {
-      adb.command = lib.getExe pkgs.adb-mcp;
-
       codebase-memory-mcp.command = lib.getExe pkgs.codebase-memory-mcp;
 
       firefox-devtools = {
