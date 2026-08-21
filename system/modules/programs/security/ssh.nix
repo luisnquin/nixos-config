@@ -154,16 +154,11 @@ in {
       openFirewall = true;
     };
 
-    fail2ban = {
+    sshguard = {
       enable = true;
-      maxretry = 5;
-      bantime = "24h";
-      bantime-increment = {
-        enable = true;
-        formula = "ban.Time * math.exp(float(ban.Count+1)*banFactor)/math.exp(1*banFactor)";
-        maxtime = "192h";
-        overalljails = true;
-      };
+      services = ["sshd"];
+      attack_threshold = 50;
+      blocktime = 86400;
     };
   };
 }
