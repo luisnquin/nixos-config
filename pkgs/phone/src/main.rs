@@ -716,7 +716,7 @@ async fn at(t: &a11y::Target, what: &str) -> Result<((i32, i32), Option<String>)
     let nodes = a11y::dump(t).await?;
     let node = a11y::pick(&nodes, what)?;
 
-    Ok((node.bounds.center(), Some(node.label().to_string())))
+    Ok((node.bounds.center(), Some(node.label())))
 }
 
 /// `at 416,1627` for a bare point, `Gmail at 416,1627` for a named element.

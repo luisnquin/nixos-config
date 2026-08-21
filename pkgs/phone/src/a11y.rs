@@ -130,17 +130,64 @@ pub struct Node {
     pub class: String,
     pub clickable: bool,
     pub bounds: Bounds,
+    /// Every box this element sits inside, nearest first. What a control looks
+    /// like is mostly drawn by its container — the row, the card, the border —
+    /// so a crop of the element alone is a crop of the label on it.
+    ///
+    /// Absent from a snapshot taken by a receiver older than the field, which
+    /// is why the callers say so rather than quietly cropping to nothing.
+    #[serde(default)]
+    pub ancestors: Vec<Bounds>,
 }
 
 impl Node {
-    pub fn label(&self) -> &str {
+    /// The name this element answers to, empty when it carries none of its own.
+    /// Deliberately the same three fields `matches` searches: what a snapshot
+    /// prints and what `pick` can resolve have to be one set, or a caller reads
+    /// a name off the screen and presses at nothing.
+    pub fn name(&self) -> &str {
         for candidate in [&self.text, &self.desc, &self.res_id] {
             if !candidate.is_empty() {
                 return candidate;
             }
         }
 
+        ""
+    }
+
+    /// The class, without the package every node of one app shares.
+    pub fn kind(&self) -> &str {
         self.class.rsplit('.').next().unwrap_or(&self.class)
+    }
+
+    /// What to print. A nameless element is shown as its class in angle
+    /// brackets, which reads as a description rather than as a name — the
+    /// point being that `<View>` is the one form `pick` will never resolve, so
+    /// the `@index` printed beside it is visibly the only way to reach the row.
+    pub fn label(&self) -> String {
+        match self.name() {
+            "" => format!("<{}>", self.kind()),
+            name => name.to_string(),
+        }
+    }
+
+    /// The `levels`th box around this element that is actually bigger than it.
+    /// Layout puts a stack of wrappers on the same rectangle, and counting
+    /// those would make `--expand 1` land back on the element it started from.
+    pub fn enclosing(&self, levels: usize) -> Option<Bounds> {
+        self.boxes().nth(levels.saturating_sub(1))
+    }
+
+    /// How far `--expand` can go before it runs out of screen.
+    pub fn enclosures(&self) -> usize {
+        self.boxes().count()
+    }
+
+    fn boxes(&self) -> impl Iterator<Item = Bounds> + '_ {
+        self.ancestors
+            .iter()
+            .copied()
+            .filter(|a| a.area() > self.bounds.area())
     }
 
     pub fn matches(&self, needle: &str) -> bool {
@@ -158,39 +205,52 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
     let doc = roxmltree::Document::parse(xml)?;
     let mut nodes = Vec::new();
 
-    for element in doc.descendants().filter(|n| n.has_tag_name("node")) {
-        let attr = |name| element.attribute(name).unwrap_or_default().to_string();
+    // walked rather than iterated flat, because a kept element needs the boxes
+    // it sits inside and most of those are containers that are dropped
+    walk(doc.root_element(), &[], &mut nodes);
 
+    Ok(nodes)
+}
+
+fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
+    let attr = |name| element.attribute(name).unwrap_or_default().to_string();
+    let bounds = element.attribute("bounds").and_then(Bounds::parse);
+
+    if let Some(bounds) = bounds.filter(|b| b.area() > 0) {
         let text = attr("text");
         let desc = attr("content-desc");
         let res_id = attr("resource-id");
         let clickable = element.attribute("clickable") == Some("true");
 
-        if text.is_empty() && desc.is_empty() && !clickable {
-            continue;
+        if !(text.is_empty() && desc.is_empty() && !clickable) {
+            out.push(Node {
+                index: out.len(),
+                text,
+                desc,
+                // the package prefix is identical for every node of one app
+                res_id: res_id.rsplit('/').next().unwrap_or(&res_id).to_string(),
+                class: attr("class"),
+                clickable,
+                bounds,
+                ancestors: enclosing.to_vec(),
+            });
         }
-
-        let Some(bounds) = element.attribute("bounds").and_then(Bounds::parse) else {
-            continue;
-        };
-
-        if bounds.area() == 0 {
-            continue;
-        }
-
-        nodes.push(Node {
-            index: nodes.len(),
-            text,
-            desc,
-            // the package prefix is identical for every node of one app
-            res_id: res_id.rsplit('/').next().unwrap_or(&res_id).to_string(),
-            class: attr("class"),
-            clickable,
-            bounds,
-        });
     }
 
-    Ok(nodes)
+    // a run of wrappers on one rectangle is one box to a reader, and keeping
+    // each of them would make `--expand` count layout rather than structure
+    let nested;
+    let enclosing = match bounds {
+        Some(b) if enclosing.first() != Some(&b) => {
+            nested = [&[b][..], enclosing].concat();
+            &nested
+        }
+        _ => enclosing,
+    };
+
+    for child in element.children().filter(|c| c.has_tag_name("node")) {
+        walk(child, enclosing, out);
+    }
 }
 
 /// uiautomator loses to a window that is still being laid out and answers with
@@ -270,7 +330,7 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
         many => {
             let exact: Vec<&&Node> = many
                 .iter()
-                .filter(|n| n.label().eq_ignore_ascii_case(needle))
+                .filter(|n| n.name().eq_ignore_ascii_case(needle))
                 .collect();
 
             if let [one] = exact.as_slice() {
@@ -470,6 +530,7 @@ mod tests {
   <node class="android.widget.EditText" bounds="[40,300][1040,400]" clickable="true" text="" content-desc="Email" resource-id="com.app:id/email"/>
   <node class="android.widget.Button" bounds="[40,500][1040,600]" clickable="true" text="Log in" content-desc="" resource-id="com.app:id/submit"/>
   <node class="android.widget.Button" bounds="[0,0][0,0]" clickable="true" text="Collapsed" content-desc="" resource-id=""/>
+  <node class="android.view.View" bounds="[40,700][1040,800]" clickable="true" text="" content-desc="" resource-id=""/>
  </node>
 </hierarchy>"#;
 
@@ -477,8 +538,63 @@ mod tests {
     fn keeps_only_what_can_be_read_or_pressed() {
         let nodes = parse(SAMPLE).expect("sample must parse");
 
-        let labels: Vec<&str> = nodes.iter().map(|n| n.label()).collect();
-        assert_eq!(labels, ["Sign in", "Email", "Log in"]);
+        let labels: Vec<String> = nodes.iter().map(|n| n.label()).collect();
+        assert_eq!(labels, ["Sign in", "Email", "Log in", "<View>"]);
+    }
+
+    /// The class fallback is a description of a row, not a handle on it. It
+    /// used to print bare, which reads as something to press, and a screen of
+    /// React Native containers prints seven of them.
+    #[test]
+    fn a_nameless_element_prints_as_its_class_and_answers_to_nothing() {
+        let nodes = parse(SAMPLE).unwrap();
+        let view = nodes.last().unwrap();
+
+        assert_eq!(view.label(), "<View>");
+        assert_eq!(view.name(), "");
+        assert!(!view.matches("View"), "the class is not a name");
+        assert!(
+            pick(&nodes, "View").is_err(),
+            "a printed <View> must not resolve"
+        );
+        assert_eq!(pick(&nodes, "@3").unwrap().bounds.y1, 700);
+    }
+
+    /// A crop of a label is a crop of the words on a card, not of the card.
+    /// The boxes it sits in are what `--expand` widens to, and the ones that
+    /// share its rectangle have to be skipped or `--expand 1` is a no-op.
+    #[test]
+    fn an_element_carries_the_boxes_it_sits_inside() {
+        let xml = SAMPLE.replace(
+            r#"<node class="android.widget.TextView" bounds="[40,100][600,180]" clickable="false" text="Sign in" content-desc="" resource-id="com.app:id/title"/>"#,
+            r#"<node class="android.view.ViewGroup" bounds="[20,80][620,200]" clickable="false" text="" content-desc="" resource-id="">
+    <node class="android.view.View" bounds="[40,100][600,180]" clickable="false" text="" content-desc="" resource-id="">
+     <node class="android.widget.TextView" bounds="[40,100][600,180]" clickable="false" text="Sign in" content-desc="" resource-id="com.app:id/title"/>
+    </node>
+   </node>"#,
+        );
+
+        let nodes = parse(&xml).unwrap();
+        let title = pick(&nodes, "Sign in").unwrap();
+
+        assert_eq!(
+            title.enclosing(1),
+            Bounds::parse("[20,80][620,200]"),
+            "the wrapper drawn on the label's own rectangle is not a box around it"
+        );
+        assert_eq!(title.enclosing(2), Bounds::parse("[0,0][1080,2400]"));
+        assert_eq!(title.enclosures(), 2);
+        assert_eq!(title.enclosing(3), None);
+    }
+
+    /// The root has nothing above it, and a caller asking to widen from there
+    /// needs that told apart from a snapshot that carries no boxes at all.
+    #[test]
+    fn an_element_at_the_top_encloses_nothing() {
+        let nodes = parse(SAMPLE).unwrap();
+
+        assert_eq!(nodes[0].enclosures(), 1, "only the frame is above it");
+        assert!(nodes[0].enclosing(2).is_none());
     }
 
     #[test]
