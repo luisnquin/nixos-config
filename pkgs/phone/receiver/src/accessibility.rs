@@ -1,14 +1,5 @@
 use serde_json::{Map, Value};
 
-
-
-
-
-
-
-
-
-
 pub fn interactive_accessibility_snapshot(snapshot: &Value) -> Value {
     let mut output = snapshot.as_object().cloned().unwrap_or_default();
     let roots = snapshot
@@ -219,10 +210,3 @@ fn number_from_map(object: &Map<String, Value>, field: &str) -> Option<f64> {
 fn string_from_map(object: &Map<String, Value>, field: &str) -> Option<String> {
     object.get(field).and_then(Value::as_str).map(str::to_owned)
 }
-
-
-
-
-
-
-

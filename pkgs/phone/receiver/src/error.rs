@@ -15,7 +15,6 @@ impl AppError {
         Self::BadRequest(message.into())
     }
 
-
     pub fn native(message: impl Into<String>) -> Self {
         Self::Native(message.into())
     }
@@ -23,8 +22,4 @@ impl AppError {
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal(message.into())
     }
-
-
-
 }
-

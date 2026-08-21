@@ -85,13 +85,10 @@ pub struct Simulator {
     pub device_pair_state: Option<String>,
 }
 
-
 #[derive(Debug, Deserialize)]
 struct SimulatorsEnvelope {
     simulators: Vec<Simulator>,
 }
-
-
 
 fn deserialize_boolish<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
@@ -114,14 +111,6 @@ where
     }
 }
 
-
-
-
-
-
-
-
-
 #[derive(Default, Clone)]
 pub struct NativeBridge;
 
@@ -136,16 +125,6 @@ impl NativeBridge {
             serde_json::from_str(&json).map_err(|e| AppError::internal(e.to_string()))?;
         Ok(payload.simulators)
     }
-
-
-
-
-
-
-
-
-
-
 
     pub fn screenshot_png(&self, udid: &str) -> Result<Vec<u8>, AppError> {
         let udid = CString::new(udid).map_err(|e| AppError::bad_request(e.to_string()))?;
@@ -162,7 +141,6 @@ impl NativeBridge {
             Ok(data)
         }
     }
-
 
     pub fn accessibility_snapshot(
         &self,
@@ -249,7 +227,6 @@ impl NativeBridge {
         }
     }
 
-
     pub fn send_key(&self, udid: &str, key_code: u16, modifiers: u32) -> Result<(), AppError> {
         let udid = CString::new(udid).map_err(|e| AppError::bad_request(e.to_string()))?;
         unsafe {
@@ -260,8 +237,6 @@ impl NativeBridge {
             )
         }
     }
-
-
 
     pub fn press_button(&self, udid: &str, button: &str, duration_ms: u32) -> Result<(), AppError> {
         let udid = CString::new(udid).map_err(|e| AppError::bad_request(e.to_string()))?;
@@ -280,14 +255,6 @@ impl NativeBridge {
         }
     }
 
-
-
-
-
-
-
-
-
     pub fn create_input_session(&self, udid: &str) -> Result<NativeInputSession, AppError> {
         let udid = CString::new(udid).map_err(|e| AppError::bad_request(e.to_string()))?;
         unsafe {
@@ -303,10 +270,6 @@ impl NativeBridge {
     }
 }
 
-
-
-
-
 pub struct NativeInputSession {
     handle: *mut c_void,
 }
@@ -315,7 +278,6 @@ unsafe impl Send for NativeInputSession {}
 unsafe impl Sync for NativeInputSession {}
 
 impl NativeInputSession {
-
     pub fn send_touch(&self, x: f64, y: f64, phase: &str) -> Result<(), AppError> {
         let phase = CString::new(phase).map_err(|e| AppError::bad_request(e.to_string()))?;
         unsafe {
@@ -326,10 +288,6 @@ impl NativeInputSession {
             )
         }
     }
-
-
-
-
 }
 
 impl Drop for NativeInputSession {
@@ -471,8 +429,6 @@ mod tests {
         .to_string()
     }
 
-
-
     #[test]
     fn simulator_boolish_fields_accept_native_json_variants() {
         let true_bool: Simulator =
@@ -495,10 +451,6 @@ mod tests {
 
         assert!(result.is_err());
     }
-
-
-
-
 
     #[test]
     fn core_simulator_mismatch_detection_covers_known_failure_strings() {

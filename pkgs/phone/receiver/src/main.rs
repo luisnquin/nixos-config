@@ -20,8 +20,8 @@ use std::io::Write as _;
 use std::process::ExitCode;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
 use accessibility::interactive_accessibility_snapshot;
+use anyhow::{anyhow, Result};
 use keys::hid_for_char;
 use native::bridge::NativeBridge;
 use native::ffi;
