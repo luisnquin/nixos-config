@@ -38,7 +38,6 @@ in {
         max_threads = 10;
       };
 
-      approval_policy = permissions.approval_policy;
       sandbox_mode = permissions.sandbox_mode;
       approvals_reviewer = "user";
 
