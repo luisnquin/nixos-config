@@ -1,6 +1,7 @@
 mod a11y;
 mod actions;
 mod adb;
+mod apps;
 mod avd;
 mod cli;
 mod connect;
@@ -9,6 +10,7 @@ mod hosts;
 mod ios;
 mod model;
 mod picker;
+mod record;
 mod registry;
 mod simctl;
 mod ssh;
@@ -264,6 +266,96 @@ async fn dispatch(cli: Cli) -> Result<()> {
             Ok(())
         }
 
+        Some(Command::Launch { app }) => {
+            let view = driving(&mut reg, want(None).as_deref(), true).await?;
+
+            eprintln!(
+                "phone: {}",
+                apps::launch(&view.server, &view.device, &app).await?
+            );
+
+            Ok(())
+        }
+
+        Some(Command::Stop { app }) => {
+            let view = driving(&mut reg, want(None).as_deref(), true).await?;
+
+            eprintln!(
+                "phone: {}",
+                apps::stop(&view.server, &view.device, &app).await?
+            );
+
+            Ok(())
+        }
+
+        Some(Command::Open { url }) => {
+            let view = driving(&mut reg, want(None).as_deref(), true).await?;
+
+            eprintln!(
+                "phone: {}",
+                apps::open(&view.server, &view.device, &url).await?
+            );
+
+            Ok(())
+        }
+
+        Some(Command::Record {
+            target,
+            seconds,
+            frames,
+            out,
+            scale,
+            jpeg,
+        }) => {
+            let view = driving(&mut reg, want(target).as_deref(), true).await?;
+
+            let take = record::Take {
+                seconds,
+                frames,
+                out,
+                shot: actions::Shot {
+                    scale,
+                    jpeg,
+                    ..Default::default()
+                },
+            };
+
+            let (rep, drain) = reporter();
+            let res = record::record(&view.server, &view.device, &take, &rep).await;
+
+            drop(rep);
+            drain.await;
+
+            for path in res? {
+                println!("{}", path.display());
+            }
+
+            Ok(())
+        }
+
+        Some(Command::Reverse { ports, list, clear }) => {
+            let view = driving(&mut reg, want(None).as_deref(), true).await?;
+
+            let what = match (ports, list, clear) {
+                (Some((device, host)), ..) => actions::Reverse::Open { device, host },
+                (None, _, true) => actions::Reverse::Clear,
+                // a bare `phone reverse` is a question, not a broken command:
+                // nothing was named to forward, so say what is forwarded
+                (None, ..) => actions::Reverse::List,
+            };
+
+            let said = actions::reverse(&view.server, &view.device, what).await?;
+
+            // a listing is the one form worth piping into something; the rest
+            // is the same status line every other verb writes
+            match list || ports.is_none() && !clear {
+                true => println!("{said}"),
+                false => eprintln!("phone: {said}"),
+            }
+
+            Ok(())
+        }
+
         Some(Command::Hosts { action }) => hosts_cmd(&mut reg, action).await,
 
         Some(Command::Doctor) => doctor(&mut reg).await,
@@ -414,6 +506,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             target,
             out,
             crop,
+            expand,
             pad,
             scale,
             jpeg,
@@ -430,7 +523,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             // reading the frame and reading the elements in it are two calls to
             // the same device, so the crop is worked out off this one view
             let crop = match &crop {
-                Some(spec) => Some(crop_bounds(&s.target, spec, pad).await?),
+                Some(spec) => Some(crop_bounds(&s.target, spec, expand, pad).await?),
                 None => None,
             };
 
@@ -730,7 +823,12 @@ fn aim(point: (i32, i32), name: Option<String>) -> String {
 /// The part of the frame to keep, in pixels. An element is padded because a
 /// crop tight to its bounds shows a control with nothing around it to say where
 /// on the screen it is; an explicit rectangle is taken as given.
-async fn crop_bounds(t: &a11y::Target, spec: &str, pad: i32) -> Result<a11y::Bounds> {
+async fn crop_bounds(
+    t: &a11y::Target,
+    spec: &str,
+    expand: Option<u8>,
+    pad: i32,
+) -> Result<a11y::Bounds> {
     let size = a11y::size(t).await?;
     let panel = (size.width as i32, size.height as i32);
 
@@ -746,12 +844,43 @@ async fn crop_bounds(t: &a11y::Target, spec: &str, pad: i32) -> Result<a11y::Bou
         }
         None => {
             let nodes = a11y::dump(t).await?;
+            let node = a11y::pick(&nodes, spec)?;
 
-            a11y::pick(&nodes, spec)?.bounds.padded(pad, Some(panel))
+            let bounds = match expand {
+                None => node.bounds,
+                Some(levels) => widen(node, levels)?,
+            };
+
+            bounds.padded(pad, Some(panel))
         }
     };
 
     Ok(size.in_pixels(bounds))
+}
+
+/// The box `levels` up from `node`. The two ways this comes back empty are
+/// worth telling apart: an element with no enclosing box at all is a screen
+/// with nothing above it, while a snapshot that carries no boxes for anything
+/// came from a receiver that predates the field.
+fn widen(node: &a11y::Node, levels: u8) -> Result<a11y::Bounds> {
+    if node.ancestors.is_empty() {
+        bail!(
+            "this device reports no boxes around '{}', so --expand has nothing to widen to \
+             (a simulator needs a receiver new enough to send them)",
+            node.label()
+        );
+    }
+
+    node.enclosing(levels as usize).ok_or_else(|| {
+        anyhow::anyhow!(
+            "'{}' is not {levels} boxes deep; it sits inside {}",
+            node.label(),
+            match node.enclosures() {
+                0 => "nothing bigger than itself".to_string(),
+                n => format!("{n} of them"),
+            }
+        )
+    })
 }
 
 /// `X,Y,W,H`, in the space element bounds are reported in.

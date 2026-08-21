@@ -127,7 +127,7 @@ async fn settle(
     Ok(previous)
 }
 
-fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
+pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
     // re-encoding a frame nothing was asked of would only cost it quality
     if !shot.touches_the_image() {
         return Ok(png);
@@ -354,13 +354,7 @@ pub async fn logs_command(
     device: &Device,
     app: &str,
 ) -> Result<std::process::Command> {
-    if !app
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
-        || app.is_empty()
-    {
-        bail!("invalid app id: {app}");
-    }
+    let app = crate::apps::app_id(app)?;
 
     match device.platform {
         Platform::Ios => return ios::logs_command(host_of(device)?, ios::udid(device)?, app),
@@ -382,6 +376,104 @@ pub async fn logs_command(
     cmd.args(["-s", &serial, "logcat", &format!("--pid={pid}")]);
 
     Ok(cmd)
+}
+
+/// What to ask `adb reverse` for.
+#[derive(Clone, Copy, Debug)]
+pub enum Reverse {
+    Open { device: u16, host: u16 },
+    List,
+    Clear,
+}
+
+/// Long enough for a wireless device on the far side of the tailnet, short
+/// enough that a device that has gone away is reported rather than waited on.
+const REVERSE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// A port on the device that answers on the adb server's machine.
+///
+/// Which machine that is, is the whole subtlety, and it is not this one: the
+/// forward terminates wherever the adb server holding the device runs. For an
+/// emulator on a mac, `phone reverse 8081` points the device at that mac's
+/// loopback, which is where a Metro started in an ssh session there is
+/// listening. A bundler running here is not what the device will reach.
+pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<String> {
+    if device.platform == Platform::Simulator {
+        bail!("a simulator already shares its host's loopback, so there is nothing to reverse");
+    }
+
+    if device.platform.is_hosted() {
+        bail!(
+            "{} has no adb transport to reverse a port over",
+            device.platform
+        );
+    }
+
+    let serial = attached_serial(server, device)
+        .await
+        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+
+    let verb: Vec<String> = match what {
+        Reverse::Open { device, host } => {
+            vec![format!("tcp:{device}"), format!("tcp:{host}")]
+        }
+        Reverse::List => vec!["--list".to_string()],
+        Reverse::Clear => vec!["--remove-all".to_string()],
+    };
+
+    let mut args = vec!["-s", &serial, "reverse"];
+    args.extend(verb.iter().map(String::as_str));
+
+    let out = adb::run_timeout(server, &args, REVERSE_TIMEOUT).await?;
+
+    if !out.ok() {
+        // adb puts the reason on stderr and says nothing on stdout, and the
+        // usual reason is a port already claimed by another forward
+        bail!(
+            "{}",
+            first_line(&out.stderr).unwrap_or("adb refused the reverse")
+        );
+    }
+
+    Ok(match what {
+        Reverse::Open { device: d, host } => {
+            let at = server.host().unwrap_or("this machine");
+
+            format!("{}:{d} now reaches {at}:{host}", device.label)
+        }
+        // adb prints one `<serial> tcp:8081 tcp:8081` line per forward, whose
+        // first column is the transport name this program made up and nothing
+        // here answers to; and prints nothing at all when there are none, which
+        // reads as a failure unless it is said out loud
+        Reverse::List => match forwards(out.trimmed(), server.host().unwrap_or("this machine")) {
+            listed if listed.is_empty() => format!("{} has no reverse forwards", device.label),
+            listed => listed.join("\n"),
+        },
+        Reverse::Clear => format!("removed every reverse forward on {}", device.label),
+    })
+}
+
+fn first_line(text: &str) -> Option<&str> {
+    text.lines().map(str::trim).find(|l| !l.is_empty())
+}
+
+/// `adb reverse --list` answers with the transport name this program made up
+/// and two `tcp:` pairs. Neither column is something the reader can type back,
+/// so it is rewritten into the shape `reverse` takes and the host it lands on.
+fn forwards(stdout: &str, at: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .filter_map(
+            |line| match line.split_whitespace().collect::<Vec<_>>()[..] {
+                [_, from, to] => Some(format!(
+                    "{} -> {at}:{}",
+                    from.trim_start_matches("tcp:"),
+                    to.trim_start_matches("tcp:")
+                )),
+                _ => None,
+            },
+        )
+        .collect()
 }
 
 /// Detached, because scrcpy owns a window rather than the terminal. Works
@@ -557,6 +649,23 @@ pub async fn stop(device: &Device, reach: &Reach) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The transport column is a name this program invented for a forwarded
+    /// server; printing it invites the reader to pass it back to something.
+    #[test]
+    fn a_forward_is_listed_in_the_shape_it_was_asked_for() {
+        let listed = forwards(
+            "host-16 tcp:8081 tcp:8081\nhost-16 tcp:3000 tcp:9000",
+            "rose",
+        );
+
+        assert_eq!(listed, ["8081 -> rose:8081", "3000 -> rose:9000"]);
+    }
+
+    #[test]
+    fn a_device_with_no_forwards_lists_nothing_rather_than_a_blank_row() {
+        assert!(forwards("", "rose").is_empty());
+    }
 
     #[tokio::test]
     async fn returns_before_a_forked_grandchild_exits() {

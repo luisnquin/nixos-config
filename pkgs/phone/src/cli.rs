@@ -48,15 +48,23 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
     phone do "tap 'Log in'" "wait Dashboard" "shot --crop @2"
 
-Two things worth knowing before scripting it
+The verbs, in the order they are reached for
 
-  Every invocation surveys the hosts before it acts, which costs around eight
-  seconds whatever the verb is. `do` pays that once for a whole sequence, so a
-  loop of separate calls is mostly waiting.
+  device   devices connect disconnect pair pin use forget hosts boot shutdown
+  screen   snapshot shot size tap press swipe type key wait do
+  app      install launch stop open logs
+  host     reverse mirror record
+  this     doctor completions
+
+What to know before scripting it
 
   Reading the screen costs tokens: a full frame is roughly 1500, while a
   --crop of one control, or --scale 0.3 --jpeg 60 of the whole thing, is a
   fraction of that. `snapshot` is text and usually answers the question anyway.
+
+  What costs more than any single read is reading twice to find out whether the
+  first act landed. `wait <name>` and `shot --settle` are the answer to that:
+  both return once the screen has caught up, so the next read is the only read.
 
 Naming things
 
@@ -68,6 +76,10 @@ Naming things
   the screen may have moved between them, so name elements by their text unless
   the index came from the command immediately before.
 
+  A snapshot row printed as <View> or <EditText> has no name of its own — that
+  is its class, shown in angle brackets because nothing will match on it. Reach
+  those by the @index beside them.
+
 Every verb carries its own examples: phone help <verb>."#;
 
 /// How far a directional swipe travels when nothing says otherwise. Named so
@@ -76,6 +88,7 @@ pub const DEFAULT_AMOUNT: f64 = 0.6;
 
 #[derive(Subcommand)]
 pub enum Command {
+    // the device: what exists, how to reach it, and whether it is up
     /// List every reachable and remembered device
     #[command(after_help = r#"Examples:
   phone devices
@@ -89,7 +102,6 @@ take `connect`."#)]
         #[arg(long)]
         json: bool,
     },
-
     /// Bring up a transport to a device, trying history before discovery
     #[command(after_help = r#"Examples:
   phone connect             # the most recent device
@@ -114,7 +126,6 @@ not, see `phone boot`."#)]
         #[arg(long, default_value_t = 512)]
         concurrency: usize,
     },
-
     /// Drop a wireless transport
     #[command(after_help = r#"Examples:
   phone disconnect        # the device in use
@@ -130,7 +141,6 @@ back without a new pairing."#)]
         #[arg(long)]
         all: bool,
     },
-
     /// Pair with a device that is in wireless-debugging pairing mode
     #[command(after_help = r#"Examples:
   phone pair 314159                        # address found over mDNS
@@ -147,7 +157,6 @@ and both expire when it closes. Emulators and simulators never need this."#)]
         #[arg(long)]
         addr: Option<String>,
     },
-
     /// Restart adbd on a fixed port so later reconnects skip discovery
     #[command(after_help = r#"Examples:
   phone pin              # port 5555 on the device in use
@@ -163,7 +172,6 @@ sweep on every later connect. Does not survive a reboot of the device."#)]
         #[arg(long, default_value_t = 5555)]
         port: u16,
     },
-
     /// Set the device other commands target by default
     #[command(after_help = r#"Examples:
   phone use pixel_7-api36  # every later command targets it
@@ -175,7 +183,6 @@ Set once at the start of a session rather than passing -t to every command. A
         #[arg(id = "device")]
         target: Option<String>,
     },
-
     /// Drop a device from the registry
     #[command(after_help = r#"Examples:
   phone forget galaxy-s26-plus
@@ -187,97 +194,6 @@ for good or one whose remembered address is wrong."#)]
         #[arg(id = "device")]
         target: String,
     },
-
-    /// Screenshot to the clipboard
-    #[command(after_help = r#"Examples:
-  phone shot                         # PNG to the clipboard
-  phone shot -o /tmp/s.png           # to a file; "-" writes the image to stdout
-  phone shot --crop "Log in"         # just that control, padded
-  phone shot --crop @12 --pad 40     # the element snapshot numbered 12
-  phone shot --crop 0,2000,1080,300  # an explicit X,Y,W,H rectangle
-  phone shot --scale 0.3 --jpeg 60   # the whole screen for a fraction of the bytes
-  phone shot --settle                # let the screen stop changing first
-
-A full frame costs roughly 1500 tokens to read, and most looks are aimed at one
-control. Crop it, or scale it down, or use `snapshot` instead when the answer is
-text."#)]
-    Shot {
-        #[arg(id = "device")]
-        target: Option<String>,
-
-        /// Write to FILE instead of the clipboard; "-" writes the image to stdout
-        #[arg(short, long)]
-        out: Option<String>,
-
-        /// Keep only part of the frame: an element by text, @index or X,Y,W,H
-        #[arg(long)]
-        crop: Option<String>,
-
-        /// Room to leave around a cropped element, in the coordinate space
-        #[arg(long, default_value_t = 24)]
-        pad: i32,
-
-        /// Resize by this factor, 1.0 being the panel's own resolution
-        #[arg(long, value_parser = parse_scale)]
-        scale: Option<f64>,
-
-        /// Encode as JPEG at this quality rather than PNG
-        #[arg(long, value_parser = clap::value_parser!(u8).range(1..=100))]
-        jpeg: Option<u8>,
-
-        /// Capture until the screen stops changing
-        #[arg(long)]
-        settle: bool,
-    },
-
-    /// The panel, in the space taps and element bounds use
-    #[command(after_help = r#"Examples:
-  phone size  # on Android -> 1080x2400 pixels
-  phone size  # on a simulator -> 402x874 points (1206x2622 pixels, scale 3)
-  phone size --json
-
-Android works in pixels throughout. A simulator reports bounds and takes taps in
-points while screenshotting at 2x or 3x, so a coordinate measured by eye off an
-iOS screenshot has to be divided by `scale` before it can be tapped."#)]
-    Size {
-        #[arg(id = "device")]
-        target: Option<String>,
-
-        /// Emit JSON instead of a line
-        #[arg(long)]
-        json: bool,
-    },
-
-    /// Stream logs for a package name or bundle id
-    #[command(after_help = r#"Examples:
-  phone logs com.example.app
-  phone logs -t faraday com.example.app
-
-A package name on Android, a bundle id on a simulator or an iPhone."#)]
-    Logs { app: String },
-
-    /// scrcpy mirror
-    #[command(after_help = r#"Examples:
-  phone mirror
-
-Opens a scrcpy window on this machine, so it needs a display and is for a person
-watching rather than for a script. To see a screen without one, use `snapshot`
-or `shot`."#)]
-    Mirror {
-        #[arg(id = "device")]
-        target: Option<String>,
-    },
-
-    /// Install an apk, or a .app bundle on a simulator
-    #[command(after_help = r#"Examples:
-  phone install ./app/build/outputs/apk/debug/app-debug.apk
-  phone install -t "iPhone 17 Pro" ./build/Debug-iphonesimulator/App.app
-
-An .apk goes to a handset or an emulator, a .app bundle to a simulator. The file
-is read here and sent to whichever host holds the device, so a path on this
-machine is what it wants. Launching what was installed is not covered yet."#)]
-    Install { apk: PathBuf },
-
     /// Choose which ssh hosts to survey for devices
     #[command(after_help = r#"Examples:
   phone hosts              # what each host was found to offer
@@ -290,7 +206,40 @@ Enabling a host again re-probes what it can drive."#)]
         #[command(subcommand)]
         action: Option<HostAction>,
     },
+    /// Start a simulator or emulator and wait until it can be driven
+    #[command(after_help = r#"Examples:
+  phone boot "iPhone 17 Pro"  # a simulator, on whichever host has it
+  phone boot medium_phone     # an AVD, here or on a host
+  phone boot --timeout 5m nyx-remote-android
 
+Returns only once the device can actually be driven, not when the process
+starts: a simulator answers immediately and an emulator shows its window well
+before its system is up, and a tap sent at either moment is lost. Booting one
+that is already running says so and exits 0, so it is safe in front of a script.
+
+`phone devices` lists what can be booted as `off`. Expect 20-30s. This starts
+something already defined; creating an AVD or a simulator is still `avdmanager`
+or `simctl create`."#)]
+    Boot {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        /// Give up if it is still not usable by then
+        #[arg(long, default_value = "180s", value_parser = parse_duration)]
+        timeout: Duration,
+    },
+    /// Stop a running simulator or emulator
+    #[command(after_help = r#"Examples:
+  phone shutdown medium_phone
+  phone shutdown "iPhone 17 Pro"
+
+Stopping one that is not running is a no-op. Handsets cannot be stopped."#)]
+    Shutdown {
+        #[arg(id = "device")]
+        target: Option<String>,
+    },
+
+    // the screen: read it, then act on what the reading named
     /// List what is on screen, as elements that can be named
     #[command(after_help = r#"Examples:
   phone snapshot
@@ -308,7 +257,74 @@ on anything drawn rather than laid out — a game, a canvas, a video — and the
         #[arg(long)]
         json: bool,
     },
+    /// Screenshot the screen, or one control out of it
+    #[command(after_help = r#"Examples:
+  phone shot                         # PNG to the clipboard
+  phone shot -o /tmp/s.png           # to a file; "-" writes the image to stdout
+  phone shot --crop "Log in"         # just that control, padded
+  phone shot --crop "Log in" --expand 1  # the row or card it sits in
+  phone shot --crop @12 --pad 40     # the element snapshot numbered 12
+  phone shot --crop 0,2000,1080,300  # an explicit X,Y,W,H rectangle
+  phone shot --scale 0.3 --jpeg 60   # the whole screen for a fraction of the bytes
+  phone shot --settle                # let the screen stop changing first
 
+A full frame costs roughly 1500 tokens to read, and most looks are aimed at one
+control. Crop it, or scale it down, or use `snapshot` instead when the answer is
+text.
+
+`--crop <name>` finds the element carrying that name, which for a card is its
+label rather than the card. `--expand 1` widens to the box around it, `--expand
+2` to the box around that; use it when what you want to see is the control and
+its state rather than the words on it."#)]
+    Shot {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        /// Write to FILE instead of the clipboard; "-" writes the image to stdout
+        #[arg(short, long)]
+        out: Option<String>,
+
+        /// Keep only part of the frame: an element by text, @index or X,Y,W,H
+        #[arg(long)]
+        crop: Option<String>,
+
+        /// Crop to the Nth box around --crop instead: its row, card or dialog
+        #[arg(long, requires = "crop", value_parser = clap::value_parser!(u8).range(1..=8))]
+        expand: Option<u8>,
+
+        /// Room to leave around a cropped element, in the coordinate space
+        #[arg(long, default_value_t = 24)]
+        pad: i32,
+
+        /// Resize by this factor, 1.0 being the panel's own resolution
+        #[arg(long, value_parser = parse_scale)]
+        scale: Option<f64>,
+
+        /// Encode as JPEG at this quality rather than PNG
+        #[arg(long, value_parser = clap::value_parser!(u8).range(1..=100))]
+        jpeg: Option<u8>,
+
+        /// Capture until the screen stops changing
+        #[arg(long)]
+        settle: bool,
+    },
+    /// The panel, in the space taps and element bounds use
+    #[command(after_help = r#"Examples:
+  phone size  # on Android -> 1080x2400 pixels
+  phone size  # on a simulator -> 402x874 points (1206x2622 pixels, scale 3)
+  phone size --json
+
+Android works in pixels throughout. A simulator reports bounds and takes taps in
+points while screenshotting at 2x or 3x, so a coordinate measured by eye off an
+iOS screenshot has to be divided by `scale` before it can be tapped."#)]
+    Size {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        /// Emit JSON instead of a line
+        #[arg(long)]
+        json: bool,
+    },
     /// Press an element, named by its text, description, @index or X,Y
     #[command(after_help = r#"Examples:
   phone tap "Log in"  # by text, content description or resource id
@@ -319,7 +335,6 @@ An ambiguous name is refused with the candidates listed as @index rather than
 guessed at. Those indices number the rows of one dump, so name an element by its
 text unless the index came from the command immediately before."#)]
     Tap { what: String },
-
     /// Hold an element down, named as `tap` names one
     #[command(after_help = r#"Examples:
   phone press Settings  # held for 800ms
@@ -335,7 +350,6 @@ tap on the same element does something else entirely."#)]
         #[arg(long, default_value = "800ms", value_parser = parse_duration)]
         hold: Duration,
     },
-
     /// Drag between two points, or scroll the screen a direction
     #[command(after_help = r#"Examples:
   phone swipe up                     # scrolls a list down: the content follows the finger
@@ -362,7 +376,26 @@ edge is a system gesture and never reaches the app."#)]
         #[arg(long, default_value_t = DEFAULT_AMOUNT)]
         amount: f64,
     },
+    /// Type into whatever holds focus
+    #[command(after_help = r#"Examples:
+  phone tap "Search"
+  phone type "rust lang"
+  phone key enter
 
+Goes to whatever holds focus, so tap the field first. Printable ASCII only, and
+anything else is refused outright: the device drops what it cannot spell and
+still reports success."#)]
+    Type { text: String },
+    /// Send a key, by keycode name (back, home, enter, tab…)
+    #[command(after_help = r#"Examples:
+  phone key enter
+  phone key home
+  phone key app_switch
+  phone key back  # on Android this navigates, and can leave a form losing it
+
+A simulator has no back button; when a key is refused the ones it does take are
+listed."#)]
+    Key { name: String },
     /// Block until an element appears, or stop waiting and fail
     #[command(after_help = r#"Examples:
   phone wait Dashboard
@@ -381,29 +414,6 @@ returns the frame that was already up. Takes a name, not an @index."#)]
         #[arg(long, default_value = "15s", value_parser = parse_duration)]
         timeout: Duration,
     },
-
-    /// Type into whatever holds focus
-    #[command(after_help = r#"Examples:
-  phone tap "Search"
-  phone type "rust lang"
-  phone key enter
-
-Goes to whatever holds focus, so tap the field first. Printable ASCII only, and
-anything else is refused outright: the device drops what it cannot spell and
-still reports success."#)]
-    Type { text: String },
-
-    /// Send a key, by keycode name (back, home, enter, tab…)
-    #[command(after_help = r#"Examples:
-  phone key enter
-  phone key home
-  phone key app_switch
-  phone key back  # on Android this navigates, and can leave a form losing it
-
-A simulator has no back button; when a key is refused the ones it does take are
-listed."#)]
-    Key { name: String },
-
     /// Run several screen verbs against one device, surveying once
     #[command(after_help = r#"Examples:
   phone do "tap 'Log in'" "wait Inbox" "shot --crop @2"
@@ -424,40 +434,149 @@ belong on `do` rather than on a step."#)]
         steps: Vec<String>,
     },
 
-    /// Start a simulator or emulator and wait until it can be driven
+    // the app: put it there, start it, point it somewhere, watch it
+    /// Install an apk, or a .app bundle on a simulator
     #[command(after_help = r#"Examples:
-  phone boot "iPhone 17 Pro"  # a simulator, on whichever host has it
-  phone boot medium_phone     # an AVD, here or on a host
-  phone boot --timeout 5m nyx-remote-android
+  phone install ./app/build/outputs/apk/debug/app-debug.apk
+  phone install -t "iPhone 17 Pro" ./build/Debug-iphonesimulator/App.app
 
-Returns only once the device can actually be driven, not when the process
-starts: a simulator answers immediately and an emulator shows its window well
-before its system is up, and a tap sent at either moment is lost. Booting one
-that is already running says so and exits 0, so it is safe in front of a script.
+An .apk goes to a handset or an emulator, a .app bundle to a simulator. The file
+is read here and sent to whichever host holds the device, so a path on this
+machine is what it wants. `phone launch <app>` starts what was installed."#)]
+    Install { apk: PathBuf },
+    /// Start an app, whatever is on screen
+    #[command(after_help = r#"Examples:
+  phone launch com.example.app
+  phone launch -t "iPhone 17 Pro Max" com.example.app
 
-`phone devices` lists what can be booted as `off`. Expect 20-30s. This starts
-something already defined; creating an AVD or a simulator is still `avdmanager`
-or `simctl create`."#)]
-    Boot {
+Sends the intent the launcher icon sends, so the app comes up the way a person
+starting it would find it. Returns once the process exists, which is what makes
+the next `snapshot` a snapshot of the app rather than of whatever was in front.
+
+A package name on Android, a bundle id on a simulator. The app has to be
+installed already — `phone install` puts it there."#)]
+    Launch { app: String },
+    /// Force-stop an app, leaving the device up
+    #[command(after_help = r#"Examples:
+  phone stop com.example.app
+
+This is the app, not the device: `phone shutdown` is the one that turns a device
+off. Stopping an app that was not running is not an error, and says so."#)]
+    Stop { app: String },
+    /// Open a url or a deep link on the device
+    #[command(after_help = r#"Examples:
+  phone open https://example.com
+  phone open "exp+myapp://expo-development-client/?url=http://localhost:8081"
+
+The device resolves the url, so a deep link lands in whichever app registered
+the scheme and an http url lands in the browser. Quote it: a shell reads `?` and
+`&` before this ever sees them."#)]
+    Open { url: String },
+    /// Stream logs for a package name or bundle id
+    #[command(after_help = r#"Examples:
+  phone logs com.example.app
+  phone logs -t faraday com.example.app
+
+A package name on Android, a bundle id on a simulator or an iPhone."#)]
+    Logs { app: String },
+
+    // the host the device hangs off, and what it can carry back
+    /// Point a port on the device at the same port on its host
+    #[command(after_help = r#"Examples:
+  phone reverse 8081
+  phone reverse 8081:3000
+  phone reverse --list
+  phone reverse --clear
+
+A dev server is reachable from a device only if the device has a port that
+answers to it, and `localhost:8081` inside an emulator is the emulator, not the
+machine the bundler is on. This is the forward that fixes that.
+
+The port it reaches is on the machine running the adb server that holds the
+device: for an emulator on a mac, `phone reverse 8081` sends the device to that
+mac's loopback, where a Metro started over ssh there is listening. A bundler on
+this machine is not what it will find.
+
+`DEVICE:HOST` when the two differ. Android only — a simulator is already on its
+host's loopback."#)]
+    Reverse {
+        /// PORT, or DEVICE:HOST when the numbers differ
+        #[arg(value_parser = parse_ports, conflicts_with_all = ["list", "clear"])]
+        ports: Option<(u16, u16)>,
+
+        /// Show the forwards this device already has
+        #[arg(long, conflicts_with = "clear")]
+        list: bool,
+
+        /// Remove every forward on this device
+        #[arg(long)]
+        clear: bool,
+    },
+    /// Watch the screen live in a window on this machine
+    #[command(after_help = r#"Examples:
+  phone mirror
+
+Opens a scrcpy window on this machine, so it needs a display and is for a person
+watching rather than for a script. To see a screen without one, use `snapshot`
+or `shot`."#)]
+    Mirror {
         #[arg(id = "device")]
         target: Option<String>,
-
-        /// Give up if it is still not usable by then
-        #[arg(long, default_value = "180s", value_parser = parse_duration)]
-        timeout: Duration,
     },
-
-    /// Stop a running simulator or emulator
+    /// Record the screen, and pull stills out of the clip
     #[command(after_help = r#"Examples:
-  phone shutdown medium_phone
-  phone shutdown "iPhone 17 Pro"
+  phone record                       # 5s, clip path printed
+  phone record --seconds 12
+  phone record --frames 4            # the clip plus 4 evenly spaced stills
+  phone record --frames changed      # a still wherever the picture moved
+  phone record --frames 6 --scale 0.4 --jpeg 60
+  phone record --frames 3 -o /tmp/login.mp4
 
-Stopping one that is not running is a no-op. Handsets cannot be stopped."#)]
-    Shutdown {
-        #[arg(id = "device")]
+A screenshot says what is on screen; it cannot say what happened on the way
+there. An animation that lands wrong, a splash that never clears, a swipe that
+scrolled the inner list — those look the same before and after.
+
+The clip itself is unreadable to anything that reads text, so `--frames N` cuts
+it into N stills spanning the whole clip, first frame to last. They take
+`--scale` and `--jpeg` the way `shot` does, and every path is printed.
+
+Even spacing is the wrong sampling for a route change, which is short and
+bunched: a tap whose animation is over in half a second gets one still of the
+old screen and three of the settled new one. `--frames changed` picks the
+moments the picture actually moved instead, still anchored by the first and
+last frame, and says how big the gaps between them are.
+
+A still that cannot be taken is reported and skipped; the clip and the rest of
+the stills are still written, and the run only fails if none of them landed.
+
+Without `-o` the clip lands under the state directory and its path is printed.
+Android and simulators; up to 180 seconds."#)]
+    Record {
+        #[arg(id = "device", value_parser = not_a_length)]
         target: Option<String>,
+
+        /// How long to record for
+        #[arg(short, long, default_value_t = 5, value_parser = clap::value_parser!(u32).range(1..=180))]
+        seconds: u32,
+
+        /// Also write stills: N evenly spaced, or `changed` for the moments the picture moved
+        #[arg(long, value_parser = parse_frames)]
+        frames: Option<crate::record::Frames>,
+
+        /// Write the clip here instead of under the state directory
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+
+        /// Resize the stills, 1.0 being the panel's own resolution
+        #[arg(long, requires = "frames", value_parser = parse_scale)]
+        scale: Option<f64>,
+
+        /// Encode the stills as JPEG at this quality rather than PNG
+        #[arg(long, requires = "frames", value_parser = clap::value_parser!(u8).range(1..=100))]
+        jpeg: Option<u8>,
     },
 
+    // this program
     /// Check the tools and daemons this depends on
     #[command(after_help = r#"Examples:
   phone doctor
@@ -467,7 +586,6 @@ clipboard, the ssh hosts that answer and what each one still offers. Run it when
 a command fails in a way that looks like a tool is absent, not when a device
 will not respond."#)]
     Doctor,
-
     /// Print a shell completion script
     Completions { shell: Shell },
 }
@@ -571,6 +689,59 @@ fn parse_scale(s: &str) -> Result<f64, String> {
     Ok(by)
 }
 
+/// Every verb takes the device first, so `record 12` is a device named `12` —
+/// a survey and an ambiguity to say what `--seconds` says plainly. No device is
+/// named for a number alone, so reading it as one costs nothing.
+/// `--frames 4` is four evenly spaced stills, `--frames changed` however many
+/// moments the picture moved in. One flag rather than two, because both answer
+/// the same question and a caller should not have to know which one it is
+/// asking before it can ask it.
+fn parse_frames(s: &str) -> Result<crate::record::Frames, String> {
+    use crate::record::Frames;
+
+    if s.eq_ignore_ascii_case("changed") {
+        return Ok(Frames::Changed);
+    }
+
+    match s.parse::<u8>() {
+        Ok(n) if (1..=32).contains(&n) => Ok(Frames::Count(n)),
+        Ok(_) => Err("between 1 and 32 stills, or `changed`".to_string()),
+        Err(_) => Err(format!("{s} is neither a number of stills nor `changed`")),
+    }
+}
+
+fn not_a_length(s: &str) -> Result<String, String> {
+    if s.parse::<u32>().is_ok() {
+        return Err(format!(
+            "the device comes first here; for a length say --seconds {s}"
+        ));
+    }
+
+    Ok(s.to_string())
+}
+
+/// `8081`, or `8081:3000` when the device port and the host port differ. Port 0
+/// is refused rather than passed on: adb reads it as "pick one for me", and a
+/// forward on a port nobody was told about is a forward nobody can use.
+fn parse_ports(s: &str) -> Result<(u16, u16), String> {
+    let (device, host) = s.split_once(':').unwrap_or((s, s));
+
+    let port = |raw: &str, side| {
+        raw.trim()
+            .parse::<u16>()
+            .ok()
+            .filter(|p| *p != 0)
+            .ok_or_else(|| match raw.trim() {
+                // the two flags are the only other things this argument is
+                // ever handed, and adb spells them the same way
+                word @ ("list" | "clear") => format!("{word} is a flag here: --{word}"),
+                raw => format!("{raw} is not a {side} port"),
+            })
+    };
+
+    Ok((port(device, "device")?, port(host, "host")?))
+}
+
 fn parse_range(s: &str) -> Result<RangeInclusive<u16>, String> {
     let (start, end) = s
         .split_once('-')
@@ -589,6 +760,77 @@ fn parse_range(s: &str) -> Result<RangeInclusive<u16>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_word_and_the_count_are_the_same_flag() {
+        use crate::record::Frames;
+
+        assert_eq!(parse_frames("4"), Ok(Frames::Count(4)));
+        assert_eq!(parse_frames("changed"), Ok(Frames::Changed));
+        assert_eq!(parse_frames("Changed"), Ok(Frames::Changed));
+        assert!(parse_frames("0").is_err());
+        assert!(parse_frames("every").is_err());
+    }
+
+    #[test]
+    fn a_bare_number_is_read_as_a_length_asked_for_in_the_wrong_place() {
+        let err = not_a_length("12").unwrap_err();
+
+        assert!(err.contains("--seconds 12"), "{err}");
+        assert_eq!(
+            not_a_length("pixel_7-api36"),
+            Ok("pixel_7-api36".to_string())
+        );
+    }
+
+    #[test]
+    fn a_port_pair_reads_the_device_side_first() {
+        assert_eq!(parse_ports("8081"), Ok((8081, 8081)));
+        assert_eq!(parse_ports("8081:3000"), Ok((8081, 3000)));
+        assert!(parse_ports("0").is_err());
+        assert!(parse_ports("8081:0").is_err());
+    }
+
+    /// `adb reverse --list` is a flag and this reads like a subcommand, so the
+    /// wrong one gets typed; the error is the only place to say which it is.
+    #[test]
+    fn the_flags_are_named_when_they_arrive_as_an_argument() {
+        assert_eq!(
+            parse_ports("list"),
+            Err("list is a flag here: --list".to_string())
+        );
+        assert_eq!(
+            parse_ports("clear"),
+            Err("clear is a flag here: --clear".to_string())
+        );
+    }
+
+    /// The overview groups the verbs and `--help` lists them; a reader who
+    /// learns the order in one has to find it in the other. Nothing in clap
+    /// enforces that, so it is enforced here.
+    #[test]
+    fn the_overview_lists_every_verb_in_the_order_help_does() {
+        use clap::CommandFactory;
+
+        let grouped: Vec<&str> = OVERVIEW
+            .lines()
+            .skip_while(|l| !l.starts_with("The verbs,"))
+            .take_while(|l| !l.starts_with("What to know"))
+            .filter_map(|l| l.split_once("   "))
+            .flat_map(|(_, verbs)| verbs.split_whitespace())
+            .collect();
+
+        let listed: Vec<String> = Cli::command()
+            .get_subcommands()
+            .map(|c| c.get_name().to_string())
+            .filter(|name| name != "help")
+            .collect();
+
+        assert_eq!(
+            grouped, listed,
+            "the overview and the command list disagree"
+        );
+    }
 
     /// Every invocation printed under `--help`, from the overview and from each
     /// verb alike. A line is a command up to its `#`, which is what lets the
