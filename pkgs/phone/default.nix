@@ -1,5 +1,6 @@
 {
   lib,
+  callPackage,
   rustPlatform,
   installShellFiles,
   makeWrapper,
@@ -50,6 +51,10 @@ in
       wrapProgram $out/bin/phone \
         --prefix PATH : ${lib.makeBinPath runtimeInputs}
     '';
+
+    # Reachable on darwin, where this CLI's own runtime inputs are not:
+    # passthru is not forced with the derivation.
+    passthru.receiver = callPackage ./receiver {};
 
     meta.mainProgram = "phone";
   }
