@@ -1,12 +1,12 @@
 [package]
-name = "xgreeter"
+name = "ttygate"
 version = "0.1.0"
 edition = "2021"
 description = "0xc000022070's greeter - a ctOS-flavored ratatui frontend for greetd"
 license = "MIT"
 
 [[bin]]
-name = "xgreeter"
+name = "ttygate"
 path = "src/main.rs"
 
 [dependencies]

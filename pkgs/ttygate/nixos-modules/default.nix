@@ -4,7 +4,7 @@
   pkgs,
   ...
 }: let
-  cfg = config.programs.xgreeter;
+  cfg = config.programs.ttygate;
   toml = pkgs.formats.toml {};
 
   colorOpt = name:
@@ -40,13 +40,13 @@
     }
     // lib.optionalAttrs (colors != {}) {inherit colors;};
 in {
-  options.programs.xgreeter = {
+  options.programs.ttygate = {
     enable = lib.mkEnableOption "0xc000022070's greeter";
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = pkgs.xgreeter;
-      defaultText = lib.literalExpression "pkgs.xgreeter";
+      default = pkgs.ttygate;
+      defaultText = lib.literalExpression "pkgs.ttygate";
       description = "The greeter package to install.";
     };
 
@@ -128,9 +128,9 @@ in {
       readOnly = true;
       description = ''
         The generated config, as a world-readable /nix/store path. Also installed
-        to `/etc/xgreeter/config.toml`, which the greeter auto-detects — so greetd
+        to `/etc/ttygate/config.toml`, which the greeter auto-detects — so greetd
         can exec the bare binary: `services.greetd.settings.default_session.command
-          = "''${lib.getExe config.programs.xgreeter.package}"`. Pass `--config` only
+          = "''${lib.getExe config.programs.ttygate.package}"`. Pass `--config` only
         to override that auto-detected path.
       '';
     };
@@ -138,11 +138,11 @@ in {
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [cfg.package];
-    programs.xgreeter.configFile = toml.generate "greeter.toml" settings;
+    programs.ttygate.configFile = toml.generate "greeter.toml" settings;
 
-    # The greeter auto-detects /etc/xgreeter/config.toml, so greetd needs no
+    # The greeter auto-detects /etc/ttygate/config.toml, so greetd needs no
     # --config flag.
-    environment.etc."xgreeter/config.toml".source = cfg.configFile;
+    environment.etc."ttygate/config.toml".source = cfg.configFile;
 
     users.users = lib.optionalAttrs (cfg.journalUser != null) {
       ${cfg.journalUser}.extraGroups = ["systemd-journal"];

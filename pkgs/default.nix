@@ -11,6 +11,6 @@ pkgs:
   phone = pkgs.callPackage ./phone {};
   setup = pkgs.callPackage ./setup {};
   waytools = pkgs.callPackage ./waytools {};
-  xgreeter = pkgs.callPackage ./xgreeter {};
+  ttygate = pkgs.callPackage ./ttygate {};
 }
 // import ./third-party pkgs

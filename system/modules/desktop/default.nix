@@ -16,7 +16,7 @@
   programs.dconf.enable = true;
   programs.wayvnc.enable = true;
 
-  programs.xgreeter = {
+  programs.ttygate = {
     enable = true;
     sessionCmd = ["${pkgs.hyprland}/bin/start-hyprland"];
     accent = "amber";
@@ -30,7 +30,7 @@
       enable = true;
       settings = {
         default_session = {
-          command = lib.getExe config.programs.xgreeter.package;
+          command = lib.getExe config.programs.ttygate.package;
         };
       };
     };

@@ -8,7 +8,7 @@ use crate::theme::{parse_hex, Accent, Overrides};
 
 /// 0xc000022070's greeter - a ctOS-flavored ratatui frontend for greetd.
 #[derive(Debug, Parser)]
-#[command(name = "xgreeter", version, about)]
+#[command(name = "ttygate", version, about)]
 pub struct Cli {
     /// Path to a TOML config file. CLI flags override its values.
     #[arg(short, long)]
@@ -187,11 +187,11 @@ fn parse_overrides(c: &ColorsFile) -> Result<Overrides> {
 fn default_config_path() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Some(dir) = std::env::var_os("XDG_CONFIG_HOME") {
-        candidates.push(PathBuf::from(dir).join("xgreeter/config.toml"));
+        candidates.push(PathBuf::from(dir).join("ttygate/config.toml"));
     } else if let Some(home) = std::env::var_os("HOME") {
-        candidates.push(PathBuf::from(home).join(".config/xgreeter/config.toml"));
+        candidates.push(PathBuf::from(home).join(".config/ttygate/config.toml"));
     }
-    candidates.push(PathBuf::from("/etc/xgreeter/config.toml"));
+    candidates.push(PathBuf::from("/etc/ttygate/config.toml"));
     candidates.into_iter().find(|p| p.is_file())
 }
 

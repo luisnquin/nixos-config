@@ -187,7 +187,7 @@
       inputs.black-terminal.nixosModules.default
       inputs.home-manager.nixosModules.default
       inputs.sops-nix.nixosModules.sops
-      ./pkgs/xgreeter/nixos-modules
+      ./pkgs/ttygate/nixos-modules
       ./secrets
       (./system/hosts + "/${metadata.host.name}")
     ];
