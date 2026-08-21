@@ -1,0 +1,33 @@
+{
+  lib,
+  rustPlatform,
+}: let
+  package = rustPlatform.buildRustPackage {
+    pname = "nyx-mcp-gateway";
+    version = "0.1.0";
+
+    src = lib.fileset.toSource {
+      root = ./.;
+      fileset = lib.fileset.unions [
+        ./Cargo.toml
+        ./Cargo.lock
+        ./src
+      ];
+    };
+
+    cargoLock.lockFile = ./Cargo.lock;
+
+    meta = {
+      description = "Nix-native shared MCP process gateway";
+      mainProgram = "mcp-proxy";
+    };
+  };
+in
+  package.overrideAttrs (old: {
+    passthru =
+      (old.passthru or {})
+      // {
+        daemon = "${package}/bin/mcp-gatewayd";
+        proxy = "${package}/bin/mcp-proxy";
+      };
+  })
