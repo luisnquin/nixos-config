@@ -22,6 +22,7 @@
       max-icon-size = 25;
       icons = true;
       sort = "-time";
+      max-history = 200;
 
       "urgency=low" = {
         border-color = "#444152";

@@ -1,0 +1,158 @@
+diff --git a/dbus/mako.c b/dbus/mako.c
+index 0e5def4..8b2a54a 100644
+--- a/dbus/mako.c
++++ b/dbus/mako.c
+@@ -1,3 +1,4 @@
++#include <errno.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -117,26 +118,51 @@ static int handle_invoke_action(sd_bus_message *msg, void *data,
+ 	return sd_bus_reply_method_return(msg, "");
+ }
+ 
+-static int handle_restore_action(sd_bus_message *msg, void *data,
+-		sd_bus_error *ret_error) {
+-	struct mako_state *state = data;
+-
++static bool restore_notification(struct mako_state *state, uint32_t id) {
+ 	if (wl_list_empty(&state->history)) {
+-		goto done;
++		return false;
+ 	}
+ 
+-	struct mako_notification *notif =
+-		wl_container_of(state->history.next, notif, link);
+-	wl_list_remove(&notif->link);
++	struct mako_notification *notif;
++	wl_list_for_each(notif, &state->history, link) {
++		if (id != 0 && notif->id != id) {
++			continue;
++		}
++
++		wl_list_remove(&notif->link);
+ 
+-	finish_style(&notif->style);
+-	init_empty_style(&notif->style);
+-	apply_each_criteria(&state->config.criteria, notif);
++		finish_style(&notif->style);
++		init_empty_style(&notif->style);
++		apply_each_criteria(&state->config.criteria, notif);
++		notif->closed_at = 0;
+ 
+-	insert_notification(state, notif);
+-	set_dirty(notif->surface);
++		insert_notification(state, notif);
++		set_dirty(notif->surface);
++		return true;
++	}
++
++	return false;
++}
++
++static int handle_restore_action(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++	restore_notification(state, 0);
++	return sd_bus_reply_method_return(msg, "");
++}
++
++static int handle_restore_action_by_id(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++	uint32_t id;
++	int ret = sd_bus_message_read(msg, "u", &id);
++	if (ret < 0) {
++		return ret;
++	}
++	if (!restore_notification(state, id)) {
++		return sd_bus_error_set_errno(ret_error, ENOENT);
++	}
+ 
+-done:
+ 	return sd_bus_reply_method_return(msg, "");
+ }
+ 
+@@ -535,6 +561,7 @@ static const sd_bus_vtable service_vtable[] = {
+ 	SD_BUS_METHOD("DismissNotifications", "a{sv}", "", handle_dismiss, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("InvokeAction", "us", "", handle_invoke_action, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("RestoreNotification", "", "", handle_restore_action, SD_BUS_VTABLE_UNPRIVILEGED),
++	SD_BUS_METHOD("RestoreNotificationById", "u", "", handle_restore_action_by_id, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("ListNotifications", "", "aa{sv}", handle_list_notifications, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("ListHistory", "", "aa{sv}", handle_list_history, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("Reload", "", "", handle_reload, SD_BUS_VTABLE_UNPRIVILEGED),
+diff --git a/doc/makoctl.1.scd b/doc/makoctl.1.scd
+index dcfb7a1..b530e9e 100644
+--- a/doc/makoctl.1.scd
++++ b/doc/makoctl.1.scd
+@@ -32,8 +32,9 @@ Sends IPC commands to the running mako daemon via dbus.
+ 		Dismiss the notification with the given id. Defaults to the first
+ 		notification.
+ 
+-*restore*
+-	Restores the most recently expired notification from the history buffer.
++*restore* [-n <id>]
++	Restores the notification with the selected ID from the history buffer.
++	Defaults to the most recently expired notification.
+ 
+ *invoke* [-n <id>] [action]
+ 	Invokes an action on a notification. If _action_ is not specified, invokes
+diff --git a/makoctl.c b/makoctl.c
+index 62065cc..84473ed 100644
+--- a/makoctl.c
++++ b/makoctl.c
+@@ -202,6 +202,33 @@ static int run_invoke(sd_bus *bus, int argc, char *argv[]) {
+ 	return call_method(bus, "InvokeAction", NULL, "us", id, action);
+ }
+ 
++static int run_restore(sd_bus *bus, int argc, char *argv[]) {
++	uint32_t id = 0;
++	while (true) {
++		int opt = getopt(argc, argv, "n:");
++		if (opt == -1) {
++			break;
++		}
++
++		switch (opt) {
++		case 'n':;
++			int ret = parse_uint32(&id, optarg);
++			if (ret < 0) {
++				log_neg_errno(ret, "invalid notification ID");
++				return 1;
++			}
++			break;
++		default:
++			return -EINVAL;
++		}
++	}
++
++	if (id == 0) {
++		return call_method(bus, "RestoreNotification", NULL, "");
++	}
++	return call_method(bus, "RestoreNotificationById", NULL, "u", id);
++}
++
+ static int read_actions(sd_bus_message *msg, char ***out) {
+ 	int ret = sd_bus_message_enter_container(msg, 'v', "a{ss}");
+ 	if (ret < 0) {
+@@ -941,8 +968,8 @@ static const char usage[] =
+ 	"          [-g|--group]           Dismiss all the notifications\n"
+ 	"                                 in the last notification's group\n"
+ 	"          [-h|--no-history]      Dismiss w/o adding to history\n"
+-	"  restore                        Restore the most recently expired\n"
+-	"                                 notification from the history buffer\n"
++	"  restore [-n id]                Restore the selected notification, or the\n"
++	"                                 most recent one when no ID is given\n"
+ 	"  invoke [-n id] [action]        Invoke an action on the notification\n"
+ 	"                                 with the given id, or the last\n"
+ 	"                                 notification if none is given\n"
+@@ -996,7 +1023,7 @@ int main(int argc, char *argv[]) {
+ 	} else if (strcmp(cmd, "reload") == 0) {
+ 		ret = call_method(bus, "Reload", NULL, "");
+ 	} else if (strcmp(cmd, "restore") == 0) {
+-		ret = call_method(bus, "RestoreNotification", NULL, "");
++		ret = run_restore(bus, cmd_argc, cmd_argv);
+ 	} else {
+ 		fprintf(stderr, "Unknown command: %s\n", cmd);
+ 		return 1;
+

@@ -1,0 +1,202 @@
+diff --git a/dbus/mako.c b/dbus/mako.c
+index 0b58cc3..0e5def4 100644
+--- a/dbus/mako.c
++++ b/dbus/mako.c
+@@ -196,6 +196,42 @@ static int handle_list_for_each(sd_bus_message *reply, struct wl_list *list) {
+ 			return ret;
+ 		}
+ 
++		ret = sd_bus_message_append(reply, "{sv}", "created-at",
++			"t", notif->created_at);
++		if (ret < 0) {
++			return ret;
++		}
++
++		ret = sd_bus_message_append(reply, "{sv}", "updated-at",
++			"t", notif->updated_at);
++		if (ret < 0) {
++			return ret;
++		}
++
++		ret = sd_bus_message_append(reply, "{sv}", "closed-at",
++			"t", notif->closed_at);
++		if (ret < 0) {
++			return ret;
++		}
++
++		ret = sd_bus_message_append(reply, "{sv}", "progress",
++			"i", notif->progress);
++		if (ret < 0) {
++			return ret;
++		}
++
++		ret = sd_bus_message_append(reply, "{sv}", "requested-timeout",
++			"i", notif->requested_timeout);
++		if (ret < 0) {
++			return ret;
++		}
++
++		ret = sd_bus_message_append(reply, "{sv}", "tag",
++			"s", notif->tag);
++		if (ret < 0) {
++			return ret;
++		}
++
+ 		ret = sd_bus_message_append(reply, "{sv}", "urgency",
+ 			"y", notif->urgency);
+ 		if (ret < 0) {
+diff --git a/doc/makoctl.1.scd b/doc/makoctl.1.scd
+index 211dba0..dcfb7a1 100644
+--- a/doc/makoctl.1.scd
++++ b/doc/makoctl.1.scd
+@@ -73,7 +73,8 @@ Sends IPC commands to the running mako daemon via dbus.
+ 	Options:
+ 
+ 	*-j*
+-		Use JSON output.
++		Use JSON output. Each notification includes millisecond Unix timestamps,
++		progress, requested timeout, and replacement tag metadata.
+ 
+ *history*
+ 	Retrieve a list of dismissed notifications.
+@@ -81,7 +82,8 @@ Sends IPC commands to the running mako daemon via dbus.
+ 	Options:
+ 
+ 	*-j*
+-		Use JSON output.
++		Use JSON output. Each notification includes millisecond Unix timestamps,
++		progress, requested timeout, and replacement tag metadata.
+ 
+ *reload*
+ 	Reloads the configuration file.
+diff --git a/include/notification.h b/include/notification.h
+index 48c96f7..ef0a536 100644
+--- a/include/notification.h
++++ b/include/notification.h
+@@ -28,6 +28,9 @@ struct mako_notification {
+ 	struct mako_icon *icon;
+ 
+ 	uint32_t id;
++	uint64_t created_at;
++	uint64_t updated_at;
++	uint64_t closed_at;
+ 	int group_index;
+ 	int group_count;
+ 	bool hidden;
+diff --git a/makoctl.c b/makoctl.c
+index d84a072..62065cc 100644
+--- a/makoctl.c
++++ b/makoctl.c
+@@ -294,7 +294,9 @@ static const char *urgency_name(uint8_t urgency) {
+ 
+ struct notification_metadata {
+ 	uint32_t id;
+-	const char *app_name, *app_icon, *category, *desktop_entry, *summary, *body;
++	uint64_t created_at, updated_at, closed_at;
++	int32_t progress, requested_timeout;
++	const char *app_name, *app_icon, *category, *desktop_entry, *summary, *body, *tag;
+ 	uint8_t urgency;
+ 	char **actions;
+ };
+@@ -383,12 +385,18 @@ static void print_json_key_value_str(const char *key, const char *value) {
+ static void print_notification_as_json(const struct notification_metadata *notif) {
+ 	printf("  {\n");
+ 	printf("    \"id\": %" PRIu32 ",\n", notif->id);
++	printf("    \"created_at\": %" PRIu64 ",\n", notif->created_at);
++	printf("    \"updated_at\": %" PRIu64 ",\n", notif->updated_at);
++	printf("    \"closed_at\": %" PRIu64 ",\n", notif->closed_at);
++	printf("    \"progress\": %" PRId32 ",\n", notif->progress);
++	printf("    \"requested_timeout\": %" PRId32 ",\n", notif->requested_timeout);
+ 	print_json_key_value_str("app_name", notif->app_name);
+ 	print_json_key_value_str("app_icon", notif->app_icon);
+ 	print_json_key_value_str("category", notif->category);
+ 	print_json_key_value_str("desktop_entry", notif->desktop_entry);
+ 	print_json_key_value_str("summary", notif->summary);
+ 	print_json_key_value_str("body", notif->body);
++	print_json_key_value_str("tag", notif->tag);
+ 	print_json_key_value_str("urgency", urgency_name(notif->urgency));
+ 	printf("    \"actions\": {");
+ 	if (notif->actions != NULL) {
+@@ -409,7 +417,7 @@ static void print_notification_as_json(const struct notification_metadata *notif
+ }
+ 
+ static int print_notification(sd_bus_message *reply, bool json) {
+-	struct notification_metadata notif = { .urgency = -1 };
++	struct notification_metadata notif = { .progress = -1, .urgency = -1 };
+ 	while (true) {
+ 		int ret = sd_bus_message_enter_container(reply, 'e', "sv");
+ 		if (ret < 0) {
+@@ -426,6 +434,16 @@ static int print_notification(sd_bus_message *reply, bool json) {
+ 
+ 		if (strcmp(key, "id") == 0) {
+ 			ret = sd_bus_message_read(reply, "v", "u", &notif.id);
++		} else if (strcmp(key, "created-at") == 0) {
++			ret = sd_bus_message_read(reply, "v", "t", &notif.created_at);
++		} else if (strcmp(key, "updated-at") == 0) {
++			ret = sd_bus_message_read(reply, "v", "t", &notif.updated_at);
++		} else if (strcmp(key, "closed-at") == 0) {
++			ret = sd_bus_message_read(reply, "v", "t", &notif.closed_at);
++		} else if (strcmp(key, "progress") == 0) {
++			ret = sd_bus_message_read(reply, "v", "i", &notif.progress);
++		} else if (strcmp(key, "requested-timeout") == 0) {
++			ret = sd_bus_message_read(reply, "v", "i", &notif.requested_timeout);
+ 		} else if (strcmp(key, "actions") == 0) {
+ 			ret = read_actions(reply, &notif.actions);
+ 		} else if (strcmp(key, "summary") == 0) {
+@@ -440,6 +458,8 @@ static int print_notification(sd_bus_message *reply, bool json) {
+ 			ret = sd_bus_message_read(reply, "v", "s", &notif.category);
+ 		} else if (strcmp(key, "desktop-entry") == 0) {
+ 			ret = sd_bus_message_read(reply, "v", "s", &notif.desktop_entry);
++		} else if (strcmp(key, "tag") == 0) {
++			ret = sd_bus_message_read(reply, "v", "s", &notif.tag);
+ 		} else if (strcmp(key, "urgency") == 0) {
+ 			ret = sd_bus_message_read(reply, "v", "y", &notif.urgency);
+ 		} else {
+diff --git a/notification.c b/notification.c
+index b556c1d..0445477 100644
+--- a/notification.c
++++ b/notification.c
+@@ -4,6 +4,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/wait.h>
++#include <time.h>
+ #include <unistd.h>
+ 
+ #include <pango/pangocairo.h>
+@@ -27,6 +28,14 @@ bool hotspot_at(struct mako_hotspot *hotspot, int32_t x, int32_t y) {
+ 		y < hotspot->y + hotspot->height;
+ }
+ 
++static uint64_t realtime_msec(void) {
++	struct timespec ts;
++	if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
++		return 0;
++	}
++	return (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
++}
++
+ void reset_notification(struct mako_notification *notif) {
+ 	struct mako_action *action, *tmp;
+ 	wl_list_for_each_safe(action, tmp, &notif->actions, link) {
+@@ -38,6 +47,11 @@ void reset_notification(struct mako_notification *notif) {
+ 
+ 	notif->urgency = MAKO_NOTIFICATION_URGENCY_UNKNOWN;
+ 	notif->progress = -1;
++	notif->updated_at = realtime_msec();
++	notif->closed_at = 0;
++	if (notif->created_at == 0) {
++		notif->created_at = notif->updated_at;
++	}
+ 
+ 	destroy_timer(notif->timer);
+ 	notif->timer = NULL;
+@@ -110,6 +124,7 @@ void close_notification(struct mako_notification *notif,
+ 		enum mako_notification_close_reason reason,
+ 		bool add_to_history) {
+ 	struct mako_state *state = notif->state;
++	notif->closed_at = realtime_msec();
+ 
+ 	notify_notification_closed(notif, reason);
+ 	wl_list_remove(&notif->link);  // Remove so regrouping works...
+

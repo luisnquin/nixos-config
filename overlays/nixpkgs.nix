@@ -77,6 +77,17 @@
     llm-agents = prev.llm-agents // {inherit codex;};
   })
   (_final: prev: {
+    mako = prev.mako.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/mako/notification-metadata.patch
+          ./patches/mako/restore-history-by-id.patch
+          ./patches/mako/history-actions-and-removal.patch
+        ];
+    });
+  })
+  (_final: prev: {
     handy = prev.handy.overrideAttrs (old: {
       patches =
         (old.patches or [])

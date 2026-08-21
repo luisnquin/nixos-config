@@ -1,0 +1,235 @@
+diff --git a/dbus/mako.c b/dbus/mako.c
+index 8b2a54a..f63d25e 100644
+--- a/dbus/mako.c
++++ b/dbus/mako.c
+@@ -118,6 +118,37 @@ static int handle_invoke_action(sd_bus_message *msg, void *data,
+ 	return sd_bus_reply_method_return(msg, "");
+ }
+ 
++static int handle_invoke_history_action(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++	uint32_t id;
++	const char *action_key;
++	int ret = sd_bus_message_read(msg, "us", &id, &action_key);
++	if (ret < 0) {
++		return ret;
++	}
++
++	struct mako_notification *notif;
++	wl_list_for_each(notif, &state->history, link) {
++		if (notif->id != id) {
++			continue;
++		}
++
++		struct mako_action *action;
++		wl_list_for_each(action, &notif->actions, link) {
++			if (strcmp(action->key, action_key) == 0) {
++				notify_action_invoked(action, NULL);
++				break;
++			}
++		}
++		destroy_notification(notif);
++		emit_notifications_changed(state);
++		return sd_bus_reply_method_return(msg, "");
++	}
++
++	return sd_bus_error_set_errno(ret_error, ENOENT);
++}
++
+ static bool restore_notification(struct mako_state *state, uint32_t id) {
+ 	if (wl_list_empty(&state->history)) {
+ 		return false;
+@@ -166,6 +197,39 @@ static int handle_restore_action_by_id(sd_bus_message *msg, void *data,
+ 	return sd_bus_reply_method_return(msg, "");
+ }
+ 
++static int handle_remove_history(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++	uint32_t id;
++	int ret = sd_bus_message_read(msg, "u", &id);
++	if (ret < 0) {
++		return ret;
++	}
++
++	struct mako_notification *notif;
++	wl_list_for_each(notif, &state->history, link) {
++		if (id != 0 && notif->id != id) {
++			continue;
++		}
++		destroy_notification(notif);
++		emit_notifications_changed(state);
++		return sd_bus_reply_method_return(msg, "");
++	}
++
++	return sd_bus_error_set_errno(ret_error, ENOENT);
++}
++
++static int handle_clear_history(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++	struct mako_notification *notif, *tmp;
++	wl_list_for_each_safe(notif, tmp, &state->history, link) {
++		destroy_notification(notif);
++	}
++	emit_notifications_changed(state);
++	return sd_bus_reply_method_return(msg, "");
++}
++
+ static int handle_list_for_each(sd_bus_message *reply, struct wl_list *list) {
+ 
+ 	int ret = sd_bus_message_open_container(reply, 'a', "a{sv}");
+@@ -560,8 +624,11 @@ static const sd_bus_vtable service_vtable[] = {
+ 	SD_BUS_VTABLE_START(0),
+ 	SD_BUS_METHOD("DismissNotifications", "a{sv}", "", handle_dismiss, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("InvokeAction", "us", "", handle_invoke_action, SD_BUS_VTABLE_UNPRIVILEGED),
++	SD_BUS_METHOD("InvokeHistoryAction", "us", "", handle_invoke_history_action, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("RestoreNotification", "", "", handle_restore_action, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("RestoreNotificationById", "u", "", handle_restore_action_by_id, SD_BUS_VTABLE_UNPRIVILEGED),
++	SD_BUS_METHOD("RemoveHistoryNotification", "u", "", handle_remove_history, SD_BUS_VTABLE_UNPRIVILEGED),
++	SD_BUS_METHOD("ClearHistory", "", "", handle_clear_history, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("ListNotifications", "", "aa{sv}", handle_list_notifications, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("ListHistory", "", "aa{sv}", handle_list_history, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("Reload", "", "", handle_reload, SD_BUS_VTABLE_UNPRIVILEGED),
+diff --git a/doc/makoctl.1.scd b/doc/makoctl.1.scd
+index b530e9e..9b740a9 100644
+--- a/doc/makoctl.1.scd
++++ b/doc/makoctl.1.scd
+@@ -36,12 +36,16 @@ Sends IPC commands to the running mako daemon via dbus.
+ 	Restores the notification with the selected ID from the history buffer.
+ 	Defaults to the most recently expired notification.
+ 
+-*invoke* [-n <id>] [action]
++*invoke* [-H|--history] [-n <id>] [action]
+ 	Invokes an action on a notification. If _action_ is not specified, invokes
+ 	the default action. Action names can be discovered using `makoctl list`.
+ 
+ 	Options:
+ 
++	*-H, --history*
++		Invoke the action on a history notification. This requires an ID and
++		removes the notification from history after invocation.
++
+ 	*-n* <id>
+ 		Invoke the action on the notification with the given id. Defaults to
+ 		the first notification.
+@@ -86,6 +90,13 @@ Sends IPC commands to the running mako daemon via dbus.
+ 		Use JSON output. Each notification includes millisecond Unix timestamps,
+ 		progress, requested timeout, and replacement tag metadata.
+ 
++*history-remove* [-n <id>]
++	Remove the selected notification from history. Defaults to the most recent
++	notification.
++
++*history-clear*
++	Remove all notifications from history.
++
+ *reload*
+ 	Reloads the configuration file.
+ 
+diff --git a/makoctl.c b/makoctl.c
+index 84473ed..300d711 100644
+--- a/makoctl.c
++++ b/makoctl.c
+@@ -175,13 +175,21 @@ static int run_dismiss(sd_bus *bus, int argc, char *argv[]) {
+ 
+ static int run_invoke(sd_bus *bus, int argc, char *argv[]) {
+ 	uint32_t id = 0;
++	bool history = false;
+ 	while (true) {
+-		int opt = getopt(argc, argv, "n:");
++		const struct option options[] = {
++			{ "history", no_argument, 0, 'H' },
++			{0},
++		};
++		int opt = getopt_long(argc, argv, "Hn:", options, NULL);
+ 		if (opt == -1) {
+ 			break;
+ 		}
+ 
+ 		switch (opt) {
++		case 'H':
++			history = true;
++			break;
+ 		case 'n':;
+ 			int ret = parse_uint32(&id, optarg);
+ 			if (ret < 0) {
+@@ -199,7 +207,12 @@ static int run_invoke(sd_bus *bus, int argc, char *argv[]) {
+ 		action = argv[optind];
+ 	}
+ 
+-	return call_method(bus, "InvokeAction", NULL, "us", id, action);
++	if (history && id == 0) {
++		fprintf(stderr, "History action requires a notification ID\n");
++		return -EINVAL;
++	}
++	return call_method(bus, history ? "InvokeHistoryAction" : "InvokeAction",
++		NULL, "us", id, action);
+ }
+ 
+ static int run_restore(sd_bus *bus, int argc, char *argv[]) {
+@@ -229,6 +242,30 @@ static int run_restore(sd_bus *bus, int argc, char *argv[]) {
+ 	return call_method(bus, "RestoreNotificationById", NULL, "u", id);
+ }
+ 
++static int run_history_remove(sd_bus *bus, int argc, char *argv[]) {
++	uint32_t id = 0;
++	while (true) {
++		int opt = getopt(argc, argv, "n:");
++		if (opt == -1) {
++			break;
++		}
++
++		switch (opt) {
++		case 'n':;
++			int ret = parse_uint32(&id, optarg);
++			if (ret < 0) {
++				log_neg_errno(ret, "invalid notification ID");
++				return 1;
++			}
++			break;
++		default:
++			return -EINVAL;
++		}
++	}
++
++	return call_method(bus, "RemoveHistoryNotification", NULL, "u", id);
++}
++
+ static int read_actions(sd_bus_message *msg, char ***out) {
+ 	int ret = sd_bus_message_enter_container(msg, 'v', "a{ss}");
+ 	if (ret < 0) {
+@@ -970,15 +1007,19 @@ static const char usage[] =
+ 	"          [-h|--no-history]      Dismiss w/o adding to history\n"
+ 	"  restore [-n id]                Restore the selected notification, or the\n"
+ 	"                                 most recent one when no ID is given\n"
+-	"  invoke [-n id] [action]        Invoke an action on the notification\n"
++	"  invoke [-H] [-n id] [action]   Invoke an action on the notification\n"
+ 	"                                 with the given id, or the last\n"
+ 	"                                 notification if none is given\n"
++	"          [-H|--history]         Target a history notification; requires id\n"
+ 	"  menu [-n id] <prog> [arg ...]  Use <prog> [args ...] to select one\n"
+ 	"                                 action to be invoked on the notification\n"
+ 	"                                 with the given id, or the last\n"
+ 	"                                 notification if none is given\n"
+ 	"  list [-j]                      List notifications\n"
+ 	"  history [-j]                   List history\n"
++	"  history-remove [-n id]         Remove the selected history notification,\n"
++	"                                 or the most recent one when no ID is given\n"
++	"  history-clear                  Remove all history notifications\n"
+ 	"  reload                         Reload the configuration file\n"
+ 	"  mode                           List modes\n"
+ 	"  mode [-a mode]... [-r mode]... Add/remove modes\n"
+@@ -1014,6 +1055,10 @@ int main(int argc, char *argv[]) {
+ 		ret = run_invoke(bus, cmd_argc, cmd_argv);
+ 	} else if (strcmp(cmd, "history") == 0) {
+ 		ret = run_history(bus, cmd_argc, cmd_argv);
++	} else if (strcmp(cmd, "history-remove") == 0) {
++		ret = run_history_remove(bus, cmd_argc, cmd_argv);
++	} else if (strcmp(cmd, "history-clear") == 0) {
++		ret = call_method(bus, "ClearHistory", NULL, "");
+ 	} else if (strcmp(cmd, "list") == 0) {
+ 		ret = run_list(bus, cmd_argc, cmd_argv);
+ 	} else if (strcmp(cmd, "menu") == 0) {
+
