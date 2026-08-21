@@ -15,6 +15,16 @@ or pressed.
 examples and what it is for.** This file covers only what the CLI cannot tell
 you about the devices themselves.
 
+The verbs, in the order `phone --help` lists them:
+
+| | |
+| --- | --- |
+| device | `devices` `connect` `disconnect` `pair` `pin` `use` `forget` `hosts` `boot` `shutdown` |
+| screen | `snapshot` `shot` `size` `tap` `press` `swipe` `type` `key` `wait` `do` |
+| app | `install` `launch` `stop` `open` `logs` |
+| host | `reverse` `mirror` `record` |
+| this | `doctor` `completions` |
+
 ## Pick a device
 
 ```
@@ -43,9 +53,8 @@ press one of those names, `wait` for the result, read again. Never `sleep` — a
 screenshot taken right after a tap returns the frame that was already up, and
 `wait` returns the moment the answer is yes.
 
-Every invocation surveys the hosts first, which costs seconds whatever the verb
-is. When the steps are known in advance put them in one `do`, which pays that
-once:
+When the steps are known in advance put them in one `do`, which surveys once and
+runs them all against the same device:
 
 ```
 phone do "tap 'Log in'" "wait Inbox" "shot --crop @2"
@@ -53,7 +62,17 @@ phone do "tap 'Log in'" "wait Inbox" "shot --crop @2"
 
 `snapshot` is text and usually answers the question; a full screenshot costs
 roughly 1500 tokens to read, so `shot --crop <element>` when only one control
-matters.
+matters. What costs more than any single read is reading twice to learn whether
+the first act landed — that is what `wait` and `shot --settle` are for.
+
+Two things about names:
+
+- A row printed as `<View>` or `<EditText>` has no name of its own. That is its
+  class, in angle brackets because no verb will match on it; reach it by the
+  `@index` beside it.
+- `--crop <name>` finds the element carrying the name, which for a card is its
+  label rather than the card. `--crop <name> --expand 1` widens to the box
+  around it, `--expand 2` to the box around that.
 
 ## Coordinate spaces
 
@@ -98,12 +117,58 @@ adb shell cmd device_state state reset # hand it back to the hinge sensor
 
 Always `reset` afterwards, or the sensor stays overridden.
 
+## Reaching a dev server from the device
+
+`localhost` inside an emulator is the emulator, so a bundler is not reachable
+until the device has a port that answers to it:
+
+```
+phone reverse 8081
+phone reverse --list
+phone reverse --clear
+```
+
+The port it reaches is on **the machine running the adb server that holds the
+device**, not on this one. For an emulator on a mac, `phone reverse 8081` sends
+the device to that mac's loopback — a Metro started over ssh there. A bundler
+running here is not what it will find. Android only; a simulator is already on
+its host's loopback.
+
+## Watching something happen
+
+A screenshot cannot show an animation, a splash that never clears, or which
+list a swipe actually scrolled. `record` can, and `--frames` turns the clip into
+stills that can be read:
+
+```
+phone record --seconds 8 --frames 4 --scale 0.4 --jpeg 60
+phone record --seconds 8 --frames changed
+```
+
+Both halves are printed as paths. Android and simulators, up to 180 seconds.
+The length is `--seconds`; the positional argument is the device, as everywhere
+else.
+
+`--frames N` spaces the stills evenly, which samples a clip blind: a route
+change is short and bunched, so four even stills over five seconds are one of
+the old screen and three of the same settled new one. `--frames changed` cuts at
+the moments the picture actually moved instead, always keeping the first and
+last frame so the before and after are anchored, and capping the count so a
+scrolling list cannot return sixty stills. It says how many changes it found,
+how many it kept, and where the longest stretch nothing was captured in starts
+— read that line before opening any image, since it says which one to open.
+
+A simulator encodes a frame only when the screen changes, so a clip of a screen
+that sat still holds fewer frames than were asked for and says so. A still that
+cannot be taken is reported and skipped: the clip and every other still are
+still written, and the run still exits 0. A non-zero exit means the clip failed
+or that no still could be taken at all.
+
 ## Not covered yet
 
-No screen recording, no app lifecycle (`launch`, `stop`, `open <url>`), no port
-forwarding, and no creating an AVD or a simulator that does not exist yet —
-`boot` only starts one that is already defined. Those still mean
-`adb`/`simctl`/`avdmanager` over ssh by hand.
+No `uninstall`, no pasteboard, no `erase`, no `assert`, and no creating an AVD
+or a simulator that does not exist yet — `boot` only starts one that is already
+defined. Those still mean `adb`/`simctl`/`avdmanager` over ssh by hand.
 
 ## Acting blind
 

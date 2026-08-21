@@ -31,7 +31,7 @@ in {
         })
       (mkInlineSkill {
           "phone" = {
-            description = "Drive the Android handsets and emulators and the iOS simulators on this desk with the `phone` CLI — boot a simulator or AVD from cold, pick a device, screenshot or crop it, list the elements on screen, tap, hold, swipe, type, send keys, wait for the screen to catch up, and run a whole sequence of those against one device. Use for any hands-on mobile device automation from this host.";
+            description = "Drive the Android handsets and emulators and the iOS simulators on this desk with the `phone` CLI — boot a simulator or AVD from cold, pick a device, screenshot or crop it, list the elements on screen, tap, hold, swipe, type, send keys, wait for the screen to catch up, record a clip and cut it into stills, launch or stop an app, open a deep link, reverse a port to a dev server, and run a whole sequence of those against one device. Use for any hands-on mobile device automation from this host.";
             tags = ["mobile"];
             content = builtins.readFile ./skills/phone.md;
           };
