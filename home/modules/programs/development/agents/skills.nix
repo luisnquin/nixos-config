@@ -85,7 +85,6 @@ in {
         } {
           plugins = [
             "android-firmware-lab"
-            "voice-orchestrator"
             "jetson-nixos"
             "mobile-nixos-port"
             "commit"

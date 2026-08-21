@@ -10,7 +10,6 @@ pkgs:
   mcp-gateway = pkgs.callPackage ./mcp-gateway {};
   phone = pkgs.callPackage ./phone {};
   setup = pkgs.callPackage ./setup {};
-  voice-gateway = pkgs.callPackage ./voice-gateway {};
   waytools = pkgs.callPackage ./waytools {};
   xgreeter = pkgs.callPackage ./xgreeter {};
 }

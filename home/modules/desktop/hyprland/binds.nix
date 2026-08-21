@@ -173,8 +173,6 @@ in
     (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
     (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
     (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.tmux \"${ghosttyDropCmd}\""))
-    (b "${mainMod} + V" (dspExec "voice-agent-toggle"))
-    (b "${mainMod} + SHIFT + V" (dspExec "voice-agent-cancel"))
 
     (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
     (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))

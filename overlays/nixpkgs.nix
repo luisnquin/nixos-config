@@ -88,15 +88,6 @@
     });
   })
   (_final: prev: {
-    handy = prev.handy.overrideAttrs (old: {
-      patches =
-        (old.patches or [])
-        ++ [
-          ./patches/handy/comfortable-overlay-spacing.patch
-        ];
-    });
-  })
-  (_final: prev: {
     lazygit = prev.lazygit.overrideAttrs (old: {
       patches =
         (old.patches or [])
