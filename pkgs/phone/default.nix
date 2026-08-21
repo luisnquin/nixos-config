@@ -6,6 +6,7 @@
   makeWrapper,
   android-tools,
   avahi,
+  ffmpeg-headless,
   fzf,
   libnotify,
   openssh,
@@ -16,6 +17,9 @@
   runtimeInputs = [
     android-tools
     avahi
+    # `record --frames` cuts the clip here, not on the host that holds
+    # the device: a mac running a simulator is not required to have ffmpeg
+    ffmpeg-headless
     fzf
     libnotify
     openssh
