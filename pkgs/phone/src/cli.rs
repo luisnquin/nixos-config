@@ -54,7 +54,7 @@ The verbs, in the order they are reached for
   screen   snapshot shot size tap press swipe type key wait do
   app      install launch stop open logs
   host     reverse mirror record
-  this     doctor completions
+  this     doctor
 
 What to know before scripting it
 
@@ -586,7 +586,9 @@ clipboard, the ssh hosts that answer and what each one still offers. Run it when
 a command fails in a way that looks like a tool is absent, not when a device
 will not respond."#)]
     Doctor,
-    /// Print a shell completion script
+    /// Print a shell completion script. Hidden: `default.nix` calls it in
+    /// postInstall to generate the completion files, and nothing else does.
+    #[command(hide = true)]
     Completions { shell: Shell },
 }
 
@@ -822,6 +824,7 @@ mod tests {
 
         let listed: Vec<String> = Cli::command()
             .get_subcommands()
+            .filter(|c| !c.is_hide_set())
             .map(|c| c.get_name().to_string())
             .filter(|name| name != "help")
             .collect();
