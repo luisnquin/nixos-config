@@ -79,18 +79,18 @@ index 3945d06f05..8d522ebed2 100644
  
          let wrapped_remote_images = if self.remote_image_urls.is_empty() {
              None
-@@ -129,7 +133,7 @@ impl HistoryCell for UserHistoryCell {
+@@ -249,7 +253,7 @@ impl HistoryCell for UserHistoryCell {
              return Vec::new();
          }
  
--        let mut lines: Vec<Line<'static>> = vec![Line::from("").style(style)];
-+        let mut lines: Vec<Line<'static>> = vec![custom_input_bar_line(width)];
+-        let mut lines = vec![HyperlinkLine::new(Line::from("").style(style))];
++        let mut lines = vec![HyperlinkLine::new(custom_input_bar_line(width))];
  
          if let Some(wrapped_remote_images) = wrapped_remote_images {
-             lines.extend(prefix_lines(
-@@ -146,12 +150,12 @@ impl HistoryCell for UserHistoryCell {
+             lines.extend(prefix_hyperlink_lines(
+@@ -262,12 +266,12 @@ impl HistoryCell for UserHistoryCell {
          if let Some(wrapped_message) = wrapped_message {
-             lines.extend(prefix_lines(
+             lines.extend(prefix_hyperlink_lines(
                  wrapped_message,
 -                "› ".bold().dim(),
 +                Span::from("λ ").light_cyan().bold(),
@@ -98,8 +98,8 @@ index 3945d06f05..8d522ebed2 100644
              ));
          }
  
--        lines.push(Line::from("").style(style));
-+        lines.push(custom_input_bar_line(width));
+-        lines.push(HyperlinkLine::new(Line::from("").style(style)));
++        lines.push(HyperlinkLine::new(custom_input_bar_line(width)));
          lines
      }
  

@@ -1,10 +1,7 @@
-diff --git a/tui/src/lib.rs b/tui/src/lib.rs
---- a/tui/src/lib.rs
-+++ b/tui/src/lib.rs
-@@ -852,7 +852,10 @@ pub async fn run_main(
-     loader_overrides: LoaderOverrides,
-     explicit_remote_endpoint: Option<RemoteAppServerEndpoint>,
- ) -> std::io::Result<AppExitInfo> {
+diff --git a/tui/src/startup_orchestration.rs b/tui/src/startup_orchestration.rs
+--- a/tui/src/startup_orchestration.rs
++++ b/tui/src/startup_orchestration.rs
+@@ -14,5 +14,8 @@ pub(super) async fn run_main_inner(
      let strict_config = cli.strict_config;
 -    let (sandbox_mode, approval_policy) = if cli.dangerously_bypass_approvals_and_sandbox {
 +    let default_yolo =

@@ -1,17 +1,19 @@
 --- a/tui/src/config_update.rs
 +++ b/tui/src/config_update.rs
-@@ -15,11 +15,14 @@
+@@ -17,13 +17,16 @@
  use codex_app_server_protocol::RequestId;
  use codex_app_server_protocol::SkillsConfigWriteParams;
  use codex_app_server_protocol::SkillsConfigWriteResponse;
 +use codex_app_server_protocol::WriteStatus;
 +use codex_config::CONFIG_TOML_FILE;
  use codex_config::loader::project_trust_key;
+ use codex_exec_server::LOCAL_ENVIRONMENT_ID;
  use codex_features::FEATURES;
  use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
  use codex_protocol::config_types::TrustLevel;
  use codex_utils_absolute_path::AbsolutePathBuf;
 +use codex_utils_home_dir::find_codex_home;
+ use codex_utils_path_uri::LegacyAppPathString;
  use color_eyre::eyre::Result;
  use color_eyre::eyre::WrapErr;
  use serde_json::Value as JsonValue;

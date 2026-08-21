@@ -1,29 +1,75 @@
 diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboarding_screen.rs
 --- a/tui/src/onboarding/onboarding_screen.rs
 +++ b/tui/src/onboarding/onboarding_screen.rs
-@@ -28,6 +28,4 @@ use crate::LoginStatus;
+@@ -13,8 +13,5 @@
+ use codex_app_server_client::AppServerEvent;
+ use codex_app_server_client::AppServerRequestHandle;
+-use codex_app_server_protocol::ClientRequest;
+-use codex_app_server_protocol::ConfigBatchWriteParams;
+-use codex_app_server_protocol::RequestId;
+ use codex_app_server_protocol::ServerNotification;
+ use codex_exec_server::LOCAL_FS;
+ use codex_git_utils::resolve_root_git_project_for_trust;
+@@ -36,9 +33,6 @@ use codex_protocol::config_types::ForcedLoginMethod;
+ use crate::LoginStatus;
  use crate::app_server_session::AppServerSession;
+ use crate::config_update::RemoteProjectTrust;
 -use crate::config_update::format_config_error;
+-use crate::config_update::replace_config_value;
 -use crate::config_update::write_trusted_project;
  use crate::key_hint::KeyBindingListExt;
  use crate::legacy_core::config::Config;
  use crate::onboarding::auth::AuthModeWidget;
-@@ -577,5 +575,5 @@ async fn persist_selected_trust(
+@@ -54,7 +48,5 @@ use crate::tui::TuiEvent;
+ use color_eyre::eyre::Result;
+-use color_eyre::eyre::WrapErr;
+ use std::sync::Arc;
+ use std::sync::RwLock;
+-use uuid::Uuid;
+-
++
+ #[allow(clippy::large_enum_variant)]
+@@ -641,5 +633,5 @@ async fn persist_selected_trust(
      onboarding_screen: &mut OnboardingScreen,
 -    request_handle: Option<AppServerRequestHandle>,
 +    _request_handle: Option<AppServerRequestHandle>,
  ) -> bool {
      let Some((trust_step_index, trust_target)) = onboarding_screen
          .steps
-@@ -596,31 +594,14 @@ async fn persist_selected_trust(
+@@ -658,56 +650,14 @@ async fn persist_selected_trust(
          return false;
      };
  
--    let result = match request_handle {
--        Some(request_handle) => write_trusted_project(request_handle, &trust_target)
+-    let result = match (
+-        request_handle,
+-        onboarding_screen.remote_trust_key.as_deref(),
+-    ) {
+-        (Some(request_handle), Some(project_key)) => {
+-            let project_key = project_key.replace('\\', "\\\\").replace('"', "\\\"");
+-            request_handle
+-                .request_typed::<serde_json::Value>(ClientRequest::ConfigBatchWrite {
+-                    request_id: RequestId::String(format!(
+-                        "tui-project-trust-write-{}",
+-                        Uuid::new_v4()
+-                    )),
+-                    params: ConfigBatchWriteParams {
+-                        edits: vec![replace_config_value(
+-                            format!("projects.\"{project_key}\".trust_level"),
+-                            serde_json::json!("trusted"),
+-                        )],
+-                        file_path: None,
+-                        expected_version: None,
+-                        reload_user_config: true,
+-                    },
+-                })
+-                .await
+-                .map(|_| ())
+-                .wrap_err("config/batchWrite failed while persisting remote project trust")
+-        }
+-        (Some(request_handle), None) => write_trusted_project(request_handle, &trust_target)
 -            .await
 -            .map(|_| ()),
--        None => Err(color_eyre::eyre::eyre!("app server unavailable")),
+-        (None, _) => Err(color_eyre::eyre::eyre!("app server unavailable")),
 -    };
 -
 -    match result {
@@ -54,7 +100,7 @@ diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboar
  }
  
  #[cfg(test)]
-@@ -690,6 +671,6 @@ mod tests {
+@@ -841,6 +798,6 @@ mod tests {
  
      #[tokio::test]
 -    async fn trust_persistence_failure_keeps_trust_step_in_progress() {
@@ -62,7 +108,7 @@ diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboar
          let mut onboarding_screen = OnboardingScreen {
              request_frame: FrameRequester::test_dummy(),
              steps: vec![Step::TrustDirectory(TrustDirectoryWidget {
-@@ -709,17 +690,12 @@ mod tests {
+@@ -861,17 +818,12 @@ mod tests {
          let persisted =
              persist_selected_trust(&mut onboarding_screen, /*request_handle*/ None).await;
  
