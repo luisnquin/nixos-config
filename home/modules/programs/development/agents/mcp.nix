@@ -8,14 +8,36 @@
 
   programs.techdebt.enable = true;
 
+  services.mcp-gateway = {
+    enable = true;
+    servers = [
+      pkgs.context7-mcp
+      pkgs.mcp-nixos
+      pkgs.mcp-server-sequential-thinking
+      {
+        name = "filesystem";
+        package = pkgs.mcp-server-filesystem;
+        args = [
+          "."
+          "/tmp"
+        ];
+        scope = "workspace";
+      }
+      {
+        name = "techdebt-mcp";
+        package = config.programs.techdebt.package;
+        args = ["mcp"];
+        scope = "workspace";
+      }
+    ];
+  };
+
   programs.mcp = {
     enable = true;
     servers = {
       adb.command = lib.getExe pkgs.adb-mcp;
 
       codebase-memory-mcp.command = lib.getExe pkgs.codebase-memory-mcp;
-
-      context7.command = lib.getExe pkgs.context7-mcp;
 
       firefox-devtools = {
         command = lib.getExe pkgs.firefox-devtools-mcp;
@@ -36,25 +58,7 @@
         disabled_tools = disabledTools;
       };
 
-      filesystem = {
-        command = lib.getExe pkgs.mcp-server-filesystem;
-        args = [
-          "."
-          "/tmp"
-        ];
-        startup_timeout_sec = 5;
-      };
-
       linear.url = "https://mcp.linear.app/mcp";
-
-      nixos.command = lib.getExe pkgs.mcp-nixos;
-
-      sequential-thinking.command = lib.getExe pkgs.mcp-server-sequential-thinking;
-
-      techdebt-mcp = {
-        command = lib.getExe config.programs.techdebt.package;
-        args = ["mcp"];
-      };
     };
   };
 }
