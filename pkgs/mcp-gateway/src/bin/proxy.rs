@@ -72,7 +72,9 @@ fn connect_with_retry(socket: &std::path::Path, timeout: Duration) -> std::io::R
 fn default_socket() -> PathBuf {
     std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .unwrap_or_else(|| {
+            PathBuf::from("/run/user").join(rustix::process::geteuid().as_raw().to_string())
+        })
         .join("nyx-mcp-gateway.sock")
 }
 
