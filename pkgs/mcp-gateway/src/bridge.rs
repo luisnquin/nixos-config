@@ -12,25 +12,33 @@ use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 
+use crate::compat::{self, CompatError, Version};
 use crate::config::{NotificationPolicy, Server};
 
 pub type ClientId = u64;
 pub type ClientSender = mpsc::UnboundedSender<Value>;
 
+/// One shared upstream process, serving every downstream client regardless of its protocol
+/// revision. The canonical revision is spoken upstream; each client is answered in its own.
 pub struct Bridge {
-    definition: Server,
-    workspace: Option<PathBuf>,
-    runtimes: Mutex<HashMap<String, Arc<Runtime>>>,
+    runtime: Arc<Runtime>,
     active_clients: AtomicUsize,
     idle_generation: AtomicU64,
 }
 
+#[derive(Clone)]
+struct Registration {
+    sender: ClientSender,
+    version: Version,
+}
+
 struct Runtime {
+    server: String,
     definition: Server,
     workspace: Option<PathBuf>,
-    protocol_version: String,
+    canonical: Version,
     state: Mutex<RuntimeState>,
-    clients: Arc<Mutex<HashMap<ClientId, ClientSender>>>,
+    clients: Arc<Mutex<HashMap<ClientId, Registration>>>,
     next_request_id: AtomicU64,
 }
 
@@ -49,9 +57,11 @@ struct Connection {
 }
 
 struct Routing {
+    server: String,
+    canonical: Version,
     pending: Mutex<HashMap<u64, PendingRequest>>,
     request_ids: Mutex<HashMap<RequestKey, u64>>,
-    clients: Arc<Mutex<HashMap<ClientId, ClientSender>>>,
+    clients: Arc<Mutex<HashMap<ClientId, Registration>>>,
     writer: Arc<Mutex<ChildStdin>>,
     policy: NotificationPolicy,
 }
@@ -63,6 +73,8 @@ enum PendingRequest {
         sender: ClientSender,
         original_id: Value,
         progress_token: Option<Value>,
+        method: String,
+        version: Version,
     },
 }
 
@@ -74,60 +86,122 @@ struct RequestKey {
 
 impl Bridge {
     #[must_use]
-    pub fn new(definition: Server, workspace: Option<PathBuf>) -> Self {
+    pub fn new(
+        server: String,
+        definition: Server,
+        workspace: Option<PathBuf>,
+        canonical: Version,
+    ) -> Self {
         Self {
-            definition,
-            workspace,
-            runtimes: Mutex::new(HashMap::new()),
+            runtime: Arc::new(Runtime {
+                server,
+                definition,
+                workspace,
+                canonical,
+                state: Mutex::new(RuntimeState::default()),
+                clients: Arc::new(Mutex::new(HashMap::new())),
+                next_request_id: AtomicU64::new(1),
+            }),
             active_clients: AtomicUsize::new(0),
             idle_generation: AtomicU64::new(0),
         }
     }
 
+    /// Serves a downstream `initialize` from the single shared upstream handshake.
+    ///
+    /// The client is answered with the revision it requested; the upstream link stays on the
+    /// canonical revision no matter how many revisions the connected clients span.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the client requests an unsupported revision, when the upstream server refuses
+    /// the canonical revision, or when the upstream process cannot be started.
     pub async fn initialize(
         &self,
         client_id: ClientId,
         sender: ClientSender,
         request: &Value,
-    ) -> Result<(String, Value, bool), BridgeError> {
+    ) -> Result<(Version, Value, bool), BridgeError> {
         let original_id = request.get("id").cloned().unwrap_or(Value::Null);
         let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
-        let protocol_version = params
+        let requested = params
             .get("protocolVersion")
             .and_then(Value::as_str)
-            .ok_or(BridgeError::MissingProtocolVersion)?
-            .to_owned();
-        let runtime = self.runtime(&protocol_version).await;
-        let outcome = runtime.initialize(&params).await?;
-        if outcome.get("error").is_some() {
-            return Ok((protocol_version, restore_id(outcome, original_id), false));
-        }
-        runtime.clients.lock().await.insert(client_id, sender);
-        self.active_clients.fetch_add(1, Ordering::AcqRel);
-        Ok((protocol_version, restore_id(outcome, original_id), true))
-    }
+            .ok_or(BridgeError::MissingProtocolVersion)?;
+        let version = Version::parse(requested).map_err(|error| {
+            tracing::error!(
+                mcp.event = "protocol_rejected",
+                mcp.server = %self.runtime.server,
+                mcp.client_id = client_id,
+                mcp.requested_version = requested,
+                mcp.supported_versions = %compat::SUPPORTED_VERSIONS.join(", "),
+                mcp.reason = %error,
+                "refusing MCP client on an unsupported protocol revision"
+            );
+            error
+        })?;
 
-    pub async fn forward(
-        &self,
-        protocol_version: &str,
-        client_id: ClientId,
-        message: Value,
-    ) -> Result<(), BridgeError> {
-        let runtime = self
-            .runtimes
+        let outcome = self.runtime.initialize().await?;
+        if outcome.get("error").is_some() {
+            return Ok((version, restore_id(outcome, original_id), false));
+        }
+
+        if version == self.runtime.canonical {
+            tracing::debug!(
+                mcp.event = "protocol_match",
+                mcp.server = %self.runtime.server,
+                mcp.client_id = client_id,
+                mcp.version = version.as_str(),
+                "MCP client matches the canonical upstream revision"
+            );
+        } else {
+            tracing::info!(
+                mcp.event = "protocol_bridged",
+                mcp.server = %self.runtime.server,
+                mcp.client_id = client_id,
+                mcp.client_version = version.as_str(),
+                mcp.upstream_version = self.runtime.canonical.as_str(),
+                "MCP client and shared upstream speak different revisions; translating in place"
+            );
+        }
+
+        let mut result = outcome;
+        translate_for_client(
+            &self.runtime.server,
+            client_id,
+            "initialize",
+            self.runtime.canonical,
+            version,
+            &mut result,
+        )?;
+        if let Some(object) = result.get_mut("result").and_then(Value::as_object_mut) {
+            object.insert(
+                "protocolVersion".to_owned(),
+                Value::String(version.as_str().to_owned()),
+            );
+        }
+
+        self.runtime
+            .clients
             .lock()
             .await
-            .get(protocol_version)
-            .cloned()
-            .ok_or(BridgeError::NotInitialized)?;
-        runtime.forward(client_id, message).await
+            .insert(client_id, Registration { sender, version });
+        self.active_clients.fetch_add(1, Ordering::AcqRel);
+        Ok((version, restore_id(result, original_id), true))
     }
 
-    pub async fn detach(&self, protocol_version: &str, client_id: ClientId) -> bool {
-        let runtime = self.runtimes.lock().await.get(protocol_version).cloned();
-        if let Some(runtime) = runtime {
-            runtime.detach(client_id).await;
-        }
+    /// Forwards a downstream request or notification to the shared upstream process.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the request carries semantics the canonical revision does not define, when the
+    /// client is unknown, or when the upstream link is broken.
+    pub async fn forward(&self, client_id: ClientId, message: Value) -> Result<(), BridgeError> {
+        self.runtime.forward(client_id, message).await
+    }
+
+    pub async fn detach(&self, client_id: ClientId) -> bool {
+        self.runtime.detach(client_id).await;
         let previous = self.active_clients.fetch_sub(1, Ordering::AcqRel);
         if previous == 1 {
             self.idle_generation.fetch_add(1, Ordering::AcqRel);
@@ -148,30 +222,12 @@ impl Bridge {
 
     #[must_use]
     pub fn idle_timeout(&self) -> Duration {
-        Duration::from_secs(self.definition.idle_seconds)
-    }
-
-    async fn runtime(&self, protocol_version: &str) -> Arc<Runtime> {
-        let mut runtimes = self.runtimes.lock().await;
-        Arc::clone(
-            runtimes
-                .entry(protocol_version.to_owned())
-                .or_insert_with(|| {
-                    Arc::new(Runtime {
-                        definition: self.definition.clone(),
-                        workspace: self.workspace.clone(),
-                        protocol_version: protocol_version.to_owned(),
-                        state: Mutex::new(RuntimeState::default()),
-                        clients: Arc::new(Mutex::new(HashMap::new())),
-                        next_request_id: AtomicU64::new(1),
-                    })
-                }),
-        )
+        Duration::from_secs(self.runtime.definition.idle_seconds)
     }
 }
 
 impl Runtime {
-    async fn initialize(&self, downstream_params: &Value) -> Result<Value, BridgeError> {
+    async fn initialize(&self) -> Result<Value, BridgeError> {
         let mut state = self.state.lock().await;
         if let (Some(connection), Some(outcome)) = (&state.connection, &state.initialize_outcome)
             && !connection.is_dead()
@@ -179,14 +235,7 @@ impl Runtime {
             return Ok(outcome.clone());
         }
 
-        let mut params = downstream_params.clone();
-        params["protocolVersion"] = Value::String(self.protocol_version.clone());
-        params["capabilities"] = json!({});
-        params["clientInfo"] = json!({
-            "name": "nyx-mcp-gateway",
-            "version": env!("CARGO_PKG_VERSION"),
-        });
-        let (connection, outcome) = self.spawn_initialized(params).await?;
+        let (connection, outcome) = self.spawn_initialized().await?;
         state.connection = Some(connection);
         state.initialize_outcome = Some(outcome.clone());
         Ok(outcome)
@@ -194,27 +243,54 @@ impl Runtime {
 
     async fn forward(&self, client_id: ClientId, message: Value) -> Result<(), BridgeError> {
         let connection = self.connection().await?;
-        let method = message.get("method").and_then(Value::as_str);
-        if method == Some("notifications/initialized") {
-            return Ok(());
-        }
-        if method == Some("notifications/cancelled") {
+        let method = message
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        if method == "notifications/cancelled" {
             return connection.cancel(client_id, &message).await;
         }
-        if message.get("id").is_none() {
-            return connection.notify(&message).await;
-        }
 
-        let sender = self
+        let registration = self
             .clients
             .lock()
             .await
             .get(&client_id)
             .cloned()
             .ok_or(BridgeError::UnknownClient)?;
+
+        compat::adapt_request(&method, registration.version, self.canonical, &message).map_err(
+            |error| {
+                tracing::warn!(
+                    mcp.event = "contract_rejected",
+                    mcp.server = %self.server,
+                    mcp.client_id = client_id,
+                    mcp.method = %method,
+                    mcp.client_version = registration.version.as_str(),
+                    mcp.upstream_version = self.canonical.as_str(),
+                    mcp.reason = %error,
+                    "refusing an MCP request the canonical upstream revision cannot represent"
+                );
+                error
+            },
+        )?;
+
+        if message.get("id").is_none() {
+            return connection.notify(&message).await;
+        }
+
         let internal_id = self.next_request_id.fetch_add(1, Ordering::Relaxed);
         connection
-            .request_client(client_id, sender, internal_id, message, self.timeout())
+            .request_client(
+                client_id,
+                registration.sender,
+                registration.version,
+                method,
+                internal_id,
+                message,
+                self.timeout(),
+            )
             .await
     }
 
@@ -236,15 +312,7 @@ impl Runtime {
         if state.initialize_outcome.is_none() {
             return Err(BridgeError::NotInitialized);
         }
-        let params = json!({
-            "protocolVersion": self.protocol_version,
-            "capabilities": {},
-            "clientInfo": {
-                "name": "nyx-mcp-gateway",
-                "version": env!("CARGO_PKG_VERSION"),
-            },
-        });
-        let (connection, outcome) = self.spawn_initialized(params).await?;
+        let (connection, outcome) = self.spawn_initialized().await?;
         if outcome.get("error").is_some() {
             return Err(BridgeError::InitializationRejected);
         }
@@ -253,12 +321,11 @@ impl Runtime {
         Ok(connection)
     }
 
-    async fn spawn_initialized(
-        &self,
-        params: Value,
-    ) -> Result<(Arc<Connection>, Value), BridgeError> {
+    async fn spawn_initialized(&self) -> Result<(Arc<Connection>, Value), BridgeError> {
         let connection = Arc::new(
             Connection::spawn(
+                &self.server,
+                self.canonical,
                 &self.definition,
                 self.workspace.as_deref(),
                 Arc::clone(&self.clients),
@@ -269,12 +336,45 @@ impl Runtime {
             "jsonrpc": "2.0",
             "id": 0,
             "method": "initialize",
-            "params": params,
+            "params": {
+                "protocolVersion": self.canonical.as_str(),
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "nyx-mcp-gateway",
+                    "version": env!("CARGO_PKG_VERSION"),
+                },
+            },
         });
         let response = connection
             .request_internal(&request, self.timeout())
             .await?;
         if response.get("error").is_none() {
+            let negotiated = response
+                .pointer("/result/protocolVersion")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if negotiated != self.canonical.as_str() {
+                let error = CompatError::UpstreamVersionMismatch {
+                    negotiated: negotiated.to_owned(),
+                    canonical: self.canonical.as_str(),
+                };
+                tracing::error!(
+                    mcp.event = "protocol_rejected",
+                    mcp.server = %self.server,
+                    mcp.negotiated_version = negotiated,
+                    mcp.canonical_version = self.canonical.as_str(),
+                    mcp.reason = %error,
+                    "upstream MCP server refused the canonical revision"
+                );
+                return Err(BridgeError::Compat(error));
+            }
+            tracing::info!(
+                mcp.event = "upstream_started",
+                mcp.server = %self.server,
+                mcp.canonical_version = self.canonical.as_str(),
+                mcp.workspace = ?self.workspace,
+                "started one shared MCP upstream process"
+            );
             connection
                 .notify(&json!({
                     "jsonrpc": "2.0",
@@ -290,11 +390,42 @@ impl Runtime {
     }
 }
 
+fn translate_for_client(
+    server: &str,
+    client_id: ClientId,
+    method: &str,
+    upstream: Version,
+    client: Version,
+    message: &mut Value,
+) -> Result<(), CompatError> {
+    let Some(result) = message.get_mut("result") else {
+        return Ok(());
+    };
+    let notes = compat::downgrade_result(method, upstream, client, result)?;
+    for note in notes {
+        tracing::info!(
+            mcp.event = "payload_translated",
+            mcp.server = server,
+            mcp.client_id = client_id,
+            mcp.method = method,
+            mcp.field = note.field,
+            mcp.path = %note.path,
+            mcp.upstream_version = upstream.as_str(),
+            mcp.client_version = client.as_str(),
+            mcp.detail = note.detail,
+            "translated an MCP payload across protocol revisions"
+        );
+    }
+    Ok(())
+}
+
 impl Connection {
     async fn spawn(
+        server: &str,
+        canonical: Version,
         definition: &Server,
         workspace: Option<&std::path::Path>,
-        clients: Arc<Mutex<HashMap<ClientId, ClientSender>>>,
+        clients: Arc<Mutex<HashMap<ClientId, Registration>>>,
     ) -> Result<Self, BridgeError> {
         let mut command = Command::new(&definition.command);
         command
@@ -323,6 +454,8 @@ impl Connection {
         let stdout = child.stdout.take().ok_or(BridgeError::MissingPipe)?;
         let writer = Arc::new(Mutex::new(stdin));
         let routing = Arc::new(Routing {
+            server: server.to_owned(),
+            canonical,
             pending: Mutex::new(HashMap::new()),
             request_ids: Mutex::new(HashMap::new()),
             clients,
@@ -385,10 +518,13 @@ impl Connection {
             .map_err(|_| BridgeError::Exited)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn request_client(
         &self,
         client_id: ClientId,
         sender: ClientSender,
+        version: Version,
+        method: String,
         internal_id: u64,
         mut message: Value,
         duration: Duration,
@@ -408,6 +544,8 @@ impl Connection {
                 sender,
                 original_id,
                 progress_token,
+                method,
+                version,
             },
         );
         self.routing
@@ -537,8 +675,8 @@ impl Routing {
             return;
         }
         if self.policy == NotificationPolicy::Broadcast {
-            for sender in self.clients.lock().await.values() {
-                let _ = sender.send(message.clone());
+            for registration in self.clients.lock().await.values() {
+                let _ = registration.sender.send(message.clone());
             }
         }
     }
@@ -555,10 +693,34 @@ impl Routing {
                 let _ = sender.send(message);
             }
             PendingRequest::Client {
+                client_id,
                 sender,
                 original_id,
+                method,
+                version,
                 ..
             } => {
+                if let Err(error) = translate_for_client(
+                    &self.server,
+                    client_id,
+                    &method,
+                    self.canonical,
+                    version,
+                    &mut message,
+                ) {
+                    tracing::warn!(
+                        mcp.event = "contract_rejected",
+                        mcp.server = %self.server,
+                        mcp.client_id = client_id,
+                        mcp.method = %method,
+                        mcp.client_version = version.as_str(),
+                        mcp.upstream_version = self.canonical.as_str(),
+                        mcp.reason = %error,
+                        "refusing to deliver an MCP result that this client's revision cannot represent"
+                    );
+                    let _ = sender.send(rpc_error(original_id, -32004, &error.to_string()));
+                    return;
+                }
                 message["id"] = original_id;
                 let _ = sender.send(message);
             }
@@ -588,6 +750,18 @@ impl Routing {
     }
 
     async fn reject_server_request(&self, message: &Value) {
+        let method = message
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        tracing::warn!(
+            mcp.event = "contract_rejected",
+            mcp.server = %self.server,
+            mcp.method = method,
+            mcp.upstream_version = self.canonical.as_str(),
+            mcp.reason = "the gateway advertises no client capabilities upstream",
+            "refusing a server-to-client MCP request"
+        );
         let response = rpc_error(
             message.get("id").cloned().unwrap_or(Value::Null),
             -32601,
@@ -705,6 +879,8 @@ pub enum BridgeError {
     Exited,
     #[error("MCP server request timed out")]
     Timeout,
+    #[error("{0}")]
+    Compat(#[from] CompatError),
 }
 
 #[cfg(test)]
@@ -731,5 +907,41 @@ mod tests {
             restore_id(response, json!("client-id"))["id"],
             json!("client-id")
         );
+    }
+
+    #[test]
+    fn translation_rewrites_only_the_result_envelope() {
+        let mut message = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {"tools": [{"name": "a", "title": "A"}]},
+        });
+        translate_for_client(
+            "srv",
+            1,
+            "tools/list",
+            Version::V20250618,
+            Version::V20250326,
+            &mut message,
+        )
+        .unwrap();
+        assert_eq!(message["result"]["tools"][0].get("title"), None);
+        assert_eq!(message["id"], json!(1));
+    }
+
+    #[test]
+    fn error_envelopes_are_left_alone() {
+        let mut message = json!({"jsonrpc": "2.0", "id": 1, "error": {"code": -1, "message": "x"}});
+        let before = message.clone();
+        translate_for_client(
+            "srv",
+            1,
+            "tools/call",
+            Version::V20250618,
+            Version::V20250326,
+            &mut message,
+        )
+        .unwrap();
+        assert_eq!(message, before);
     }
 }

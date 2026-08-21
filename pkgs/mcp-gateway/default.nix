@@ -12,6 +12,7 @@
         ./Cargo.toml
         ./Cargo.lock
         ./src
+        ./tests
       ];
     };
 

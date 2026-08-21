@@ -125,6 +125,33 @@ in {
       default = [];
       description = "MCP package subscriptions and optional server-specific overrides.";
     };
+
+    protocolVersion = mkOption {
+      type = types.enum ["2025-03-26" "2025-06-18"];
+      default = "2025-06-18";
+      description = ''
+        MCP revision spoken to every upstream server, whatever the clients
+        negotiate. Clients on either listed revision share one process and are
+        answered in their own revision.
+
+        Lower this only for a server that rejects 2025-06-18: the older revision
+        cannot carry structuredContent, resource links or completion context, so
+        requests and results needing them are refused rather than downgraded
+        silently. Revisions outside this list are refused at startup; adding one
+        means extending pkgs/mcp-gateway/src/compat.rs.
+      '';
+    };
+
+    logLevel = mkOption {
+      type = types.str;
+      default = "info";
+      example = "nyx_mcp_gateway=debug";
+      description = ''
+        RUST_LOG filter for the daemon. The default keeps the protocol
+        translation and rejection records, which are the only trace of a client
+        being served something other than what the upstream server sent.
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
@@ -153,7 +180,14 @@ in {
         Description = "Shared local MCP process gateway";
       };
       Service = {
-        ExecStart = "${lib.getExe' cfg.package "mcp-gatewayd"} --config ${gatewayConfig}";
+        ExecStart = lib.concatStringsSep " " [
+          (lib.getExe' cfg.package "mcp-gatewayd")
+          "--config"
+          gatewayConfig
+          "--protocol-version"
+          cfg.protocolVersion
+        ];
+        Environment = ["RUST_LOG=${cfg.logLevel}"];
         Restart = "on-failure";
         RestartSec = 1;
       };

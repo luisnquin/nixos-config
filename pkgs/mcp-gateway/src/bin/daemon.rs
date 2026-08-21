@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::Parser;
 use nyx_mcp_gateway::bridge::Bridge;
+use nyx_mcp_gateway::compat::{self, MethodClass, Version};
 use nyx_mcp_gateway::config::{Config, Scope, Server};
 use nyx_mcp_gateway::protocol::Subscription;
 use serde_json::{Value, json};
@@ -22,6 +23,9 @@ struct Args {
     config: PathBuf,
     #[arg(long)]
     socket: Option<PathBuf>,
+    /// Revision spoken to every upstream server, whatever the clients negotiate.
+    #[arg(long, default_value = compat::DEFAULT_CANONICAL_VERSION)]
+    protocol_version: String,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -32,6 +36,7 @@ struct InstanceKey {
 
 struct Gateway {
     servers: HashMap<String, Server>,
+    canonical: Version,
     instances: Mutex<HashMap<InstanceKey, Arc<Bridge>>>,
     next_client_id: AtomicU64,
 }
@@ -39,16 +44,31 @@ struct Gateway {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
+        .with_writer(std::io::stderr)
         .init();
     let args = Args::parse();
+    let canonical = Version::parse(&args.protocol_version)?;
     let config = Config::load(&args.config)?;
     let socket = args.socket.unwrap_or_else(default_socket);
     prepare_socket(&socket).await?;
     let listener = UnixListener::bind(&socket)?;
     std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600))?;
+
+    tracing::info!(
+        mcp.event = "gateway_started",
+        mcp.canonical_version = canonical.as_str(),
+        mcp.supported_versions = %compat::SUPPORTED_VERSIONS.join(", "),
+        mcp.socket = %socket.display(),
+        mcp.servers = config.servers.len(),
+        "MCP gateway sharing one upstream process per server across every supported client revision"
+    );
+
     let gateway = Arc::new(Gateway {
         servers: config.servers,
+        canonical,
         instances: Mutex::new(HashMap::new()),
         next_client_id: AtomicU64::new(1),
     });
@@ -90,11 +110,14 @@ impl Gateway {
             workspace: workspace.clone(),
         };
         let mut instances = self.instances.lock().await;
-        let bridge = Arc::clone(
-            instances
-                .entry(key.clone())
-                .or_insert_with(|| Arc::new(Bridge::new(definition.clone(), workspace))),
-        );
+        let bridge = Arc::clone(instances.entry(key.clone()).or_insert_with(|| {
+            Arc::new(Bridge::new(
+                subscription.server.clone(),
+                definition.clone(),
+                workspace,
+                self.canonical,
+            ))
+        }));
         Ok((key, bridge, definition.scope))
     }
 
@@ -146,7 +169,7 @@ async fn handle_client(stream: UnixStream, gateway: Arc<Gateway>) -> Result<(), 
         Ok::<(), ClientError>(())
     });
 
-    let mut protocol_version: Option<String> = None;
+    let mut protocol_version: Option<Version> = None;
     while let Some(line) = lines.next_line().await? {
         let message = match serde_json::from_str::<Value>(&line) {
             Ok(message) => message,
@@ -155,8 +178,37 @@ async fn handle_client(stream: UnixStream, gateway: Arc<Gateway>) -> Result<(), 
                 continue;
             }
         };
-        let method = message.get("method").and_then(Value::as_str);
-        if method == Some("initialize") {
+
+        if message.is_array() {
+            let reason = compat::batching_rejection();
+            tracing::warn!(
+                mcp.event = "contract_rejected",
+                mcp.server = %subscription.server,
+                mcp.client_id = client_id,
+                mcp.method = "<batch>",
+                mcp.reason = reason,
+                "refusing a JSON-RPC batch from an MCP client"
+            );
+            let _ = sender.send(rpc_error(Value::Null, -32600, reason));
+            continue;
+        }
+
+        let Some(method) = message
+            .get("method")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+        else {
+            tracing::warn!(
+                mcp.event = "contract_rejected",
+                mcp.server = %subscription.server,
+                mcp.client_id = client_id,
+                mcp.reason = "the gateway issues no requests to clients, so it accepts no responses",
+                "dropping a client message that carries no method"
+            );
+            continue;
+        };
+
+        if method == "initialize" {
             if protocol_version.is_some() {
                 let id = message.get("id").cloned().unwrap_or(Value::Null);
                 let _ = sender.send(rpc_error(id, -32600, "client already initialized"));
@@ -177,14 +229,38 @@ async fn handle_client(stream: UnixStream, gateway: Arc<Gateway>) -> Result<(), 
             continue;
         }
 
-        let Some(version) = &protocol_version else {
+        let Some(version) = protocol_version else {
             if let Some(id) = message.get("id") {
                 let _ = sender.send(rpc_error(id.clone(), -32002, "client not initialized"));
             }
             continue;
         };
+
+        // The gateway already completed the upstream handshake on the shared process; replaying
+        // this notification per client would re-announce an already initialized session.
+        if method == "notifications/initialized" {
+            continue;
+        }
+
+        if let MethodClass::Unsupported(reason) = compat::classify(&method) {
+            tracing::warn!(
+                mcp.event = "contract_rejected",
+                mcp.server = %subscription.server,
+                mcp.client_id = client_id,
+                mcp.method = %method,
+                mcp.client_version = version.as_str(),
+                mcp.canonical_version = gateway.canonical.as_str(),
+                mcp.reason = reason,
+                "refusing an MCP method outside the gateway compatibility profile"
+            );
+            if let Some(id) = message.get("id") {
+                let _ = sender.send(rpc_error(id.clone(), -32601, reason));
+            }
+            continue;
+        }
+
         let request_id = message.get("id").cloned();
-        if let Err(error) = bridge.forward(version, client_id, message).await {
+        if let Err(error) = bridge.forward(client_id, message).await {
             tracing::warn!(%error, client_id, "failed to forward MCP message");
             if let Some(id) = request_id {
                 let _ = sender.send(rpc_error(id, -32003, &error.to_string()));
@@ -192,8 +268,8 @@ async fn handle_client(stream: UnixStream, gateway: Arc<Gateway>) -> Result<(), 
         }
     }
 
-    if let Some(version) = protocol_version {
-        let became_idle = bridge.detach(&version, client_id).await;
+    if protocol_version.is_some() {
+        let became_idle = bridge.detach(client_id).await;
         if became_idle && scope == Scope::Workspace {
             let generation = bridge.idle_generation();
             gateway.schedule_idle_cleanup(key, bridge, generation);
