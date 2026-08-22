@@ -4,7 +4,7 @@
   pkgs,
   ...
 }: let
-  inherit (lib) mkEnableOption mkIf mkOption types;
+  inherit (lib) mkEnableOption mkIf mkOption mkPackageOption types;
   cfg = config.services.mcp-gateway;
 
   configuredServerType = types.submodule ({config, ...}: {
@@ -136,12 +136,7 @@ in {
   options.services.mcp-gateway = {
     enable = mkEnableOption "shared local MCP process gateway";
 
-    package = mkOption {
-      type = types.package;
-      default = pkgs.mcp-gateway;
-      defaultText = "pkgs.mcp-gateway";
-      description = "Gateway daemon and stdio proxy package.";
-    };
+    package = mkPackageOption pkgs "mcp-gateway" {};
 
     servers = mkOption {
       type = types.listOf (types.coercedTo types.package (package: {inherit package;}) configuredServerType);
