@@ -237,12 +237,9 @@ async fn deliver(device: &Device, sink: &Sink, png: Vec<u8>, shot: &Shot) -> Res
         Sink::File(path) => {
             std::fs::write(path, png).with_context(|| format!("writing {path}"))?;
 
-            // notify-send resolves an icon as a file only from an absolute path
-            let icon = std::fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
-
             let msg = format!("saved {path}");
 
-            (msg.clone(), msg, Some(icon))
+            (msg.clone(), msg, preview(png))
         }
         Sink::Clipboard => {
             let mut cmd = tokio::process::Command::new("wl-copy");
@@ -270,15 +267,36 @@ async fn deliver(device: &Device, sink: &Sink, png: Vec<u8>, shot: &Shot) -> Res
     Ok(msg)
 }
 
-/// A notification daemon reads its icon off disk, so a clipboard-only capture
-/// still needs a file. One fixed name under the runtime dir, overwritten each
-/// time and gone with the session.
+/// A notification daemon decodes an icon at its full size before scaling it for
+/// display, and holds that buffer for as long as the notification stays in its
+/// history. A phone frame is ~12 MB decoded, so what goes on the bus is a
+/// thumbnail rather than the capture itself.
+const PREVIEW_EDGE: u32 = 256;
+
+/// A notification daemon reads its icon off disk, so a capture still needs a
+/// file even when it went somewhere else. One fixed name under the runtime dir,
+/// overwritten each time and gone with the session.
 fn preview(png: &[u8]) -> Option<PathBuf> {
     let dir = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
 
-    preview_in(&dir.join("phone"), png)
+    preview_in(&dir.join("phone"), &thumbnail(png)?)
+}
+
+/// None when the bytes will not decode, which drops the icon rather than
+/// handing the daemon a frame it would hold at full size.
+fn thumbnail(png: &[u8]) -> Option<Vec<u8>> {
+    let image = image::load_from_memory(png).ok()?;
+
+    let mut out = std::io::Cursor::new(Vec::new());
+
+    image
+        .thumbnail(PREVIEW_EDGE, PREVIEW_EDGE)
+        .write_to(&mut out, image::ImageFormat::Png)
+        .ok()?;
+
+    Some(out.into_inner())
 }
 
 fn preview_in(dir: &Path, png: &[u8]) -> Option<PathBuf> {
@@ -695,6 +713,31 @@ mod tests {
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The whole point of the thumbnail: mako holds one decoded buffer per
+    /// notification in its history, and a phone frame decodes to ~12 MB.
+    #[test]
+    fn a_preview_is_scaled_down_before_it_reaches_the_daemon() {
+        let mut frame = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgb8(1206, 2622)
+            .write_to(&mut frame, image::ImageFormat::Png)
+            .unwrap();
+
+        let thumb = thumbnail(&frame.into_inner()).unwrap();
+        let decoded = image::load_from_memory(&thumb).unwrap();
+
+        assert!(
+            decoded.width() <= PREVIEW_EDGE && decoded.height() <= PREVIEW_EDGE,
+            "a {}x{} icon still costs the daemon a full frame",
+            decoded.width(),
+            decoded.height()
+        );
+    }
+
+    #[test]
+    fn bytes_that_do_not_decode_leave_the_notification_without_an_icon() {
+        assert!(thumbnail(b"not an image").is_none());
     }
 
     #[test]
