@@ -200,7 +200,7 @@
         };
       }
       else if target == "grok"
-      then { }
+      then {}
       else throw "Unsupported agent permission target: ${target}";
 
     audioArgsPart = lib.optionalString (audioArgs != "") "${audioArgs} ";

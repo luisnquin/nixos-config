@@ -60,6 +60,18 @@ in {
           "mobile-developer"
         ];
       })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "cursor";
+            repo = "plugins";
+            rev = "46125561306434d8a1d7745d540d8932ab0cd2a2";
+            hash = "sha256-rTkT/2dliMzvwDkza2+JNhSIzcTr9fXjvK2zwi/lRl8=";
+          };
+        } {
+          plugins = [
+            "unslop"
+          ];
+        })
       (vercel-labs.skills {
         plugins = [
           "find-skills"
