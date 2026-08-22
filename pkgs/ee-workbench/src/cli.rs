@@ -285,6 +285,16 @@ pub enum MechanicalCommand {
         #[command(subcommand)]
         command: SketchCommand,
     },
+    /// Pads: the solid a sketch becomes
+    Pad {
+        #[command(subcommand)]
+        command: PadCommand,
+    },
+    /// Export the printable mesh a viewer can follow
+    Preview {
+        #[command(subcommand)]
+        command: PreviewCommand,
+    },
 }
 
 #[derive(Subcommand)]
@@ -366,6 +376,68 @@ pub enum SketchCommand {
         document: Option<String>,
         #[arg(long)]
         sketch: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PadCommand {
+    /// Pad a sketch into a solid inside its body
+    New {
+        #[arg(long)]
+        length: f64,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        sketch: Option<String>,
+        /// Grow symmetrically about the sketch plane
+        #[arg(long)]
+        midplane: bool,
+        /// Grow against the sketch normal
+        #[arg(long)]
+        reversed: bool,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Change the length of an existing pad and recompute
+    Length {
+        #[arg(long)]
+        length: f64,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        pad: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PreviewCommand {
+    /// Tessellate the solid to STL and keep it in step with later edits
+    Export {
+        #[arg(long)]
+        document: Option<String>,
+        /// Object to mesh; defaults to the document's only solid
+        #[arg(long)]
+        object: Option<String>,
+        /// Defaults to $XDG_CACHE_HOME/ee-workbench/preview/<document>.stl
+        #[arg(long)]
+        path: Option<String>,
+        /// Maximum linear deviation of the mesh, in millimetres
+        #[arg(long)]
+        deflection: Option<f64>,
+        /// Maximum angular deviation of the mesh, in radians
+        #[arg(long)]
+        angular: Option<f64>,
+        /// Stop re-exporting this document after every successful recompute
+        #[arg(long)]
+        once: bool,
         #[command(flatten)]
         format: Format,
     },

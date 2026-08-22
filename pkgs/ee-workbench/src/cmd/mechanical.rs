@@ -2,7 +2,10 @@ use anyhow::Result;
 use serde_json::{Map, Value, json};
 
 use crate::bridge;
-use crate::cli::{BodyCommand, DocumentCommand, Format, MechanicalCommand, SketchCommand};
+use crate::cli::{
+    BodyCommand, DocumentCommand, Format, MechanicalCommand, PadCommand, PreviewCommand,
+    SketchCommand,
+};
 use crate::cmd;
 use crate::paths;
 
@@ -12,6 +15,8 @@ pub fn run(command: MechanicalCommand) -> Result<i32> {
         MechanicalCommand::Document { command } => document(command),
         MechanicalCommand::Body { command } => body(command),
         MechanicalCommand::Sketch { command } => sketch(command),
+        MechanicalCommand::Pad { command } => pad(command),
+        MechanicalCommand::Preview { command } => preview(command),
     }
 }
 
@@ -211,6 +216,10 @@ fn inspect_summary(result: &Value) {
     }
 }
 
+fn flag(value: bool) -> Option<Value> {
+    value.then(|| Value::from(true))
+}
+
 fn body(command: BodyCommand) -> Result<i32> {
     match command {
         BodyCommand::New {
@@ -287,6 +296,102 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     result["constraints"].as_array().map_or(0, Vec::len)
                 );
                 println!("dof         {}", result["dof"]);
+            })
+        }
+    }
+}
+
+fn pad(command: PadCommand) -> Result<i32> {
+    match command {
+        PadCommand::New {
+            length,
+            document,
+            body,
+            sketch,
+            midplane,
+            reversed,
+            name,
+            format,
+        } => {
+            let result = call(
+                "pad.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("sketch", text(sketch)),
+                    ("length", Some(json!(length))),
+                    ("midplane", flag(midplane)),
+                    ("reversed", flag(reversed)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("pad    {}", field(result, "pad"));
+                println!("length {}", result["length"]);
+                println!("solid  {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+        PadCommand::Length {
+            length,
+            document,
+            pad,
+            format,
+        } => {
+            let result = call(
+                "pad.length",
+                params(vec![
+                    ("document", text(document)),
+                    ("pad", text(pad)),
+                    ("length", Some(json!(length))),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("pad      {}", field(result, "pad"));
+                println!("length   {}", result["length"]);
+                println!("previous {}", result["previous"]);
+                bounds_summary(result);
+            })
+        }
+    }
+}
+
+fn bounds_summary(result: &Value) {
+    let bounds = &result["bounds"];
+
+    println!("bounds {} x {} x {}", bounds["x"], bounds["y"], bounds["z"]);
+}
+
+fn preview(command: PreviewCommand) -> Result<i32> {
+    match command {
+        PreviewCommand::Export {
+            document,
+            object,
+            path,
+            deflection,
+            angular,
+            once,
+            format,
+        } => {
+            let result = call(
+                "preview.export",
+                params(vec![
+                    ("document", text(document)),
+                    ("object", text(object)),
+                    ("path", text(path)),
+                    ("deflection", deflection.map(|value| json!(value))),
+                    ("angular", angular.map(|value| json!(value))),
+                    ("follow", once.then(|| Value::from(false))),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("object    {}", field(result, "object"));
+                println!("path      {}", field(result, "path"));
+                println!("triangles {}", result["triangles"]);
+                println!("follow    {}", result["follow"]);
             })
         }
     }

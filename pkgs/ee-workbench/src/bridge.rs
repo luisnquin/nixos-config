@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 /// Wire version. The server is `ee-freecad-server`, a native FreeCAD module;
 /// a mismatch here means one of the two binaries is stale, and both sides
 /// refuse rather than misread a frame.
-pub const PROTOCOL: u32 = 2;
+pub const PROTOCOL: u32 = 3;
 
 /// NDJSON over the CAD socket: one JSON object per line in both directions.
 /// The connection is stateful only in that the server keeps the FreeCAD
