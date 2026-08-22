@@ -187,7 +187,7 @@
       inputs.black-terminal.nixosModules.default
       inputs.home-manager.nixosModules.default
       inputs.sops-nix.nixosModules.sops
-      ./pkgs/ttygate/nixos-modules
+      ./pkgs/nixos-modules
       ./secrets
       (./system/hosts + "/${metadata.host.name}")
     ];
@@ -200,8 +200,7 @@
       inputs."3mf2stl".homeModules.default
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
-      ./pkgs/clipz/hm-modules
-      ./pkgs/ee-workbench/hm-modules
+      ./pkgs/hm-modules
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")
     ];

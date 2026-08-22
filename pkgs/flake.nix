@@ -1,7 +1,6 @@
 {
   description = "The packages this repo defines, reachable without its host configurations";
 
-  # ./default.nix stays the single definition; the root flake imports it by path.
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs = {nixpkgs, ...}: let
@@ -12,8 +11,9 @@
   in {
     overlays.default = final: _prev: import ./default.nix final;
 
-    # The whole set on every system; attributes are lazy, so reading one never
-    # evaluates a package the platform lacks.
+    homeModules.default = ./hm-modules;
+    nixosModules.default = ./nixos-modules;
+
     packages = forAllSystems (pkgs: import ./default.nix pkgs);
   };
 }
