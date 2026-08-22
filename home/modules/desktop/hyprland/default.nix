@@ -23,6 +23,9 @@ args @ {
   '';
 
   waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
+
+  allowExe = exe: type: {_args = [(lib.escapeRegex exe) type "allow"];};
+  allowPathRegex = regex: type: {_args = [regex type "allow"];};
 in {
   home.sessionVariables = {
     GRIMBLAST_HIDE_CURSOR = 0;
@@ -299,30 +302,16 @@ in {
       bind = import ./binds.nix (args // {inherit ghosttyDropCmd;});
 
       permission = [
-        {
-          _args = ["${lib.getExe pkgs.hyprpicker}" "screencopy" "allow"];
-        }
-        {
-          _args = ["${lib.getExe pkgs.grim}" "screencopy" "allow"];
-        }
-        {
-          _args = ["/nix/store/[^/]+-zen[^/]*/bin/(zen|zen-beta|zen-twilight)" "screencopy" "allow"];
-        }
-        {
-          _args = ["${lib.getExe pkgs.brave}" "screencopy" "allow"];
-        }
-        {
-          _args = ["${lib.getExe pkgs.obs-studio}" "screencopy" "allow"];
-        }
-        {
-          _args = ["${lib.getExe pkgs.wayvnc}" "screencopy" "allow"];
-        }
-        {
-          _args = ["${lib.getExe pkgs.xdg-desktop-portal-hyprland}" "screencopy" "allow"];
-        }
-        {
-          _args = ["${lib.getExe pkgs.discord}" "screencopy" "allow"];
-        }
+        (allowExe (lib.getExe pkgs.hyprpicker) "screencopy")
+        (allowExe (lib.getExe pkgs.grim) "screencopy")
+        (allowPathRegex "/nix/store/[^/]+-zen[^/]*/bin/(zen|zen-beta|zen-twilight)" "screencopy")
+        (allowExe (lib.getExe pkgs.brave) "screencopy")
+        (allowExe (lib.getExe pkgs.obs-studio) "screencopy")
+        (allowExe (lib.getExe pkgs.wayvnc) "screencopy")
+        (allowExe (lib.getExe pkgs.wayvnc) "cursorpos")
+        (allowExe (lib.getExe pkgs.xdg-desktop-portal-hyprland) "screencopy")
+        (allowExe (lib.getExe pkgs.xdg-desktop-portal-hyprland) "cursorpos")
+        (allowExe (lib.getExe pkgs.discord) "screencopy")
       ];
 
       on = [
