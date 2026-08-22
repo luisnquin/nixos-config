@@ -201,6 +201,7 @@
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
       ./pkgs/clipz/hm-modules
+      ./pkgs/ee-workbench/hm-modules
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")
     ];

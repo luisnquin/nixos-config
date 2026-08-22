@@ -5,6 +5,7 @@ pkgs:
 {
   cliphizt = pkgs.callPackage ./clipz/cliphizt {};
   cliplenz = pkgs.callPackage ./clipz/cliplenz {};
+  ee-workbench = pkgs.callPackage ./ee-workbench {};
   heft = pkgs.callPackage ./heft {};
   herdr-autoname = pkgs.callPackage ./herdr-autoname {};
   mcp-gateway = pkgs.callPackage ./mcp-gateway {};

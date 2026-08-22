@@ -1,0 +1,3 @@
+{
+  imports = [./ee-workbench.nix];
+}
