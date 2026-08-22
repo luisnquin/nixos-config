@@ -42,7 +42,29 @@ in {
       approvals_reviewer = "user";
 
       shell_environment_policy = {
-        "inherit" = "core";
+        "inherit" = "all";
+        ignore_default_excludes = false;
+        include_only = [
+          "PATH"
+          "SHELL"
+          "TMPDIR"
+          "TEMP"
+          "TMP"
+          "HOME"
+          "LANG"
+          "LC_ALL"
+          "LC_CTYPE"
+          "LOGNAME"
+          "USER"
+          "HERDR_*"
+          "CODEX_AGENT"
+          "GIT_ASKPASS"
+          "GIT_SSH_COMMAND"
+          "GIT_TERMINAL_PROMPT"
+          "PINENTRY_USER_DATA"
+          "SSH_ASKPASS"
+          "SSH_AUTH_SOCK"
+        ];
         set = {
           CODEX_AGENT = "1";
           GIT_ASKPASS = "${pkgs.coreutils}/bin/false";
