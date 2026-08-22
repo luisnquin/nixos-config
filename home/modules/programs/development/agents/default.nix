@@ -12,7 +12,6 @@
     ./apps
     ./cli
     ./hooks
-    ./mcp-gateway.nix
     ./mcp.nix
     ./options
     ./skills.nix
