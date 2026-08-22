@@ -3,7 +3,6 @@
     ./hyprland
     ./waybar
     ./eww
-    ./heft
     ./heft.nix
     ./awww
     ./fuzzel.nix
