@@ -100,8 +100,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
-            rev = "c2e6f80bbc59b676c2a4022ac137b0ac26391539";
-            sha256 = "sha256-eFRgxnP7Hd7AhMifVod67B5K/7EXHLr57qnBT+grALs=";
+            rev = "a836393090180f3fe423487915dd2839345d1933";
+            sha256 = "sha256-oa5hPPTcZQAzi5SnnINUDKPzV5Ey6ZmHuRMTbOFAHAk=";
           };
         } {
           plugins = [
