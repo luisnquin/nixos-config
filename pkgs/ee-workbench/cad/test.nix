@@ -4,18 +4,38 @@
 {
   runCommand,
   jq,
+  python3,
   unzip,
   ee-workbench,
 }:
 runCommand "ee-freecad-slice-test" {
-  nativeBuildInputs = [ee-workbench ee-workbench.cad jq unzip];
+  nativeBuildInputs = [ee-workbench ee-workbench.cad jq python3 unzip];
 } ''
   set -euo pipefail
 
   export HOME=$TMPDIR/home
   export XDG_RUNTIME_DIR=$TMPDIR/run
   export EE_WORKBENCH_CAD_SOCKET=$TMPDIR/run/cad.sock
+  export XDG_CACHE_HOME=$TMPDIR/cache
   mkdir -p "$HOME" "$XDG_RUNTIME_DIR"
+
+  # Reads the mesh back the way a slicer would, so a wrong winding or a stale
+  # export cannot pass as a fresh one.
+  cat >"$TMPDIR/stl.py" <<'EOF'
+  import struct, sys
+
+  data = open(sys.argv[1], "rb").read()
+  count = struct.unpack("<I", data[80:84])[0]
+  assert len(data) == 84 + count * 50, "truncated stl"
+
+  points = []
+  for index in range(count):
+      at = 84 + index * 50
+      points += struct.unpack("<12f", data[at : at + 48])[3:]
+
+  axes = [points[start::3] for start in range(3)]
+  print(count, " ".join(f"{max(axis) - min(axis):g}" for axis in axes))
+  EOF
 
   document=$TMPDIR/plate.FCStd
 
@@ -57,6 +77,25 @@ runCommand "ee-freecad-slice-test" {
     and ([.geometry[].length] | sort) == [25, 25, 40, 40]
   ' "$TMPDIR/rectangle.json" >/dev/null
 
+  ee mechanical pad new --length 6 --json >"$TMPDIR/pad.json"
+  jq -e '
+    .pad == "Pad"
+    and .solid
+    and .length == 6
+    and .bounds == {x: 40, y: 25, z: 6}
+    and (.recompute.failed | not)
+  ' "$TMPDIR/pad.json" >/dev/null
+
+  ee mechanical preview export --json >"$TMPDIR/preview.json"
+  jq -e '.object == "Body" and .triangles == 12 and .follow' "$TMPDIR/preview.json" >/dev/null
+
+  stl=$(jq -r '.path' "$TMPDIR/preview.json")
+  test "$(python3 "$TMPDIR/stl.py" "$stl")" = "12 40 25 6"
+
+  # The export follows the model: no second preview command is issued here.
+  ee mechanical pad length --length 11 --json | jq -e '.previous == 6 and .bounds.z == 11' >/dev/null
+  test "$(python3 "$TMPDIR/stl.py" "$stl")" = "12 40 25 11"
+
   ee mechanical document recompute --json | jq -e '.failed | not' >/dev/null
   ee mechanical document save --path "$document" --json | jq -e --arg f "$document" '.file == $f' >/dev/null
 
@@ -75,6 +114,7 @@ runCommand "ee-freecad-slice-test" {
 
   jq -e '
     ([.objects[].type] | index("PartDesign::Body")) != null
+    and ([.objects[].type] | index("PartDesign::Pad")) != null
     and ([.objects[].type] | index("App::Plane")) != null
   ' "$TMPDIR/inspect.json" >/dev/null
 
