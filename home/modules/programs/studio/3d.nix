@@ -7,7 +7,7 @@
   home.packages = with pkgs; [
     blender
     orca-slicer
-    # freecad-wayland
+    freecad-wayland
     inkscape # vector graphics, before 3d
     (fstl.overrideAttrs (
       old: {
