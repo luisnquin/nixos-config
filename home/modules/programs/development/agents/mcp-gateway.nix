@@ -61,7 +61,11 @@
       idleSeconds = mkOption {
         type = types.ints.unsigned;
         default = config.package.passthru.mcp.idleSeconds or 300;
-        description = "Workspace process retention after its last client disconnects.";
+        description = ''
+          Workspace process retention after its last client disconnects. With
+          reapWhenIdle, also how long the process may go without traffic before
+          it is stopped.
+        '';
       };
 
       notifications = mkOption {
@@ -75,38 +79,57 @@
         default = 5;
         description = "Client timeout while connecting through the proxy.";
       };
+
+      disabledTools = mkOption {
+        type = types.listOf types.str;
+        default = config.package.passthru.mcp.disabledTools or [];
+        description = "Tool names hidden by clients, carried onto the generated client entries.";
+      };
+
+      requires = mkOption {
+        type = types.submodule {
+          options.anyFileExists = mkOption {
+            type = types.listOf types.str;
+            default = [];
+            description = ''
+              Workspace-relative files, any of which must exist for the process
+              to be spawned; otherwise clients are served an empty tool list.
+              Needs workspace scope.
+            '';
+          };
+        };
+        default = {};
+        description = "Precondition gating the spawn of a workspace-scoped server.";
+      };
+
+      reapWhenIdle = mkOption {
+        type = types.bool;
+        default = config.package.passthru.mcp.reapWhenIdle or false;
+        description = ''
+          Stop the shared process after idleSeconds without traffic; the next
+          tool call respawns it transparently. Respawning discards the server's
+          in-process state, so only opt in servers that can lose it.
+        '';
+      };
     };
   });
 
-  normalize = subscription:
-    if lib.isDerivation subscription
-    then {
-      package = subscription;
-      name = subscription.passthru.mcp.name or (lib.getName subscription);
-      command = subscription.passthru.mcp.command or (lib.getExe subscription);
-      args = subscription.passthru.mcp.args or [];
-      environment = subscription.passthru.mcp.environment or {};
-      credentials = {};
-      scope = subscription.passthru.mcp.scope or "global";
-      timeoutSeconds = subscription.passthru.mcp.timeoutSeconds or 120;
-      idleSeconds = subscription.passthru.mcp.idleSeconds or 300;
-      notifications = subscription.passthru.mcp.notifications or "drop";
-      startupTimeoutSeconds = 5;
-    }
-    else subscription;
-
-  servers = map normalize cfg.servers;
+  servers = cfg.servers;
   names = map (server: server.name) servers;
   gatewayConfig = pkgs.writeText "mcp-gateway.json" (builtins.toJSON {
     servers = builtins.listToAttrs (map (server:
-      lib.nameValuePair server.name {
-        inherit (server) args command scope;
-        env = server.environment;
-        credentials = server.credentials;
-        timeout_seconds = server.timeoutSeconds;
-        idle_seconds = server.idleSeconds;
-        notifications = server.notifications;
-      })
+      lib.nameValuePair server.name ({
+          inherit (server) args command scope;
+          env = server.environment;
+          credentials = server.credentials;
+          timeout_seconds = server.timeoutSeconds;
+          idle_seconds = server.idleSeconds;
+          notifications = server.notifications;
+          reap_when_idle = server.reapWhenIdle;
+        }
+        // lib.optionalAttrs (server.requires.anyFileExists != []) {
+          requires.any_file_exists = server.requires.anyFileExists;
+        }))
     servers);
   });
 in {
@@ -121,7 +144,7 @@ in {
     };
 
     servers = mkOption {
-      type = types.listOf (types.either types.package configuredServerType);
+      type = types.listOf (types.coercedTo types.package (package: {inherit package;}) configuredServerType);
       default = [];
       description = "MCP package subscriptions and optional server-specific overrides.";
     };
@@ -137,8 +160,10 @@ in {
         Lower this only for a server that rejects 2025-06-18: the older revision
         cannot carry structuredContent, resource links or completion context, so
         requests and results needing them are refused rather than downgraded
-        silently. Revisions outside this list are refused at startup; adding one
-        means extending pkgs/mcp-gateway/src/compat.rs.
+        silently. A server negotiating down to 2024-11-05 is accepted as is,
+        since an older upstream emits nothing newer clients cannot read.
+        Revisions outside this list are refused at startup; adding one means
+        extending pkgs/mcp-gateway/src/compat.rs.
       '';
     };
 
@@ -160,6 +185,13 @@ in {
         assertion = builtins.length names == builtins.length (lib.unique names);
         message = "services.mcp-gateway.servers contains duplicate subscription names";
       }
+      {
+        assertion =
+          builtins.all
+          (server: server.scope == "workspace" || server.requires.anyFileExists == [])
+          servers;
+        message = "services.mcp-gateway.servers: requires preconditions need workspace scope";
+      }
     ];
 
     home.packages = [cfg.package];
@@ -167,11 +199,15 @@ in {
     programs.mcp = {
       enable = true;
       servers = builtins.listToAttrs (map (server:
-        lib.nameValuePair server.name {
-          command = lib.getExe cfg.package;
-          args = [server.name];
-          startup_timeout_sec = server.startupTimeoutSeconds;
-        })
+        lib.nameValuePair server.name ({
+            command = lib.getExe cfg.package;
+            args = [server.name];
+            startup_timeout_sec = server.startupTimeoutSeconds;
+          }
+          // lib.optionalAttrs (server.disabledTools != []) {
+            inherit (server) disabledTools;
+            disabled_tools = server.disabledTools;
+          }))
       servers);
     };
 

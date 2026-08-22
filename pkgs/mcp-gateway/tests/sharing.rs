@@ -194,6 +194,130 @@ fn unknown_revisions_fail_closed_without_a_second_backend() {
     assert!(gateway.daemon_log().contains("protocol_rejected"));
 }
 
+#[test]
+fn server_initiated_pings_are_answered_by_the_gateway() {
+    let gateway = Gateway::start("2025-06-18");
+
+    let mut client = gateway.client();
+    client.initialize("2025-06-18");
+    let response = client.request(call("server_ping", "", json!(1)));
+    assert_eq!(
+        response["result"]["content"][0]["text"],
+        json!("ping-answered")
+    );
+}
+
+#[test]
+fn a_downlevel_upstream_serves_modern_clients() {
+    let gateway = Gateway::start("2024-11-05");
+
+    let mut newer = gateway.client();
+    let init = newer.initialize("2025-06-18");
+    assert_eq!(init["result"]["protocolVersion"], json!("2025-06-18"));
+
+    let tools = newer.request(json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}));
+    assert_eq!(tools["result"]["tools"][0]["name"], json!("echo"));
+    let echoed = newer.request(call("echo", "downlevel", json!(2)));
+    assert_eq!(echoed["result"]["content"][0]["text"], json!("downlevel"));
+
+    let mut older = gateway.client();
+    let older_init = older.initialize("2025-03-26");
+    assert_eq!(older_init["result"]["protocolVersion"], json!("2025-03-26"));
+
+    assert_eq!(gateway.spawn_count(), 1);
+    assert!(gateway.daemon_log().contains("protocol_downlevel"));
+}
+
+#[test]
+fn a_precondition_appearing_heals_an_attached_client() {
+    let gateway = Gateway::start_with(
+        "2025-06-18",
+        json!({
+            "scope": "workspace",
+            "requires": {"any_file_exists": ["encore.app"]},
+        }),
+    );
+
+    let mut client = gateway.client();
+    client.initialize("2025-06-18");
+    let tools = client.request(json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}));
+    assert_eq!(tools["result"]["tools"], json!([]));
+
+    std::fs::write(gateway.directory.join("encore.app"), "{}").expect("write precondition file");
+
+    let tools = client.request(json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}));
+    assert_eq!(
+        tools["result"]["tools"][0]["name"],
+        json!("echo"),
+        "a client attached under the empty surface must reach the spawn, not an error"
+    );
+    assert_eq!(gateway.spawn_count(), 1);
+}
+
+#[test]
+fn unmet_precondition_serves_an_empty_surface_without_spawning() {
+    let gateway = Gateway::start_with(
+        "2025-06-18",
+        json!({
+            "scope": "workspace",
+            "requires": {"any_file_exists": ["encore.app"]},
+        }),
+    );
+
+    let mut client = gateway.client();
+    let init = client.initialize("2025-06-18");
+    assert_eq!(init["result"]["capabilities"], json!({}));
+    let tools = client.request(json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}));
+    assert_eq!(tools["result"]["tools"], json!([]));
+    assert_eq!(
+        gateway.spawn_count(),
+        0,
+        "an unmet precondition must never spawn"
+    );
+    assert!(gateway.daemon_log().contains("precondition_unmet"));
+
+    // The workspace gaining the file heals the next handshake without a daemon restart.
+    std::fs::write(gateway.directory.join("encore.app"), "{}").expect("write precondition file");
+    let mut second = gateway.client();
+    let init = second.initialize("2025-06-18");
+    assert_eq!(init["result"]["serverInfo"]["title"], json!("Fake Server"));
+    let tools = second.request(json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}));
+    assert_eq!(tools["result"]["tools"][0]["name"], json!("echo"));
+    assert_eq!(gateway.spawn_count(), 1);
+}
+
+#[test]
+fn idle_traffic_reaps_the_connection_and_use_respawns_it() {
+    let gateway = Gateway::start_with(
+        "2025-06-18",
+        json!({"reap_when_idle": true, "idle_seconds": 1}),
+    );
+
+    let mut client = gateway.client();
+    client.initialize("2025-06-18");
+    let first = client.request(call("echo", "one", json!(1)));
+    assert_eq!(first["result"]["content"][0]["text"], json!("one"));
+    assert_eq!(gateway.spawn_count(), 1);
+
+    gateway.wait_for_log("upstream_reaped");
+
+    let mut late = gateway.client();
+    late.initialize("2025-06-18");
+    assert_eq!(
+        gateway.spawn_count(),
+        1,
+        "a handshake alone must not revive a reaped backend"
+    );
+
+    let second = late.request(call("echo", "two", json!(1)));
+    assert_eq!(second["result"]["content"][0]["text"], json!("two"));
+    assert_eq!(
+        gateway.spawn_count(),
+        2,
+        "first use after the reap respawns once"
+    );
+}
+
 fn call(tool: &str, marker: &str, id: Value) -> Value {
     json!({
         "jsonrpc": "2.0",
@@ -213,24 +337,31 @@ struct Gateway {
 
 impl Gateway {
     fn start(upstream_version: &str) -> Self {
+        Self::start_with(upstream_version, json!({}))
+    }
+
+    /// Starts a gateway whose single `fake` server carries extra config fields on top of the
+    /// defaults, e.g. `requires` or `reap_when_idle`.
+    fn start_with(upstream_version: &str, overrides: Value) -> Self {
         let directory = scratch_directory();
         let socket = directory.join("gateway.sock");
         let spawn_log = directory.join("spawns.log");
         let daemon_log = directory.join("daemon.log");
         let config = directory.join("config.json");
 
+        let mut server = json!({
+            "command": fake_server().to_string_lossy(),
+            "args": [spawn_log.to_string_lossy(), upstream_version],
+            "scope": "global",
+        });
+        for (key, value) in overrides.as_object().expect("object overrides") {
+            server[key] = value.clone();
+        }
+
         std::fs::write(
             &config,
-            serde_json::to_vec_pretty(&json!({
-                "servers": {
-                    "fake": {
-                        "command": fake_server().to_string_lossy(),
-                        "args": [spawn_log.to_string_lossy(), upstream_version],
-                        "scope": "global",
-                    },
-                },
-            }))
-            .expect("encode config"),
+            serde_json::to_vec_pretty(&json!({"servers": {"fake": server}}))
+                .expect("encode config"),
         )
         .expect("write config");
 
@@ -284,6 +415,17 @@ impl Gateway {
 
     fn daemon_log(&self) -> String {
         std::fs::read_to_string(&self.daemon_log).unwrap_or_default()
+    }
+
+    fn wait_for_log(&self, needle: &str) {
+        let deadline = Instant::now() + READ_TIMEOUT;
+        while Instant::now() < deadline {
+            if self.daemon_log().contains(needle) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("daemon log never contained {needle}: {}", self.daemon_log());
     }
 }
 

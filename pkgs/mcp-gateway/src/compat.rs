@@ -38,6 +38,15 @@
 //!   is refused instead of being stripped, because dropping it silently changes completion results.
 //! - **Initialization lifecycle**: the gateway performs one upstream handshake and answers every
 //!   downstream handshake from the cached result, rewritten to that client's revision.
+//!
+//! # Downlevel upstreams (2024-11-05)
+//!
+//! An upstream server may answer the canonical handshake with an older revision it prefers.
+//! Revisions known to [`Version::parse_downlevel`] are accepted for that link only: an older
+//! server never emits fields its revision does not define, so results reach every client
+//! untouched, while client requests are checked against the negotiated revision instead of the
+//! canonical one. 2024-11-05 is never valid as a client or canonical revision, because the
+//! 2025-03-26 deltas (audio content, tool annotations) have no downgrade translations here.
 
 use serde_json::Value;
 
@@ -58,6 +67,8 @@ const OUTSIDE_PROFILE: &str = "method is outside the gateway compatibility profi
 /// An MCP protocol revision the gateway can serve.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Version {
+    /// MCP revision 2024-11-05, accepted only when an upstream server negotiates down to it.
+    V20241105,
     /// MCP revision 2025-03-26.
     V20250326,
     /// MCP revision 2025-06-18.
@@ -82,10 +93,21 @@ impl Version {
         }
     }
 
+    /// Parses a revision negotiated by an upstream server, which may be older than any revision
+    /// served downstream. Returns [`None`] for revisions with no translations in this module.
+    #[must_use]
+    pub fn parse_downlevel(raw: &str) -> Option<Self> {
+        match raw {
+            "2024-11-05" => Some(Self::V20241105),
+            _ => Self::parse(raw).ok(),
+        }
+    }
+
     /// Returns the wire representation of this revision.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::V20241105 => "2024-11-05",
             Self::V20250326 => "2025-03-26",
             Self::V20250618 => "2025-06-18",
         }
@@ -422,6 +444,29 @@ mod tests {
     fn observed_versions_parse() {
         assert_eq!(Version::parse("2025-03-26").unwrap(), Version::V20250326);
         assert_eq!(Version::parse("2025-06-18").unwrap(), Version::V20250618);
+    }
+
+    #[test]
+    fn the_downlevel_revision_is_upstream_only() {
+        assert_eq!(
+            Version::parse_downlevel("2024-11-05"),
+            Some(Version::V20241105)
+        );
+        assert!(Version::parse("2024-11-05").is_err());
+        assert!(Version::V20241105 < Version::V20250326);
+    }
+
+    #[test]
+    fn downlevel_upstream_results_are_never_rewritten() {
+        let mut result = json!({"tools": [{"name": "a"}]});
+        let notes = downgrade_result(
+            "tools/list",
+            Version::V20241105,
+            Version::V20250618,
+            &mut result,
+        )
+        .unwrap();
+        assert!(notes.is_empty());
     }
 
     #[test]

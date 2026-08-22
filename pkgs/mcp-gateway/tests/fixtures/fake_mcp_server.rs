@@ -21,7 +21,8 @@ fn main() {
 
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
-    for line in stdin.lock().lines() {
+    let mut lines = stdin.lock().lines();
+    while let Some(line) = lines.next() {
         let Ok(line) = line else { break };
         let Some(method) = string_field(&line, "method") else {
             continue;
@@ -29,6 +30,23 @@ fn main() {
         let id = raw_id(&line);
         // Each arm yields the response payload without its enclosing braces.
         let payload = match method {
+            // Sends a ping to the client and withholds the tool result until it is answered,
+            // mirroring servers that use ping as a link keepalive.
+            "tools/call" if string_field(&line, "name") == Some("server_ping") => {
+                writeln!(stdout, "{{\"jsonrpc\":\"2.0\",\"id\":9990,\"method\":\"ping\"}}")
+                    .expect("write ping");
+                stdout.flush().expect("flush ping");
+                let answer = lines
+                    .next()
+                    .and_then(Result::ok)
+                    .unwrap_or_default();
+                let text = if answer.contains("9990") && answer.contains("\"result\"") {
+                    "ping-answered"
+                } else {
+                    "ping-refused"
+                };
+                format!("\"result\":{{\"content\":[{{\"type\":\"text\",\"text\":\"{text}\"}}]}}")
+            }
             "initialize" => format!(
                 "\"result\":{{\"protocolVersion\":\"{version}\",\
                  \"capabilities\":{{\"tools\":{{}},\"prompts\":{{}}}},\

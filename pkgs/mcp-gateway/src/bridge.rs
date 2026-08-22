@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::time::Duration;
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -46,19 +46,24 @@ struct Runtime {
 struct RuntimeState {
     connection: Option<Arc<Connection>>,
     initialize_outcome: Option<Value>,
+    upstream_version: Option<Version>,
 }
 
 struct Connection {
     writer: Arc<Mutex<ChildStdin>>,
     routing: Arc<Routing>,
     dead: Arc<AtomicBool>,
+    started: Instant,
+    last_activity_ms: Arc<AtomicU64>,
     reader_task: JoinHandle<()>,
     process_task: JoinHandle<()>,
+    reaper_task: Option<JoinHandle<()>>,
 }
 
 struct Routing {
     server: String,
     canonical: Version,
+    negotiated: OnceLock<Version>,
     pending: Mutex<HashMap<u64, PendingRequest>>,
     request_ids: Mutex<HashMap<RequestKey, u64>>,
     clients: Arc<Mutex<HashMap<ClientId, Registration>>>,
@@ -141,18 +146,18 @@ impl Bridge {
             error
         })?;
 
-        let outcome = self.runtime.initialize().await?;
+        let (outcome, upstream) = self.runtime.initialize().await?;
         if outcome.get("error").is_some() {
             return Ok((version, restore_id(outcome, original_id), false));
         }
 
-        if version == self.runtime.canonical {
+        if version == upstream {
             tracing::debug!(
                 mcp.event = "protocol_match",
                 mcp.server = %self.runtime.server,
                 mcp.client_id = client_id,
                 mcp.version = version.as_str(),
-                "MCP client matches the canonical upstream revision"
+                "MCP client matches the shared upstream revision"
             );
         } else {
             tracing::info!(
@@ -160,7 +165,7 @@ impl Bridge {
                 mcp.server = %self.runtime.server,
                 mcp.client_id = client_id,
                 mcp.client_version = version.as_str(),
-                mcp.upstream_version = self.runtime.canonical.as_str(),
+                mcp.upstream_version = upstream.as_str(),
                 "MCP client and shared upstream speak different revisions; translating in place"
             );
         }
@@ -170,7 +175,7 @@ impl Bridge {
             &self.runtime.server,
             client_id,
             "initialize",
-            self.runtime.canonical,
+            upstream,
             version,
             &mut result,
         )?;
@@ -227,22 +232,73 @@ impl Bridge {
 }
 
 impl Runtime {
-    async fn initialize(&self) -> Result<Value, BridgeError> {
+    async fn initialize(&self) -> Result<(Value, Version), BridgeError> {
         let mut state = self.state.lock().await;
+        let upstream = state.upstream_version.unwrap_or(self.canonical);
         if let (Some(connection), Some(outcome)) = (&state.connection, &state.initialize_outcome)
             && !connection.is_dead()
         {
-            return Ok(outcome.clone());
+            return Ok((outcome.clone(), upstream));
+        }
+
+        // Re-checked ahead of the reaped-process branch so that a workspace gaining the file
+        // still reaches the spawn below rather than replaying a cached empty surface.
+        if !self.precondition_met() {
+            tracing::info!(
+                mcp.event = "precondition_unmet",
+                mcp.server = %self.server,
+                mcp.workspace = ?self.workspace,
+                "serving an empty MCP surface; no precondition file exists in the workspace"
+            );
+            let outcome = synthetic_initialize(self.canonical);
+            // Retained so a client attached under the empty surface can still reach the spawn
+            // path once the file appears, instead of failing as never-initialized.
+            state.initialize_outcome = Some(outcome.clone());
+            return Ok((outcome, self.canonical));
+        }
+
+        // A reaped process revives on the next tool call, not on every new client handshake.
+        if self.definition.reap_when_idle
+            && let Some(outcome) = &state.initialize_outcome
+        {
+            return Ok((outcome.clone(), upstream));
         }
 
         let (connection, outcome) = self.spawn_initialized().await?;
+        let upstream = connection.upstream();
         state.connection = Some(connection);
         state.initialize_outcome = Some(outcome.clone());
-        Ok(outcome)
+        state.upstream_version = Some(upstream);
+        Ok((outcome, upstream))
+    }
+
+    fn precondition_met(&self) -> bool {
+        let Some(requires) = &self.definition.requires else {
+            return true;
+        };
+        let Some(workspace) = self.workspace.as_deref() else {
+            return false;
+        };
+        requires
+            .any_file_exists
+            .iter()
+            .any(|file| workspace.join(file).exists())
     }
 
     async fn forward(&self, client_id: ClientId, message: Value) -> Result<(), BridgeError> {
+        let connected = {
+            let state = self.state.lock().await;
+            state
+                .connection
+                .as_ref()
+                .is_some_and(|connection| !connection.is_dead())
+        };
+        if !connected && !self.precondition_met() {
+            return self.forward_synthetic(client_id, message).await;
+        }
+
         let connection = self.connection().await?;
+        connection.touch();
         let method = message
             .get("method")
             .and_then(Value::as_str)
@@ -260,21 +316,25 @@ impl Runtime {
             .cloned()
             .ok_or(BridgeError::UnknownClient)?;
 
-        compat::adapt_request(&method, registration.version, self.canonical, &message).map_err(
-            |error| {
-                tracing::warn!(
-                    mcp.event = "contract_rejected",
-                    mcp.server = %self.server,
-                    mcp.client_id = client_id,
-                    mcp.method = %method,
-                    mcp.client_version = registration.version.as_str(),
-                    mcp.upstream_version = self.canonical.as_str(),
-                    mcp.reason = %error,
-                    "refusing an MCP request the canonical upstream revision cannot represent"
-                );
-                error
-            },
-        )?;
+        compat::adapt_request(
+            &method,
+            registration.version,
+            connection.upstream(),
+            &message,
+        )
+        .map_err(|error| {
+            tracing::warn!(
+                mcp.event = "contract_rejected",
+                mcp.server = %self.server,
+                mcp.client_id = client_id,
+                mcp.method = %method,
+                mcp.client_version = registration.version.as_str(),
+                mcp.upstream_version = connection.upstream().as_str(),
+                mcp.reason = %error,
+                "refusing an MCP request the upstream revision cannot represent"
+            );
+            error
+        })?;
 
         if message.get("id").is_none() {
             return connection.notify(&message).await;
@@ -292,6 +352,46 @@ impl Runtime {
                 self.timeout(),
             )
             .await
+    }
+
+    /// Answers in place of a process the precondition forbids spawning: an empty tool list
+    /// instead of an error, so clients see a server with nothing to offer.
+    async fn forward_synthetic(
+        &self,
+        client_id: ClientId,
+        message: Value,
+    ) -> Result<(), BridgeError> {
+        let Some(original_id) = message.get("id").cloned() else {
+            return Ok(());
+        };
+        let registration = self
+            .clients
+            .lock()
+            .await
+            .get(&client_id)
+            .cloned()
+            .ok_or(BridgeError::UnknownClient)?;
+        let method = message
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let response = match method {
+            "ping" => json!({"jsonrpc": "2.0", "id": original_id, "result": {}}),
+            "tools/list" => json!({"jsonrpc": "2.0", "id": original_id, "result": {"tools": []}}),
+            "prompts/list" => {
+                json!({"jsonrpc": "2.0", "id": original_id, "result": {"prompts": []}})
+            }
+            "resources/list" => {
+                json!({"jsonrpc": "2.0", "id": original_id, "result": {"resources": []}})
+            }
+            _ => rpc_error(
+                original_id,
+                -32601,
+                "MCP server precondition unmet in this workspace",
+            ),
+        };
+        let _ = registration.sender.send(response);
+        Ok(())
     }
 
     async fn detach(&self, client_id: ClientId) {
@@ -318,6 +418,7 @@ impl Runtime {
         }
         state.connection = Some(Arc::clone(&connection));
         state.initialize_outcome = Some(outcome);
+        state.upstream_version = Some(connection.upstream());
         Ok(connection)
     }
 
@@ -354,24 +455,39 @@ impl Runtime {
                 .and_then(Value::as_str)
                 .unwrap_or_default();
             if negotiated != self.canonical.as_str() {
-                let error = CompatError::UpstreamVersionMismatch {
-                    negotiated: negotiated.to_owned(),
-                    canonical: self.canonical.as_str(),
-                };
-                tracing::error!(
-                    mcp.event = "protocol_rejected",
-                    mcp.server = %self.server,
-                    mcp.negotiated_version = negotiated,
-                    mcp.canonical_version = self.canonical.as_str(),
-                    mcp.reason = %error,
-                    "upstream MCP server refused the canonical revision"
-                );
-                return Err(BridgeError::Compat(error));
+                match Version::parse_downlevel(negotiated) {
+                    Some(version) if version < self.canonical => {
+                        let _ = connection.routing.negotiated.set(version);
+                        tracing::info!(
+                            mcp.event = "protocol_downlevel",
+                            mcp.server = %self.server,
+                            mcp.negotiated_version = negotiated,
+                            mcp.canonical_version = self.canonical.as_str(),
+                            "upstream MCP server negotiated an older revision; \
+                             its results need no rewriting for newer clients"
+                        );
+                    }
+                    _ => {
+                        let error = CompatError::UpstreamVersionMismatch {
+                            negotiated: negotiated.to_owned(),
+                            canonical: self.canonical.as_str(),
+                        };
+                        tracing::error!(
+                            mcp.event = "protocol_rejected",
+                            mcp.server = %self.server,
+                            mcp.negotiated_version = negotiated,
+                            mcp.canonical_version = self.canonical.as_str(),
+                            mcp.reason = %error,
+                            "upstream MCP server refused the canonical revision"
+                        );
+                        return Err(BridgeError::Compat(error));
+                    }
+                }
             }
             tracing::info!(
                 mcp.event = "upstream_started",
                 mcp.server = %self.server,
-                mcp.canonical_version = self.canonical.as_str(),
+                mcp.upstream_version = connection.upstream().as_str(),
                 mcp.workspace = ?self.workspace,
                 "started one shared MCP upstream process"
             );
@@ -456,6 +572,7 @@ impl Connection {
         let routing = Arc::new(Routing {
             server: server.to_owned(),
             canonical,
+            negotiated: OnceLock::new(),
             pending: Mutex::new(HashMap::new()),
             request_ids: Mutex::new(HashMap::new()),
             clients,
@@ -482,22 +599,84 @@ impl Connection {
             reader_routing.fail_all("MCP server exited").await;
         });
 
+        let started = Instant::now();
+        let last_activity_ms = Arc::new(AtomicU64::new(0));
+        let (kill_sender, kill_receiver) = oneshot::channel::<()>();
+
         let process_dead = Arc::clone(&dead);
         let process_task = tokio::spawn(async move {
-            match child.wait().await {
-                Ok(status) => tracing::warn!(%status, "MCP server exited"),
-                Err(error) => tracing::warn!(%error, "failed to wait for MCP server"),
+            tokio::select! {
+                status = child.wait() => match status {
+                    Ok(status) => tracing::warn!(%status, "MCP server exited"),
+                    Err(error) => tracing::warn!(%error, "failed to wait for MCP server"),
+                },
+                // A dropped sender disables this branch, leaving the wait in place.
+                Ok(()) = kill_receiver => {
+                    let _ = child.start_kill();
+                    let _ = child.wait().await;
+                }
             }
             process_dead.store(true, Ordering::Release);
+        });
+
+        let reaper_task = definition.reap_when_idle.then(|| {
+            let idle = Duration::from_secs(definition.idle_seconds);
+            let server = server.to_owned();
+            let dead = Arc::clone(&dead);
+            let last_activity_ms = Arc::clone(&last_activity_ms);
+            let routing = Arc::clone(&routing);
+            tokio::spawn(async move {
+                let mut kill_sender = Some(kill_sender);
+                loop {
+                    let idle_for = Duration::from_millis(
+                        elapsed_ms(started)
+                            .saturating_sub(last_activity_ms.load(Ordering::Acquire)),
+                    );
+                    if idle_for < idle {
+                        sleep(idle - idle_for).await;
+                        continue;
+                    }
+                    if dead.load(Ordering::Acquire) {
+                        return;
+                    }
+                    if !routing.pending.lock().await.is_empty() {
+                        sleep(idle).await;
+                        continue;
+                    }
+                    dead.store(true, Ordering::Release);
+                    if let Some(sender) = kill_sender.take() {
+                        let _ = sender.send(());
+                    }
+                    tracing::info!(
+                        mcp.event = "upstream_reaped",
+                        mcp.server = %server,
+                        mcp.idle_seconds = idle.as_secs(),
+                        "stopped an idle MCP upstream process; the next call respawns it"
+                    );
+                    return;
+                }
+            })
         });
 
         Ok(Self {
             writer,
             routing,
             dead,
+            started,
+            last_activity_ms,
             reader_task,
             process_task,
+            reaper_task,
         })
+    }
+
+    fn touch(&self) {
+        self.last_activity_ms
+            .store(elapsed_ms(self.started), Ordering::Release);
+    }
+
+    fn upstream(&self) -> Version {
+        self.routing.upstream()
     }
 
     async fn request_internal(
@@ -652,10 +831,17 @@ impl Drop for Connection {
     fn drop(&mut self) {
         self.reader_task.abort();
         self.process_task.abort();
+        if let Some(reaper_task) = &self.reaper_task {
+            reaper_task.abort();
+        }
     }
 }
 
 impl Routing {
+    fn upstream(&self) -> Version {
+        self.negotiated.get().copied().unwrap_or(self.canonical)
+    }
+
     async fn route(&self, line: &str) {
         let Ok(mut message) = serde_json::from_str::<Value>(line) else {
             tracing::warn!("ignoring non-JSON MCP server output");
@@ -667,7 +853,13 @@ impl Routing {
             return;
         }
         if message.get("id").is_some() {
-            self.reject_server_request(&message).await;
+            // Ping is bidirectional in every MCP revision and needs no client capability, so the
+            // gateway answers it itself; encore uses it as a link keepalive.
+            if message.get("method").and_then(Value::as_str) == Some("ping") {
+                self.answer_server_ping(&message).await;
+            } else {
+                self.reject_server_request(&message).await;
+            }
             return;
         }
         if message.get("method").and_then(Value::as_str) == Some("notifications/progress") {
@@ -704,7 +896,7 @@ impl Routing {
                     &self.server,
                     client_id,
                     &method,
-                    self.canonical,
+                    self.upstream(),
                     version,
                     &mut message,
                 ) {
@@ -714,7 +906,7 @@ impl Routing {
                         mcp.client_id = client_id,
                         mcp.method = %method,
                         mcp.client_version = version.as_str(),
-                        mcp.upstream_version = self.canonical.as_str(),
+                        mcp.upstream_version = self.upstream().as_str(),
                         mcp.reason = %error,
                         "refusing to deliver an MCP result that this client's revision cannot represent"
                     );
@@ -749,6 +941,17 @@ impl Routing {
         let _ = sender.send(message.clone());
     }
 
+    async fn answer_server_ping(&self, message: &Value) {
+        let response = json!({
+            "jsonrpc": "2.0",
+            "id": message.get("id").cloned().unwrap_or(Value::Null),
+            "result": {},
+        });
+        if let Err(error) = write_json(&self.writer, &response).await {
+            tracing::warn!(%error, "failed to answer a server-to-client ping");
+        }
+    }
+
     async fn reject_server_request(&self, message: &Value) {
         let method = message
             .get("method")
@@ -758,7 +961,7 @@ impl Routing {
             mcp.event = "contract_rejected",
             mcp.server = %self.server,
             mcp.method = method,
-            mcp.upstream_version = self.canonical.as_str(),
+            mcp.upstream_version = self.upstream().as_str(),
             mcp.reason = "the gateway advertises no client capabilities upstream",
             "refusing a server-to-client MCP request"
         );
@@ -830,6 +1033,26 @@ fn take_progress_token(message: &mut Value) -> Option<Value> {
 
 fn id_key(id: &Value) -> String {
     serde_json::to_string(id).unwrap_or_else(|_| "null".to_owned())
+}
+
+fn elapsed_ms(started: Instant) -> u64 {
+    u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+/// Handshake served for a server whose precondition files are absent: empty capabilities,
+/// no process behind it.
+fn synthetic_initialize(canonical: Version) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "result": {
+            "protocolVersion": canonical.as_str(),
+            "capabilities": {},
+            "serverInfo": {
+                "name": "nyx-mcp-gateway",
+                "version": env!("CARGO_PKG_VERSION"),
+            },
+        },
+    })
 }
 
 fn strip_id(mut response: Value) -> Value {
