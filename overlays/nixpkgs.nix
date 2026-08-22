@@ -138,46 +138,6 @@
     });
   })
   (_final: prev: {
-    mcp-server-sequential-thinking = prev.mcp-server-sequential-thinking.overrideAttrs (old: {
-      patches =
-        (old.patches or [])
-        ++ [
-          ./patches/mcp-server-sequential-thinking/session-state.patch
-        ];
-      passthru =
-        (old.passthru or {})
-        // {
-          mcp = {
-            name = "sequential-thinking";
-            scope = "global";
-          };
-        };
-    });
-  })
-  (_final: prev: {
-    context7-mcp = prev.context7-mcp.overrideAttrs (old: {
-      passthru =
-        (old.passthru or {})
-        // {
-          mcp = {
-            name = "context7";
-            scope = "global";
-          };
-        };
-    });
-
-    mcp-nixos = prev.mcp-nixos.overrideAttrs (old: {
-      passthru =
-        (old.passthru or {})
-        // {
-          mcp = {
-            name = "nixos";
-            scope = "global";
-          };
-        };
-    });
-  })
-  (_final: prev: {
     browsers = prev.browsers.overrideAttrs (old: {
       patches =
         (old.patches or [])
