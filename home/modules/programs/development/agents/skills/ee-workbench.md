@@ -80,13 +80,19 @@ you stop, and treat a `--force` stop as discarding work.
 ee mechanical document new --name Plate --json
 ee mechanical body new --name Bar --json
 ee mechanical sketch new --plane xy --json
-ee mechanical sketch rectangle --width 40 --height 20 --centered \
-  --name-width bar_x --name-height bar_y --json
+ee mechanical sketch rectangle --width 40 --height 20 --centered --json
 ee mechanical pad new --length 6 --json
+
+ee mechanical param new bar_x 40 --json
+ee mechanical sketch set width bar_x --json
+ee mechanical param new hole_x "=bar_x / 2 - 8" --json
+
 ee mechanical sketch new --plane xy --offset-z 6 --json
-ee mechanical sketch circle --radius 4 --x 12 --json
+ee mechanical sketch circle --radius 4 --x hole_x --json
 ee mechanical pocket new --through-all --json
-ee mechanical document inspect --json
+
+ee mechanical param set bar_x 70 --json
+ee mechanical document inspect --features --json
 ee mechanical document save --path ~/cad/plate.FCStd --json
 ```
 
@@ -109,14 +115,56 @@ Geometry takes `--x/--y` in sketch coordinates, and `sketch rectangle
 means centred: it is held by a symmetry constraint, so it survives a later
 change of width.
 
-### Named dimensions
+### Parameters
 
-`--name-width`, `--name-height` and `--name-radius` name the constraint that
-drives a dimension. `ee mechanical param list --json` reads them back and
-`ee mechanical param set <name> <value>` drives them; follow with
-`document recompute`. The names are FreeCAD constraint names, so they survive a
-save and reopen. Anything unnamed is still a number you have to redraw to
-change.
+Every numeric argument takes a number **or the name of a parameter**:
+`--width 40` and `--width bar_x` are the same argument in its two forms. That
+holds for sketch dimensions, `--x/--y`, the placement offsets, `--rotate` and
+`pad`/`pocket` lengths.
+
+Which form a slot holds is an edit, not a property of how it was created:
+
+```sh
+ee mechanical param new bar_x 40 --json          # declare
+ee mechanical sketch set width bar_x --json      # bind an existing dimension
+ee mechanical sketch set width 33 --unbind --json  # back to a literal
+ee mechanical pad length thick --json            # the same for a feature
+```
+
+A literal over a slot a parameter drives is refused; `--unbind` is how you mean
+it. You never have to destroy a parameter other slots still use in order to
+free one of them.
+
+Parameters are the document's only arithmetic. A slot holds a number or the
+name of one parameter and never an expression; the expression lives in the
+parameter:
+
+```sh
+ee mechanical param new hole_x "=bar_x / 2 - 8" --json
+```
+
+So `param list` is a complete description of what can move, not an index of
+where to look for it. It reports each parameter's value, its expression, and
+every slot that follows it, plus `orphans` — named dimensions nothing drives
+yet. Adopting one is two commands: `param new <name> <value>` then
+`sketch set <slot> <name> --sketch <sketch>`, and the orphan row prints that
+second line already filled in. Name the sketch: without `--sketch` the verb
+takes the newest one, which on a document with several is rarely the row you
+were reading. There is no migration verb because none is needed.
+
+Every dimension is named when it is drawn (`width`, `height`, `radius`, `x`,
+`y`), and a sketch's placement is addressable the same way (`offset_x`,
+`offset_y`, `offset_z`, `rotate`). Nothing has to be decided in advance.
+
+`param remove <name>` refuses while slots still follow it; `--force` freezes
+each one at its current value and the response names every slot it froze.
+
+**`param set` can break the model.** One parameter driving six slots can push a
+pocket outside its material or a pad to zero length, and FreeCAD leaves those
+features in error rather than refusing. So `param set` names the features that
+did not build and why, and **exits nonzero**; `document inspect --features`
+carries the same per-feature error state. Check the exit status. A bounding box
+that prints is not a model that built.
 
 ### Seeing what you built
 
@@ -126,7 +174,9 @@ answer that:
 - `document inspect --json` reports, per solid, the bounding box (`min`, `max`,
   `size`, `centre`), `volume` and `centre_of_mass`, plus one overall `bbox`.
   Numbers are millimetres rounded to a micron. Check them; a wrong model is
-  usually wrong in the bounding box first.
+  usually wrong in the bounding box first. `--features` adds the build order:
+  per body, each feature in turn with the sketch it consumed, that sketch's
+  plane, offset and dimensions, what drives each of them, and any error.
 - `preview render --path x.png --view iso|front|top|...` rasterizes the model
   offscreen to a PNG you can open. Silhouettes, creases and pocket rims are
   outlined, and a red/green/blue triad marks x/y/z.
@@ -138,7 +188,8 @@ model until the session ends.
 
 Sketches: `rectangle`, `circle`. Solids: `pad` (add), `pocket` (remove), both
 with `--midplane`, `--reversed` and a `length` you can retarget afterwards
-(`pad length`, `pocket length`); `pocket` also takes `--through-all`. That is
+(`pad length`, `pocket length`), and `sketch set` for a sketch dimension or
+placement; `pocket` also takes `--through-all`. That is
 all of it. One sketch holds one primitive, so a part is several sketches:
 `--sketch` defaults to the newest one and every response echoes which sketch it
 used, so read it back rather than assuming. `--body` and `--document` are
