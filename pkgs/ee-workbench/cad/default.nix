@@ -43,6 +43,9 @@
       "${xercesc}/lib/libxerces-c.so"
       "${qt6.qtbase.out}/lib/libQt6Core.so"
       "${python3}/lib/libpython${python3.pythonVersion}.so"
+      # PNG's IDAT is a raw zlib stream, so the renderer deflates it itself
+      # rather than pulling in an image library for one chunk.
+      "${zlib}/lib/libz.so"
     ]
     # The preview mesh is tessellated and written here rather than through a
     # FreeCAD exporter, so the deviations stay a parameter of the request.
@@ -66,6 +69,7 @@
     "${xercesc}/lib"
     "${qt6.qtbase.out}/lib"
     "${python3}/lib"
+    "${zlib}/lib"
   ];
   serverHome = "libexec/freecad-home/bin";
 in

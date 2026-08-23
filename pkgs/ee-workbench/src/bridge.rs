@@ -1,4 +1,5 @@
-use std::io::{BufRead, BufReader, Write};
+use std::fmt;
+use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 
@@ -8,7 +9,49 @@ use serde_json::{Value, json};
 /// Wire version. The server is `ee-freecad-server`, a native FreeCAD module;
 /// a mismatch here means one of the two binaries is stale, and both sides
 /// refuse rather than misread a frame.
-pub const PROTOCOL: u32 = 3;
+pub const PROTOCOL: u32 = 4;
+
+/// The peer closed the connection without answering. Typed rather than a
+/// string so a caller can tell it apart from a refusal the server actually
+/// spoke, and decide whether replaying the request is safe.
+#[derive(Debug)]
+pub struct Hangup {
+    pub method: String,
+}
+
+impl fmt::Display for Hangup {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            out,
+            "the cad session closed the connection during {}",
+            self.method
+        )
+    }
+}
+
+impl std::error::Error for Hangup {}
+
+/// True when the failure means nothing was listening any more, which is what a
+/// session retiring on its idle deadline looks like from this side. A refusal,
+/// a protocol mismatch or unparseable JSON all mean the request reached a live
+/// server and must not be replayed.
+pub fn is_disconnect(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        if cause.downcast_ref::<Hangup>().is_some() {
+            return true;
+        }
+
+        cause.downcast_ref::<std::io::Error>().is_some_and(|io| {
+            matches!(
+                io.kind(),
+                ErrorKind::ConnectionRefused
+                    | ErrorKind::ConnectionReset
+                    | ErrorKind::BrokenPipe
+                    | ErrorKind::NotFound
+            )
+        })
+    })
+}
 
 /// NDJSON over the CAD socket: one JSON object per line in both directions.
 /// The connection is stateful only in that the server keeps the FreeCAD
@@ -55,7 +98,9 @@ impl Client {
             .read_line(&mut line)
             .context("reading a cad reply")?;
         if read == 0 {
-            bail!("the cad session closed the connection during {method}");
+            return Err(anyhow::Error::new(Hangup {
+                method: method.to_string(),
+            }));
         }
 
         let reply: Value = serde_json::from_str(line.trim())
@@ -166,6 +211,36 @@ mod tests {
 
         let error = call(&socket, "session.status", json!({})).unwrap_err();
         assert!(error.to_string().contains("rebuild both"), "{error}");
+    }
+
+    #[test]
+    fn a_hangup_is_told_apart_from_a_refusal() {
+        // No replies at all: the mock accepts and then drops the connection,
+        // which is exactly what a session retiring mid-call looks like.
+        let vanishing = scratch("hangup");
+        spawn_mock(&vanishing, vec![]);
+        let error = call(&vanishing, "session.status", json!({})).unwrap_err();
+        assert!(is_disconnect(&error), "{error:#}");
+
+        let absent = scratch("gone").with_file_name("nothing.sock");
+        let error = call(&absent, "session.status", json!({})).unwrap_err();
+        assert!(is_disconnect(&error), "{error:#}");
+
+        let live = scratch("live");
+        spawn_mock(
+            &live,
+            vec![
+                json!({
+                    "ok": false,
+                    "protocol": PROTOCOL,
+                    "id": 1,
+                    "error": { "code": "unknown-document", "message": "no active document" }
+                })
+                .to_string(),
+            ],
+        );
+        let error = call(&live, "document.inspect", json!({})).unwrap_err();
+        assert!(!is_disconnect(&error), "{error:#}");
     }
 
     #[test]

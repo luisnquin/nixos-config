@@ -50,12 +50,14 @@ foreach(lib FreeCADApp FreeCADBase Part Sketcher _PartDesign)
 endforeach()
 
 # Everything both halves share: the document operations, the request
-# dispatcher and the mesh export. Only the transport differs.
+# dispatcher, the mesh export and the software renderer. Only the transport
+# differs.
 add_library(ee_session STATIC
   src/listener.cpp
   src/mesh.cpp
   src/paths.cpp
   src/protocol.cpp
+  src/render.cpp
   src/session.cpp)
 target_include_directories(ee_session PUBLIC
   ${CMAKE_CURRENT_BINARY_DIR}/gen

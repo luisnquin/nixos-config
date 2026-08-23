@@ -5,6 +5,7 @@ mod git;
 mod ids;
 mod model;
 mod paths;
+mod spawn;
 mod store;
 mod tui;
 

@@ -21,16 +21,45 @@ void on_signal(int)
 
 void usage(std::ostream& out)
 {
-    out << "ee-freecad-server [--socket PATH]\n\n"
+    out << "ee-freecad-server [--socket PATH] [--idle-timeout SECONDS]\n\n"
         << "Owns a FreeCAD document session and serves NDJSON requests on a\n"
-        << "Unix socket. `ee mechanical` is the client.\n";
+        << "Unix socket. `ee mechanical` is the client and spawns this on\n"
+        << "demand, so the default is to exit after 900 idle seconds. Zero\n"
+        << "disables that. A document with unsaved changes always wins: the\n"
+        << "timeout will not fire while one exists.\n";
 }
+
+/// Seconds. Long enough that a human reading a render and typing the next
+/// command never notices it, short enough that a forgotten session does not
+/// hold FreeCAD's memory until the next reboot.
+constexpr long long kDefaultIdleTimeout = 900;
 
 }  // namespace
 
 int main(int argc, char** argv)
 {
     std::string socket_path;
+    long long idle_timeout = kDefaultIdleTimeout;
+    if (const char* configured = std::getenv("EE_WORKBENCH_CAD_IDLE")) {
+        try {
+            idle_timeout = std::stoll(configured);
+        }
+        catch (const std::exception&) {
+            std::cerr << "EE_WORKBENCH_CAD_IDLE must be a number of seconds\n";
+            return 2;
+        }
+    }
+
+    auto parse_timeout = [&idle_timeout](const std::string& text) {
+        try {
+            idle_timeout = std::stoll(text);
+            return true;
+        }
+        catch (const std::exception&) {
+            std::cerr << "--idle-timeout needs a number of seconds\n";
+            return false;
+        }
+    };
 
     for (int i = 1; i < argc; ++i) {
         const std::string flag = argv[i];
@@ -48,6 +77,18 @@ int main(int argc, char** argv)
         }
         if (flag.rfind("--socket=", 0) == 0) {
             socket_path = flag.substr(std::string("--socket=").size());
+            continue;
+        }
+        if (flag == "--idle-timeout") {
+            if (i + 1 >= argc || !parse_timeout(argv[++i])) {
+                return 2;
+            }
+            continue;
+        }
+        if (flag.rfind("--idle-timeout=", 0) == 0) {
+            if (!parse_timeout(flag.substr(std::string("--idle-timeout=").size()))) {
+                return 2;
+            }
             continue;
         }
         std::cerr << "unknown argument: " << flag << "\n";
@@ -93,15 +134,21 @@ int main(int argc, char** argv)
         ::signal(SIGPIPE, SIG_IGN);
 
         ee::Server server(socket_path);
+        server.set_idle_timeout(idle_timeout);
         server.listen();
 
         ee::json::Value ready = ee::json::Value::object();
         ready.set("ready", ee::json::Value::boolean(true));
         ready.set("protocol", ee::json::Value::integer(ee::kProtocol));
         ready.set("socket", ee::json::Value::string(server.socket_path()));
+        ready.set("idle_timeout", ee::json::Value::integer(idle_timeout));
         std::cout << ready.dump() << std::endl;
 
         server.run();
+        if (server.timed_out()) {
+            std::cerr << "ee-freecad-server: exiting after " << idle_timeout
+                      << " idle seconds\n";
+        }
     }
     catch (const Base::Exception& error) {
         std::cerr << "freecad: " << error.what() << "\n";

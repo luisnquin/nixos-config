@@ -1,6 +1,7 @@
 #include "ee/session.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -10,18 +11,35 @@
 #include <App/DocumentObject.h>
 #include <App/Origin.h>
 #include <Base/Interpreter.h>
+#include <Base/Placement.h>
+#include <Base/Rotation.h>
 #include <Base/Vector3D.h>
 #include <Mod/Part/App/Geometry.h>
+#include <Mod/Part/App/Part2DObject.h>
 #include <Mod/Part/App/PartFeature.h>
 #include <Mod/PartDesign/App/Body.h>
+#include <Mod/PartDesign/App/FeatureExtrude.h>
 #include <Mod/PartDesign/App/FeaturePad.h>
+#include <Mod/PartDesign/App/FeaturePocket.h>
 #include <Mod/Sketcher/App/Constraint.h>
 #include <Mod/Sketcher/App/GeoEnum.h>
+#include <Mod/Sketcher/App/GeometryFacade.h>
 #include <Mod/Sketcher/App/SketchObject.h>
+
+#include <gp_Pnt.hxx>
+
+#include <BRepBndLib.hxx>
+#include <BRepGProp.hxx>
+#include <Bnd_Box.hxx>
+#include <GProp_GProps.hxx>
+#include <TopAbs_ShapeEnum.hxx>
+#include <TopExp_Explorer.hxx>
+#include <TopoDS_Shape.hxx>
 
 #include "ee/gui.hpp"
 #include "ee/mesh.hpp"
 #include "ee/paths.hpp"
+#include "ee/render.hpp"
 
 namespace ee {
 namespace {
@@ -33,6 +51,16 @@ using Sketcher::PointPos;
 constexpr int kGeoUndefined = Sketcher::GeoEnum::GeoUndef;
 /// The sketch origin point lives on an implicit geometry with index -1.
 constexpr int kRootPoint = Sketcher::GeoEnum::RtPnt;
+
+/// Millimetres are reported to a micron. Anything finer is the arithmetic
+/// talking, not the model: OCCT pads a bounding box by `Precision::Confusion()`
+/// whatever gap you ask for, and an agent comparing numbers should not have to
+/// tell -3 from -3.0000001.
+double measure(double value)
+{
+    const double snapped = std::round(value * 1e6) / 1e6;
+    return snapped == 0.0 ? 0.0 : snapped;
+}
 
 App::Document& document_for(const std::string& name)
 {
@@ -72,6 +100,38 @@ T& object_for(App::Document& doc, const std::string& name, const char* kind)
     return *found.front();
 }
 
+/// The sketch a request means when it did not name one: the newest in the
+/// document, or the newest inside `body` when the request names one. Modelling
+/// runs sequentially - `sketch new`, then geometry, then `pad` - so the last
+/// sketch created is the one being drawn on, and every response echoes which
+/// sketch it used.
+Sketcher::SketchObject& sketch_for(App::Document& doc,
+                                   const std::string& name,
+                                   const PartDesign::Body* body = nullptr)
+{
+    if (!name.empty()) {
+        return object_for<Sketcher::SketchObject>(doc, name, "sketch");
+    }
+
+    Sketcher::SketchObject* newest = nullptr;
+    for (Sketcher::SketchObject* sketch : doc.getObjectsOfType<Sketcher::SketchObject>()) {
+        if (body != nullptr && !body->hasObject(sketch)) {
+            continue;
+        }
+        if (newest == nullptr || sketch->getID() > newest->getID()) {
+            newest = sketch;
+        }
+    }
+
+    if (newest == nullptr) {
+        throw Error{"unknown-sketch",
+                    body == nullptr
+                        ? std::string("document ") + doc.getName() + " has no sketch"
+                        : std::string("body ") + body->getNameInDocument() + " has no sketch"};
+    }
+    return *newest;
+}
+
 const char* point_pos_name(PointPos pos)
 {
     switch (pos) {
@@ -86,8 +146,42 @@ const char* point_pos_name(PointPos pos)
 json::Value point(const Base::Vector3d& value)
 {
     json::Value out = json::Value::object();
-    out.set("x", json::Value::number(value.x));
-    out.set("y", json::Value::number(value.y));
+    out.set("x", json::Value::number(measure(value.x)));
+    out.set("y", json::Value::number(measure(value.y)));
+    return out;
+}
+
+json::Value vector3(const Base::Vector3d& value)
+{
+    json::Value out = json::Value::object();
+    out.set("x", json::Value::number(measure(value.x)));
+    out.set("y", json::Value::number(measure(value.y)));
+    out.set("z", json::Value::number(measure(value.z)));
+    return out;
+}
+
+json::Value vector3(const Vec3& value)
+{
+    json::Value out = json::Value::object();
+    out.set("x", json::Value::number(measure(value.x)));
+    out.set("y", json::Value::number(measure(value.y)));
+    out.set("z", json::Value::number(measure(value.z)));
+    return out;
+}
+
+/// Where the sketch's own u and v end up in global axes. Without this the
+/// caller has to guess which way a sketch on XZ grows, and only finds out from
+/// a wrong solid three commands later.
+json::Value basis_of(const Sketcher::SketchObject& sketch)
+{
+    const Base::Placement placement = sketch.Placement.getValue();
+    const Base::Rotation rotation = placement.getRotation();
+
+    json::Value out = json::Value::object();
+    out.set("origin", vector3(placement.getPosition()));
+    out.set("x", vector3(rotation.multVec(Base::Vector3d(1.0, 0.0, 0.0))));
+    out.set("y", vector3(rotation.multVec(Base::Vector3d(0.0, 1.0, 0.0))));
+    out.set("normal", vector3(rotation.multVec(Base::Vector3d(0.0, 0.0, 1.0))));
     return out;
 }
 
@@ -96,14 +190,27 @@ json::Value geometry_of(const Sketcher::SketchObject& sketch)
     json::Value out = json::Value::array();
     int index = 0;
     for (const Part::Geometry* geo : sketch.getInternalGeometry()) {
+        const int at = index++;
         json::Value entry = json::Value::object();
-        entry.set("index", json::Value::integer(index++));
+        entry.set("index", json::Value::integer(at));
         entry.set("type", json::Value::string(geo->getTypeId().getName()));
+        // Construction geometry carries the placement rather than the profile,
+        // so a reader counting edges has to be able to skip it.
+        entry.set("construction",
+                  json::Value::boolean(sketch.getGeometryFacade(at)->getConstruction()));
         if (const auto* line = dynamic_cast<const Part::GeomLineSegment*>(geo)) {
             entry.set("start", point(line->getStartPoint()));
             entry.set("end", point(line->getEndPoint()));
             entry.set("length", json::Value::number(
-                                    (line->getEndPoint() - line->getStartPoint()).Length()));
+                                    measure((line->getEndPoint() - line->getStartPoint())
+                                                .Length())));
+        }
+        else if (const auto* circle = dynamic_cast<const Part::GeomCircle*>(geo)) {
+            entry.set("centre", point(circle->getLocation()));
+            entry.set("radius", json::Value::number(measure(circle->getRadius())));
+        }
+        else if (const auto* spot = dynamic_cast<const Part::GeomPoint*>(geo)) {
+            entry.set("at", point(spot->getPoint()));
         }
         out.push(std::move(entry));
     }
@@ -124,8 +231,12 @@ json::Value constraints_of(const Sketcher::SketchObject& sketch)
             entry.set("second", json::Value::integer(constraint->Second));
             entry.set("second_pos", json::Value::string(point_pos_name(constraint->SecondPos)));
         }
+        if (constraint->Third != kGeoUndefined) {
+            entry.set("third", json::Value::integer(constraint->Third));
+            entry.set("third_pos", json::Value::string(point_pos_name(constraint->ThirdPos)));
+        }
         if (constraint->isDimensional()) {
-            entry.set("value", json::Value::number(constraint->getValue()));
+            entry.set("value", json::Value::number(measure(constraint->getValue())));
         }
         entry.set("driving", json::Value::boolean(constraint->isDriving));
         if (!constraint->Name.empty()) {
@@ -143,11 +254,149 @@ json::Value sketch_detail(Sketcher::SketchObject& sketch)
     sketch.solve(false);
 
     json::Value out = json::Value::object();
+    out.set("plane", basis_of(sketch));
     out.set("geometry", geometry_of(sketch));
     out.set("constraints", constraints_of(sketch));
     out.set("dof", json::Value::integer(sketch.getLastDoF()));
     out.set("fully_constrained", json::Value::boolean(sketch.getLastDoF() == 0));
     out.set("redundant", json::Value::boolean(sketch.getLastHasRedundancies()));
+    return out;
+}
+
+struct Box
+{
+    bool valid = false;
+    double min[3] = {0.0, 0.0, 0.0};
+    double max[3] = {0.0, 0.0, 0.0};
+
+    void absorb(const Box& other)
+    {
+        if (!other.valid) {
+            return;
+        }
+        if (!valid) {
+            *this = other;
+            return;
+        }
+        for (int axis = 0; axis < 3; ++axis) {
+            min[axis] = std::min(min[axis], other.min[axis]);
+            max[axis] = std::max(max[axis], other.max[axis]);
+        }
+    }
+};
+
+/// The exact box, not the fast one: `BRepBndLib::Add` inflates around curved
+/// faces, and a bounding box nobody can trust to the micron is not a
+/// measurement, it is a hint.
+Box box_of(const TopoDS_Shape& shape)
+{
+    Box out;
+    if (shape.IsNull()) {
+        return out;
+    }
+
+    Bnd_Box bounds;
+    BRepBndLib::AddOptimal(shape, bounds, Standard_False, Standard_False);
+    if (bounds.IsVoid()) {
+        return out;
+    }
+    bounds.SetGap(0.0);
+    bounds.Get(out.min[0], out.min[1], out.min[2], out.max[0], out.max[1], out.max[2]);
+    out.valid = true;
+    return out;
+}
+
+json::Value box_json(const Box& box)
+{
+    static const char* axes[3] = {"x", "y", "z"};
+
+    json::Value min = json::Value::object();
+    json::Value max = json::Value::object();
+    json::Value size = json::Value::object();
+    json::Value centre = json::Value::object();
+    for (int axis = 0; axis < 3; ++axis) {
+        min.set(axes[axis], json::Value::number(measure(box.min[axis])));
+        max.set(axes[axis], json::Value::number(measure(box.max[axis])));
+        size.set(axes[axis], json::Value::number(measure(box.max[axis] - box.min[axis])));
+        centre.set(axes[axis],
+                   json::Value::number(measure(0.5 * (box.min[axis] + box.max[axis]))));
+    }
+
+    json::Value out = json::Value::object();
+    out.set("min", std::move(min));
+    out.set("max", std::move(max));
+    out.set("size", std::move(size));
+    out.set("centre", std::move(centre));
+    return out;
+}
+
+bool has_solid(const TopoDS_Shape& shape)
+{
+    TopExp_Explorer solids(shape, TopAbs_SOLID);
+    return solids.More() == Standard_True;
+}
+
+/// What a caller has to be able to read to know they built a hammer and not an
+/// axe: where the shape is, how big it is, how much of it there is.
+json::Value shape_of(const Part::Feature& feature)
+{
+    const TopoDS_Shape& shape = feature.Shape.getValue();
+    if (shape.IsNull()) {
+        return json::Value();
+    }
+
+    const Box box = box_of(shape);
+    if (!box.valid) {
+        return json::Value();
+    }
+
+    json::Value out = box_json(box);
+
+    GProp_GProps area;
+    BRepGProp::SurfaceProperties(shape, area);
+    out.set("area", json::Value::number(measure(area.Mass())));
+
+    if (has_solid(shape)) {
+        GProp_GProps volume;
+        BRepGProp::VolumeProperties(shape, volume);
+        out.set("volume", json::Value::number(measure(volume.Mass())));
+
+        const gp_Pnt centre = volume.CentreOfMass();
+        out.set("centre_of_mass",
+                vector3(Base::Vector3d(centre.X(), centre.Y(), centre.Z())));
+        out.set("solid", json::Value::boolean(true));
+    }
+    else {
+        out.set("solid", json::Value::boolean(false));
+    }
+    return out;
+}
+
+/// The shapes that make up the model as a reader sees it: every body, plus any
+/// loose solid feature that no body owns. A pad inside a body is left out
+/// because the body already carries its result.
+std::vector<Part::Feature*> top_level_solids(App::Document& doc)
+{
+    std::vector<Part::Feature*> out;
+
+    for (PartDesign::Body* body : doc.getObjectsOfType<PartDesign::Body>()) {
+        if (!body->Shape.getValue().IsNull()) {
+            out.push_back(body);
+        }
+    }
+    for (Part::Feature* feature : doc.getObjectsOfType<Part::Feature>()) {
+        if (feature->isDerivedFrom(Part::Part2DObject::getClassTypeId()) ||
+            feature->isDerivedFrom(PartDesign::Body::getClassTypeId())) {
+            continue;
+        }
+        if (PartDesign::Body::findBodyOf(feature) != nullptr) {
+            continue;
+        }
+        if (feature->Shape.getValue().IsNull()) {
+            continue;
+        }
+        out.push_back(feature);
+    }
     return out;
 }
 
@@ -215,24 +464,122 @@ json::Value recompute_document(App::Document& doc)
 
 json::Value bounds_of(const Part::Feature& feature)
 {
-    const Base::BoundBox3d box = feature.Shape.getBoundingBox();
+    const Box box = box_of(feature.Shape.getValue());
 
     json::Value out = json::Value::object();
-    out.set("x", json::Value::number(box.LengthX()));
-    out.set("y", json::Value::number(box.LengthY()));
-    out.set("z", json::Value::number(box.LengthZ()));
+    out.set("x", json::Value::number(measure(box.max[0] - box.min[0])));
+    out.set("y", json::Value::number(measure(box.max[1] - box.min[1])));
+    out.set("z", json::Value::number(measure(box.max[2] - box.min[2])));
     return out;
 }
 
 json::Value document_summary(const App::Document& doc)
 {
     json::Value out = json::Value::object();
-    out.set("name", json::Value::string(doc.getName()));
+    // `document`, not `name`: every other verb echoes the document it acted on
+    // under that key, and `inspect` also carries an object list whose entries
+    // each have a `name` of their own.
+    out.set("document", json::Value::string(doc.getName()));
     out.set("label", json::Value::string(doc.Label.getValue()));
     const char* file = doc.getFileName();
     out.set("file", (file != nullptr && *file != '\0') ? json::Value::string(file) : json::Value());
     out.set("objects", json::Value::integer(static_cast<long long>(doc.getObjects().size())));
     return out;
+}
+
+/// Sketcher stores a name on the constraint itself and writes it into the
+/// saved file, so a dimension named here is still named after a round trip.
+void name_constraint(Sketcher::SketchObject& sketch, int index, const std::string& name)
+{
+    if (name.empty()) {
+        return;
+    }
+
+    const std::vector<Sketcher::Constraint*>& all = sketch.Constraints.getValues();
+    if (index < 0 || index >= static_cast<int>(all.size())) {
+        throw Error{"internal", "named a constraint that does not exist"};
+    }
+
+    std::vector<Sketcher::Constraint*> copy;
+    copy.reserve(all.size());
+    for (const Sketcher::Constraint* constraint : all) {
+        copy.push_back(constraint->clone());
+    }
+    copy[static_cast<std::size_t>(index)]->Name = name;
+    sketch.Constraints.setValues(std::move(copy));
+}
+
+void require_empty(Sketcher::SketchObject& sketch)
+{
+    if (!sketch.getInternalGeometry().empty()) {
+        throw Error{"sketch-not-empty",
+                    std::string("sketch ") + sketch.getNameInDocument() +
+                        " already has geometry"};
+    }
+}
+
+/// Pins one sketch point to the origin. A coincidence when the point lands on
+/// it, a pair of signed distances otherwise: both leave zero degrees of
+/// freedom, and the coincidence reads better in the constraint list.
+int pin_to_origin(Sketcher::SketchObject& sketch,
+                  int geo,
+                  PointPos pos,
+                  double x,
+                  double y,
+                  const std::string& name_x,
+                  const std::string& name_y)
+{
+    auto constrain = [&sketch](Sketcher::ConstraintType type,
+                               int first,
+                               PointPos first_pos,
+                               int second,
+                               PointPos second_pos,
+                               double value) {
+        Sketcher::Constraint constraint;
+        constraint.Type = type;
+        constraint.First = first;
+        constraint.FirstPos = first_pos;
+        constraint.Second = second;
+        constraint.SecondPos = second_pos;
+        constraint.setValue(value);
+        return sketch.addConstraint(&constraint);
+    };
+
+    if (measure(x) == 0.0 && measure(y) == 0.0 && name_x.empty() && name_y.empty()) {
+        return constrain(Sketcher::Coincident, geo, pos, kRootPoint, PointPos::start, 0.0);
+    }
+
+    const int placed_x =
+        constrain(Sketcher::DistanceX, kRootPoint, PointPos::start, geo, pos, x);
+    name_constraint(sketch, placed_x, name_x);
+    const int placed_y =
+        constrain(Sketcher::DistanceY, kRootPoint, PointPos::start, geo, pos, y);
+    name_constraint(sketch, placed_y, name_y);
+    return placed_y;
+}
+
+/// Both sketch primitives answer the same way, so a caller reads dof and
+/// constraint count off whichever one it drew.
+void append_sketch_detail(json::Value& out, Sketcher::SketchObject& sketch)
+{
+    const json::Value detail = sketch_detail(sketch);
+    for (const char* field :
+         {"plane", "geometry", "constraints", "dof", "fully_constrained", "redundant"}) {
+        const json::Value* value = detail.find(field);
+        if (value != nullptr) {
+            out.set(field, *value);
+        }
+    }
+}
+
+PartDesign::FeatureExtrude& extrude_for(App::Document& doc,
+                                        const std::string& name,
+                                        const std::string& kind)
+{
+    if (kind == "pocket") {
+        return object_for<PartDesign::Pocket>(doc, name, "pocket");
+    }
+    return object_for<PartDesign::Pad>(doc, name, "pad");
 }
 
 }  // namespace
@@ -267,12 +614,34 @@ json::Value Session::status() const
         previews.push(std::move(entry));
     }
 
+    json::Value unsaved = json::Value::array();
+    for (const std::string& name : unsaved_documents()) {
+        unsaved.push(json::Value::string(name));
+    }
+
+    json::Value idle = json::Value::object();
+    idle.set("timeout", json::Value::integer(idle_timeout_));
+    idle.set("blocked", json::Value::boolean(!unsaved_documents().empty()));
+
     json::Value out = json::Value::object();
     out.set("mode", json::Value::string(gui::active() ? "gui" : "headless"));
     out.set("freecad", std::move(freecad));
     out.set("active", active != nullptr ? json::Value::string(active->getName()) : json::Value());
     out.set("documents", std::move(documents));
     out.set("previews", std::move(previews));
+    out.set("unsaved", std::move(unsaved));
+    out.set("idle", std::move(idle));
+    return out;
+}
+
+std::vector<std::string> Session::unsaved_documents() const
+{
+    std::vector<std::string> out;
+    for (const std::string& name : unsaved_) {
+        if (App::GetApplication().getDocument(name.c_str()) != nullptr) {
+            out.push_back(name);
+        }
+    }
     return out;
 }
 
@@ -312,6 +681,8 @@ json::Value Session::new_body(const std::string& document, const std::string& na
         throw Error{"body-failed", "FreeCAD refused to create a PartDesign::Body"};
     }
 
+    mark_changed(doc.getName());
+
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
     out.set("body", json::Value::string(body->getNameInDocument()));
@@ -319,21 +690,18 @@ json::Value Session::new_body(const std::string& document, const std::string& na
     return out;
 }
 
-json::Value Session::new_sketch(const std::string& document,
-                                const std::string& body,
-                                const std::string& plane,
-                                const std::string& name)
+json::Value Session::new_sketch(const SketchTarget& target)
 {
-    App::Document& doc = document_for(document);
-    PartDesign::Body& target = object_for<PartDesign::Body>(doc, body, "body");
+    App::Document& doc = document_for(target.document);
+    PartDesign::Body& body = object_for<PartDesign::Body>(doc, target.body, "body");
 
-    App::Origin* origin = target.getOrigin();
+    App::Origin* origin = body.getOrigin();
     if (origin == nullptr) {
-        throw Error{"no-origin", std::string("body ") + target.getNameInDocument() +
+        throw Error{"no-origin", std::string("body ") + body.getNameInDocument() +
                                      " has no origin planes"};
     }
 
-    const std::string wanted_plane = plane.empty() ? std::string("xy") : plane;
+    const std::string wanted_plane = target.plane.empty() ? std::string("xy") : target.plane;
     App::Plane* datum = nullptr;
     if (wanted_plane == "xy") {
         datum = origin->getXY();
@@ -351,7 +719,7 @@ json::Value Session::new_sketch(const std::string& document,
         throw Error{"no-origin", "origin plane " + wanted_plane + " is missing"};
     }
 
-    const std::string wanted = name.empty() ? std::string("Sketch") : name;
+    const std::string wanted = target.name.empty() ? std::string("Sketch") : target.name;
     auto* sketch = static_cast<Sketcher::SketchObject*>(
         doc.addObject("Sketcher::SketchObject", wanted.c_str()));
     if (sketch == nullptr) {
@@ -360,44 +728,63 @@ json::Value Session::new_sketch(const std::string& document,
 
     sketch->AttachmentSupport.setValue(datum, "");
     sketch->MapMode.setValue("FlatFace");
-    target.addObject(sketch);
+    // The offset is read in the plane's own axes: x and y slide the sketch
+    // inside the plane, z lifts it off, and the rotation spins it about its
+    // own normal. That is what makes a body placeable without a second body.
+    sketch->AttachmentOffset.setValue(
+        Base::Placement(Base::Vector3d(target.offset_x, target.offset_y, target.offset_z),
+                        Base::Rotation(Base::Vector3d(0.0, 0.0, 1.0),
+                                       target.rotate * M_PI / 180.0)));
+    body.addObject(sketch);
+
+    // The attachment engine only runs on execute, and the reported basis is
+    // worthless until it has.
+    sketch->recomputeFeature();
+    mark_changed(doc.getName());
+
+    json::Value offset = json::Value::object();
+    offset.set("x", json::Value::number(measure(target.offset_x)));
+    offset.set("y", json::Value::number(measure(target.offset_y)));
+    offset.set("z", json::Value::number(measure(target.offset_z)));
+    offset.set("rotate", json::Value::number(measure(target.rotate)));
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
-    out.set("body", json::Value::string(target.getNameInDocument()));
+    out.set("body", json::Value::string(body.getNameInDocument()));
     out.set("sketch", json::Value::string(sketch->getNameInDocument()));
     out.set("label", json::Value::string(sketch->Label.getValue()));
     out.set("plane", json::Value::string(datum->getNameInDocument()));
+    out.set("offset", std::move(offset));
+    out.set("basis", basis_of(*sketch));
     return out;
 }
 
-json::Value Session::rectangle(const std::string& document,
-                               const std::string& sketch,
-                               double width,
-                               double height)
+json::Value Session::rectangle(const RectangleTarget& target)
 {
-    if (!(width > 0.0) || !(height > 0.0)) {
+    if (!(target.width > 0.0) || !(target.height > 0.0)) {
         throw Error{"invalid-dimension", "width and height must be positive"};
     }
 
-    App::Document& doc = document_for(document);
-    Sketcher::SketchObject& target = object_for<Sketcher::SketchObject>(doc, sketch, "sketch");
-    if (!target.getInternalGeometry().empty()) {
-        throw Error{"sketch-not-empty",
-                    std::string("sketch ") + target.getNameInDocument() + " already has geometry"};
-    }
+    App::Document& doc = document_for(target.document);
+    Sketcher::SketchObject& sketch =
+        sketch_for(doc, target.sketch);
+    require_empty(sketch);
 
-    const Base::Vector3d corners[4] = {Base::Vector3d(0.0, 0.0, 0.0),
-                                       Base::Vector3d(width, 0.0, 0.0),
-                                       Base::Vector3d(width, height, 0.0),
-                                       Base::Vector3d(0.0, height, 0.0)};
+    const double left = target.centered ? target.x - target.width * 0.5 : target.x;
+    const double bottom = target.centered ? target.y - target.height * 0.5 : target.y;
+
+    const Base::Vector3d corners[4] = {
+        Base::Vector3d(left, bottom, 0.0),
+        Base::Vector3d(left + target.width, bottom, 0.0),
+        Base::Vector3d(left + target.width, bottom + target.height, 0.0),
+        Base::Vector3d(left, bottom + target.height, 0.0)};
     for (int i = 0; i < 4; ++i) {
         Part::GeomLineSegment line;
         line.setPoints(corners[i], corners[(i + 1) % 4]);
-        target.addGeometry(&line, false);
+        sketch.addGeometry(&line, false);
     }
 
-    auto constrain = [&target](Sketcher::ConstraintType type,
+    auto constrain = [&sketch](Sketcher::ConstraintType type,
                                int first,
                                PointPos first_pos,
                                int second,
@@ -410,7 +797,7 @@ json::Value Session::rectangle(const std::string& document,
         constraint.Second = second;
         constraint.SecondPos = second_pos;
         constraint.setValue(value);
-        target.addConstraint(&constraint);
+        return sketch.addConstraint(&constraint);
     };
 
     for (int i = 0; i < 4; ++i) {
@@ -420,123 +807,357 @@ json::Value Session::rectangle(const std::string& document,
     constrain(Sketcher::Horizontal, 2, PointPos::none, kGeoUndefined, PointPos::none, 0.0);
     constrain(Sketcher::Vertical, 1, PointPos::none, kGeoUndefined, PointPos::none, 0.0);
     constrain(Sketcher::Vertical, 3, PointPos::none, kGeoUndefined, PointPos::none, 0.0);
-    constrain(Sketcher::Coincident, 0, PointPos::start, kRootPoint, PointPos::start, 0.0);
-    constrain(Sketcher::DistanceX, 0, PointPos::start, 0, PointPos::end, width);
-    constrain(Sketcher::DistanceY, 1, PointPos::start, 1, PointPos::end, height);
 
-    mark_dirty(doc.getName());
+    if (target.centered) {
+        // Pinning a corner would centre the rectangle only until someone drives
+        // the width; a construction point the diagonal is symmetric about keeps
+        // it centred through every later `param set`.
+        Part::GeomPoint anchor(Base::Vector3d(target.x, target.y, 0.0));
+        const int spot = sketch.addGeometry(&anchor, true);
+        pin_to_origin(sketch, spot, PointPos::start, target.x, target.y, std::string(),
+                      std::string());
+
+        Sketcher::Constraint symmetric;
+        symmetric.Type = Sketcher::Symmetric;
+        symmetric.First = 0;
+        symmetric.FirstPos = PointPos::start;
+        symmetric.Second = 2;
+        symmetric.SecondPos = PointPos::start;
+        symmetric.Third = spot;
+        symmetric.ThirdPos = PointPos::start;
+        sketch.addConstraint(&symmetric);
+    }
+    else {
+        pin_to_origin(sketch, 0, PointPos::start, left, bottom, std::string(), std::string());
+    }
+
+    const int width_at =
+        constrain(Sketcher::DistanceX, 0, PointPos::start, 0, PointPos::end, target.width);
+    name_constraint(sketch, width_at, target.name_width);
+    const int height_at =
+        constrain(Sketcher::DistanceY, 1, PointPos::start, 1, PointPos::end, target.height);
+    name_constraint(sketch, height_at, target.name_height);
+
+    mark_changed(doc.getName());
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
-    out.set("sketch", json::Value::string(target.getNameInDocument()));
-    out.set("width", json::Value::number(width));
-    out.set("height", json::Value::number(height));
-    const json::Value detail = sketch_detail(target);
-    for (const char* field : {"geometry", "constraints", "dof", "fully_constrained", "redundant"}) {
-        const json::Value* value = detail.find(field);
-        if (value != nullptr) {
-            out.set(field, *value);
-        }
-    }
+    out.set("sketch", json::Value::string(sketch.getNameInDocument()));
+    out.set("width", json::Value::number(measure(target.width)));
+    out.set("height", json::Value::number(measure(target.height)));
+    out.set("centered", json::Value::boolean(target.centered));
+    out.set("corner", point(Base::Vector3d(left, bottom, 0.0)));
+    append_sketch_detail(out, sketch);
     return out;
 }
 
-json::Value Session::pad(const std::string& document,
-                         const std::string& body,
-                         const std::string& sketch,
-                         double length,
-                         bool midplane,
-                         bool reversed,
-                         const std::string& name)
+json::Value Session::circle(const CircleTarget& target)
 {
-    if (!(length > 0.0)) {
+    if (!(target.radius > 0.0)) {
+        throw Error{"invalid-dimension", "radius must be positive"};
+    }
+
+    App::Document& doc = document_for(target.document);
+    Sketcher::SketchObject& sketch =
+        sketch_for(doc, target.sketch);
+    require_empty(sketch);
+
+    Part::GeomCircle geometry;
+    geometry.setLocation(Base::Vector3d(target.x, target.y, 0.0));
+    geometry.setRadius(target.radius);
+    sketch.addGeometry(&geometry, false);
+
+    Sketcher::Constraint radius;
+    radius.Type = Sketcher::Radius;
+    radius.First = 0;
+    radius.FirstPos = PointPos::none;
+    radius.setValue(target.radius);
+    const int radius_at = sketch.addConstraint(&radius);
+    name_constraint(sketch, radius_at, target.name_radius);
+
+    pin_to_origin(sketch, 0, PointPos::mid, target.x, target.y, std::string(), std::string());
+
+    mark_changed(doc.getName());
+
+    json::Value out = json::Value::object();
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("sketch", json::Value::string(sketch.getNameInDocument()));
+    out.set("radius", json::Value::number(measure(target.radius)));
+    out.set("centre", point(Base::Vector3d(target.x, target.y, 0.0)));
+    append_sketch_detail(out, sketch);
+    return out;
+}
+
+namespace {
+
+/// Everything a pad and a pocket share: resolve the body and profile, refuse a
+/// profile that belongs elsewhere, then recompute and report the solid.
+struct ExtrudeParts
+{
+    App::Document* doc = nullptr;
+    PartDesign::Body* body = nullptr;
+    Sketcher::SketchObject* profile = nullptr;
+};
+
+ExtrudeParts resolve_extrude(const ExtrudeTarget& target)
+{
+    ExtrudeParts parts;
+    parts.doc = &document_for(target.document);
+    parts.body = &object_for<PartDesign::Body>(*parts.doc, target.body, "body");
+    parts.profile =
+        &sketch_for(*parts.doc, target.sketch, parts.body);
+
+    if (parts.profile->getInternalGeometry().empty()) {
+        throw Error{"empty-sketch",
+                    std::string("sketch ") + parts.profile->getNameInDocument() +
+                        " has no geometry"};
+    }
+    if (PartDesign::Body::findBodyOf(parts.profile) != parts.body) {
+        throw Error{"foreign-sketch",
+                    std::string("sketch ") + parts.profile->getNameInDocument() +
+                        " does not belong to " + parts.body->getNameInDocument()};
+    }
+    return parts;
+}
+
+}  // namespace
+
+json::Value Session::pad(const ExtrudeTarget& target)
+{
+    if (!(target.length > 0.0)) {
         throw Error{"invalid-dimension", "length must be positive"};
     }
 
-    App::Document& doc = document_for(document);
-    PartDesign::Body& target = object_for<PartDesign::Body>(doc, body, "body");
-    Sketcher::SketchObject& profile = object_for<Sketcher::SketchObject>(doc, sketch, "sketch");
+    const ExtrudeParts parts = resolve_extrude(target);
+    App::Document& doc = *parts.doc;
 
-    if (profile.getInternalGeometry().empty()) {
-        throw Error{"empty-sketch",
-                    std::string("sketch ") + profile.getNameInDocument() + " has no geometry"};
-    }
-    if (PartDesign::Body::findBodyOf(&profile) != &target) {
-        throw Error{"foreign-sketch",
-                    std::string("sketch ") + profile.getNameInDocument() + " does not belong to " +
-                        target.getNameInDocument()};
-    }
-
-    const std::string wanted = name.empty() ? std::string("Pad") : name;
+    const std::string wanted = target.name.empty() ? std::string("Pad") : target.name;
     auto* feature = static_cast<PartDesign::Pad*>(doc.addObject("PartDesign::Pad", wanted.c_str()));
     if (feature == nullptr) {
         throw Error{"pad-failed", "FreeCAD refused to create a PartDesign::Pad"};
     }
 
-    feature->Profile.setValue(&profile, std::vector<std::string>());
-    feature->Length.setValue(length);
+    feature->Profile.setValue(parts.profile, std::vector<std::string>());
+    feature->Length.setValue(target.length);
     // Midplane is deprecated in 1.1 and only forwards to SideType with a warning.
-    feature->SideType.setValue(midplane ? "Symmetric" : "One side");
-    feature->Reversed.setValue(reversed);
-    target.addObject(feature);
+    feature->SideType.setValue(target.midplane ? "Symmetric" : "One side");
+    feature->Reversed.setValue(target.reversed);
+    parts.body->addObject(feature);
 
     // What the GUI does after a pad: the profile is consumed by the solid, so
     // leaving it visible only draws edges inside the part.
-    profile.Visibility.setValue(false);
+    parts.profile->Visibility.setValue(false);
     feature->Visibility.setValue(true);
 
     json::Value recomputed = recompute_document(doc);
     const bool failed = recomputed.find("failed")->as_bool() == true;
     if (!failed) {
-        mark_dirty(doc.getName());
+        mark_changed(doc.getName());
         gui::fit_view();
     }
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
-    out.set("body", json::Value::string(target.getNameInDocument()));
-    out.set("sketch", json::Value::string(profile.getNameInDocument()));
+    out.set("body", json::Value::string(parts.body->getNameInDocument()));
+    out.set("sketch", json::Value::string(parts.profile->getNameInDocument()));
     out.set("pad", json::Value::string(feature->getNameInDocument()));
     out.set("label", json::Value::string(feature->Label.getValue()));
-    out.set("length", json::Value::number(feature->Length.getValue()));
-    out.set("midplane", json::Value::boolean(midplane));
-    out.set("reversed", json::Value::boolean(reversed));
+    out.set("length", json::Value::number(measure(feature->Length.getValue())));
+    out.set("midplane", json::Value::boolean(target.midplane));
+    out.set("reversed", json::Value::boolean(target.reversed));
     out.set("recompute", std::move(recomputed));
     if (!failed) {
-        out.set("solid", json::Value::boolean(!target.Shape.getValue().IsNull()));
-        out.set("bounds", bounds_of(target));
+        out.set("solid", json::Value::boolean(!parts.body->Shape.getValue().IsNull()));
+        out.set("bounds", bounds_of(*parts.body));
+        out.set("shape", shape_of(*parts.body));
     }
     return out;
 }
 
-json::Value Session::pad_length(const std::string& document,
-                                const std::string& pad,
-                                double length)
+json::Value Session::pocket(const ExtrudeTarget& target)
+{
+    if (!target.through_all && !(target.length > 0.0)) {
+        throw Error{"invalid-dimension", "length must be positive unless the pocket is through all"};
+    }
+    const ExtrudeParts parts = resolve_extrude(target);
+    App::Document& doc = *parts.doc;
+
+    if (parts.body->Shape.getValue().IsNull()) {
+        throw Error{"no-material",
+                    std::string("body ") + parts.body->getNameInDocument() +
+                        " has nothing to cut, pad something first"};
+    }
+
+    const std::string wanted = target.name.empty() ? std::string("Pocket") : target.name;
+    auto* feature =
+        static_cast<PartDesign::Pocket*>(doc.addObject("PartDesign::Pocket", wanted.c_str()));
+    if (feature == nullptr) {
+        throw Error{"pocket-failed", "FreeCAD refused to create a PartDesign::Pocket"};
+    }
+
+    feature->Profile.setValue(parts.profile, std::vector<std::string>());
+    feature->Type.setValue(target.through_all ? "ThroughAll" : "Length");
+    if (!target.through_all) {
+        feature->Length.setValue(target.length);
+    }
+    feature->SideType.setValue(target.midplane ? "Symmetric" : "One side");
+    feature->Reversed.setValue(target.reversed);
+    parts.body->addObject(feature);
+
+    parts.profile->Visibility.setValue(false);
+    feature->Visibility.setValue(true);
+
+    json::Value recomputed = recompute_document(doc);
+    const bool failed = recomputed.find("failed")->as_bool() == true;
+    if (!failed) {
+        mark_changed(doc.getName());
+        gui::fit_view();
+    }
+
+    json::Value out = json::Value::object();
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("body", json::Value::string(parts.body->getNameInDocument()));
+    out.set("sketch", json::Value::string(parts.profile->getNameInDocument()));
+    out.set("pocket", json::Value::string(feature->getNameInDocument()));
+    out.set("label", json::Value::string(feature->Label.getValue()));
+    out.set("length", json::Value::number(measure(feature->Length.getValue())));
+    out.set("through_all", json::Value::boolean(target.through_all));
+    out.set("midplane", json::Value::boolean(target.midplane));
+    out.set("reversed", json::Value::boolean(target.reversed));
+    out.set("recompute", std::move(recomputed));
+    if (!failed) {
+        out.set("solid", json::Value::boolean(!parts.body->Shape.getValue().IsNull()));
+        out.set("bounds", bounds_of(*parts.body));
+        out.set("shape", shape_of(*parts.body));
+    }
+    return out;
+}
+
+json::Value Session::extrude_length(const std::string& document,
+                                    const std::string& feature,
+                                    const std::string& kind,
+                                    double length)
 {
     if (!(length > 0.0)) {
         throw Error{"invalid-dimension", "length must be positive"};
     }
 
     App::Document& doc = document_for(document);
-    PartDesign::Pad& feature = object_for<PartDesign::Pad>(doc, pad, "pad");
-    const double previous = feature.Length.getValue();
-    feature.Length.setValue(length);
+    PartDesign::FeatureExtrude& extrude = extrude_for(doc, feature, kind);
+    const double previous = extrude.Length.getValue();
+    extrude.Length.setValue(length);
+    extrude.Type.setValue("Length");
 
     json::Value recomputed = recompute_document(doc);
     const bool failed = recomputed.find("failed")->as_bool() == true;
     if (!failed) {
-        mark_dirty(doc.getName());
+        mark_changed(doc.getName());
     }
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
-    out.set("pad", json::Value::string(feature.getNameInDocument()));
-    out.set("length", json::Value::number(feature.Length.getValue()));
-    out.set("previous", json::Value::number(previous));
+    out.set(kind == "pocket" ? "pocket" : "pad",
+            json::Value::string(extrude.getNameInDocument()));
+    out.set("length", json::Value::number(measure(extrude.Length.getValue())));
+    out.set("previous", json::Value::number(measure(previous)));
     out.set("recompute", std::move(recomputed));
     if (!failed) {
-        out.set("bounds", bounds_of(feature));
+        PartDesign::Body* body = PartDesign::Body::findBodyOf(&extrude);
+        const Part::Feature& reported = body != nullptr ? static_cast<Part::Feature&>(*body)
+                                                        : static_cast<Part::Feature&>(extrude);
+        out.set("bounds", bounds_of(reported));
+        out.set("shape", shape_of(reported));
     }
+    return out;
+}
+
+json::Value Session::parameters(const std::string& document) const
+{
+    App::Document& doc = document_for(document);
+
+    json::Value parameters = json::Value::array();
+    for (Sketcher::SketchObject* sketch : doc.getObjectsOfType<Sketcher::SketchObject>()) {
+        int index = 0;
+        for (const Sketcher::Constraint* constraint : sketch->Constraints.getValues()) {
+            const int at = index++;
+            if (constraint->Name.empty() || !constraint->isDimensional()) {
+                continue;
+            }
+            json::Value entry = json::Value::object();
+            entry.set("name", json::Value::string(constraint->Name));
+            entry.set("sketch", json::Value::string(sketch->getNameInDocument()));
+            entry.set("constraint", json::Value::integer(at));
+            entry.set("type", json::Value::string(constraint->typeToString()));
+            entry.set("value", json::Value::number(measure(constraint->getValue())));
+            entry.set("driving", json::Value::boolean(constraint->isDriving));
+            parameters.push(std::move(entry));
+        }
+    }
+
+    json::Value out = json::Value::object();
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("parameters", std::move(parameters));
+    return out;
+}
+
+json::Value Session::set_parameter(const std::string& document,
+                                   const std::string& name,
+                                   double value)
+{
+    if (name.empty()) {
+        throw Error{"missing-param", "a parameter name is required"};
+    }
+
+    App::Document& doc = document_for(document);
+
+    Sketcher::SketchObject* target = nullptr;
+    int at = -1;
+    int matches = 0;
+    for (Sketcher::SketchObject* sketch : doc.getObjectsOfType<Sketcher::SketchObject>()) {
+        int index = 0;
+        for (const Sketcher::Constraint* constraint : sketch->Constraints.getValues()) {
+            const int current = index++;
+            if (constraint->Name != name || !constraint->isDimensional()) {
+                continue;
+            }
+            ++matches;
+            target = sketch;
+            at = current;
+        }
+    }
+
+    if (matches == 0) {
+        throw Error{"unknown-parameter",
+                    "no named dimension " + name + " in " + doc.getName()};
+    }
+    if (matches > 1) {
+        throw Error{"ambiguous-parameter",
+                    std::to_string(matches) + " dimensions are named " + name + " in " +
+                        doc.getName()};
+    }
+
+    const double previous = target->Constraints.getValues()[static_cast<std::size_t>(at)]
+                                ->getValue();
+    if (target->setDatum(at, value) != 0) {
+        throw Error{"unsolvable",
+                    "the sketch does not solve with " + name + " set to " +
+                        std::to_string(value)};
+    }
+
+    json::Value recomputed = recompute_document(doc);
+    const bool failed = recomputed.find("failed")->as_bool() == true;
+    if (!failed) {
+        mark_changed(doc.getName());
+    }
+
+    json::Value out = json::Value::object();
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("name", json::Value::string(name));
+    out.set("sketch", json::Value::string(target->getNameInDocument()));
+    out.set("value", json::Value::number(measure(value)));
+    out.set("previous", json::Value::number(measure(previous)));
+    out.set("dof", json::Value::integer(target->getLastDoF()));
+    out.set("recompute", std::move(recomputed));
     return out;
 }
 
@@ -576,6 +1197,94 @@ json::Value Session::preview(const PreviewRequest& request)
     out.set("deflection", json::Value::number(request.tessellation.deflection));
     out.set("angular", json::Value::number(request.tessellation.angular));
     out.set("follow", json::Value::boolean(request.follow));
+    return out;
+}
+
+json::Value Session::render(const RenderTarget& target)
+{
+    App::Document& doc = document_for(target.document);
+
+    std::vector<Part::Feature*> drawn;
+    if (target.object.empty()) {
+        drawn = top_level_solids(doc);
+        if (drawn.empty()) {
+            throw Error{"unknown-shape",
+                        std::string("document ") + doc.getName() + " has no shape"};
+        }
+    }
+    else {
+        drawn.push_back(&preview_target(doc, target.object));
+    }
+
+    std::vector<Facet> facets;
+    Box box;
+    for (Part::Feature* feature : drawn) {
+        const TopoDS_Shape& shape = feature->Shape.getValue();
+        if (shape.IsNull()) {
+            continue;
+        }
+        try {
+            const std::vector<Facet> part = tessellate(shape, target.tessellation);
+            facets.insert(facets.end(), part.begin(), part.end());
+        }
+        catch (const std::exception& error) {
+            throw Error{"render-failed", error.what()};
+        }
+        box.absorb(box_of(shape));
+    }
+    if (facets.empty()) {
+        throw Error{"unknown-shape", "nothing in the document has a shape to draw"};
+    }
+
+    const std::string path = target.path.empty()
+                                 ? paths::preview_dir() + "/" + doc.getName() + "-" +
+                                       target.view + ".png"
+                                 : target.path;
+    paths::ensure_parent(path);
+
+    RenderRequest request;
+    request.view = target.view;
+    request.width = target.width;
+    request.height = target.height;
+
+    RenderStats stats{};
+    try {
+        stats = write_png(facets, path, request);
+    }
+    catch (const std::exception& error) {
+        throw Error{"render-failed", error.what()};
+    }
+
+    json::Value objects = json::Value::array();
+    for (const Part::Feature* feature : drawn) {
+        objects.push(json::Value::string(feature->getNameInDocument()));
+    }
+
+    json::Value camera = json::Value::object();
+    camera.set("forward", vector3(stats.view.forward));
+    camera.set("right", vector3(stats.view.right));
+    camera.set("up", vector3(stats.view.up));
+
+    json::Value axes = json::Value::object();
+    axes.set("x", json::Value::string("red"));
+    axes.set("y", json::Value::string("green"));
+    axes.set("z", json::Value::string("blue"));
+
+    json::Value out = json::Value::object();
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("objects", std::move(objects));
+    out.set("path", json::Value::string(path));
+    out.set("view", json::Value::string(target.view));
+    out.set("width", json::Value::integer(stats.width));
+    out.set("height", json::Value::integer(stats.height));
+    out.set("triangles", json::Value::integer(stats.triangles));
+    out.set("bytes", json::Value::integer(stats.bytes));
+    out.set("mm_per_pixel", json::Value::number(stats.mm_per_pixel));
+    out.set("camera", std::move(camera));
+    out.set("triad", std::move(axes));
+    if (box.valid) {
+        out.set("bbox", box_json(box));
+    }
     return out;
 }
 
@@ -622,6 +1331,12 @@ void Session::mark_dirty(const std::string& document)
     }
 }
 
+void Session::mark_changed(const std::string& document)
+{
+    mark_dirty(document);
+    unsaved_.insert(document);
+}
+
 json::Value Session::recompute(const std::string& document)
 {
     App::Document& doc = document_for(document);
@@ -651,6 +1366,7 @@ json::Value Session::save(const std::string& document, const std::string& path)
     if (!saved) {
         throw Error{"save-failed", std::string("FreeCAD could not save ") + doc.getName()};
     }
+    unsaved_.erase(doc.getName());
     return document_summary(doc);
 }
 
@@ -667,11 +1383,34 @@ json::Value Session::inspect(const std::string& document) const
         if (auto* sketch = dynamic_cast<Sketcher::SketchObject*>(object)) {
             entry.set("sketch", sketch_detail(*sketch));
         }
+        else if (auto* feature = dynamic_cast<Part::Feature*>(object)) {
+            json::Value shape = shape_of(*feature);
+            if (!shape.is_null()) {
+                entry.set("shape", std::move(shape));
+            }
+        }
         objects.push(std::move(entry));
+    }
+
+    // The model as a reader sees it: one box, one volume, so a layout can be
+    // checked numerically without opening anything.
+    json::Value solids = json::Value::array();
+    Box overall;
+    for (Part::Feature* feature : top_level_solids(doc)) {
+        json::Value entry = json::Value::object();
+        entry.set("name", json::Value::string(feature->getNameInDocument()));
+        entry.set("type", json::Value::string(feature->getTypeId().getName()));
+        entry.set("shape", shape_of(*feature));
+        solids.push(std::move(entry));
+        overall.absorb(box_of(feature->Shape.getValue()));
     }
 
     json::Value out = document_summary(doc);
     out.set("objects", std::move(objects));
+    out.set("solids", std::move(solids));
+    if (overall.valid) {
+        out.set("bbox", box_json(overall));
+    }
     return out;
 }
 

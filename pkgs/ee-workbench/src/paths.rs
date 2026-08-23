@@ -1,6 +1,8 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use anyhow::{Context, Result};
+
 pub const APP: &str = "ee-workbench";
 
 /// Escape hatch for tests and for a second workbench on the same machine.
@@ -18,6 +20,26 @@ fn home() -> PathBuf {
     non_empty("HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// A path as the caller meant it, from wherever they typed it. The CAD server
+/// is a daemon whose working directory is whatever the first `ee` happened to
+/// be started from, so a relative path has to be resolved here or the file
+/// lands somewhere nobody asked for. `std::path::absolute` and not
+/// `canonicalize`: save, export and render all name files that do not exist yet.
+pub fn absolute(input: &str) -> Result<PathBuf> {
+    let expanded = match input.strip_prefix('~') {
+        Some("") => home(),
+        Some(rest) => match rest.strip_prefix('/') {
+            Some(rest) => home().join(rest),
+            // `~user` is a shell feature this does not implement, and guessing
+            // at another account's home would be worse than leaving it alone.
+            None => PathBuf::from(input),
+        },
+        None => PathBuf::from(input),
+    };
+
+    std::path::absolute(&expanded).with_context(|| format!("resolving {}", expanded.display()))
 }
 
 fn xdg(var: &str, fallback: &str) -> PathBuf {
@@ -77,4 +99,23 @@ pub fn cad_socket() -> PathBuf {
 
 pub fn checkouts_file() -> PathBuf {
     state_dir().join("checkouts.toml")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_path_is_resolved_against_the_client() {
+        unsafe { std::env::set_var("HOME", "/home/tester") };
+
+        assert_eq!(absolute("~/out.png").unwrap(), PathBuf::from("/home/tester/out.png"));
+        assert_eq!(absolute("~").unwrap(), PathBuf::from("/home/tester"));
+        assert_eq!(absolute("/tmp/out.png").unwrap(), PathBuf::from("/tmp/out.png"));
+        assert!(absolute("~other/out.png").unwrap().is_absolute());
+
+        let here = std::env::current_dir().unwrap();
+        assert_eq!(absolute("out.png").unwrap(), here.join("out.png"));
+        assert_eq!(absolute("./sub/out.png").unwrap(), here.join("sub/out.png"));
+    }
 }

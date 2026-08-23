@@ -10,7 +10,7 @@ namespace ee {
 
 /// Wire version. Bump whenever a method's request or reply shape changes in a
 /// way an older `ee` binary would misread.
-constexpr long long kProtocol = 3;
+constexpr long long kProtocol = 4;
 
 /// A refusal that no method produced: too long a line, a connection the
 /// transport is giving up on. Same envelope as any other reply.
@@ -39,6 +39,18 @@ public:
     {
         return stopping_;
     }
+
+    /// Reported back through `session.status` so a caller can see how long it
+    /// has before the server goes away.
+    void set_idle_timeout(long long seconds)
+    {
+        session_.set_idle_timeout(seconds);
+    }
+
+    /// True while a document holds geometry nobody saved. The idle timeout
+    /// refuses to fire on this: an unattended exit that drops work is worse
+    /// than a FreeCAD process that outstays its welcome.
+    bool has_unsaved() const;
 
 private:
     json::Value dispatch(const std::string& method, const json::Value* params);

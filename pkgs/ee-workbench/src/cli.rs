@@ -265,10 +265,16 @@ pub enum MeasurementCommand {
 
 #[derive(Subcommand)]
 pub enum MechanicalCommand {
-    /// Report the CAD socket and what the FreeCAD session holds
+    /// Report the CAD socket and what the FreeCAD session holds. Never starts
+    /// one: it is the probe every other verb is allowed to act on.
     Status {
         #[command(flatten)]
         format: Format,
+    },
+    /// Start or stop the FreeCAD session explicitly
+    Session {
+        #[command(subcommand)]
+        command: SessionCommand,
     },
     /// Documents in the running FreeCAD session
     Document {
@@ -290,10 +296,37 @@ pub enum MechanicalCommand {
         #[command(subcommand)]
         command: PadCommand,
     },
-    /// Export the printable mesh a viewer can follow
+    /// Pockets: the material a sketch removes
+    Pocket {
+        #[command(subcommand)]
+        command: PocketCommand,
+    },
+    /// Named dimensions, readable and settable after the fact
+    Param {
+        #[command(subcommand)]
+        command: ParamCommand,
+    },
+    /// Export the printable mesh, or render a picture of the model
     Preview {
         #[command(subcommand)]
         command: PreviewCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum SessionCommand {
+    /// Start ee-freecad-server if nothing is listening, and wait for it
+    Start {
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Ask the session to exit. Refuses while a document is unsaved.
+    Stop {
+        /// Exit anyway, discarding unsaved documents
+        #[arg(long)]
+        force: bool,
+        #[command(flatten)]
+        format: Format,
     },
 }
 
@@ -308,7 +341,8 @@ pub enum DocumentCommand {
     },
     /// Open an existing .FCStd and make it active
     Open {
-        path: String,
+        #[command(flatten)]
+        path: OpenPath,
         #[command(flatten)]
         format: Format,
     },
@@ -337,6 +371,24 @@ pub enum DocumentCommand {
     },
 }
 
+/// `document open x.FCStd` and `document open --path x.FCStd` name the same
+/// file. Save, export and render all spell it as a flag, and an agent writing
+/// a script should not have to remember which verb is the odd one out.
+#[derive(Args)]
+#[group(required = true, multiple = false)]
+pub struct OpenPath {
+    #[arg(value_name = "PATH")]
+    positional: Option<String>,
+    #[arg(long = "path", value_name = "PATH")]
+    flag: Option<String>,
+}
+
+impl OpenPath {
+    pub fn get(self) -> Option<String> {
+        self.positional.or(self.flag)
+    }
+}
+
 #[derive(Subcommand)]
 pub enum BodyCommand {
     /// Create a PartDesign body with its origin planes
@@ -352,7 +404,7 @@ pub enum BodyCommand {
 
 #[derive(Subcommand)]
 pub enum SketchCommand {
-    /// Create a sketch attached to one of the body's origin planes
+    /// Create a sketch on one of the body's origin planes, optionally offset
     New {
         #[arg(long)]
         document: Option<String>,
@@ -363,10 +415,22 @@ pub enum SketchCommand {
         plane: String,
         #[arg(long)]
         name: Option<String>,
+        /// Slide the sketch along the plane's own first axis, in millimetres
+        #[arg(long, allow_negative_numbers = true)]
+        offset_x: Option<f64>,
+        /// Slide the sketch along the plane's own second axis
+        #[arg(long, allow_negative_numbers = true)]
+        offset_y: Option<f64>,
+        /// Lift the sketch off the plane, along its normal
+        #[arg(long, allow_negative_numbers = true)]
+        offset_z: Option<f64>,
+        /// Spin the sketch about its own normal, in degrees
+        #[arg(long, allow_negative_numbers = true)]
+        rotate: Option<f64>,
         #[command(flatten)]
         format: Format,
     },
-    /// Draw a fully constrained rectangle from the sketch origin
+    /// Draw a fully constrained rectangle
     Rectangle {
         #[arg(long)]
         width: f64,
@@ -374,8 +438,43 @@ pub enum SketchCommand {
         height: f64,
         #[arg(long)]
         document: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
         #[arg(long)]
         sketch: Option<String>,
+        /// Sketch-plane coordinate of the reference point, default 0
+        #[arg(long, allow_negative_numbers = true)]
+        x: Option<f64>,
+        #[arg(long, allow_negative_numbers = true)]
+        y: Option<f64>,
+        /// Treat --x/--y as the centre instead of the lower left corner
+        #[arg(long)]
+        centered: bool,
+        /// Name the width dimension so `param set` can drive it later
+        #[arg(long)]
+        name_width: Option<String>,
+        /// Name the height dimension
+        #[arg(long)]
+        name_height: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Draw a fully constrained circle
+    Circle {
+        #[arg(long)]
+        radius: f64,
+        #[arg(long)]
+        document: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
+        /// Sketch-plane coordinate of the centre, default 0
+        #[arg(long, allow_negative_numbers = true)]
+        x: Option<f64>,
+        #[arg(long, allow_negative_numbers = true)]
+        y: Option<f64>,
+        /// Name the radius dimension
+        #[arg(long)]
+        name_radius: Option<String>,
         #[command(flatten)]
         format: Format,
     },
@@ -391,6 +490,7 @@ pub enum PadCommand {
         document: Option<String>,
         #[arg(long)]
         body: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
         #[arg(long)]
         sketch: Option<String>,
         /// Grow symmetrically about the sketch plane
@@ -418,6 +518,67 @@ pub enum PadCommand {
 }
 
 #[derive(Subcommand)]
+pub enum PocketCommand {
+    /// Cut a sketch into the body's existing material
+    New {
+        /// Depth of the cut; ignored with --through-all
+        #[arg(long, default_value_t = 0.0)]
+        length: f64,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
+        /// Cut all the way through whatever is in the way
+        #[arg(long)]
+        through_all: bool,
+        /// Cut symmetrically about the sketch plane
+        #[arg(long)]
+        midplane: bool,
+        /// Cut along the sketch normal instead of against it
+        #[arg(long)]
+        reversed: bool,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Change the depth of an existing pocket and recompute
+    Length {
+        #[arg(long)]
+        length: f64,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        pocket: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ParamCommand {
+    /// Every named dimension in the document and its current value
+    List {
+        #[arg(long)]
+        document: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Drive a named dimension to a new value and recompute
+    Set {
+        name: String,
+        value: f64,
+        #[arg(long)]
+        document: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum PreviewCommand {
     /// Tessellate the solid to STL and keep it in step with later edits
     Export {
@@ -438,6 +599,29 @@ pub enum PreviewCommand {
         /// Stop re-exporting this document after every successful recompute
         #[arg(long)]
         once: bool,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Rasterize the model to a PNG, offscreen, with no GUI involved
+    Render {
+        #[arg(long)]
+        document: Option<String>,
+        /// Object to draw; defaults to every top level solid
+        #[arg(long)]
+        object: Option<String>,
+        /// Defaults to $XDG_CACHE_HOME/ee-workbench/preview/<document>-<view>.png
+        #[arg(long)]
+        path: Option<String>,
+        /// iso, front, back, left, right, top or bottom
+        #[arg(long, default_value = "iso")]
+        view: String,
+        #[arg(long)]
+        width: Option<u32>,
+        #[arg(long)]
+        height: Option<u32>,
+        /// Maximum linear deviation of the mesh, in millimetres
+        #[arg(long)]
+        deflection: Option<f64>,
         #[command(flatten)]
         format: Format,
     },

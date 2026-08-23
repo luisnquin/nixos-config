@@ -28,6 +28,21 @@ std::string string_param(const json::Value* params, const char* name)
     return *text;
 }
 
+/// Absolute only. This process is a daemon whose working directory is whichever
+/// one the `ee` that happened to start it was run from, and it outlives that
+/// shell; a relative path here would write a file somewhere the caller never
+/// named. The client resolves before sending, so anything relative reaching
+/// this point is a caller that skipped it.
+std::string path_param(const json::Value* params, const char* name)
+{
+    std::string path = string_param(params, name);
+    if (!path.empty() && path.front() != '/') {
+        throw Error{"invalid-param",
+                    std::string(name) + " must be absolute, got " + path};
+    }
+    return path;
+}
+
 double required_number(const json::Value* params, const char* name)
 {
     const json::Value* value = field(params, name);
@@ -48,6 +63,19 @@ double number_param(const json::Value* params, const char* name, double fallback
         return fallback;
     }
     return required_number(params, name);
+}
+
+long long integer_param(const json::Value* params, const char* name, long long fallback)
+{
+    const json::Value* value = field(params, name);
+    if (value == nullptr || value->is_null()) {
+        return fallback;
+    }
+    const std::optional<long long> number = value->as_integer();
+    if (!number.has_value()) {
+        throw Error{"invalid-param", std::string(name) + " must be an integer"};
+    }
+    return *number;
 }
 
 bool bool_param(const json::Value* params, const char* name, bool fallback)
@@ -167,6 +195,12 @@ bool Protocol::handle_line(const std::string& line, std::string& reply)
     return true;
 }
 
+bool Protocol::has_unsaved() const
+{
+    Base::PyGILStateLocker lock;
+    return !session_.unsaved_documents().empty();
+}
+
 void Protocol::refresh_previews()
 {
     Base::PyGILStateLocker lock;
@@ -186,13 +220,13 @@ json::Value Protocol::dispatch(const std::string& method, const json::Value* par
         return session_.new_document(string_param(params, "name"));
     }
     if (method == "document.open") {
-        return session_.open_document(string_param(params, "path"));
+        return session_.open_document(path_param(params, "path"));
     }
     if (method == "document.recompute") {
         return session_.recompute(string_param(params, "document"));
     }
     if (method == "document.save") {
-        return session_.save(string_param(params, "document"), string_param(params, "path"));
+        return session_.save(string_param(params, "document"), path_param(params, "path"));
     }
     if (method == "document.inspect") {
         return session_.inspect(string_param(params, "document"));
@@ -201,42 +235,97 @@ json::Value Protocol::dispatch(const std::string& method, const json::Value* par
         return session_.new_body(string_param(params, "document"), string_param(params, "name"));
     }
     if (method == "sketch.new") {
-        return session_.new_sketch(string_param(params, "document"),
-                                   string_param(params, "body"),
-                                   string_param(params, "plane"),
-                                   string_param(params, "name"));
+        SketchTarget target;
+        target.document = string_param(params, "document");
+        target.body = string_param(params, "body");
+        target.plane = string_param(params, "plane");
+        target.name = string_param(params, "name");
+        target.offset_x = number_param(params, "offset_x", 0.0);
+        target.offset_y = number_param(params, "offset_y", 0.0);
+        target.offset_z = number_param(params, "offset_z", 0.0);
+        target.rotate = number_param(params, "rotate", 0.0);
+        return session_.new_sketch(target);
     }
     if (method == "sketch.rectangle") {
-        return session_.rectangle(string_param(params, "document"),
-                                  string_param(params, "sketch"),
-                                  required_number(params, "width"),
-                                  required_number(params, "height"));
+        RectangleTarget target;
+        target.document = string_param(params, "document");
+        target.sketch = string_param(params, "sketch");
+        target.width = required_number(params, "width");
+        target.height = required_number(params, "height");
+        target.x = number_param(params, "x", 0.0);
+        target.y = number_param(params, "y", 0.0);
+        target.centered = bool_param(params, "centered", false);
+        target.name_width = string_param(params, "name_width");
+        target.name_height = string_param(params, "name_height");
+        return session_.rectangle(target);
     }
-    if (method == "pad.new") {
-        return session_.pad(string_param(params, "document"),
-                            string_param(params, "body"),
-                            string_param(params, "sketch"),
-                            required_number(params, "length"),
-                            bool_param(params, "midplane", false),
-                            bool_param(params, "reversed", false),
-                            string_param(params, "name"));
+    if (method == "sketch.circle") {
+        CircleTarget target;
+        target.document = string_param(params, "document");
+        target.sketch = string_param(params, "sketch");
+        target.radius = required_number(params, "radius");
+        target.x = number_param(params, "x", 0.0);
+        target.y = number_param(params, "y", 0.0);
+        target.name_radius = string_param(params, "name_radius");
+        return session_.circle(target);
     }
-    if (method == "pad.length") {
-        return session_.pad_length(string_param(params, "document"),
-                                   string_param(params, "pad"),
-                                   required_number(params, "length"));
+    if (method == "pad.new" || method == "pocket.new") {
+        const bool cutting = method == "pocket.new";
+        ExtrudeTarget target;
+        target.document = string_param(params, "document");
+        target.body = string_param(params, "body");
+        target.sketch = string_param(params, "sketch");
+        target.name = string_param(params, "name");
+        target.through_all = cutting && bool_param(params, "through_all", false);
+        target.length = target.through_all ? number_param(params, "length", 0.0)
+                                           : required_number(params, "length");
+        target.midplane = bool_param(params, "midplane", false);
+        target.reversed = bool_param(params, "reversed", false);
+        return cutting ? session_.pocket(target) : session_.pad(target);
+    }
+    if (method == "pad.length" || method == "pocket.length") {
+        const bool cutting = method == "pocket.length";
+        return session_.extrude_length(string_param(params, "document"),
+                                       string_param(params, cutting ? "pocket" : "pad"),
+                                       cutting ? "pocket" : "pad",
+                                       required_number(params, "length"));
+    }
+    if (method == "param.list") {
+        return session_.parameters(string_param(params, "document"));
+    }
+    if (method == "param.set") {
+        return session_.set_parameter(string_param(params, "document"),
+                                      string_param(params, "name"),
+                                      required_number(params, "value"));
     }
     if (method == "preview.export") {
         PreviewRequest request;
         request.document = string_param(params, "document");
         request.object = string_param(params, "object");
-        request.path = string_param(params, "path");
+        request.path = path_param(params, "path");
         request.tessellation.deflection =
             number_param(params, "deflection", request.tessellation.deflection);
         request.tessellation.angular =
             number_param(params, "angular", request.tessellation.angular);
         request.follow = bool_param(params, "follow", true);
         return session_.preview(request);
+    }
+    if (method == "preview.render") {
+        RenderTarget target;
+        target.document = string_param(params, "document");
+        target.object = string_param(params, "object");
+        target.path = path_param(params, "path");
+        const std::string view = string_param(params, "view");
+        if (!view.empty()) {
+            target.view = view;
+        }
+        target.width = static_cast<int>(integer_param(params, "width", target.width));
+        target.height = static_cast<int>(integer_param(params, "height", target.height));
+        target.tessellation.deflection =
+            number_param(params, "deflection", target.tessellation.deflection);
+        target.tessellation.angular =
+            number_param(params, "angular", target.tessellation.angular);
+        return session_.render(target);
     }
     throw Error{"unknown-method", "no method named " + method};
 }

@@ -1,7 +1,6 @@
 #include "ee/mesh.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -45,18 +44,16 @@ void put_float(std::string& out, double value)
     put_u32(out, bits);
 }
 
-void put_point(std::string& out, const gp_Pnt& point)
+void put_vec3(std::string& out, const Vec3& value)
 {
-    put_float(out, point.X());
-    put_float(out, point.Y());
-    put_float(out, point.Z());
+    put_float(out, value.x);
+    put_float(out, value.y);
+    put_float(out, value.z);
 }
 
 }  // namespace
 
-MeshStats write_binary_stl(const TopoDS_Shape& shape,
-                           const std::string& path,
-                           const Tessellation& tessellation)
+std::vector<Facet> tessellate(const TopoDS_Shape& shape, const Tessellation& tessellation)
 {
     if (shape.IsNull()) {
         throw std::runtime_error("shape is empty");
@@ -74,8 +71,7 @@ MeshStats write_binary_stl(const TopoDS_Shape& shape,
                                     Standard_True);
     mesher.Perform();
 
-    std::string body;
-    std::uint32_t triangles = 0;
+    std::vector<Facet> facets;
 
     for (TopExp_Explorer faces(shape, TopAbs_FACE); faces.More(); faces.Next()) {
         const TopoDS_Face& face = TopoDS::Face(faces.Current());
@@ -112,35 +108,30 @@ MeshStats write_binary_stl(const TopoDS_Shape& shape,
                 normal = gp_Vec(0.0, 0.0, 0.0);
             }
 
-            put_float(body, normal.X());
-            put_float(body, normal.Y());
-            put_float(body, normal.Z());
-            put_point(body, first);
-            put_point(body, second);
-            put_point(body, third);
-            body.push_back('\0');
-            body.push_back('\0');
-            ++triangles;
+            Facet facet;
+            facet.vertex[0] = Vec3{first.X(), first.Y(), first.Z()};
+            facet.vertex[1] = Vec3{second.X(), second.Y(), second.Z()};
+            facet.vertex[2] = Vec3{third.X(), third.Y(), third.Z()};
+            facet.normal = Vec3{normal.X(), normal.Y(), normal.Z()};
+            facets.push_back(facet);
         }
     }
 
-    if (triangles == 0) {
+    if (facets.empty()) {
         throw std::runtime_error("tessellation produced no triangles");
     }
+    return facets;
+}
 
-    std::string out(80, '\0');
-    const std::string banner = "ee-workbench binary STL";
-    std::memcpy(out.data(), banner.data(), banner.size());
-    put_u32(out, triangles);
-    out += body;
-
+void write_atomically(const std::string& path, const std::string& bytes)
+{
     const std::string temporary = path + ".partial";
     {
         std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
         if (!file) {
             throw std::system_error(errno, std::generic_category(), "open " + temporary);
         }
-        file.write(out.data(), static_cast<std::streamsize>(out.size()));
+        file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
         file.close();
         if (!file) {
             throw std::system_error(errno, std::generic_category(), "write " + temporary);
@@ -151,8 +142,32 @@ MeshStats write_binary_stl(const TopoDS_Shape& shape,
         std::remove(temporary.c_str());
         throw std::system_error(failure, std::generic_category(), "rename onto " + path);
     }
+}
 
-    return MeshStats{static_cast<long long>(triangles), static_cast<long long>(out.size())};
+MeshStats write_binary_stl(const TopoDS_Shape& shape,
+                           const std::string& path,
+                           const Tessellation& tessellation)
+{
+    const std::vector<Facet> facets = tessellate(shape, tessellation);
+
+    std::string out(80, '\0');
+    const std::string banner = "ee-workbench binary STL";
+    std::memcpy(out.data(), banner.data(), banner.size());
+    put_u32(out, static_cast<std::uint32_t>(facets.size()));
+
+    for (const Facet& facet : facets) {
+        put_vec3(out, facet.normal);
+        put_vec3(out, facet.vertex[0]);
+        put_vec3(out, facet.vertex[1]);
+        put_vec3(out, facet.vertex[2]);
+        out.push_back('\0');
+        out.push_back('\0');
+    }
+
+    write_atomically(path, out);
+
+    return MeshStats{static_cast<long long>(facets.size()),
+                     static_cast<long long>(out.size())};
 }
 
 }  // namespace ee
