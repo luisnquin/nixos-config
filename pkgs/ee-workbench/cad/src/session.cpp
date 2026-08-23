@@ -39,6 +39,7 @@
 #include "ee/gui.hpp"
 #include "ee/mesh.hpp"
 #include "ee/paths.hpp"
+#include "ee/protocol.hpp"
 #include "ee/render.hpp"
 
 namespace ee {
@@ -625,6 +626,7 @@ json::Value Session::status() const
 
     json::Value out = json::Value::object();
     out.set("mode", json::Value::string(gui::active() ? "gui" : "headless"));
+    out.set("build", json::Value::string(build_id()));
     out.set("freecad", std::move(freecad));
     out.set("active", active != nullptr ? json::Value::string(active->getName()) : json::Value());
     out.set("documents", std::move(documents));

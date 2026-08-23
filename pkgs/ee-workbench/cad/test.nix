@@ -244,6 +244,31 @@ runCommand "ee-freecad-slice-test" {
   socket final
   unset EE_WORKBENCH_CAD_IDLE
   ee mechanical document open "$TMPDIR/keep.FCStd" --json | jq -e '.document == "keep"' >/dev/null
+
+  # The whole pairing in one assertion: `ee` is the wrapper, so the server it
+  # spawned is the one its own store path names, and the server says so itself.
+  ee mechanical status --json \
+    | jq -e '.build.stale == false and (.build.running | length > 0)
+             and .build.running == .build.expected' >/dev/null
+
+  # What a session left behind by an older generation looks like. The wrapper
+  # pins the expectation on purpose, so the drift has to be staged through the
+  # unwrapped client, which is the one that still reads its environment.
+  export EE_WORKBENCH_CAD_BUILD=/nix/store/an-older-generation
+  plain=${ee-workbench.client}/bin/ee
+
+  if refused=$($plain mechanical body new --name Nope --json 2>&1); then
+    echo "a session from another build accepted a mutation: $refused" >&2
+    exit 1
+  fi
+  grep -q "older generation" <<<"$refused"
+
+  # Seeing it, saving out of it and stopping it are the way back out.
+  $plain mechanical status --json | jq -e '.build.stale' >/dev/null
+  $plain mechanical document save --path "$TMPDIR/rescued.FCStd" --json >/dev/null
+  test -f "$TMPDIR/rescued.FCStd"
+  unset EE_WORKBENCH_CAD_BUILD
+
   ee mechanical session stop --force --json | jq -e '.stopped' >/dev/null
 
   touch $out

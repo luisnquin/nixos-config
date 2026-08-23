@@ -11,6 +11,7 @@ set(EE_FREECAD_INCLUDE_DIRS "" CACHE STRING "Include directories for FreeCAD and
 set(EE_EXTRA_LIBRARIES "" CACHE STRING "Absolute paths of the non-FreeCAD libraries to link")
 set(EE_GUI_LIBRARIES "" CACHE STRING "Absolute paths of the libraries only the GUI module needs")
 set(EE_SERVER_BINDIR "bin" CACHE STRING "Where the standalone server lands, relative to the prefix")
+set(EE_BUILD_ID "" CACHE STRING "Opaque identity this server reports to clients; the packaging sets it to its own store path")
 option(EE_BUILD_TESTS "Build the JSON self-test" ON)
 
 # Strict JSON with no third-party dependency: the wire format is small, and the
@@ -65,6 +66,11 @@ target_include_directories(ee_session PUBLIC
 target_link_libraries(ee_session PUBLIC ee_json ${EE_FREECAD_LIBS} ${EE_EXTRA_LIBRARIES})
 # Qt's `slots` keyword macro collides with CPython's PyType_Slot member.
 target_compile_definitions(ee_session PUBLIC QT_NO_KEYWORDS)
+# Left undefined rather than empty when nobody set one, so a plain cmake build
+# reports no identity at all instead of an identity that happens to be blank.
+if(EE_BUILD_ID)
+  target_compile_definitions(ee_session PRIVATE EE_BUILD_ID="${EE_BUILD_ID}")
+endif()
 target_compile_options(ee_session PRIVATE -Wall -Wextra)
 set_property(TARGET ee_session PROPERTY POSITION_INDEPENDENT_CODE ON)
 

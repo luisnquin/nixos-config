@@ -96,6 +96,11 @@ json::Value envelope(bool ok, const json::Value& id)
     json::Value out = json::Value::object();
     out.set("ok", json::Value::boolean(ok));
     out.set("protocol", json::Value::integer(kProtocol));
+    // On every reply, not only `session.status`: a client that never asks for
+    // status still has to find out it is talking to a session left behind by an
+    // older generation, and it costs nothing to tell it on the round trip it
+    // was already making.
+    out.set("build", json::Value::string(build_id()));
     out.set("id", id);
     return out;
 }
@@ -112,6 +117,15 @@ std::string failure(const json::Value& id, const std::string& code, const std::s
 }
 
 }  // namespace
+
+const char* build_id()
+{
+#ifdef EE_BUILD_ID
+    return EE_BUILD_ID;
+#else
+    return "";
+#endif
+}
 
 std::string protocol_failure(const std::string& code, const std::string& message)
 {

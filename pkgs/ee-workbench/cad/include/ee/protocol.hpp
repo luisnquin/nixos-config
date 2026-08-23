@@ -12,6 +12,13 @@ namespace ee {
 /// way an older `ee` binary would misread.
 constexpr long long kProtocol = 4;
 
+/// Which build of this server is answering, opaque to everyone but the packaging
+/// that set it. `kProtocol` only moves when the wire shape changes, so two
+/// servers can agree on it and still disagree on what a method does — that drift
+/// is invisible to a version number but not to this. Empty when built outside
+/// Nix, which is how the client's check turns itself off in development.
+const char* build_id();
+
 /// A refusal that no method produced: too long a line, a connection the
 /// transport is giving up on. Same envelope as any other reply.
 std::string protocol_failure(const std::string& code, const std::string& message);

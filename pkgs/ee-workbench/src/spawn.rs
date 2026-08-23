@@ -10,9 +10,16 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 
-/// Overrides the `ee-freecad-server` on PATH. Set by the home-manager module so
-/// `ee` finds the server built from the same source as itself.
+/// Overrides the `ee-freecad-server` on PATH. Set by the wrapper the packaging
+/// installs, which names the server by store path, so `ee` starts the one it was
+/// built against and not whatever a shell happens to have inherited.
 pub const SERVER_ENV: &str = "EE_WORKBENCH_CAD_SERVER";
+
+/// The identity of that same server, set by the same wrapper from the same
+/// derivation. Read rather than derived from `SERVER_ENV`: the binary sits
+/// behind a symlink into a FreeCAD-shaped home, so the path `ee` executes is not
+/// the path the server reports.
+pub const BUILD_ENV: &str = "EE_WORKBENCH_CAD_BUILD";
 
 /// Set to 0, no or never to keep `ee` from starting a session by itself.
 pub const AUTOSTART_ENV: &str = "EE_WORKBENCH_CAD_AUTOSTART";
@@ -57,6 +64,15 @@ fn server_binary() -> PathBuf {
         Some(value) => PathBuf::from(value),
         None => PathBuf::from("ee-freecad-server"),
     }
+}
+
+/// Which server this `ee` was packaged with, or nothing when it was not
+/// packaged at all — a `cargo run` has no answer to give, and a check with no
+/// expectation has to stay quiet rather than refuse everything.
+pub fn expected_build() -> Option<String> {
+    std::env::var(BUILD_ENV)
+        .ok()
+        .filter(|value| !value.is_empty())
 }
 
 fn log_path(socket: &Path) -> PathBuf {

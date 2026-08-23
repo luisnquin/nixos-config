@@ -99,6 +99,14 @@ in
       (lib.cmakeFeature "CMAKE_INSTALL_RPATH" (lib.concatStringsSep ";" runtimeLibDirs))
     ];
 
+    # The identity the server reports back is its own store path, which is only
+    # known here: any change to these sources or to FreeCAD moves it, which is
+    # exactly the granularity `ee` needs to tell a stale session apart from the
+    # one it was installed with.
+    preConfigure = ''
+      cmakeFlagsArray+=("-DEE_BUILD_ID=$out")
+    '';
+
     doCheck = true;
     checkTarget = "test";
 

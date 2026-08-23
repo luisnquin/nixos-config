@@ -44,16 +44,24 @@ in {
   };
 
   config = mkIf cfg.enable {
-    home.packages = [cfg.package] ++ lib.optional cfg.cad.enable cfg.package.cad;
+    # `withCad` is the same `ee` behind a wrapper that names the server by store
+    # path, so the profile holds one closure instead of two packages that a
+    # session variable was supposed to keep in step. It did not: the variable is
+    # only exported at login, so a shell that outlived the switch went on
+    # spawning the server from the generation it was born in. The wrapper
+    # overrides that, and `nix-store -q --references` proves the pairing.
+    # Overriding it back is what the unwrapped `cfg.package` is for.
+    home.packages =
+      if cfg.cad.enable
+      then [cfg.package.withCad cfg.package.cad]
+      else [cfg.package];
 
     home.sessionVariables =
       lib.optionalAttrs (cfg.dataDir != "") {
         EE_WORKBENCH_DATA = cfg.dataDir;
       }
-      # Pinned rather than left to PATH: `ee` and the server share a wire
-      # protocol version and refuse each other across a mismatch.
+      # A preference, not a pin: nothing breaks if a shell carries an older one.
       // lib.optionalAttrs cfg.cad.enable {
-        EE_WORKBENCH_CAD_SERVER = lib.getExe cfg.package.cad;
         EE_WORKBENCH_CAD_IDLE = toString cfg.cad.idleTimeout;
       };
   };

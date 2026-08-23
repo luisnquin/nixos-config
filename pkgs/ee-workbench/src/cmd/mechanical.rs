@@ -117,6 +117,18 @@ fn field<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or("-")
 }
 
+/// `session.status` answers across a build mismatch on purpose, so this is the
+/// one verb that can name the drift instead of refusing over it.
+fn build_report(session: &Value) -> Value {
+    let running = session.get("build").and_then(Value::as_str).unwrap_or("");
+    let expected = spawn::expected_build();
+    // A server that names no build is not an unknown, it is one that predates
+    // the field: older than anything this `ee` was paired with.
+    let stale = expected.as_deref().is_some_and(|want| running != want);
+
+    json!({ "running": running, "expected": expected, "stale": stale })
+}
+
 fn status(format: Format) -> Result<i32> {
     let socket = paths::cad_socket();
 
@@ -127,6 +139,7 @@ fn status(format: Format) -> Result<i32> {
             "socket": socket.display().to_string(),
             "protocol": bridge::PROTOCOL,
             "running": true,
+            "build": build_report(result),
             "session": result,
         }),
         Err(error) => json!({
@@ -149,6 +162,17 @@ fn status(format: Format) -> Result<i32> {
     match session {
         Ok(result) => {
             println!("session  running");
+            let build = build_report(&result);
+            if build["stale"] == json!(true) {
+                let running = field(&build, "running");
+                let named = if running.is_empty() {
+                    "unnamed, older than this check"
+                } else {
+                    running
+                };
+                println!("build    STALE {named}");
+                println!("         want  {}", field(&build, "expected"));
+            }
             println!("freecad  {}", field(&result["freecad"], "version"));
             println!("idle     {}s", result["idle"]["timeout"]);
 
@@ -275,7 +299,10 @@ fn document(command: DocumentCommand) -> Result<i32> {
             path: target,
             format,
         } => {
-            let result = call("document.open", params(vec![("path", resolved_path(target.get())?)]))?;
+            let result = call(
+                "document.open",
+                params(vec![("path", resolved_path(target.get())?)]),
+            )?;
 
             emit(&result, format, |result| {
                 println!("document {}", field(result, "document"));
@@ -301,7 +328,10 @@ fn document(command: DocumentCommand) -> Result<i32> {
         } => {
             let result = call(
                 "document.save",
-                params(vec![("document", text(document)), ("path", resolved_path(path)?)]),
+                params(vec![
+                    ("document", text(document)),
+                    ("path", resolved_path(path)?),
+                ]),
             )?;
 
             emit(&result, format, |result| {

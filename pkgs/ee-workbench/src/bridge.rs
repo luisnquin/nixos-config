@@ -11,6 +11,14 @@ use serde_json::{Value, json};
 /// refuse rather than misread a frame.
 pub const PROTOCOL: u32 = 4;
 
+/// The three verbs that keep working across a build mismatch. Refusing every
+/// method would strand a stale session holding unsaved work: you could neither
+/// see what it has, write it out, nor retire it. Everything else refuses,
+/// because a session started by an older generation does not behave the way the
+/// caller's `ee` was written against, and answering anyway is how that goes
+/// unnoticed.
+const RESCUE: [&str; 3] = ["session.status", "document.save", "server.shutdown"];
+
 /// The peer closed the connection without answering. Typed rather than a
 /// string so a caller can tell it apart from a refusal the server actually
 /// spoke, and decide whether replaying the request is safe.
@@ -114,6 +122,35 @@ impl Client {
             None => bail!("cad reply to {method} carries no protocol version"),
         }
 
+        // Drift the protocol version cannot see. `PROTOCOL` moves when the wire
+        // shape changes, which is far rarer than a change in what a method
+        // does; between those bumps two servers are indistinguishable to the
+        // guard above. The reply names the build that answered, so a session
+        // left listening by an older generation says so on the first request
+        // rather than quietly serving last week's behaviour.
+        if let Some(expected) = crate::spawn::expected_build() {
+            let running = reply
+                .get("build")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if running != expected && !RESCUE.contains(&method) {
+                // Silence is drift too, and the loudest kind: a server old
+                // enough not to report a build at all is older than everything
+                // this check was written for.
+                let named = if running.is_empty() {
+                    "does not say which build it is".to_string()
+                } else {
+                    format!("is {running}")
+                };
+                bail!(
+                    "the cad session on this socket {named}, but this ee is paired with \
+                     {expected}: it was started by an older generation and still holds the \
+                     socket. Save anything open, then `ee mechanical session stop`; the next \
+                     command starts the right one."
+                );
+            }
+        }
+
         if reply.get("ok").and_then(Value::as_bool) != Some(true) {
             let code = reply
                 .pointer("/error/code")
@@ -158,6 +195,15 @@ mod tests {
         });
     }
 
+    /// The build expectation is a process-wide environment variable and cargo
+    /// runs test functions in parallel threads, so every test that reaches
+    /// `call` serializes here rather than reading a neighbour's setting.
+    static ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn exclusive() -> std::sync::MutexGuard<'static, ()> {
+        ENV.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     fn scratch(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("ee-cad-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -167,6 +213,7 @@ mod tests {
 
     #[test]
     fn a_result_comes_back_unwrapped() {
+        let _exclusive = exclusive();
         let socket = scratch("ok");
         spawn_mock(
             &socket,
@@ -182,6 +229,7 @@ mod tests {
 
     #[test]
     fn a_refusal_keeps_its_code() {
+        let _exclusive = exclusive();
         let socket = scratch("refusal");
         spawn_mock(
             &socket,
@@ -203,6 +251,7 @@ mod tests {
 
     #[test]
     fn a_stale_server_is_refused() {
+        let _exclusive = exclusive();
         let socket = scratch("stale");
         spawn_mock(
             &socket,
@@ -215,6 +264,7 @@ mod tests {
 
     #[test]
     fn a_hangup_is_told_apart_from_a_refusal() {
+        let _exclusive = exclusive();
         // No replies at all: the mock accepts and then drops the connection,
         // which is exactly what a session retiring mid-call looks like.
         let vanishing = scratch("hangup");
@@ -243,8 +293,51 @@ mod tests {
         assert!(!is_disconnect(&error), "{error:#}");
     }
 
+    /// The other tests' mocks answer without a `build`, so the guard skips them
+    /// and this can set the process-wide variable while they run.
+    #[test]
+    fn a_session_from_another_build_is_refused_but_still_stoppable() {
+        let _exclusive = exclusive();
+        let reply = |tag: &str, method: &str, build: Option<&str>| {
+            let socket = scratch(&format!("drift-{tag}-{}", method.replace('.', "-")));
+            let mut envelope = json!({ "ok": true, "protocol": PROTOCOL, "id": 1, "result": {} });
+            if let Some(build) = build {
+                envelope["build"] = json!(build);
+            }
+            spawn_mock(&socket, vec![envelope.to_string()]);
+            call(&socket, method, json!({}))
+        };
+
+        unsafe { std::env::set_var(crate::spawn::BUILD_ENV, "/nix/store/new-ee-freecad-server") };
+
+        let named = reply(
+            "named",
+            "document.new",
+            Some("/nix/store/old-ee-freecad-server"),
+        );
+        let error = named.unwrap_err();
+        assert!(error.to_string().contains("older generation"), "{error}");
+        assert!(!is_disconnect(&error), "a mismatch must not be retried");
+
+        // A server predating the field says nothing at all, which is the drift
+        // this whole check exists for and must not read as agreement.
+        let error = reply("silent", "document.new", None).unwrap_err();
+        assert!(error.to_string().contains("does not say"), "{error}");
+
+        for rescue in RESCUE {
+            assert!(
+                reply("named", rescue, Some("/nix/store/old")).is_ok(),
+                "{rescue} has to survive the drift"
+            );
+            assert!(reply("silent", rescue, None).is_ok(), "{rescue} likewise");
+        }
+
+        unsafe { std::env::remove_var(crate::spawn::BUILD_ENV) };
+    }
+
     #[test]
     fn a_missing_socket_names_the_server() {
+        let _exclusive = exclusive();
         let socket = scratch("missing").with_file_name("absent.sock");
 
         let error = call(&socket, "session.status", json!({})).unwrap_err();
