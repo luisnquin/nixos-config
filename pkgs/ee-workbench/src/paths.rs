@@ -109,9 +109,15 @@ mod tests {
     fn a_path_is_resolved_against_the_client() {
         unsafe { std::env::set_var("HOME", "/home/tester") };
 
-        assert_eq!(absolute("~/out.png").unwrap(), PathBuf::from("/home/tester/out.png"));
+        assert_eq!(
+            absolute("~/out.png").unwrap(),
+            PathBuf::from("/home/tester/out.png")
+        );
         assert_eq!(absolute("~").unwrap(), PathBuf::from("/home/tester"));
-        assert_eq!(absolute("/tmp/out.png").unwrap(), PathBuf::from("/tmp/out.png"));
+        assert_eq!(
+            absolute("/tmp/out.png").unwrap(),
+            PathBuf::from("/tmp/out.png")
+        );
         assert!(absolute("~other/out.png").unwrap().is_absolute());
 
         let here = std::env::current_dir().unwrap();
