@@ -345,6 +345,13 @@ json::Value Protocol::dispatch(const std::string& method, const json::Value* par
         target.must_be_new = method == "param.new";
         return session_.declare_parameter(target);
     }
+    if (method == "feature.remove") {
+        RemovalTarget target;
+        target.document = string_param(params, "document");
+        target.feature = string_param(params, "feature");
+        target.dry_run = bool_param(params, "dry_run", false);
+        return session_.remove_feature(target);
+    }
     if (method == "param.list") {
         return session_.parameters(string_param(params, "document"));
     }

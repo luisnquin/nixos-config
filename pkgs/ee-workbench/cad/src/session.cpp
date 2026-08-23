@@ -23,6 +23,7 @@
 #include <Mod/PartDesign/App/FeatureExtrude.h>
 #include <Mod/PartDesign/App/FeaturePad.h>
 #include <Mod/PartDesign/App/FeaturePocket.h>
+#include <Mod/PartDesign/App/FeatureSketchBased.h>
 #include <Mod/Sketcher/App/Constraint.h>
 #include <Mod/Sketcher/App/GeoEnum.h>
 #include <Mod/Sketcher/App/GeometryFacade.h>
@@ -806,6 +807,213 @@ PartDesign::FeatureExtrude& extrude_for(App::Document& doc,
     return object_for<PartDesign::Pad>(doc, name, "pad");
 }
 
+/// Every name, never the first one. A refusal that reports a sample turns one
+/// repair into as many round trips as there are holders, and every other report
+/// here names the whole set: `param set` lists every slot it drives, removal
+/// lists every relink and every sketch it leaves behind.
+std::string listed(const std::vector<std::string>& names)
+{
+    std::string out;
+    for (const std::string& name : names) {
+        if (!out.empty()) {
+            out += ", ";
+        }
+        out += name;
+    }
+    return out;
+}
+
+/// Everything one removal touches, worked out before anything is touched. The
+/// dry run reports this and stops there; the real run applies these exact
+/// fields and reports the same value, so the preview cannot describe an edit
+/// different from the one that happens.
+struct RemovalPlan
+{
+    App::DocumentObject* object = nullptr;
+    PartDesign::Body* body = nullptr;
+    /// What the removed feature was built on. The successor inherits it, and
+    /// when the tip moves it moves to the same place: one link answers both.
+    App::DocumentObject* base = nullptr;
+    /// The feature whose BaseFeature points at the one going away. FreeCAD
+    /// clears that link rather than repairing it, and a body whose chain has a
+    /// hole in it recomputes to the material below the hole and reports
+    /// Up-to-date, so this is the load-bearing half of the verb.
+    PartDesign::Feature* successor = nullptr;
+    bool moves_tip = false;
+    /// The profile the feature consumed, which removal leaves in the document.
+    Sketcher::SketchObject* widowed = nullptr;
+    /// Parameters whose every slot is on the object going away. They survive
+    /// the removal driving nothing, which is recoverable, unlike a parameter
+    /// deleted on the model's behalf.
+    std::vector<std::string> orphaned;
+};
+
+RemovalPlan plan_removal(App::Document& doc, const std::string& name)
+{
+    if (name.empty()) {
+        throw Error{"missing-feature",
+                    "name what to remove: every other verb may resolve an unnamed object, "
+                    "this one may not guess at one"};
+    }
+
+    App::DocumentObject* object = doc.getObject(name.c_str());
+    if (object == nullptr) {
+        throw Error{"unknown-feature",
+                    "no object named " + name + " in " + doc.getName() +
+                        ": `document inspect --features` names them"};
+    }
+    if (is_scaffolding(*object)) {
+        throw Error{"unremovable",
+                    name + " is one of the body's origin planes, which FreeCAD owns"};
+    }
+    if (object->isDerivedFrom(App::VarSet::getClassTypeId())) {
+        throw Error{"unremovable",
+                    name + " is the parameter registry: `param remove <name>` takes one "
+                           "parameter out of it"};
+    }
+    if (object->isDerivedFrom(PartDesign::Body::getClassTypeId())) {
+        throw Error{"unremovable",
+                    name + " is a body. What removing one means depends on whether another "
+                           "body is built from it, so it waits for booleans rather than "
+                           "guessing now"};
+    }
+
+    RemovalPlan plan;
+    plan.object = object;
+    plan.body = PartDesign::Body::findBodyOf(object);
+
+    if (object->isDerivedFrom(Sketcher::SketchObject::getClassTypeId())) {
+        // Removing it anyway leaves the holder with Profile: None, an Invalid
+        // status and the shape it last built - so the body still looks right
+        // while being unrebuildable. A verb that knowingly creates that and
+        // reports it afterwards is worse than one that will not create it.
+        std::vector<std::string> holders;
+        for (App::DocumentObject* holder : doc.getObjects()) {
+            auto* based = dynamic_cast<PartDesign::ProfileBased*>(holder);
+            if (based != nullptr && based->Profile.getValue() == object) {
+                holders.push_back(holder->getNameInDocument());
+            }
+        }
+        if (!holders.empty()) {
+            throw Error{"sketch-in-use",
+                        name + " is the profile of " + listed(holders) + ": remove " +
+                            (holders.size() == 1 ? "that feature" : "those features") +
+                            " first, which leaves this sketch behind"};
+        }
+    }
+    else if (auto* feature = dynamic_cast<PartDesign::Feature*>(object)) {
+        plan.base = feature->BaseFeature.getValue();
+        for (App::DocumentObject* member : doc.getObjects()) {
+            auto* later = dynamic_cast<PartDesign::Feature*>(member);
+            if (later != nullptr && later != feature &&
+                later->BaseFeature.getValue() == feature) {
+                plan.successor = later;
+                break;
+            }
+        }
+        if (auto* based = dynamic_cast<PartDesign::ProfileBased*>(feature)) {
+            plan.widowed = dynamic_cast<Sketcher::SketchObject*>(based->Profile.getValue());
+        }
+        plan.moves_tip = plan.body != nullptr && plan.body->Tip.getValue() == feature;
+    }
+    else {
+        throw Error{"unremovable",
+                    name + " is a " + object->getTypeId().getName() +
+                        ", which this verb does not take"};
+    }
+
+    const std::vector<std::string> followers = params::following(doc, *object);
+    if (!followers.empty()) {
+        throw Error{"parameter-follows",
+                    name + " is read by the expression on " +
+                        (followers.size() == 1 ? "parameter " : "parameters ") +
+                        listed(followers) + ": point " +
+                        (followers.size() == 1 ? "it" : "each of them") +
+                        " somewhere else first, because nothing here can rewrite arithmetic "
+                        "somebody wrote"};
+    }
+
+    for (const std::string& parameter : params::names(doc)) {
+        const json::Value bound = params::drives(doc, parameter);
+        const std::vector<json::Value>* slots = bound.as_array();
+        if (slots == nullptr || slots->empty()) {
+            continue;
+        }
+        const bool all_here = std::all_of(slots->begin(), slots->end(), [&](const auto& slot) {
+            return *slot.find("object")->as_string() == name;
+        });
+        if (all_here) {
+            plan.orphaned.push_back(parameter);
+        }
+    }
+
+    return plan;
+}
+
+void apply_removal(App::Document& doc, const RemovalPlan& plan)
+{
+    if (plan.successor != nullptr) {
+        plan.successor->BaseFeature.setValue(plan.base);
+    }
+    if (plan.moves_tip) {
+        // Null when the body empties out, and that is the honest value: a body
+        // with no tip has no shape at all, so `Shape` raises rather than
+        // returning a stale or empty one.
+        plan.body->Tip.setValue(plan.base);
+    }
+    // Only the bookkeeping is left to FreeCAD - erasing the entry from Group.
+    // Its own relink and tip repair read the same two links the plan did, and
+    // the plan has already written them, so they find nothing to do.
+    if (plan.body != nullptr) {
+        plan.body->removeObject(plan.object);
+    }
+    doc.removeObject(plan.object->getNameInDocument());
+}
+
+json::Value plan_json(const RemovalPlan& plan)
+{
+    json::Value relinked = json::Value::array();
+    if (plan.successor != nullptr) {
+        json::Value entry = json::Value::object();
+        entry.set("object", json::Value::string(plan.successor->getNameInDocument()));
+        entry.set("slot", json::Value::string("BaseFeature"));
+        entry.set("to", plan.base == nullptr
+                            ? json::Value()
+                            : json::Value::string(plan.base->getNameInDocument()));
+        relinked.push(std::move(entry));
+    }
+
+    json::Value left_behind = json::Value::array();
+    if (plan.widowed != nullptr) {
+        json::Value entry = json::Value::object();
+        entry.set("object", json::Value::string(plan.widowed->getNameInDocument()));
+        entry.set("slot", json::Value::string("Profile"));
+        left_behind.push(std::move(entry));
+    }
+
+    json::Value orphaned = json::Value::array();
+    for (const std::string& parameter : plan.orphaned) {
+        orphaned.push(json::Value::string(parameter));
+    }
+
+    json::Value out = json::Value::object();
+    out.set("removed", json::Value::string(plan.object->getNameInDocument()));
+    out.set("type", json::Value::string(plan.object->getTypeId().getName()));
+    out.set("label", json::Value::string(plan.object->Label.getValue()));
+    out.set("body", plan.body == nullptr
+                        ? json::Value()
+                        : json::Value::string(plan.body->getNameInDocument()));
+    out.set("relinked", std::move(relinked));
+    out.set("tip", plan.moves_tip ? (plan.base == nullptr
+                                         ? json::Value()
+                                         : json::Value::string(plan.base->getNameInDocument()))
+                                  : json::Value());
+    out.set("tip_moves", json::Value::boolean(plan.moves_tip));
+    out.set("left_behind", std::move(left_behind));
+    out.set("orphaned", std::move(orphaned));
+    return out;
+}
+
 }  // namespace
 
 json::Value Session::status() const
@@ -1528,6 +1736,29 @@ json::Value Session::remove_parameter(const std::string& document,
     out.set("document", json::Value::string(doc.getName()));
     out.set("name", json::Value::string(name));
     out.set("froze", std::move(froze));
+    out.set("recompute", std::move(recomputed));
+    return out;
+}
+
+json::Value Session::remove_feature(const RemovalTarget& target)
+{
+    App::Document& doc = document_for(target.document);
+    const RemovalPlan plan = plan_removal(doc, target.feature);
+
+    json::Value out = plan_json(plan);
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("dry_run", json::Value::boolean(target.dry_run));
+    if (target.dry_run) {
+        return out;
+    }
+
+    apply_removal(doc, plan);
+
+    json::Value recomputed = recompute_document(doc);
+    if (recomputed.find("failed")->as_bool() == false) {
+        mark_changed(doc.getName());
+        gui::fit_view();
+    }
     out.set("recompute", std::move(recomputed));
     return out;
 }

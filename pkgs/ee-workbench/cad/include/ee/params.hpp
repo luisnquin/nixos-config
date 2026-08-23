@@ -89,5 +89,11 @@ json::Value slot_json(const App::DocumentObject& object, const std::string& path
 /// Every slot in the document pointing at `name`, as `{object, slot}` pairs.
 json::Value drives(App::Document& doc, const std::string& name);
 
+/// The parameters whose own expression reads a property of `object`. Geometry
+/// never computes, so this is the only direction a reference can run that
+/// removing an object would break, and relinking cannot repair it: the
+/// arithmetic named a thing that stops existing.
+std::vector<std::string> following(App::Document& doc, const App::DocumentObject& object);
+
 }  // namespace params
 }  // namespace ee

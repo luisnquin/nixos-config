@@ -112,6 +112,16 @@ struct SlotTarget
     bool unbind = false;
 };
 
+/// What to take back out of the model, and whether to only say what that would
+/// do. `dry_run` decides nothing but that: the same plan is computed either
+/// way, so the preview cannot describe an edit the apply would not make.
+struct RemovalTarget
+{
+    std::string document;
+    std::string feature;
+    bool dry_run = false;
+};
+
 /// A parameter's definition: a literal, or an expression over its siblings.
 /// `must_be_new` separates `param new` from `param set`, so neither one can
 /// quietly do the other's job.
@@ -150,6 +160,8 @@ public:
     json::Value remove_parameter(const std::string& document,
                                  const std::string& name,
                                  bool force);
+    /// Take a feature out of a body's tree, or a sketch out of the document.
+    json::Value remove_feature(const RemovalTarget& target);
     json::Value preview(const PreviewRequest& request);
     json::Value render(const RenderTarget& target);
     json::Value recompute(const std::string& document);

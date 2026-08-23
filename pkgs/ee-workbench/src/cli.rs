@@ -301,6 +301,11 @@ pub enum MechanicalCommand {
         #[command(subcommand)]
         command: PocketCommand,
     },
+    /// Take a feature back out of a body's tree, or a sketch out of a document
+    Feature {
+        #[command(subcommand)]
+        command: FeatureCommand,
+    },
     /// Named dimensions, readable and settable after the fact
     Param {
         #[command(subcommand)]
@@ -635,6 +640,27 @@ pub enum PocketCommand {
         /// Replace a parameter with a literal, which no other spelling will do
         #[arg(long)]
         unbind: bool,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// The only verb that makes the model smaller. Everything else adds, so this
+/// is where the tree's own links have to be repaired by hand: FreeCAD clears a
+/// dangling BaseFeature rather than healing it, and a body whose chain has a
+/// hole in it rebuilds to the material below the hole and calls itself
+/// up-to-date.
+#[derive(Subcommand)]
+pub enum FeatureCommand {
+    /// Remove a pad, a pocket or a widowed sketch, repairing what pointed at it
+    Remove {
+        /// Named, never inferred: this is the one verb that cannot be undone
+        feature: String,
+        #[arg(long)]
+        document: Option<String>,
+        /// Report what this would change and change nothing
+        #[arg(long)]
+        dry_run: bool,
         #[command(flatten)]
         format: Format,
     },

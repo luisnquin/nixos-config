@@ -3,8 +3,8 @@ use serde_json::{Map, Value, json};
 
 use crate::bridge;
 use crate::cli::{
-    BodyCommand, DocumentCommand, Format, MechanicalCommand, PadCommand, ParamCommand, ParamValue,
-    PocketCommand, PreviewCommand, SessionCommand, SketchCommand, Slot,
+    BodyCommand, DocumentCommand, FeatureCommand, Format, MechanicalCommand, PadCommand,
+    ParamCommand, ParamValue, PocketCommand, PreviewCommand, SessionCommand, SketchCommand, Slot,
 };
 use crate::cmd;
 use crate::paths;
@@ -19,6 +19,7 @@ pub fn run(command: MechanicalCommand) -> Result<i32> {
         MechanicalCommand::Sketch { command } => sketch(command),
         MechanicalCommand::Pad { command } => pad(command),
         MechanicalCommand::Pocket { command } => pocket(command),
+        MechanicalCommand::Feature { command } => feature(command),
         MechanicalCommand::Param { command } => param(command),
         MechanicalCommand::Preview { command } => preview(command),
     }
@@ -934,6 +935,92 @@ fn pocket(command: PocketCommand) -> Result<i32> {
             unbind,
             format,
         ),
+    }
+}
+
+fn feature(command: FeatureCommand) -> Result<i32> {
+    match command {
+        FeatureCommand::Remove {
+            feature,
+            document,
+            dry_run,
+            format,
+        } => {
+            let result = call(
+                "feature.remove",
+                params(vec![
+                    ("document", text(document)),
+                    ("feature", Some(Value::from(feature))),
+                    ("dry_run", flag(dry_run)),
+                ]),
+            )?;
+
+            emit(&result, format, removal_summary)
+        }
+    }
+}
+
+/// One shape for both runs, because there is one plan: the server computes it
+/// before deciding whether to apply it, so a dry run read aloud describes the
+/// run that would follow rather than a second opinion about it. Only the verb
+/// on the first line moves.
+fn removal_summary(result: &Value) {
+    let planned = result
+        .get("dry_run")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+
+    println!(
+        "{} {} ({})",
+        if planned { "would remove" } else { "removed" },
+        field(result, "removed"),
+        field(result, "type")
+    );
+
+    for entry in &result["relinked"].as_array().cloned().unwrap_or_default() {
+        println!(
+            "relink   {}.{} -> {}",
+            field(entry, "object"),
+            field(entry, "slot"),
+            entry
+                .get("to")
+                .and_then(Value::as_str)
+                .unwrap_or("nothing, it becomes the base of the body")
+        );
+    }
+
+    if result.get("tip_moves").and_then(Value::as_bool) == Some(true) {
+        match result.get("tip").and_then(Value::as_str) {
+            Some(tip) => println!("tip      {tip}"),
+            // Not a small shape, no shape: `inspect` stops listing the body
+            // among the solids and `preview export` refuses outright, so a
+            // caller that only watched the bounding box sees nothing at all.
+            None => println!("tip      nothing, so the body has no shape until the next pad"),
+        }
+    }
+
+    let left_behind = result["left_behind"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    for entry in &left_behind {
+        println!(
+            "kept     {} (it was the {})",
+            field(entry, "object"),
+            field(entry, "slot")
+        );
+    }
+    if !left_behind.is_empty() {
+        println!("         pad it again, or `feature remove <name>` takes it out too");
+    }
+
+    let orphaned: Vec<&str> = result["orphaned"]
+        .as_array()
+        .map(|names| names.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default();
+    if !orphaned.is_empty() {
+        println!("orphans  {}", orphaned.join(" "));
+        println!("         they stay, driving nothing, and rebind to whatever replaces this");
     }
 }
 

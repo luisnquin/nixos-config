@@ -295,4 +295,30 @@ json::Value drives(App::Document& doc, const std::string& name)
     return out;
 }
 
+std::vector<std::string> following(App::Document& doc, const App::DocumentObject& object)
+{
+    std::vector<std::string> out;
+    App::VarSet* registry = find(doc);
+    if (registry == nullptr || registry == &object) {
+        return out;
+    }
+
+    for (const auto& [path, expression] : registry->ExpressionEngine.getExpressions()) {
+        if (expression == nullptr) {
+            continue;
+        }
+        for (const auto& [identifier, ignored] : expression->getIdentifiers()) {
+            (void)ignored;
+            // Resolved rather than compared by spelling: an expression may name
+            // an object by its label, and the label is not the name.
+            if (identifier.getDocumentObject() != &object) {
+                continue;
+            }
+            out.push_back(leading_dot_stripped(path.toString()));
+            break;
+        }
+    }
+    return out;
+}
+
 }  // namespace ee::params

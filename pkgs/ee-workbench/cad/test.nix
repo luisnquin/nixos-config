@@ -336,6 +336,135 @@ runCommand "ee-freecad-slice-test" {
 
   ee mechanical session stop --force --json | jq -e '.stopped' >/dev/null
 
+  # Removal: the only verb that makes the model smaller, and so the only one
+  # that has to repair links FreeCAD would rather clear. A three-pad stack is
+  # the repro - taking the middle one out without relinking rebuilds to the
+  # material below the hole and reports up-to-date.
+  socket removal
+
+  ee mechanical document new --name Stack --json >/dev/null
+  ee mechanical body new --name Stem --json >/dev/null
+  ee mechanical param new step 10 --json >/dev/null
+
+  for pair in 1:40 2:30 3:20; do
+    index=$(echo "$pair" | cut -d: -f1)
+    width=$(echo "$pair" | cut -d: -f2)
+    ee mechanical sketch new --plane xy --name "S$index" \
+      --offset-z $(( (index - 1) * 10 )) --json >/dev/null
+    ee mechanical sketch rectangle --width "$width" --height "$width" --centered --json >/dev/null
+    ee mechanical pad new --length step --name "Pad$index" --sketch "S$index" --json >/dev/null
+  done
+
+  ee mechanical document inspect --json | jq -e '.solids[0].shape.volume == 29000' >/dev/null
+
+  ee mechanical feature remove Pad2 --dry-run --json >"$TMPDIR/plan.json"
+  jq -e '
+    .dry_run
+    and .removed == "Pad2"
+    and ([.relinked[] | .object + "." + .slot + " -> " + .to]) == ["Pad3.BaseFeature -> Pad1"]
+    and (.tip_moves | not)
+    and ([.left_behind[].object]) == ["S2"]
+    and .orphaned == []
+    and (.recompute | not)
+  ' "$TMPDIR/plan.json" >/dev/null
+  ee mechanical document inspect --json | jq -e '.solids[0].shape.volume == 29000' >/dev/null
+
+  # The preview cannot drift from the edit, because it is the same value: the
+  # server computes one plan and --dry-run decides only whether to apply it.
+  ee mechanical feature remove Pad2 --json >"$TMPDIR/removed.json"
+  jq -e --slurpfile plan "$TMPDIR/plan.json" '
+    (.dry_run | not)
+    and (.recompute.failed | not)
+    and (del(.dry_run, .recompute)) == ($plan[0] | del(.dry_run))
+  ' "$TMPDIR/removed.json" >/dev/null
+
+  # 20000 and not 4000. Everything else here is bookkeeping; this is the verb.
+  ee mechanical document inspect --json | jq -e '.solids[0].shape.volume == 20000' >/dev/null
+  ee mechanical document inspect --features --json | jq -e '
+    [.bodies[0].features[].name] == ["Pad1", "Pad3"]
+  ' >/dev/null
+
+  # The tip follows the feature under it, and the slot that went away leaves
+  # the drives index with it rather than naming a dead object.
+  ee mechanical param list --json >"$TMPDIR/before.json"
+  jq -e '
+    ([.parameters[] | select(.name == "step") | .drives[] | .object + "." + .slot] | sort)
+      == ["Pad1.Length", "Pad3.Length"]
+  ' "$TMPDIR/before.json" >/dev/null
+
+  ee mechanical feature remove Pad3 --json >"$TMPDIR/tip.json"
+  jq -e '.tip_moves and .tip == "Pad1" and ([.left_behind[].object]) == ["S3"]' \
+    "$TMPDIR/tip.json" >/dev/null
+  ee mechanical document inspect --json | jq -e '.solids[0].shape.volume == 16000' >/dev/null
+  ee mechanical param list --json | jq -e '
+    ([.parameters[] | select(.name == "step") | .drives[] | .object + "." + .slot])
+      == ["Pad1.Length"]
+  ' >/dev/null
+
+  # Build, remove, rebuild. Geometry and the whole parameter list come back
+  # identical, which is the only evidence that nothing was left dangling.
+  ee mechanical pad new --length step --name Pad3 --sketch S3 --json >/dev/null
+  ee mechanical document inspect --json | jq -e '.solids[0].shape.volume == 20000' >/dev/null
+  ee mechanical param list --json >"$TMPDIR/after.json"
+  diff <(jq -S . "$TMPDIR/before.json") <(jq -S . "$TMPDIR/after.json")
+
+  # A sketch a live feature still draws from refuses. Removing it anyway leaves
+  # the holder with a null profile, an Invalid status and the shape it last
+  # built, which looks right and cannot be rebuilt.
+  if ee mechanical feature remove S1 --json >/dev/null 2>"$TMPDIR/inuse.err"; then
+    echo "removing a profile in use should have been refused" >&2
+    exit 1
+  fi
+  grep -q "sketch-in-use" "$TMPDIR/inuse.err"
+  grep -q "Pad1" "$TMPDIR/inuse.err"
+
+  # The widowed one goes, which is why removal leaves profiles behind instead
+  # of taking them: cleaning up is a second command, not a policy.
+  ee mechanical feature remove S2 --json | jq -e '.removed == "S2"' >/dev/null
+
+  # A body is not a feature. What removing one means depends on whether another
+  # is built from it, so it waits for booleans rather than guessing now.
+  if ee mechanical feature remove Stem --json >/dev/null 2>"$TMPDIR/body.err"; then
+    echo "removing a body should have been refused" >&2
+    exit 1
+  fi
+  grep -q "unremovable" "$TMPDIR/body.err"
+
+  # Arithmetic written over a feature is the one reference removal cannot
+  # repair, and rewriting somebody's expression is not this verb's business.
+  # The pad has to hold a literal first, or the parameter would be a cycle.
+  ee mechanical pad length 10 --pad Pad1 --unbind --json >/dev/null
+  ee mechanical param new echoed "=Pad1.Length * 2" --json | jq -e '.value == 20' >/dev/null
+  ee mechanical param new tripled "=Pad1.Length * 3" --json | jq -e '.value == 30' >/dev/null
+  if ee mechanical feature remove Pad1 --dry-run --json >/dev/null 2>"$TMPDIR/follows.err"; then
+    echo "removing a feature a parameter reads should have been refused" >&2
+    exit 1
+  fi
+  # Both of them, in one refusal. A refusal that names a sample costs one round
+  # trip per follower to discover a set the server already had in hand.
+  grep -q "parameter-follows" "$TMPDIR/follows.err"
+  grep -q "echoed, tripled" "$TMPDIR/follows.err"
+  ee mechanical param set echoed 20 --json >/dev/null
+  ee mechanical param set tripled 30 --json >/dev/null
+
+  # Emptying a body is legal, and the parameter that drove its last slot
+  # survives driving nothing rather than being deleted on the model's behalf.
+  ee mechanical feature remove Pad3 --json | jq -e '.orphaned == ["step"]' >/dev/null
+  ee mechanical feature remove Pad1 --json | jq -e '.tip_moves and .tip == null' >/dev/null
+  ee mechanical param list --json | jq -e '
+    ([.parameters[].name] | sort) == ["echoed", "step", "tripled"]
+    and ([.parameters[] | select(.drives | length > 0)] | length) == 0
+  ' >/dev/null
+
+  # No tip is no shape, not a small one: the body stops being a solid at all.
+  ee mechanical document inspect --json | jq -e '.solids == [] and (.bbox | not)' >/dev/null
+  if ee mechanical preview export --path "$TMPDIR/empty.stl" --json >/dev/null 2>&1; then
+    echo "exporting an emptied body should have been refused" >&2
+    exit 1
+  fi
+
+  ee mechanical session stop --force --json | jq -e '.stopped' >/dev/null
+
   # An idle session goes away by itself, but never with work in it.
   socket idle
   export EE_WORKBENCH_CAD_IDLE=2
