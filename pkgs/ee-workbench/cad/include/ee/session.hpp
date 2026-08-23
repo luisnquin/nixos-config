@@ -7,6 +7,7 @@
 
 #include "ee/json.hpp"
 #include "ee/mesh.hpp"
+#include "ee/params.hpp"
 
 namespace ee {
 
@@ -44,43 +45,43 @@ struct RenderTarget
 
 /// Where a sketch sits. `plane` picks the origin plane, the offset moves it off
 /// that plane, and `rotate` spins it about its own normal - together they are
-/// the whole reason a body no longer has to start at the global origin.
+/// the whole reason a body no longer has to start at the global origin. Every
+/// one of them is a slot, because the placement is what a second sketch has to
+/// follow when a dimension moves and a constraint alone cannot carry it.
 struct SketchTarget
 {
     std::string document;
     std::string body;
     std::string plane;
     std::string name;
-    double offset_x = 0.0;
-    double offset_y = 0.0;
-    double offset_z = 0.0;
-    double rotate = 0.0;
+    Slot offset_x;
+    Slot offset_y;
+    Slot offset_z;
+    Slot rotate;
 };
 
 /// `x` and `y` place the rectangle's reference point in sketch coordinates;
 /// `centered` makes that reference point the centre instead of the lower left
-/// corner. Naming a dimension makes it addressable by `param` afterwards.
+/// corner. The four dimensions are named after their slots, so every one of
+/// them can be driven by a parameter later even when it was drawn as a literal.
 struct RectangleTarget
 {
     std::string document;
     std::string sketch;
-    double width = 0.0;
-    double height = 0.0;
-    double x = 0.0;
-    double y = 0.0;
+    Slot width;
+    Slot height;
+    Slot x;
+    Slot y;
     bool centered = false;
-    std::string name_width;
-    std::string name_height;
 };
 
 struct CircleTarget
 {
     std::string document;
     std::string sketch;
-    double radius = 0.0;
-    double x = 0.0;
-    double y = 0.0;
-    std::string name_radius;
+    Slot radius;
+    Slot x;
+    Slot y;
 };
 
 /// Pad and pocket differ only in which way the material goes, so they take the
@@ -91,10 +92,36 @@ struct ExtrudeTarget
     std::string body;
     std::string sketch;
     std::string name;
-    double length = 0.0;
+    Slot length;
     bool midplane = false;
     bool reversed = false;
     bool through_all = false;
+};
+
+/// One numeric slot on one object, after the fact. `kind` is how an unnamed
+/// object is resolved - the only pad, the newest sketch - and `unbind` is the
+/// deliberate half of the refusal that stops a literal from silently replacing
+/// a parameter someone is driving.
+struct SlotTarget
+{
+    std::string document;
+    std::string object;
+    std::string kind;
+    std::string slot;
+    Slot value;
+    bool unbind = false;
+};
+
+/// A parameter's definition: a literal, or an expression over its siblings.
+/// `must_be_new` separates `param new` from `param set`, so neither one can
+/// quietly do the other's job.
+struct ParamTarget
+{
+    std::string document;
+    std::string name;
+    std::string expression;
+    double value = 0.0;
+    bool must_be_new = false;
 };
 
 /// Every method drives the real FreeCAD document graph in this process.
@@ -113,20 +140,21 @@ public:
     json::Value circle(const CircleTarget& target);
     json::Value pad(const ExtrudeTarget& target);
     json::Value pocket(const ExtrudeTarget& target);
-    /// Retarget an existing pad or pocket's extrude length and recompute.
-    json::Value extrude_length(const std::string& document,
-                               const std::string& feature,
-                               const std::string& kind,
-                               double length);
+    /// Point an existing slot at a parameter, or back at a literal.
+    json::Value set_slot(const SlotTarget& target);
     json::Value parameters(const std::string& document) const;
-    json::Value set_parameter(const std::string& document,
-                              const std::string& name,
-                              double value);
+    json::Value declare_parameter(const ParamTarget& target);
+    /// `force` frees every slot the parameter drives instead of refusing, and
+    /// the reply names each one: turning N relationships into literals is the
+    /// kind of state change the rest of this refuses to make silently.
+    json::Value remove_parameter(const std::string& document,
+                                 const std::string& name,
+                                 bool force);
     json::Value preview(const PreviewRequest& request);
     json::Value render(const RenderTarget& target);
     json::Value recompute(const std::string& document);
     json::Value save(const std::string& document, const std::string& path);
-    json::Value inspect(const std::string& document) const;
+    json::Value inspect(const std::string& document, bool features) const;
 
     /// A document mutated since the last export and has a followed preview.
     bool preview_pending() const

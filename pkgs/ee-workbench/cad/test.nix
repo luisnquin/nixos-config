@@ -72,7 +72,7 @@ runCommand "ee-freecad-slice-test" {
   ee mechanical sketch rectangle --width 40 --height 25 --json >"$TMPDIR/rectangle.json"
   jq -e '
     (.geometry | length) == 4
-    and (.constraints | length) == 11
+    and (.constraints | length) == 12
     and .dof == 0
     and .fully_constrained
     and (.redundant | not)
@@ -84,7 +84,7 @@ runCommand "ee-freecad-slice-test" {
   jq -e '
     .pad == "Pad"
     and .solid
-    and .length == 6
+    and .length.value == 6
     and .bounds == {x: 40, y: 25, z: 6}
     and .shape.volume == 6000
     and .shape.min == {x: 0, y: 0, z: 0}
@@ -98,7 +98,7 @@ runCommand "ee-freecad-slice-test" {
   test "$(python3 "$TMPDIR/stl.py" "$stl")" = "12 40 25 6"
 
   # The export follows the model: no second preview command is issued here.
-  ee mechanical pad length --length 11 --json | jq -e '.previous == 6 and .bounds.z == 11' >/dev/null
+  ee mechanical pad length 11 --json | jq -e '.previous == 6 and .bounds.z == 11' >/dev/null
   test "$(python3 "$TMPDIR/stl.py" "$stl")" = "12 40 25 11"
 
   ee mechanical document recompute --json | jq -e '.failed | not' >/dev/null
@@ -132,7 +132,8 @@ runCommand "ee-freecad-slice-test" {
   jq -e '
     ([.objects[].type] | index("PartDesign::Body")) != null
     and ([.objects[].type] | index("PartDesign::Pad")) != null
-    and ([.objects[].type] | index("App::Plane")) != null
+    and ([.objects[].type] | index("App::Plane")) == null
+    and ([.objects[].type] | index("App::Origin")) == null
     and (.solids | length) == 1
     and .bbox.size == {x: 40, y: 25, z: 11}
   ' "$TMPDIR/inspect.json" >/dev/null
@@ -144,18 +145,20 @@ runCommand "ee-freecad-slice-test" {
         | ($s.geometry | length) == 4
         and ([$s.geometry[].type] | unique) == ["Part::GeomLineSegment"]
         and ([$s.geometry[].length] | sort) == [25, 25, 40, 40]
-        and ($s.constraints | length) == 11
-        and ([$s.constraints[] | select(.type == "DistanceX") | .value]) == [40]
-        and ([$s.constraints[] | select(.type == "DistanceY") | .value]) == [25]
-        and ([$s.constraints[] | select(.type == "Coincident")] | length) == 5
+        and ($s.constraints | length) == 12
+        and ([$s.constraints[] | select(.name == "width") | .value]) == [40]
+        and ([$s.constraints[] | select(.name == "height") | .value]) == [25]
+        and ([$s.constraints[] | select(.name == "x") | .value]) == [0]
+        and ([$s.constraints[] | select(.type == "Coincident")] | length) == 4
         and ([$s.constraints[] | select(.type == "Horizontal")] | length) == 2
         and ([$s.constraints[] | select(.type == "Vertical")] | length) == 2
         and $s.dof == 0
         and $s.fully_constrained)
   ' "$TMPDIR/inspect.json" >/dev/null
 
-  # Placement, named dimensions and the closed vocabulary, in one part: a
-  # centred bar, a hole cut from a sketch that sits on the face above it.
+  # Placement, parameters and the closed vocabulary, in one part: a centred bar
+  # and a hole cut from a sketch that sits on the face above it, with the hole
+  # following the bar's width through an expression.
   socket placed
 
   ee mechanical document new --name Cross --json >/dev/null
@@ -167,14 +170,13 @@ runCommand "ee-freecad-slice-test" {
   ' "$TMPDIR/side.json" >/dev/null
 
   ee mechanical sketch new --plane xy --name Plan --json >/dev/null
-  ee mechanical sketch rectangle --width 40 --height 20 --centered \
-    --name-width bar_x --name-height bar_y --json >"$TMPDIR/centered.json"
+  ee mechanical sketch rectangle --width 40 --height 20 --centered --json >"$TMPDIR/centered.json"
   jq -e '
     .sketch == "Plan"
     and .centered
     and (.geometry | length) == 5
     and ([.geometry[] | select(.construction)] | length) == 1
-    and (.constraints | length) == 12
+    and (.constraints | length) == 13
     and ([.constraints[] | select(.type == "Symmetric")] | length) == 1
     and .dof == 0
   ' "$TMPDIR/centered.json" >/dev/null
@@ -183,12 +185,48 @@ runCommand "ee-freecad-slice-test" {
     .shape.min == {x: -20, y: -10, z: 0} and .shape.centre_of_mass == {x: 0, y: 0, z: 3}
   ' >/dev/null
 
+  # Every dimension is named whether or not anyone asked, so nothing drives
+  # them yet and all of them can be adopted. That is the whole of the migration
+  # story: a parameter, then a rebind.
+  ee mechanical param list --json | jq -e '
+    (.parameters | length) == 0
+    and ([.orphans[] | select(.object == "Plan") | .slot] | sort)
+        == ["height", "width", "x", "y"]
+  ' >/dev/null
+
+  ee mechanical param new bar_x 40 --json | jq -e '
+    .created and .value == 40 and (.drives | length) == 0
+  ' >/dev/null
+  ee mechanical sketch set width bar_x --sketch Plan --json | jq -e '
+    .value == {value: 40, parameter: "bar_x"} and .previous == 40 and .dof == 0
+  ' >/dev/null
+
+  # A slot that took a literal at creation now follows a parameter, and the
+  # readback says which one: binding is an edit, not a property of how the
+  # dimension was first drawn.
+  ee mechanical param list --json | jq -e '
+    ([.parameters[].name]) == ["bar_x"]
+    and ([.parameters[] | select(.name == "bar_x") | .drives[] | .object + "." + .slot])
+        == ["Plan.Constraints.width"]
+    and ([.orphans[] | select(.slot == "width")] | length) == 0
+  ' >/dev/null
+
+  # A literal over a driven slot is a real intention and a common accident, and
+  # they are the same command; only the accident is silent.
+  if ee mechanical sketch set width 33 --sketch Plan --json >/dev/null 2>"$TMPDIR/driven.err"; then
+    echo "a literal silently replaced a parameter" >&2
+    exit 1
+  fi
+  grep -q "slot-is-driven" "$TMPDIR/driven.err"
+  grep -q -- "--unbind" "$TMPDIR/driven.err"
+
+  ee mechanical sketch set width 33 --sketch Plan --unbind --json | jq -e '
+    .value == {value: 33, parameter: null} and .previous == 40
+  ' >/dev/null
+  ee mechanical sketch set width bar_x --sketch Plan --json | jq -e '.value.value == 40' >/dev/null
+
   # A name that only held until someone drove it would be worse than none: the
   # bar has to stay centred after the width changes.
-  ee mechanical param list --json | jq -e '
-    ([.parameters[].name] | sort) == ["bar_x", "bar_y"]
-    and ([.parameters[] | select(.name == "bar_x") | .value]) == [40]
-  ' >/dev/null
   ee mechanical param set bar_x 50 --json | jq -e '.value == 50 and .previous == 40' >/dev/null
   ee mechanical document recompute --json | jq -e '.failed | not' >/dev/null
   ee mechanical document inspect --json | jq -e '
@@ -196,9 +234,17 @@ runCommand "ee-freecad-slice-test" {
   ' >/dev/null
 
   # An unnamed sketch means the newest one, so this circle lands on the face.
+  # Its position is an expression over the bar's width rather than a number, so
+  # the hole is placed relative to an edge that has not stopped moving.
+  ee mechanical param new hole_x "=bar_x / 2 - 8" --json | jq -e '
+    .value == 17 and .expression == "bar_x / 2 - 8"
+  ' >/dev/null
   ee mechanical sketch new --plane xy --name Hole --offset-z 6 --json >/dev/null
-  ee mechanical sketch circle --radius 4 --x 12 --json | jq -e '
-    .sketch == "Hole" and .dof == 0 and (.constraints | length) == 3
+  ee mechanical sketch circle --radius 4 --x hole_x --json | jq -e '
+    .sketch == "Hole"
+    and .dof == 0
+    and (.constraints | length) == 3
+    and .centre == {x: 17, y: 0}
   ' >/dev/null
 
   ee mechanical pocket new --length 3 --json >"$TMPDIR/pocket.json"
@@ -209,6 +255,71 @@ runCommand "ee-freecad-slice-test" {
     and .shape.max == {x: 25, y: 10, z: 6}
     and ((.shape.volume - (6000 - 150.796447)) | fabs) < 0.01
   ' "$TMPDIR/pocket.json" >/dev/null
+
+  # WALL 4 at one remove: driving the head width has to move the hole with it,
+  # or the model is a picture of a hammer rather than a hammer.
+  ee mechanical param set bar_x 70 --json >"$TMPDIR/driven.json"
+  jq -e '
+    .value == 70
+    and (.recompute.failed | not)
+    and ([.drives[] | .object + "." + .slot] | sort)
+        == ["Parameters.hole_x", "Plan.Constraints.width"]
+  ' "$TMPDIR/driven.json" >/dev/null
+
+  ee mechanical document inspect --features --json >"$TMPDIR/features.json"
+  jq -e '
+    .bbox.size == {x: 70, y: 20, z: 6}
+    and ([.objects[] | select(.error)] | length) == 0
+    and (.bodies | length) == 1
+    and ([.bodies[0].features[].name]) == ["Pad", "Pocket"]
+    and (.bodies[0].features[0] | .kind == "pad" and .sketch.name == "Plan"
+         and .sketch.dof == 0 and .error == null
+         and (.sketch.dimensions[] | select(.slot == "width") | .parameter) == "bar_x")
+    and (.bodies[0].features[1] | .kind == "pocket" and .sketch.name == "Hole"
+         and .sketch.dof == 0 and .error == null
+         and .sketch.offset.z.value == 6
+         and (.sketch.dimensions[] | select(.slot == "x")
+              | .value == 27 and .parameter == "hole_x"))
+  ' "$TMPDIR/features.json" >/dev/null
+
+  ee mechanical param list --json | jq -e '
+    ([.parameters[] | select(.name == "hole_x")
+      | .value == 27 and .expression == "bar_x / 2 - 8"]) == [true]
+  ' >/dev/null
+
+  # A parameter other slots still use cannot be removed by accident, and
+  # --force says which relationships it turned back into numbers.
+  if ee mechanical param remove bar_x --json >/dev/null 2>"$TMPDIR/inuse.err"; then
+    echo "removing a parameter in use should have been refused" >&2
+    exit 1
+  fi
+  grep -q "parameter-in-use" "$TMPDIR/inuse.err"
+
+  # Change 2: driving a parameter can break features the caller cannot see, so
+  # the failure is named and the exit status carries it.
+  ee mechanical param new thick 6 --json >/dev/null
+  ee mechanical pad length thick --json | jq -e '.value.parameter == "thick"' >/dev/null
+
+  if ee mechanical param set thick 0 --json >"$TMPDIR/broke.json" 2>&1; then
+    echo "driving a pad to zero length should have exited nonzero" >&2
+    exit 1
+  fi
+  jq -e '
+    .recompute.failed
+    and ([.recompute.errors[] | .object]) == ["Pad"]
+    and (.recompute.errors[0].status | length) > 0
+  ' "$TMPDIR/broke.json" >/dev/null
+
+  # The readback says so too, rather than leaving it to be inferred from a
+  # bounding box that looks wrong.
+  ee mechanical document inspect --features --json | jq -e '
+    [.bodies[0].features[] | select(.error)] | length == 1
+  ' >/dev/null
+
+  ee mechanical param set thick 6 --json | jq -e '.recompute.failed | not' >/dev/null
+  ee mechanical document inspect --features --json | jq -e '
+    [.bodies[0].features[] | select(.error)] | length == 0
+  ' >/dev/null
 
   ee mechanical preview render --path "$TMPDIR/iso.png" --view iso --width 320 --height 240 \
     --json | jq -e '.width == 320 and .height == 240 and .view == "iso" and .triangles > 12' >/dev/null

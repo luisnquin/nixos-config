@@ -91,6 +91,32 @@ bool bool_param(const json::Value* params, const char* name, bool fallback)
     return *flag;
 }
 
+/// A numeric slot takes a number or the name of a parameter, and the wire keeps
+/// them apart by JSON type rather than by a sigil. Every such field accepts
+/// both on every call: which of the two a slot holds is a decision the caller
+/// can revisit, not one the object fossilizes when it is created.
+Slot slot_param(const json::Value* params, const char* name, double fallback)
+{
+    const json::Value* value = field(params, name);
+    if (value == nullptr || value->is_null()) {
+        return Slot{fallback, {}};
+    }
+    if (const std::string* text = value->as_string()) {
+        ::ee::params::require_name(*text);
+        return Slot{0.0, *text};
+    }
+    return Slot{required_number(params, name), {}};
+}
+
+Slot required_slot(const json::Value* params, const char* name)
+{
+    const json::Value* value = field(params, name);
+    if (value == nullptr || value->is_null()) {
+        throw Error{"missing-param", std::string(name) + " is required"};
+    }
+    return slot_param(params, name, 0.0);
+}
+
 json::Value envelope(bool ok, const json::Value& id)
 {
     json::Value out = json::Value::object();
@@ -243,7 +269,8 @@ json::Value Protocol::dispatch(const std::string& method, const json::Value* par
         return session_.save(string_param(params, "document"), path_param(params, "path"));
     }
     if (method == "document.inspect") {
-        return session_.inspect(string_param(params, "document"));
+        return session_.inspect(string_param(params, "document"),
+                                bool_param(params, "features", false));
     }
     if (method == "body.new") {
         return session_.new_body(string_param(params, "document"), string_param(params, "name"));
@@ -254,33 +281,30 @@ json::Value Protocol::dispatch(const std::string& method, const json::Value* par
         target.body = string_param(params, "body");
         target.plane = string_param(params, "plane");
         target.name = string_param(params, "name");
-        target.offset_x = number_param(params, "offset_x", 0.0);
-        target.offset_y = number_param(params, "offset_y", 0.0);
-        target.offset_z = number_param(params, "offset_z", 0.0);
-        target.rotate = number_param(params, "rotate", 0.0);
+        target.offset_x = slot_param(params, "offset_x", 0.0);
+        target.offset_y = slot_param(params, "offset_y", 0.0);
+        target.offset_z = slot_param(params, "offset_z", 0.0);
+        target.rotate = slot_param(params, "rotate", 0.0);
         return session_.new_sketch(target);
     }
     if (method == "sketch.rectangle") {
         RectangleTarget target;
         target.document = string_param(params, "document");
         target.sketch = string_param(params, "sketch");
-        target.width = required_number(params, "width");
-        target.height = required_number(params, "height");
-        target.x = number_param(params, "x", 0.0);
-        target.y = number_param(params, "y", 0.0);
+        target.width = required_slot(params, "width");
+        target.height = required_slot(params, "height");
+        target.x = slot_param(params, "x", 0.0);
+        target.y = slot_param(params, "y", 0.0);
         target.centered = bool_param(params, "centered", false);
-        target.name_width = string_param(params, "name_width");
-        target.name_height = string_param(params, "name_height");
         return session_.rectangle(target);
     }
     if (method == "sketch.circle") {
         CircleTarget target;
         target.document = string_param(params, "document");
         target.sketch = string_param(params, "sketch");
-        target.radius = required_number(params, "radius");
-        target.x = number_param(params, "x", 0.0);
-        target.y = number_param(params, "y", 0.0);
-        target.name_radius = string_param(params, "name_radius");
+        target.radius = required_slot(params, "radius");
+        target.x = slot_param(params, "x", 0.0);
+        target.y = slot_param(params, "y", 0.0);
         return session_.circle(target);
     }
     if (method == "pad.new" || method == "pocket.new") {
@@ -291,26 +315,43 @@ json::Value Protocol::dispatch(const std::string& method, const json::Value* par
         target.sketch = string_param(params, "sketch");
         target.name = string_param(params, "name");
         target.through_all = cutting && bool_param(params, "through_all", false);
-        target.length = target.through_all ? number_param(params, "length", 0.0)
-                                           : required_number(params, "length");
+        target.length = target.through_all ? slot_param(params, "length", 0.0)
+                                           : required_slot(params, "length");
         target.midplane = bool_param(params, "midplane", false);
         target.reversed = bool_param(params, "reversed", false);
         return cutting ? session_.pocket(target) : session_.pad(target);
     }
-    if (method == "pad.length" || method == "pocket.length") {
-        const bool cutting = method == "pocket.length";
-        return session_.extrude_length(string_param(params, "document"),
-                                       string_param(params, cutting ? "pocket" : "pad"),
-                                       cutting ? "pocket" : "pad",
-                                       required_number(params, "length"));
+    // One method for every numeric slot in the model. `kind` says how to
+    // resolve an unnamed object; `slot` is the dimension's own name, which is
+    // why every dimension gets one whether the caller asked or not.
+    if (method == "slot.set") {
+        SlotTarget target;
+        target.document = string_param(params, "document");
+        target.object = string_param(params, "object");
+        target.kind = string_param(params, "kind");
+        target.slot = string_param(params, "slot");
+        target.value = required_slot(params, "value");
+        target.unbind = bool_param(params, "unbind", false);
+        return session_.set_slot(target);
+    }
+    if (method == "param.new" || method == "param.set") {
+        ParamTarget target;
+        target.document = string_param(params, "document");
+        target.name = string_param(params, "name");
+        target.expression = string_param(params, "expression");
+        if (target.expression.empty()) {
+            target.value = required_number(params, "value");
+        }
+        target.must_be_new = method == "param.new";
+        return session_.declare_parameter(target);
     }
     if (method == "param.list") {
         return session_.parameters(string_param(params, "document"));
     }
-    if (method == "param.set") {
-        return session_.set_parameter(string_param(params, "document"),
-                                      string_param(params, "name"),
-                                      required_number(params, "value"));
+    if (method == "param.remove") {
+        return session_.remove_parameter(string_param(params, "document"),
+                                         string_param(params, "name"),
+                                         bool_param(params, "force", false));
     }
     if (method == "preview.export") {
         PreviewRequest request;

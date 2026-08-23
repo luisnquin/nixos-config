@@ -3,8 +3,8 @@ use serde_json::{Map, Value, json};
 
 use crate::bridge;
 use crate::cli::{
-    BodyCommand, DocumentCommand, Format, MechanicalCommand, PadCommand, ParamCommand,
-    PocketCommand, PreviewCommand, SessionCommand, SketchCommand,
+    BodyCommand, DocumentCommand, Format, MechanicalCommand, PadCommand, ParamCommand, ParamValue,
+    PocketCommand, PreviewCommand, SessionCommand, SketchCommand, Slot,
 };
 use crate::cmd;
 use crate::paths;
@@ -101,16 +101,97 @@ fn number(value: Option<f64>) -> Option<Value> {
     value.map(|value| json!(value))
 }
 
-/// Every mutating command answers with the server's own reply: the CLI never
-/// paraphrases what FreeCAD reports.
+/// A slot crosses the wire as its own JSON type: a number is a literal, a
+/// string is the parameter that drives it. Nothing else marks the difference,
+/// which is why the two can be swapped on any call.
+fn slot(value: Slot) -> Option<Value> {
+    Some(match value {
+        Slot::Literal(number) => json!(number),
+        Slot::Parameter(name) => Value::from(name),
+    })
+}
+
+fn slot_opt(value: Option<Slot>) -> Option<Value> {
+    value.and_then(slot)
+}
+
+fn param_value(value: ParamValue) -> Vec<(&'static str, Option<Value>)> {
+    match value {
+        ParamValue::Number(number) => vec![("value", Some(json!(number)))],
+        ParamValue::Expression(text) => vec![("expression", Some(Value::from(text)))],
+    }
+}
+
+/// A slot read back is a number plus whatever computes it, and printing only
+/// the number would say the model is fine when what it means is that this one
+/// value happens to be right today.
+fn slot_text(value: &Value) -> String {
+    let number = value
+        .get("value")
+        .map_or_else(|| value.to_string(), Value::to_string);
+
+    if let Some(parameter) = value.get("parameter").and_then(Value::as_str) {
+        return format!("{number} <- {parameter}");
+    }
+    match value.get("expression").and_then(Value::as_str) {
+        Some(expression) => format!("{number} <- ={expression}"),
+        None => number,
+    }
+}
+
+/// True when the reply says FreeCAD could not build something. Read from
+/// either shape, because `document recompute` answers with the recompute
+/// itself and every other verb nests it.
+fn broke(result: &Value) -> bool {
+    result
+        .pointer("/recompute/failed")
+        .or_else(|| result.get("failed"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn failures(result: &Value) -> &[Value] {
+    result
+        .pointer("/recompute/errors")
+        .or_else(|| result.get("errors"))
+        .and_then(Value::as_array)
+        .map_or(&[], Vec::as_slice)
+}
+
+/// Driving one parameter can push six features outside their material at once,
+/// and the geometry cannot say so on its own. The exit status carries it to a
+/// shell that would otherwise read a printed bounding box as success.
 fn emit(result: &Value, format: Format, summary: impl FnOnce(&Value)) -> Result<i32> {
     if format.json {
         cmd::emit_json(result)?;
     } else {
         summary(result);
+        broken_summary(result);
     }
 
-    Ok(0)
+    Ok(i32::from(broke(result)))
+}
+
+fn broken_summary(result: &Value) {
+    let errors = failures(result);
+    if errors.is_empty() {
+        return;
+    }
+
+    let rows: Vec<Vec<String>> = errors
+        .iter()
+        .map(|error| {
+            vec![
+                field(error, "object").to_string(),
+                field(error, "label").to_string(),
+                field(error, "status").to_string(),
+            ]
+        })
+        .collect();
+
+    println!();
+    println!("{} feature(s) did not build", rows.len());
+    cmd::print_table(&["feature", "label", "why"], &rows);
 }
 
 fn field<'a>(value: &'a Value, key: &str) -> &'a str {
@@ -339,10 +420,17 @@ fn document(command: DocumentCommand) -> Result<i32> {
                 println!("file     {}", field(result, "file"));
             })
         }
-        DocumentCommand::Inspect { document, format } => {
+        DocumentCommand::Inspect {
+            document,
+            features,
+            format,
+        } => {
             let result = call(
                 "document.inspect",
-                params(vec![("document", text(document))]),
+                params(vec![
+                    ("document", text(document)),
+                    ("features", flag(features)),
+                ]),
             )?;
 
             emit(&result, format, inspect_summary)
@@ -374,14 +462,21 @@ fn inspect_summary(result: &Value) {
                 field(object, "type").to_string(),
                 field(object, "label").to_string(),
                 detail,
+                object
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string(),
             ]
         })
         .collect();
 
     if !rows.is_empty() {
         println!();
-        cmd::print_table(&["object", "type", "label", "detail"], &rows);
+        cmd::print_table(&["object", "type", "label", "detail", "error"], &rows);
     }
+
+    features_summary(result);
 
     let solids = result["solids"].as_array().cloned().unwrap_or_default();
     for solid in &solids {
@@ -401,6 +496,116 @@ fn inspect_summary(result: &Value) {
         println!("overall");
         shape_summary(&result["bbox"], "");
     }
+}
+
+/// The build order, which the object list cannot show: it is sorted by
+/// creation and says nothing about which sketch a pad consumed or where that
+/// sketch sits. Only printed when it was asked for.
+fn features_summary(result: &Value) {
+    let Some(bodies) = result.get("bodies").and_then(Value::as_array) else {
+        return;
+    };
+
+    for body in bodies {
+        println!();
+        println!("body   {}", field(body, "body"));
+
+        let rows: Vec<Vec<String>> = body["features"]
+            .as_array()
+            .map(|features| {
+                features
+                    .iter()
+                    .map(|feature| {
+                        let sketch = &feature["sketch"];
+                        vec![
+                            field(feature, "name").to_string(),
+                            feature
+                                .get("kind")
+                                .and_then(Value::as_str)
+                                .unwrap_or_else(|| field(feature, "type"))
+                                .to_string(),
+                            feature.get("length").map_or_else(
+                                || "-".to_string(),
+                                |length| {
+                                    if feature["through_all"] == json!(true) {
+                                        "through all".to_string()
+                                    } else {
+                                        slot_text(length)
+                                    }
+                                },
+                            ),
+                            field(sketch, "name").to_string(),
+                            field(sketch, "plane").to_string(),
+                            sketch
+                                .get("offset")
+                                .map_or_else(|| "-".to_string(), offset_text),
+                            feature
+                                .get("error")
+                                .and_then(Value::as_str)
+                                .unwrap_or("")
+                                .to_string(),
+                        ]
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        if rows.is_empty() {
+            println!("no features");
+            continue;
+        }
+
+        cmd::print_table(
+            &[
+                "feature", "kind", "length", "sketch", "plane", "offset", "error",
+            ],
+            &rows,
+        );
+
+        for feature in body["features"].as_array().unwrap_or(&Vec::new()) {
+            let dimensions = feature
+                .pointer("/sketch/dimensions")
+                .and_then(Value::as_array)
+                .filter(|dimensions| !dimensions.is_empty());
+            let Some(dimensions) = dimensions else {
+                continue;
+            };
+
+            println!();
+            println!(
+                "{} dimensions of {}",
+                field(feature, "name"),
+                field(&feature["sketch"], "name")
+            );
+            let rows: Vec<Vec<String>> = dimensions
+                .iter()
+                .map(|dimension| {
+                    vec![
+                        field(dimension, "slot").to_string(),
+                        field(dimension, "type").to_string(),
+                        slot_text(dimension),
+                    ]
+                })
+                .collect();
+            cmd::print_table(&["slot", "type", "value"], &rows);
+        }
+    }
+}
+
+fn offset_text(offset: &Value) -> String {
+    ["x", "y", "z", "rotate"]
+        .iter()
+        .filter_map(|axis| {
+            let slot = offset.get(axis)?;
+            let driven = slot.get("parameter").and_then(Value::as_str).is_some()
+                || slot.get("expression").and_then(Value::as_str).is_some();
+            // `0` and `0.0` are different JSON numbers and the same offset, so
+            // the comparison has to happen after the type is gone.
+            let moved = slot["value"].as_f64().is_none_or(|value| value != 0.0);
+            (driven || moved).then(|| format!("{axis} {}", slot_text(slot)))
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn flag(value: bool) -> Option<Value> {
@@ -447,10 +652,10 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("body", text(body)),
                     ("plane", Some(Value::from(plane))),
                     ("name", text(name)),
-                    ("offset_x", number(offset_x)),
-                    ("offset_y", number(offset_y)),
-                    ("offset_z", number(offset_z)),
-                    ("rotate", number(rotate)),
+                    ("offset_x", slot_opt(offset_x)),
+                    ("offset_y", slot_opt(offset_y)),
+                    ("offset_z", slot_opt(offset_z)),
+                    ("rotate", slot_opt(rotate)),
                 ]),
             )?;
 
@@ -459,6 +664,7 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                 println!("body     {}", field(result, "body"));
                 println!("sketch   {}", field(result, "sketch"));
                 println!("plane    {}", field(result, "plane"));
+                println!("offset   {}", offset_text(&result["offset"]));
                 basis_summary(&result["basis"]);
             })
         }
@@ -470,8 +676,6 @@ fn sketch(command: SketchCommand) -> Result<i32> {
             x,
             y,
             centered,
-            name_width,
-            name_height,
             format,
         } => {
             let result = call(
@@ -479,20 +683,18 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                 params(vec![
                     ("document", text(document)),
                     ("sketch", text(sketch)),
-                    ("width", Some(json!(width))),
-                    ("height", Some(json!(height))),
-                    ("x", number(x)),
-                    ("y", number(y)),
+                    ("width", slot(width)),
+                    ("height", slot(height)),
+                    ("x", slot_opt(x)),
+                    ("y", slot_opt(y)),
                     ("centered", flag(centered)),
-                    ("name_width", text(name_width)),
-                    ("name_height", text(name_height)),
                 ]),
             )?;
 
             emit(&result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
-                println!("width       {}", result["width"]);
-                println!("height      {}", result["height"]);
+                println!("width       {}", slot_text(&result["width"]));
+                println!("height      {}", slot_text(&result["height"]));
                 println!(
                     "corner      {} {}",
                     result["corner"]["x"], result["corner"]["y"]
@@ -506,7 +708,6 @@ fn sketch(command: SketchCommand) -> Result<i32> {
             sketch,
             x,
             y,
-            name_radius,
             format,
         } => {
             let result = call(
@@ -514,16 +715,15 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                 params(vec![
                     ("document", text(document)),
                     ("sketch", text(sketch)),
-                    ("radius", Some(json!(radius))),
-                    ("x", number(x)),
-                    ("y", number(y)),
-                    ("name_radius", text(name_radius)),
+                    ("radius", slot(radius)),
+                    ("x", slot_opt(x)),
+                    ("y", slot_opt(y)),
                 ]),
             )?;
 
             emit(&result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
-                println!("radius      {}", result["radius"]);
+                println!("radius      {}", slot_text(&result["radius"]));
                 println!(
                     "centre      {} {}",
                     result["centre"]["x"], result["centre"]["y"]
@@ -531,7 +731,53 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                 sketch_summary(result);
             })
         }
+        SketchCommand::Set {
+            slot: name,
+            value,
+            document,
+            sketch,
+            unbind,
+            format,
+        } => set_slot("sketch", name, value, document, sketch, unbind, format),
     }
+}
+
+/// Pad length, pocket depth and every sketch dimension are the same operation
+/// on a different object, so they are the same request. `kind` is how the
+/// server resolves an unnamed one.
+fn set_slot(
+    kind: &str,
+    name: String,
+    value: Slot,
+    document: Option<String>,
+    object: Option<String>,
+    unbind: bool,
+    format: Format,
+) -> Result<i32> {
+    let result = call(
+        "slot.set",
+        params(vec![
+            ("document", text(document)),
+            ("object", text(object)),
+            ("kind", Some(Value::from(kind))),
+            ("slot", Some(Value::from(name))),
+            ("value", slot(value)),
+            ("unbind", flag(unbind)),
+        ]),
+    )?;
+
+    emit(&result, format, |result| {
+        println!("object   {}", field(result, "object"));
+        println!("slot     {}", field(result, "slot"));
+        println!("value    {}", slot_text(&result["value"]));
+        println!("previous {}", result["previous"]);
+        if result.get("dof").is_some() {
+            println!("dof      {}", result["dof"]);
+        }
+        if result.get("bounds").is_some() {
+            bounds_summary(result);
+        }
+    })
 }
 
 /// The plane's global axes. Without them the caller cannot tell which way a
@@ -579,7 +825,7 @@ fn pad(command: PadCommand) -> Result<i32> {
                     ("document", text(document)),
                     ("body", text(body)),
                     ("sketch", text(sketch)),
-                    ("length", Some(json!(length))),
+                    ("length", slot(length)),
                     ("midplane", flag(midplane)),
                     ("reversed", flag(reversed)),
                     ("name", text(name)),
@@ -588,7 +834,7 @@ fn pad(command: PadCommand) -> Result<i32> {
 
             emit(&result, format, |result| {
                 println!("pad    {}", field(result, "pad"));
-                println!("length {}", result["length"]);
+                println!("length {}", slot_text(&result["length"]));
                 println!("solid  {}", result["solid"]);
                 bounds_summary(result);
             })
@@ -597,24 +843,17 @@ fn pad(command: PadCommand) -> Result<i32> {
             length,
             document,
             pad,
+            unbind,
             format,
-        } => {
-            let result = call(
-                "pad.length",
-                params(vec![
-                    ("document", text(document)),
-                    ("pad", text(pad)),
-                    ("length", Some(json!(length))),
-                ]),
-            )?;
-
-            emit(&result, format, |result| {
-                println!("pad      {}", field(result, "pad"));
-                println!("length   {}", result["length"]);
-                println!("previous {}", result["previous"]);
-                bounds_summary(result);
-            })
-        }
+        } => set_slot(
+            "pad",
+            "length".to_string(),
+            length,
+            document,
+            pad,
+            unbind,
+            format,
+        ),
     }
 }
 
@@ -665,7 +904,7 @@ fn pocket(command: PocketCommand) -> Result<i32> {
                     ("document", text(document)),
                     ("body", text(body)),
                     ("sketch", text(sketch)),
-                    ("length", Some(json!(length))),
+                    ("length", slot(length)),
                     ("through_all", flag(through_all)),
                     ("midplane", flag(midplane)),
                     ("reversed", flag(reversed)),
@@ -675,7 +914,7 @@ fn pocket(command: PocketCommand) -> Result<i32> {
 
             emit(&result, format, |result| {
                 println!("pocket {}", field(result, "pocket"));
-                println!("length {}", result["length"]);
+                println!("length {}", slot_text(&result["length"]));
                 println!("solid  {}", result["solid"]);
                 bounds_summary(result);
             })
@@ -684,80 +923,195 @@ fn pocket(command: PocketCommand) -> Result<i32> {
             length,
             document,
             pocket,
+            unbind,
             format,
-        } => {
-            let result = call(
-                "pocket.length",
-                params(vec![
-                    ("document", text(document)),
-                    ("pocket", text(pocket)),
-                    ("length", Some(json!(length))),
-                ]),
-            )?;
-
-            emit(&result, format, |result| {
-                println!("pocket   {}", field(result, "pocket"));
-                println!("length   {}", result["length"]);
-                println!("previous {}", result["previous"]);
-                bounds_summary(result);
-            })
-        }
+        } => set_slot(
+            "pocket",
+            "length".to_string(),
+            length,
+            document,
+            pocket,
+            unbind,
+            format,
+        ),
     }
 }
 
 fn param(command: ParamCommand) -> Result<i32> {
     match command {
-        ParamCommand::List { document, format } => {
-            let result = call("param.list", params(vec![("document", text(document))]))?;
-
-            emit(&result, format, |result| {
-                let rows: Vec<Vec<String>> = result["parameters"]
-                    .as_array()
-                    .map(|parameters| {
-                        parameters
-                            .iter()
-                            .map(|parameter| {
-                                vec![
-                                    field(parameter, "name").to_string(),
-                                    parameter["value"].to_string(),
-                                    field(parameter, "type").to_string(),
-                                    field(parameter, "sketch").to_string(),
-                                ]
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                if rows.is_empty() {
-                    println!("no named dimensions");
-                } else {
-                    cmd::print_table(&["name", "value", "type", "sketch"], &rows);
-                }
-            })
-        }
+        ParamCommand::New {
+            name,
+            value,
+            document,
+            format,
+        } => declare("param.new", name, value, document, format),
         ParamCommand::Set {
             name,
             value,
             document,
             format,
+        } => declare("param.set", name, value, document, format),
+        ParamCommand::List { document, format } => {
+            let result = call("param.list", params(vec![("document", text(document))]))?;
+
+            emit(&result, format, param_list_summary)
+        }
+        ParamCommand::Remove {
+            name,
+            document,
+            force,
+            format,
         } => {
             let result = call(
-                "param.set",
+                "param.remove",
                 params(vec![
                     ("document", text(document)),
                     ("name", Some(Value::from(name))),
-                    ("value", Some(json!(value))),
+                    ("force", flag(force)),
                 ]),
             )?;
 
             emit(&result, format, |result| {
-                println!("name     {}", field(result, "name"));
-                println!("value    {}", result["value"]);
-                println!("previous {}", result["previous"]);
-                println!("dof      {}", result["dof"]);
+                println!("removed {}", field(result, "name"));
+
+                let froze = result["froze"].as_array().cloned().unwrap_or_default();
+                if froze.is_empty() {
+                    return;
+                }
+
+                let rows: Vec<Vec<String>> = froze
+                    .iter()
+                    .map(|entry| {
+                        vec![
+                            field(entry, "object").to_string(),
+                            field(entry, "slot").to_string(),
+                        ]
+                    })
+                    .collect();
+
+                println!();
+                println!("{} slot(s) now hold a literal", rows.len());
+                cmd::print_table(&["object", "slot"], &rows);
             })
         }
     }
+}
+
+/// `param new` and `param set` differ only in whether the name may already
+/// exist, and the server decides that: neither one can quietly do the other's
+/// job, which is the whole reason they are two verbs.
+fn declare(
+    method: &str,
+    name: String,
+    value: ParamValue,
+    document: Option<String>,
+    format: Format,
+) -> Result<i32> {
+    let mut request = vec![
+        ("document", text(document)),
+        ("name", Some(Value::from(name))),
+    ];
+    request.extend(param_value(value));
+
+    let result = call(method, params(request))?;
+
+    emit(&result, format, |result| {
+        println!("name     {}", field(result, "name"));
+        println!("value    {}", result["value"]);
+        if let Some(expression) = result.get("expression").and_then(Value::as_str) {
+            println!("computed ={expression}");
+        }
+        if let Some(previous) = result.get("previous").filter(|value| !value.is_null()) {
+            println!("previous {previous}");
+        }
+
+        let drives = result["drives"].as_array().cloned().unwrap_or_default();
+        println!("drives   {}", drives.len());
+        for entry in &drives {
+            println!(
+                "         {} {}",
+                field(entry, "object"),
+                field(entry, "slot")
+            );
+        }
+
+        // A fresh parameter drives nothing by definition, but driving one that
+        // reaches no slot moved no geometry, and the command still succeeded.
+        // Nothing else in the output distinguishes that from a change that
+        // worked, and the caller cannot see the model to notice.
+        if drives.is_empty() && method == "param.set" {
+            println!("         nothing follows it, so this changed no geometry");
+        }
+    })
+}
+
+fn param_list_summary(result: &Value) {
+    let parameters = result["parameters"].as_array().cloned().unwrap_or_default();
+
+    if parameters.is_empty() {
+        println!("no parameters: `param new <name> <value>` declares one");
+    } else {
+        let rows: Vec<Vec<String>> = parameters
+            .iter()
+            .map(|parameter| {
+                let drives = parameter["drives"].as_array().cloned().unwrap_or_default();
+
+                vec![
+                    field(parameter, "name").to_string(),
+                    parameter["value"].to_string(),
+                    parameter
+                        .get("expression")
+                        .and_then(Value::as_str)
+                        .map(|expression| format!("={expression}"))
+                        .unwrap_or_default(),
+                    drives
+                        .iter()
+                        .map(|entry| format!("{}.{}", field(entry, "object"), field(entry, "slot")))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                ]
+            })
+            .collect();
+
+        cmd::print_table(&["name", "value", "computed", "drives"], &rows);
+    }
+
+    // Named dimensions nothing drives. A document written before this registry
+    // existed is all orphans, and the way in is two commands rather than a
+    // migration verb.
+    let orphans = result["orphans"].as_array().cloned().unwrap_or_default();
+    if orphans.is_empty() {
+        return;
+    }
+
+    // Spelled out per orphan rather than as the shape of the command. A slot
+    // carries whatever name it was drawn with, which is rarely the one a reader
+    // would guess, and an unnamed `--sketch` hits the newest sketch rather than
+    // the one on the row. Both are known here, so the only part left blank is
+    // the parameter's name, which is the one thing this cannot decide.
+    let rows: Vec<Vec<String>> = orphans
+        .iter()
+        .map(|orphan| {
+            let object = field(orphan, "object");
+            let slot = field(orphan, "slot");
+
+            vec![
+                object.to_string(),
+                slot.to_string(),
+                field(orphan, "type").to_string(),
+                orphan["value"].to_string(),
+                format!("sketch set {slot} <name> --sketch {object}"),
+            ]
+        })
+        .collect();
+
+    println!();
+    println!(
+        "{} dimension(s) no parameter drives; `param new <name> <value>` declares one, \
+         then the line beside a row binds it",
+        rows.len()
+    );
+    cmd::print_table(&["object", "slot", "type", "value", "adopt"], &rows);
 }
 
 fn preview(command: PreviewCommand) -> Result<i32> {

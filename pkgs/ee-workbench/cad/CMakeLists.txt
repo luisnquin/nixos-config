@@ -56,6 +56,7 @@ endforeach()
 add_library(ee_session STATIC
   src/listener.cpp
   src/mesh.cpp
+  src/params.cpp
   src/paths.cpp
   src/protocol.cpp
   src/render.cpp

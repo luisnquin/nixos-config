@@ -366,9 +366,77 @@ pub enum DocumentCommand {
     Inspect {
         #[arg(long)]
         document: Option<String>,
+        /// Also list each body's features in order, with what drives them and
+        /// which ones FreeCAD could not build
+        #[arg(long)]
+        features: bool,
         #[command(flatten)]
         format: Format,
     },
+}
+
+/// A numeric slot argument: a literal, or the name of the parameter that
+/// drives it. Every verb that sets a dimension takes both forms on every call,
+/// so binding a slot to a parameter is an edit rather than a property of how
+/// the slot was first created.
+#[derive(Clone, Debug)]
+pub enum Slot {
+    Literal(f64),
+    Parameter(String),
+}
+
+impl std::str::FromStr for Slot {
+    type Err = String;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        if let Ok(number) = text.parse::<f64>() {
+            return Ok(Self::Literal(number));
+        }
+        if is_parameter_name(text) {
+            return Ok(Self::Parameter(text.to_string()));
+        }
+
+        Err(format!(
+            "{text} is neither a number nor a parameter name: a name starts with a letter or \
+             an underscore and holds letters, digits and underscores"
+        ))
+    }
+}
+
+/// What a parameter itself holds. An expression may be written FreeCAD's way,
+/// with a leading `=`, or without it; the two spellings mean the same thing and
+/// refusing one would only be a spelling test.
+#[derive(Clone, Debug)]
+pub enum ParamValue {
+    Number(f64),
+    Expression(String),
+}
+
+impl std::str::FromStr for ParamValue {
+    type Err = String;
+
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let text = text.trim();
+        if let Some(rest) = text.strip_prefix('=') {
+            return Ok(Self::Expression(rest.trim().to_string()));
+        }
+        match text.parse::<f64>() {
+            Ok(number) => Ok(Self::Number(number)),
+            Err(_) if text.is_empty() => Err("a parameter needs a value".to_string()),
+            Err(_) => Ok(Self::Expression(text.to_string())),
+        }
+    }
+}
+
+/// The same grammar the server enforces at `param new`. Kept here too so a
+/// typo is refused before it becomes a request.
+fn is_parameter_name(text: &str) -> bool {
+    let mut characters = text.chars();
+
+    characters
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && characters.all(|rest| rest.is_ascii_alphanumeric() || rest == '_')
 }
 
 /// `document open x.FCStd` and `document open --path x.FCStd` name the same
@@ -416,65 +484,73 @@ pub enum SketchCommand {
         #[arg(long)]
         name: Option<String>,
         /// Slide the sketch along the plane's own first axis, in millimetres
-        #[arg(long, allow_negative_numbers = true)]
-        offset_x: Option<f64>,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        offset_x: Option<Slot>,
         /// Slide the sketch along the plane's own second axis
-        #[arg(long, allow_negative_numbers = true)]
-        offset_y: Option<f64>,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        offset_y: Option<Slot>,
         /// Lift the sketch off the plane, along its normal
-        #[arg(long, allow_negative_numbers = true)]
-        offset_z: Option<f64>,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        offset_z: Option<Slot>,
         /// Spin the sketch about its own normal, in degrees
-        #[arg(long, allow_negative_numbers = true)]
-        rotate: Option<f64>,
+        #[arg(long, allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        rotate: Option<Slot>,
         #[command(flatten)]
         format: Format,
     },
     /// Draw a fully constrained rectangle
     Rectangle {
-        #[arg(long)]
-        width: f64,
-        #[arg(long)]
-        height: f64,
+        #[arg(long, value_name = "MM|PARAM")]
+        width: Slot,
+        #[arg(long, value_name = "MM|PARAM")]
+        height: Slot,
         #[arg(long)]
         document: Option<String>,
         /// Defaults to the newest sketch, which is the one just drawn on
         #[arg(long)]
         sketch: Option<String>,
         /// Sketch-plane coordinate of the reference point, default 0
-        #[arg(long, allow_negative_numbers = true)]
-        x: Option<f64>,
-        #[arg(long, allow_negative_numbers = true)]
-        y: Option<f64>,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        x: Option<Slot>,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        y: Option<Slot>,
         /// Treat --x/--y as the centre instead of the lower left corner
         #[arg(long)]
         centered: bool,
-        /// Name the width dimension so `param set` can drive it later
-        #[arg(long)]
-        name_width: Option<String>,
-        /// Name the height dimension
-        #[arg(long)]
-        name_height: Option<String>,
         #[command(flatten)]
         format: Format,
     },
     /// Draw a fully constrained circle
     Circle {
-        #[arg(long)]
-        radius: f64,
+        #[arg(long, value_name = "MM|PARAM")]
+        radius: Slot,
         #[arg(long)]
         document: Option<String>,
         /// Defaults to the newest sketch, which is the one just drawn on
         #[arg(long)]
         sketch: Option<String>,
         /// Sketch-plane coordinate of the centre, default 0
-        #[arg(long, allow_negative_numbers = true)]
-        x: Option<f64>,
-        #[arg(long, allow_negative_numbers = true)]
-        y: Option<f64>,
-        /// Name the radius dimension
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        x: Option<Slot>,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        y: Option<Slot>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Point one of a sketch's dimensions at a parameter, or back at a number
+    Set {
+        /// width, height, radius, x, y, offset_x, offset_y, offset_z or rotate
+        slot: String,
+        #[arg(allow_negative_numbers = true, value_name = "MM|PARAM")]
+        value: Slot,
         #[arg(long)]
-        name_radius: Option<String>,
+        document: Option<String>,
+        /// Defaults to the newest sketch
+        #[arg(long)]
+        sketch: Option<String>,
+        /// Replace a parameter with a literal, which no other spelling will do
+        #[arg(long)]
+        unbind: bool,
         #[command(flatten)]
         format: Format,
     },
@@ -484,8 +560,8 @@ pub enum SketchCommand {
 pub enum PadCommand {
     /// Pad a sketch into a solid inside its body
     New {
-        #[arg(long)]
-        length: f64,
+        #[arg(long, value_name = "MM|PARAM")]
+        length: Slot,
         #[arg(long)]
         document: Option<String>,
         #[arg(long)]
@@ -506,12 +582,15 @@ pub enum PadCommand {
     },
     /// Change the length of an existing pad and recompute
     Length {
-        #[arg(long)]
-        length: f64,
+        #[arg(value_name = "MM|PARAM")]
+        length: Slot,
         #[arg(long)]
         document: Option<String>,
         #[arg(long)]
         pad: Option<String>,
+        /// Replace a parameter with a literal, which no other spelling will do
+        #[arg(long)]
+        unbind: bool,
         #[command(flatten)]
         format: Format,
     },
@@ -522,8 +601,8 @@ pub enum PocketCommand {
     /// Cut a sketch into the body's existing material
     New {
         /// Depth of the cut; ignored with --through-all
-        #[arg(long, default_value_t = 0.0)]
-        length: f64,
+        #[arg(long, default_value = "0", value_name = "MM|PARAM")]
+        length: Slot,
         #[arg(long)]
         document: Option<String>,
         #[arg(long)]
@@ -547,32 +626,60 @@ pub enum PocketCommand {
     },
     /// Change the depth of an existing pocket and recompute
     Length {
-        #[arg(long)]
-        length: f64,
+        #[arg(value_name = "MM|PARAM")]
+        length: Slot,
         #[arg(long)]
         document: Option<String>,
         #[arg(long)]
         pocket: Option<String>,
+        /// Replace a parameter with a literal, which no other spelling will do
+        #[arg(long)]
+        unbind: bool,
         #[command(flatten)]
         format: Format,
     },
 }
 
+/// Parameters are the document's only arithmetic. Geometry reads them and
+/// never computes: a slot holds a number or the name of one parameter, so
+/// `param list` is a complete description of what can move rather than an
+/// index of where to look for it.
 #[derive(Subcommand)]
 pub enum ParamCommand {
-    /// Every named dimension in the document and its current value
+    /// Declare a parameter, as a number or an expression over the others
+    New {
+        name: String,
+        #[arg(allow_negative_numbers = true, value_name = "VALUE|EXPR")]
+        value: ParamValue,
+        #[arg(long)]
+        document: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Drive a parameter to a new value and recompute everything it reaches
+    Set {
+        name: String,
+        #[arg(allow_negative_numbers = true, value_name = "VALUE|EXPR")]
+        value: ParamValue,
+        #[arg(long)]
+        document: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Every parameter, what it computes to, and which slots follow it
     List {
         #[arg(long)]
         document: Option<String>,
         #[command(flatten)]
         format: Format,
     },
-    /// Drive a named dimension to a new value and recompute
-    Set {
+    /// Remove a parameter; --force freezes every slot it drives at its value
+    Remove {
         name: String,
-        value: f64,
         #[arg(long)]
         document: Option<String>,
+        #[arg(long)]
+        force: bool,
         #[command(flatten)]
         format: Format,
     },

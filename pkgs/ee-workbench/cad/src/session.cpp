@@ -10,6 +10,7 @@
 #include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/Origin.h>
+#include <App/VarSet.h>
 #include <Base/Interpreter.h>
 #include <Base/Placement.h>
 #include <Base/Rotation.h>
@@ -18,6 +19,7 @@
 #include <Mod/Part/App/Part2DObject.h>
 #include <Mod/Part/App/PartFeature.h>
 #include <Mod/PartDesign/App/Body.h>
+#include <Mod/PartDesign/App/Feature.h>
 #include <Mod/PartDesign/App/FeatureExtrude.h>
 #include <Mod/PartDesign/App/FeaturePad.h>
 #include <Mod/PartDesign/App/FeaturePocket.h>
@@ -242,6 +244,14 @@ json::Value constraints_of(const Sketcher::SketchObject& sketch)
         entry.set("driving", json::Value::boolean(constraint->isDriving));
         if (!constraint->Name.empty()) {
             entry.set("name", json::Value::string(constraint->Name));
+            const params::Binding binding =
+                params::binding_of(sketch, "Constraints." + constraint->Name);
+            if (!binding.expression.empty()) {
+                entry.set("parameter", binding.parameter.empty()
+                                           ? json::Value()
+                                           : json::Value::string(binding.parameter));
+                entry.set("expression", json::Value::string(binding.expression));
+            }
         }
         out.push(std::move(entry));
     }
@@ -438,28 +448,36 @@ Part::Feature& preview_target(App::Document& doc, const std::string& name)
     return *solids.front();
 }
 
+/// The errored objects are collected whether or not FreeCAD said the recompute
+/// failed. It reports on what it touched, and a feature left in error by an
+/// earlier edit is not touched again - a document that still answers every
+/// query while one of its features is red is precisely the failure this exists
+/// to make visible, so the flag is derived from the objects rather than
+/// trusted.
 json::Value recompute_document(App::Document& doc)
 {
     bool failed = false;
     const int touched = doc.recompute({}, false, &failed);
 
+    json::Value errors = json::Value::array();
+    for (const App::DocumentObject* object : doc.getObjects()) {
+        if (!object->isError()) {
+            continue;
+        }
+        json::Value entry = json::Value::object();
+        entry.set("object", json::Value::string(object->getNameInDocument()));
+        entry.set("label", json::Value::string(object->Label.getValue()));
+        entry.set("status", json::Value::string(object->getStatusString()));
+        errors.push(std::move(entry));
+    }
+
+    const bool broken = failed || !errors.as_array()->empty();
+
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
     out.set("recomputed", json::Value::integer(touched));
-    out.set("failed", json::Value::boolean(failed));
-    if (failed) {
-        json::Value errors = json::Value::array();
-        for (const App::DocumentObject* object : doc.getObjects()) {
-            if (!object->isError()) {
-                continue;
-            }
-            json::Value entry = json::Value::object();
-            entry.set("object", json::Value::string(object->getNameInDocument()));
-            entry.set("status", json::Value::string(object->getStatusString()));
-            errors.push(std::move(entry));
-        }
-        out.set("errors", std::move(errors));
-    }
+    out.set("failed", json::Value::boolean(broken));
+    out.set("errors", std::move(errors));
     return out;
 }
 
@@ -519,44 +537,159 @@ void require_empty(Sketcher::SketchObject& sketch)
     }
 }
 
-/// Pins one sketch point to the origin. A coincidence when the point lands on
-/// it, a pair of signed distances otherwise: both leave zero degrees of
-/// freedom, and the coincidence reads better in the constraint list.
-int pin_to_origin(Sketcher::SketchObject& sketch,
-                  int geo,
-                  PointPos pos,
-                  double x,
-                  double y,
-                  const std::string& name_x,
-                  const std::string& name_y)
+/// Pins one sketch point to the origin with a named signed distance on each
+/// axis. Always a pair, never the tidier coincidence a point already at the
+/// origin would allow: an unnamed constraint cannot be bound to a parameter
+/// afterwards, and a placement that can only be decided while drawing is the
+/// same write-once defect one level up from the values it holds.
+void pin_to_origin(Sketcher::SketchObject& sketch, int geo, PointPos pos, double x, double y)
 {
-    auto constrain = [&sketch](Sketcher::ConstraintType type,
-                               int first,
-                               PointPos first_pos,
-                               int second,
-                               PointPos second_pos,
+    auto constrain = [&sketch](Sketcher::ConstraintType type, int second, PointPos second_pos,
                                double value) {
         Sketcher::Constraint constraint;
         constraint.Type = type;
-        constraint.First = first;
-        constraint.FirstPos = first_pos;
+        constraint.First = kRootPoint;
+        constraint.FirstPos = PointPos::start;
         constraint.Second = second;
         constraint.SecondPos = second_pos;
         constraint.setValue(value);
         return sketch.addConstraint(&constraint);
     };
 
-    if (measure(x) == 0.0 && measure(y) == 0.0 && name_x.empty() && name_y.empty()) {
-        return constrain(Sketcher::Coincident, geo, pos, kRootPoint, PointPos::start, 0.0);
+    name_constraint(sketch, constrain(Sketcher::DistanceX, geo, pos, x), "x");
+    name_constraint(sketch, constrain(Sketcher::DistanceY, geo, pos, y), "y");
+}
+
+int constraint_named(const Sketcher::SketchObject& sketch, const std::string& name)
+{
+    int index = 0;
+    for (const Sketcher::Constraint* constraint : sketch.Constraints.getValues()) {
+        const int at = index++;
+        if (constraint->Name == name && constraint->isDimensional()) {
+            return at;
+        }
+    }
+    return -1;
+}
+
+/// The sketch slots that are not constraints. Everything else is a named
+/// dimension addressed by its own name, which is also how a document written
+/// before the registry stays reachable: an old `--name-width bar_w` is simply a
+/// slot called bar_w.
+/// `param list` addresses a slot the way FreeCAD stores it, and this is the
+/// way back. Whatever the readback printed can be pasted straight into `slot
+/// set`, so naming a dependency and undoing it are the same vocabulary.
+std::string sketch_slot_alias(const std::string& slot)
+{
+    if (slot == "AttachmentOffset.Base.x") {
+        return "offset_x";
+    }
+    if (slot == "AttachmentOffset.Base.y") {
+        return "offset_y";
+    }
+    if (slot == "AttachmentOffset.Base.z") {
+        return "offset_z";
+    }
+    if (slot == "AttachmentOffset.Rotation.Angle") {
+        return "rotate";
+    }
+    if (slot.rfind("Constraints.", 0) == 0) {
+        return slot.substr(std::string("Constraints.").size());
+    }
+    return slot;
+}
+
+std::string sketch_slot_path(const std::string& slot)
+{
+    if (slot == "offset_x") {
+        return "AttachmentOffset.Base.x";
+    }
+    if (slot == "offset_y") {
+        return "AttachmentOffset.Base.y";
+    }
+    if (slot == "offset_z") {
+        return "AttachmentOffset.Base.z";
+    }
+    if (slot == "rotate") {
+        return "AttachmentOffset.Rotation.Angle";
+    }
+    return "Constraints." + slot;
+}
+
+/// Signed degrees about the sketch normal. `Rotation::getAngle` is unsigned and
+/// pushes the sign into the axis, so the turned x axis is read directly rather
+/// than trusting which way FreeCAD chose to normalise.
+double rotation_degrees(const Base::Placement& placement)
+{
+    const Base::Vector3d turned = placement.getRotation().multVec(Base::Vector3d(1.0, 0.0, 0.0));
+    return std::atan2(turned.y, turned.x) * 180.0 / M_PI;
+}
+
+double sketch_slot_value(Sketcher::SketchObject& sketch, const std::string& slot)
+{
+    const Base::Placement offset = sketch.AttachmentOffset.getValue();
+    if (slot == "offset_x") {
+        return offset.getPosition().x;
+    }
+    if (slot == "offset_y") {
+        return offset.getPosition().y;
+    }
+    if (slot == "offset_z") {
+        return offset.getPosition().z;
+    }
+    if (slot == "rotate") {
+        return rotation_degrees(offset);
     }
 
-    const int placed_x =
-        constrain(Sketcher::DistanceX, kRootPoint, PointPos::start, geo, pos, x);
-    name_constraint(sketch, placed_x, name_x);
-    const int placed_y =
-        constrain(Sketcher::DistanceY, kRootPoint, PointPos::start, geo, pos, y);
-    name_constraint(sketch, placed_y, name_y);
-    return placed_y;
+    const int at = constraint_named(sketch, slot);
+    if (at < 0) {
+        throw Error{"unknown-slot", std::string("sketch ") + sketch.getNameInDocument() +
+                                        " has no dimension named " + slot};
+    }
+    return sketch.Constraints.getValues()[static_cast<std::size_t>(at)]->getValue();
+}
+
+void set_sketch_slot(Sketcher::SketchObject& sketch, const std::string& slot, double value)
+{
+    if (slot.rfind("offset_", 0) == 0 || slot == "rotate") {
+        Base::Placement offset = sketch.AttachmentOffset.getValue();
+        Base::Vector3d position = offset.getPosition();
+        if (slot == "offset_x") {
+            position.x = value;
+        }
+        else if (slot == "offset_y") {
+            position.y = value;
+        }
+        else if (slot == "offset_z") {
+            position.z = value;
+        }
+        offset.setPosition(position);
+        if (slot == "rotate") {
+            offset.setRotation(
+                Base::Rotation(Base::Vector3d(0.0, 0.0, 1.0), value * M_PI / 180.0));
+        }
+        sketch.AttachmentOffset.setValue(offset);
+        return;
+    }
+
+    const int at = constraint_named(sketch, slot);
+    if (at < 0) {
+        throw Error{"unknown-slot", std::string("sketch ") + sketch.getNameInDocument() +
+                                        " has no dimension named " + slot};
+    }
+    if (sketch.setDatum(at, value) != 0) {
+        throw Error{"unsolvable", "the sketch does not solve with " + slot + " set to " +
+                                      std::to_string(value)};
+    }
+}
+
+/// What FreeCAD marks on an object it could not build. Reported everywhere a
+/// model is read back: a recompute that half failed leaves a document that
+/// still answers every query, and an agent driving one parameter into six
+/// features has no other way to find out.
+json::Value error_of(const App::DocumentObject& object)
+{
+    return object.isError() ? json::Value::string(object.getStatusString()) : json::Value();
 }
 
 /// Both sketch primitives answer the same way, so a caller reads dof and
@@ -571,6 +704,96 @@ void append_sketch_detail(json::Value& out, Sketcher::SketchObject& sketch)
             out.set(field, *value);
         }
     }
+}
+
+/// Every named dimension of a sketch with what drives it. The feature tree is
+/// only a complete description if the numbers inside it say whether they will
+/// move, so this is not a summary of the constraint list but the part of it a
+/// caller can act on.
+json::Value dimensions_of(Sketcher::SketchObject& sketch)
+{
+    json::Value out = json::Value::array();
+    for (const Sketcher::Constraint* constraint : sketch.Constraints.getValues()) {
+        if (constraint->Name.empty() || !constraint->isDimensional()) {
+            continue;
+        }
+        json::Value entry = params::slot_json(sketch, "Constraints." + constraint->Name,
+                                              measure(constraint->getValue()));
+        entry.set("slot", json::Value::string(constraint->Name));
+        entry.set("type", json::Value::string(constraint->typeToString()));
+        out.push(std::move(entry));
+    }
+    return out;
+}
+
+/// The profile as the feature consumed it: which plane, how far off it, and
+/// which of those numbers a parameter holds.
+json::Value profile_of(Sketcher::SketchObject& sketch)
+{
+    sketch.solve(false);
+    const Base::Placement offset = sketch.AttachmentOffset.getValue();
+
+    json::Value moved = json::Value::object();
+    moved.set("x", params::slot_json(sketch, "AttachmentOffset.Base.x",
+                                     measure(offset.getPosition().x)));
+    moved.set("y", params::slot_json(sketch, "AttachmentOffset.Base.y",
+                                     measure(offset.getPosition().y)));
+    moved.set("z", params::slot_json(sketch, "AttachmentOffset.Base.z",
+                                     measure(offset.getPosition().z)));
+    moved.set("rotate", params::slot_json(sketch, "AttachmentOffset.Rotation.Angle",
+                                          measure(rotation_degrees(offset))));
+
+    const App::DocumentObject* support = sketch.AttachmentSupport.getValue();
+
+    json::Value out = json::Value::object();
+    out.set("name", json::Value::string(sketch.getNameInDocument()));
+    out.set("plane", support != nullptr ? json::Value::string(support->getNameInDocument())
+                                        : json::Value());
+    out.set("offset", std::move(moved));
+    out.set("dimensions", dimensions_of(sketch));
+    out.set("dof", json::Value::integer(sketch.getLastDoF()));
+    out.set("fully_constrained", json::Value::boolean(sketch.getLastDoF() == 0));
+    return out;
+}
+
+json::Value feature_of(App::DocumentObject& object)
+{
+    json::Value out = json::Value::object();
+    out.set("name", json::Value::string(object.getNameInDocument()));
+    out.set("type", json::Value::string(object.getTypeId().getName()));
+    out.set("label", json::Value::string(object.Label.getValue()));
+    out.set("error", error_of(object));
+
+    auto* extrude = dynamic_cast<PartDesign::FeatureExtrude*>(&object);
+    if (extrude == nullptr) {
+        return out;
+    }
+
+    const bool cutting = extrude->isDerivedFrom(PartDesign::Pocket::getClassTypeId());
+    const std::string depth = extrude->Type.getValueAsString();
+    out.set("kind", json::Value::string(cutting ? "pocket" : "pad"));
+    out.set("length",
+            params::slot_json(*extrude, "Length", measure(extrude->Length.getValue())));
+    out.set("through_all", json::Value::boolean(depth == "ThroughAll"));
+    out.set("midplane",
+            json::Value::boolean(std::string(extrude->SideType.getValueAsString()) ==
+                                 "Symmetric"));
+    out.set("reversed", json::Value::boolean(extrude->Reversed.getValue()));
+    if (auto* profile = dynamic_cast<Sketcher::SketchObject*>(extrude->Profile.getValue())) {
+        out.set("sketch", profile_of(*profile));
+    }
+    return out;
+}
+
+/// FreeCAD's own scaffolding: an origin and its three planes and three axes per
+/// body, none of them ever addressed by name. Seven entries per body buried the
+/// four a reader was looking for.
+bool is_scaffolding(const App::DocumentObject& object)
+{
+    return object.isDerivedFrom(App::Origin::getClassTypeId()) ||
+           object.isDerivedFrom(App::Plane::getClassTypeId()) ||
+           object.isDerivedFrom(App::Line::getClassTypeId()) ||
+           object.isDerivedFrom(App::Point::getClassTypeId());
 }
 
 PartDesign::FeatureExtrude& extrude_for(App::Document& doc,
@@ -733,11 +956,20 @@ json::Value Session::new_sketch(const SketchTarget& target)
     // The offset is read in the plane's own axes: x and y slide the sketch
     // inside the plane, z lifts it off, and the rotation spins it about its
     // own normal. That is what makes a body placeable without a second body.
+    const double x = params::resolve(doc, target.offset_x);
+    const double y = params::resolve(doc, target.offset_y);
+    const double z = params::resolve(doc, target.offset_z);
+    const double turn = params::resolve(doc, target.rotate);
     sketch->AttachmentOffset.setValue(
-        Base::Placement(Base::Vector3d(target.offset_x, target.offset_y, target.offset_z),
-                        Base::Rotation(Base::Vector3d(0.0, 0.0, 1.0),
-                                       target.rotate * M_PI / 180.0)));
+        Base::Placement(Base::Vector3d(x, y, z),
+                        Base::Rotation(Base::Vector3d(0.0, 0.0, 1.0), turn * M_PI / 180.0)));
     body.addObject(sketch);
+
+    for (const auto& [slot, value] :
+         {std::pair{"offset_x", target.offset_x}, std::pair{"offset_y", target.offset_y},
+          std::pair{"offset_z", target.offset_z}, std::pair{"rotate", target.rotate}}) {
+        params::apply(doc, *sketch, sketch_slot_path(slot), value);
+    }
 
     // The attachment engine only runs on execute, and the reported basis is
     // worthless until it has.
@@ -745,10 +977,11 @@ json::Value Session::new_sketch(const SketchTarget& target)
     mark_changed(doc.getName());
 
     json::Value offset = json::Value::object();
-    offset.set("x", json::Value::number(measure(target.offset_x)));
-    offset.set("y", json::Value::number(measure(target.offset_y)));
-    offset.set("z", json::Value::number(measure(target.offset_z)));
-    offset.set("rotate", json::Value::number(measure(target.rotate)));
+    offset.set("x", params::slot_json(*sketch, "AttachmentOffset.Base.x", measure(x)));
+    offset.set("y", params::slot_json(*sketch, "AttachmentOffset.Base.y", measure(y)));
+    offset.set("z", params::slot_json(*sketch, "AttachmentOffset.Base.z", measure(z)));
+    offset.set("rotate",
+               params::slot_json(*sketch, "AttachmentOffset.Rotation.Angle", measure(turn)));
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
@@ -763,23 +996,26 @@ json::Value Session::new_sketch(const SketchTarget& target)
 
 json::Value Session::rectangle(const RectangleTarget& target)
 {
-    if (!(target.width > 0.0) || !(target.height > 0.0)) {
+    App::Document& doc = document_for(target.document);
+    const double width = params::resolve(doc, target.width);
+    const double height = params::resolve(doc, target.height);
+    const double x = params::resolve(doc, target.x);
+    const double y = params::resolve(doc, target.y);
+
+    if (!(width > 0.0) || !(height > 0.0)) {
         throw Error{"invalid-dimension", "width and height must be positive"};
     }
 
-    App::Document& doc = document_for(target.document);
-    Sketcher::SketchObject& sketch =
-        sketch_for(doc, target.sketch);
+    Sketcher::SketchObject& sketch = sketch_for(doc, target.sketch);
     require_empty(sketch);
 
-    const double left = target.centered ? target.x - target.width * 0.5 : target.x;
-    const double bottom = target.centered ? target.y - target.height * 0.5 : target.y;
+    const double left = target.centered ? x - width * 0.5 : x;
+    const double bottom = target.centered ? y - height * 0.5 : y;
 
-    const Base::Vector3d corners[4] = {
-        Base::Vector3d(left, bottom, 0.0),
-        Base::Vector3d(left + target.width, bottom, 0.0),
-        Base::Vector3d(left + target.width, bottom + target.height, 0.0),
-        Base::Vector3d(left, bottom + target.height, 0.0)};
+    const Base::Vector3d corners[4] = {Base::Vector3d(left, bottom, 0.0),
+                                       Base::Vector3d(left + width, bottom, 0.0),
+                                       Base::Vector3d(left + width, bottom + height, 0.0),
+                                       Base::Vector3d(left, bottom + height, 0.0)};
     for (int i = 0; i < 4; ++i) {
         Part::GeomLineSegment line;
         line.setPoints(corners[i], corners[(i + 1) % 4]);
@@ -814,10 +1050,9 @@ json::Value Session::rectangle(const RectangleTarget& target)
         // Pinning a corner would centre the rectangle only until someone drives
         // the width; a construction point the diagonal is symmetric about keeps
         // it centred through every later `param set`.
-        Part::GeomPoint anchor(Base::Vector3d(target.x, target.y, 0.0));
+        Part::GeomPoint anchor(Base::Vector3d(x, y, 0.0));
         const int spot = sketch.addGeometry(&anchor, true);
-        pin_to_origin(sketch, spot, PointPos::start, target.x, target.y, std::string(),
-                      std::string());
+        pin_to_origin(sketch, spot, PointPos::start, x, y);
 
         Sketcher::Constraint symmetric;
         symmetric.Type = Sketcher::Symmetric;
@@ -830,23 +1065,29 @@ json::Value Session::rectangle(const RectangleTarget& target)
         sketch.addConstraint(&symmetric);
     }
     else {
-        pin_to_origin(sketch, 0, PointPos::start, left, bottom, std::string(), std::string());
+        pin_to_origin(sketch, 0, PointPos::start, left, bottom);
     }
 
-    const int width_at =
-        constrain(Sketcher::DistanceX, 0, PointPos::start, 0, PointPos::end, target.width);
-    name_constraint(sketch, width_at, target.name_width);
-    const int height_at =
-        constrain(Sketcher::DistanceY, 1, PointPos::start, 1, PointPos::end, target.height);
-    name_constraint(sketch, height_at, target.name_height);
+    name_constraint(sketch,
+                    constrain(Sketcher::DistanceX, 0, PointPos::start, 0, PointPos::end, width),
+                    "width");
+    name_constraint(sketch,
+                    constrain(Sketcher::DistanceY, 1, PointPos::start, 1, PointPos::end, height),
+                    "height");
+
+    for (const auto& [slot, value] :
+         {std::pair{"width", target.width}, std::pair{"height", target.height},
+          std::pair{"x", target.x}, std::pair{"y", target.y}}) {
+        params::apply(doc, sketch, sketch_slot_path(slot), value);
+    }
 
     mark_changed(doc.getName());
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
     out.set("sketch", json::Value::string(sketch.getNameInDocument()));
-    out.set("width", json::Value::number(measure(target.width)));
-    out.set("height", json::Value::number(measure(target.height)));
+    out.set("width", params::slot_json(sketch, "Constraints.width", measure(width)));
+    out.set("height", params::slot_json(sketch, "Constraints.height", measure(height)));
     out.set("centered", json::Value::boolean(target.centered));
     out.set("corner", point(Base::Vector3d(left, bottom, 0.0)));
     append_sketch_detail(out, sketch);
@@ -855,37 +1096,44 @@ json::Value Session::rectangle(const RectangleTarget& target)
 
 json::Value Session::circle(const CircleTarget& target)
 {
-    if (!(target.radius > 0.0)) {
+    App::Document& doc = document_for(target.document);
+    const double radius = params::resolve(doc, target.radius);
+    const double x = params::resolve(doc, target.x);
+    const double y = params::resolve(doc, target.y);
+
+    if (!(radius > 0.0)) {
         throw Error{"invalid-dimension", "radius must be positive"};
     }
 
-    App::Document& doc = document_for(target.document);
-    Sketcher::SketchObject& sketch =
-        sketch_for(doc, target.sketch);
+    Sketcher::SketchObject& sketch = sketch_for(doc, target.sketch);
     require_empty(sketch);
 
     Part::GeomCircle geometry;
-    geometry.setLocation(Base::Vector3d(target.x, target.y, 0.0));
-    geometry.setRadius(target.radius);
+    geometry.setLocation(Base::Vector3d(x, y, 0.0));
+    geometry.setRadius(radius);
     sketch.addGeometry(&geometry, false);
 
-    Sketcher::Constraint radius;
-    radius.Type = Sketcher::Radius;
-    radius.First = 0;
-    radius.FirstPos = PointPos::none;
-    radius.setValue(target.radius);
-    const int radius_at = sketch.addConstraint(&radius);
-    name_constraint(sketch, radius_at, target.name_radius);
+    Sketcher::Constraint dimension;
+    dimension.Type = Sketcher::Radius;
+    dimension.First = 0;
+    dimension.FirstPos = PointPos::none;
+    dimension.setValue(radius);
+    name_constraint(sketch, sketch.addConstraint(&dimension), "radius");
 
-    pin_to_origin(sketch, 0, PointPos::mid, target.x, target.y, std::string(), std::string());
+    pin_to_origin(sketch, 0, PointPos::mid, x, y);
+
+    for (const auto& [slot, value] : {std::pair{"radius", target.radius},
+                                      std::pair{"x", target.x}, std::pair{"y", target.y}}) {
+        params::apply(doc, sketch, sketch_slot_path(slot), value);
+    }
 
     mark_changed(doc.getName());
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
     out.set("sketch", json::Value::string(sketch.getNameInDocument()));
-    out.set("radius", json::Value::number(measure(target.radius)));
-    out.set("centre", point(Base::Vector3d(target.x, target.y, 0.0)));
+    out.set("radius", params::slot_json(sketch, "Constraints.radius", measure(radius)));
+    out.set("centre", point(Base::Vector3d(x, y, 0.0)));
     append_sketch_detail(out, sketch);
     return out;
 }
@@ -926,12 +1174,13 @@ ExtrudeParts resolve_extrude(const ExtrudeTarget& target)
 
 json::Value Session::pad(const ExtrudeTarget& target)
 {
-    if (!(target.length > 0.0)) {
-        throw Error{"invalid-dimension", "length must be positive"};
-    }
-
     const ExtrudeParts parts = resolve_extrude(target);
     App::Document& doc = *parts.doc;
+
+    const double length = params::resolve(doc, target.length);
+    if (!(length > 0.0)) {
+        throw Error{"invalid-dimension", "length must be positive"};
+    }
 
     const std::string wanted = target.name.empty() ? std::string("Pad") : target.name;
     auto* feature = static_cast<PartDesign::Pad*>(doc.addObject("PartDesign::Pad", wanted.c_str()));
@@ -940,7 +1189,8 @@ json::Value Session::pad(const ExtrudeTarget& target)
     }
 
     feature->Profile.setValue(parts.profile, std::vector<std::string>());
-    feature->Length.setValue(target.length);
+    feature->Length.setValue(length);
+    params::apply(doc, *feature, "Length", target.length);
     // Midplane is deprecated in 1.1 and only forwards to SideType with a warning.
     feature->SideType.setValue(target.midplane ? "Symmetric" : "One side");
     feature->Reversed.setValue(target.reversed);
@@ -964,7 +1214,8 @@ json::Value Session::pad(const ExtrudeTarget& target)
     out.set("sketch", json::Value::string(parts.profile->getNameInDocument()));
     out.set("pad", json::Value::string(feature->getNameInDocument()));
     out.set("label", json::Value::string(feature->Label.getValue()));
-    out.set("length", json::Value::number(measure(feature->Length.getValue())));
+    out.set("length",
+            params::slot_json(*feature, "Length", measure(feature->Length.getValue())));
     out.set("midplane", json::Value::boolean(target.midplane));
     out.set("reversed", json::Value::boolean(target.reversed));
     out.set("recompute", std::move(recomputed));
@@ -978,11 +1229,13 @@ json::Value Session::pad(const ExtrudeTarget& target)
 
 json::Value Session::pocket(const ExtrudeTarget& target)
 {
-    if (!target.through_all && !(target.length > 0.0)) {
-        throw Error{"invalid-dimension", "length must be positive unless the pocket is through all"};
-    }
     const ExtrudeParts parts = resolve_extrude(target);
     App::Document& doc = *parts.doc;
+
+    const double length = params::resolve(doc, target.length);
+    if (!target.through_all && !(length > 0.0)) {
+        throw Error{"invalid-dimension", "length must be positive unless the pocket is through all"};
+    }
 
     if (parts.body->Shape.getValue().IsNull()) {
         throw Error{"no-material",
@@ -1000,7 +1253,8 @@ json::Value Session::pocket(const ExtrudeTarget& target)
     feature->Profile.setValue(parts.profile, std::vector<std::string>());
     feature->Type.setValue(target.through_all ? "ThroughAll" : "Length");
     if (!target.through_all) {
-        feature->Length.setValue(target.length);
+        feature->Length.setValue(length);
+        params::apply(doc, *feature, "Length", target.length);
     }
     feature->SideType.setValue(target.midplane ? "Symmetric" : "One side");
     feature->Reversed.setValue(target.reversed);
@@ -1022,7 +1276,8 @@ json::Value Session::pocket(const ExtrudeTarget& target)
     out.set("sketch", json::Value::string(parts.profile->getNameInDocument()));
     out.set("pocket", json::Value::string(feature->getNameInDocument()));
     out.set("label", json::Value::string(feature->Label.getValue()));
-    out.set("length", json::Value::number(measure(feature->Length.getValue())));
+    out.set("length",
+            params::slot_json(*feature, "Length", measure(feature->Length.getValue())));
     out.set("through_all", json::Value::boolean(target.through_all));
     out.set("midplane", json::Value::boolean(target.midplane));
     out.set("reversed", json::Value::boolean(target.reversed));
@@ -1035,20 +1290,60 @@ json::Value Session::pocket(const ExtrudeTarget& target)
     return out;
 }
 
-json::Value Session::extrude_length(const std::string& document,
-                                    const std::string& feature,
-                                    const std::string& kind,
-                                    double length)
+json::Value Session::set_slot(const SlotTarget& target)
 {
-    if (!(length > 0.0)) {
+    App::Document& doc = document_for(target.document);
+
+    const bool on_sketch = target.kind == "sketch";
+    const std::string slot =
+        on_sketch ? sketch_slot_alias(target.slot)
+                  : (target.slot == "Length" ? std::string("length") : target.slot);
+    Sketcher::SketchObject* sketch = nullptr;
+    PartDesign::FeatureExtrude* extrude = nullptr;
+    App::DocumentObject* object = nullptr;
+    std::string path;
+
+    if (on_sketch) {
+        sketch = &sketch_for(doc, target.object);
+        object = sketch;
+        path = sketch_slot_path(slot);
+    }
+    else {
+        if (slot != "length") {
+            throw Error{"unknown-slot", "a " + target.kind + " has only a length slot"};
+        }
+        extrude = &extrude_for(doc, target.object, target.kind);
+        object = extrude;
+        path = "Length";
+    }
+
+    // Replacing a parameter with a literal is a real intention and a common
+    // accident, and they are the same command. Only the accident is silent, so
+    // the deliberate one has to say so.
+    const params::Binding held = params::binding_of(*object, path);
+    if (!held.expression.empty() && !target.value.bound() && !target.unbind) {
+        throw Error{"slot-is-driven",
+                    slot + " on " + object->getNameInDocument() + " follows " +
+                        (held.parameter.empty() ? held.expression : held.parameter) +
+                        ": drive that parameter instead, or pass --unbind to make this slot a "
+                        "literal again"};
+    }
+
+    const double previous =
+        on_sketch ? sketch_slot_value(*sketch, slot) : extrude->Length.getValue();
+    const double next = params::resolve(doc, target.value);
+    if (!on_sketch && !(next > 0.0)) {
         throw Error{"invalid-dimension", "length must be positive"};
     }
 
-    App::Document& doc = document_for(document);
-    PartDesign::FeatureExtrude& extrude = extrude_for(doc, feature, kind);
-    const double previous = extrude.Length.getValue();
-    extrude.Length.setValue(length);
-    extrude.Type.setValue("Length");
+    params::apply(doc, *object, path, target.value);
+    if (on_sketch) {
+        set_sketch_slot(*sketch, slot, next);
+    }
+    else {
+        extrude->Length.setValue(next);
+        extrude->Type.setValue("Length");
+    }
 
     json::Value recomputed = recompute_document(doc);
     const bool failed = recomputed.find("failed")->as_bool() == true;
@@ -1056,19 +1351,27 @@ json::Value Session::extrude_length(const std::string& document,
         mark_changed(doc.getName());
     }
 
+    const double landed =
+        on_sketch ? sketch_slot_value(*sketch, slot) : extrude->Length.getValue();
+
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
-    out.set(kind == "pocket" ? "pocket" : "pad",
-            json::Value::string(extrude.getNameInDocument()));
-    out.set("length", json::Value::number(measure(extrude.Length.getValue())));
+    out.set("object", json::Value::string(object->getNameInDocument()));
+    out.set("kind", json::Value::string(target.kind));
+    out.set("slot", json::Value::string(slot));
+    out.set("value", params::slot_json(*object, path, measure(landed)));
     out.set("previous", json::Value::number(measure(previous)));
     out.set("recompute", std::move(recomputed));
+    if (on_sketch) {
+        sketch->solve(false);
+        out.set("dof", json::Value::integer(sketch->getLastDoF()));
+    }
     if (!failed) {
-        PartDesign::Body* body = PartDesign::Body::findBodyOf(&extrude);
-        const Part::Feature& reported = body != nullptr ? static_cast<Part::Feature&>(*body)
-                                                        : static_cast<Part::Feature&>(extrude);
-        out.set("bounds", bounds_of(reported));
-        out.set("shape", shape_of(reported));
+        PartDesign::Body* body = PartDesign::Body::findBodyOf(object);
+        if (body != nullptr && !body->Shape.getValue().IsNull()) {
+            out.set("bounds", bounds_of(*body));
+            out.set("shape", shape_of(*body));
+        }
     }
     return out;
 }
@@ -1076,74 +1379,85 @@ json::Value Session::extrude_length(const std::string& document,
 json::Value Session::parameters(const std::string& document) const
 {
     App::Document& doc = document_for(document);
+    App::VarSet* registry = params::find(doc);
 
-    json::Value parameters = json::Value::array();
+    json::Value list = json::Value::array();
+    for (const std::string& name : params::names(doc)) {
+        const params::Binding binding = params::binding_of(*registry, name);
+
+        json::Value entry = json::Value::object();
+        entry.set("name", json::Value::string(name));
+        entry.set("value", json::Value::number(measure(params::value_of(doc, name))));
+        entry.set("expression", binding.expression.empty()
+                                    ? json::Value()
+                                    : json::Value::string(binding.expression));
+        // Free: the expression engine already stores every reference, so the
+        // dependency graph is read out of the document rather than tracked
+        // alongside it and able to disagree with it.
+        entry.set("drives", params::drives(doc, name));
+        list.push(std::move(entry));
+    }
+
+    // Named dimensions nothing drives. Exactly what `param new` plus a rebind
+    // would adopt, and all that a document written before the registry holds.
+    json::Value orphans = json::Value::array();
     for (Sketcher::SketchObject* sketch : doc.getObjectsOfType<Sketcher::SketchObject>()) {
-        int index = 0;
         for (const Sketcher::Constraint* constraint : sketch->Constraints.getValues()) {
-            const int at = index++;
             if (constraint->Name.empty() || !constraint->isDimensional()) {
                 continue;
             }
+            if (!params::binding_of(*sketch, "Constraints." + constraint->Name)
+                     .expression.empty()) {
+                continue;
+            }
             json::Value entry = json::Value::object();
-            entry.set("name", json::Value::string(constraint->Name));
-            entry.set("sketch", json::Value::string(sketch->getNameInDocument()));
-            entry.set("constraint", json::Value::integer(at));
+            entry.set("object", json::Value::string(sketch->getNameInDocument()));
+            entry.set("slot", json::Value::string(constraint->Name));
             entry.set("type", json::Value::string(constraint->typeToString()));
             entry.set("value", json::Value::number(measure(constraint->getValue())));
-            entry.set("driving", json::Value::boolean(constraint->isDriving));
-            parameters.push(std::move(entry));
+            orphans.push(std::move(entry));
         }
     }
 
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
-    out.set("parameters", std::move(parameters));
+    out.set("parameters", std::move(list));
+    out.set("orphans", std::move(orphans));
     return out;
 }
 
-json::Value Session::set_parameter(const std::string& document,
-                                   const std::string& name,
-                                   double value)
+json::Value Session::declare_parameter(const ParamTarget& target)
 {
-    if (name.empty()) {
-        throw Error{"missing-param", "a parameter name is required"};
+    params::require_name(target.name);
+    App::Document& doc = document_for(target.document);
+
+    const bool known = params::exists(doc, target.name);
+    if (target.must_be_new && known) {
+        throw Error{"parameter-exists", target.name + " is already a parameter in " +
+                                            doc.getName() + ": `param set` changes one"};
     }
-
-    App::Document& doc = document_for(document);
-
-    Sketcher::SketchObject* target = nullptr;
-    int at = -1;
-    int matches = 0;
-    for (Sketcher::SketchObject* sketch : doc.getObjectsOfType<Sketcher::SketchObject>()) {
-        int index = 0;
-        for (const Sketcher::Constraint* constraint : sketch->Constraints.getValues()) {
-            const int current = index++;
-            if (constraint->Name != name || !constraint->isDimensional()) {
+    if (!target.must_be_new && !known) {
+        for (Sketcher::SketchObject* sketch : doc.getObjectsOfType<Sketcher::SketchObject>()) {
+            if (constraint_named(*sketch, target.name) < 0) {
                 continue;
             }
-            ++matches;
-            target = sketch;
-            at = current;
+            throw Error{"unknown-parameter",
+                        target.name + " is a dimension on " + sketch->getNameInDocument() +
+                            ", not a parameter: `param new " + target.name +
+                            " <value>` then `sketch set " + target.name + " " + target.name +
+                            " --sketch " + sketch->getNameInDocument() + "` adopts it"};
         }
+        throw Error{"unknown-parameter", "no parameter named " + target.name + " in " +
+                                             doc.getName() + ": `param new` declares one"};
     }
 
-    if (matches == 0) {
-        throw Error{"unknown-parameter",
-                    "no named dimension " + name + " in " + doc.getName()};
+    App::VarSet& registry = params::ensure(doc);
+    const double previous = known ? params::value_of(doc, target.name) : 0.0;
+    if (target.expression.empty()) {
+        params::declare(registry, target.name, target.value);
     }
-    if (matches > 1) {
-        throw Error{"ambiguous-parameter",
-                    std::to_string(matches) + " dimensions are named " + name + " in " +
-                        doc.getName()};
-    }
-
-    const double previous = target->Constraints.getValues()[static_cast<std::size_t>(at)]
-                                ->getValue();
-    if (target->setDatum(at, value) != 0) {
-        throw Error{"unsolvable",
-                    "the sketch does not solve with " + name + " set to " +
-                        std::to_string(value)};
+    else {
+        params::express(registry, target.name, target.expression);
     }
 
     json::Value recomputed = recompute_document(doc);
@@ -1152,13 +1466,68 @@ json::Value Session::set_parameter(const std::string& document,
         mark_changed(doc.getName());
     }
 
+    const params::Binding binding = params::binding_of(registry, target.name);
+
+    json::Value out = json::Value::object();
+    out.set("document", json::Value::string(doc.getName()));
+    out.set("name", json::Value::string(target.name));
+    out.set("value", json::Value::number(measure(params::value_of(doc, target.name))));
+    out.set("expression", binding.expression.empty()
+                              ? json::Value()
+                              : json::Value::string(binding.expression));
+    out.set("created", json::Value::boolean(!known));
+    out.set("previous", known ? json::Value::number(measure(previous)) : json::Value());
+    out.set("drives", params::drives(doc, target.name));
+    out.set("recompute", std::move(recomputed));
+    return out;
+}
+
+json::Value Session::remove_parameter(const std::string& document,
+                                      const std::string& name,
+                                      bool force)
+{
+    App::Document& doc = document_for(document);
+    if (!params::exists(doc, name)) {
+        throw Error{"unknown-parameter",
+                    "no parameter named " + name + " in " + doc.getName()};
+    }
+
+    const json::Value bound = params::drives(doc, name);
+    const std::vector<json::Value>* slots = bound.as_array();
+    const std::size_t count = slots == nullptr ? 0 : slots->size();
+    if (count > 0 && !force) {
+        throw Error{"parameter-in-use",
+                    name + " drives " + std::to_string(count) +
+                        " slots: `param list` names them, --force freezes each one at its "
+                        "current value"};
+    }
+
+    // Clearing the expression leaves the number the parameter last computed, so
+    // freeing a slot never moves the geometry by itself.
+    json::Value froze = json::Value::array();
+    if (slots != nullptr) {
+        for (const json::Value& slot : *slots) {
+            App::DocumentObject* object = doc.getObject(slot.find("object")->as_string()->c_str());
+            if (object == nullptr) {
+                continue;
+            }
+            const std::string path = *slot.find("slot")->as_string();
+            params::apply(doc, *object, path, Slot{});
+            froze.push(slot);
+        }
+    }
+
+    params::find(doc)->removeDynamicProperty(name.c_str());
+
+    json::Value recomputed = recompute_document(doc);
+    if (recomputed.find("failed")->as_bool() == false) {
+        mark_changed(doc.getName());
+    }
+
     json::Value out = json::Value::object();
     out.set("document", json::Value::string(doc.getName()));
     out.set("name", json::Value::string(name));
-    out.set("sketch", json::Value::string(target->getNameInDocument()));
-    out.set("value", json::Value::number(measure(value)));
-    out.set("previous", json::Value::number(measure(previous)));
-    out.set("dof", json::Value::integer(target->getLastDoF()));
+    out.set("froze", std::move(froze));
     out.set("recompute", std::move(recomputed));
     return out;
 }
@@ -1372,16 +1741,21 @@ json::Value Session::save(const std::string& document, const std::string& path)
     return document_summary(doc);
 }
 
-json::Value Session::inspect(const std::string& document) const
+json::Value Session::inspect(const std::string& document, bool features) const
 {
     App::Document& doc = document_for(document);
 
     json::Value objects = json::Value::array();
     for (App::DocumentObject* object : doc.getObjects()) {
+        if (is_scaffolding(*object)) {
+            continue;
+        }
+
         json::Value entry = json::Value::object();
         entry.set("name", json::Value::string(object->getNameInDocument()));
         entry.set("type", json::Value::string(object->getTypeId().getName()));
         entry.set("label", json::Value::string(object->Label.getValue()));
+        entry.set("error", error_of(*object));
         if (auto* sketch = dynamic_cast<Sketcher::SketchObject*>(object)) {
             entry.set("sketch", sketch_detail(*sketch));
         }
@@ -1412,6 +1786,31 @@ json::Value Session::inspect(const std::string& document) const
     out.set("solids", std::move(solids));
     if (overall.valid) {
         out.set("bbox", box_json(overall));
+    }
+
+    // Behind a flag rather than a verb: it is the same question `inspect`
+    // already answers, asked about how the solid was built instead of what it
+    // came out as.
+    if (features) {
+        json::Value bodies = json::Value::array();
+        for (PartDesign::Body* body : doc.getObjectsOfType<PartDesign::Body>()) {
+            json::Value tree = json::Value::array();
+            for (App::DocumentObject* member : doc.getObjects()) {
+                if (dynamic_cast<PartDesign::Feature*>(member) == nullptr ||
+                    PartDesign::Body::findBodyOf(member) != body) {
+                    continue;
+                }
+                tree.push(feature_of(*member));
+            }
+
+            json::Value entry = json::Value::object();
+            entry.set("body", json::Value::string(body->getNameInDocument()));
+            entry.set("label", json::Value::string(body->Label.getValue()));
+            entry.set("error", error_of(*body));
+            entry.set("features", std::move(tree));
+            bodies.push(std::move(entry));
+        }
+        out.set("bodies", std::move(bodies));
     }
     return out;
 }

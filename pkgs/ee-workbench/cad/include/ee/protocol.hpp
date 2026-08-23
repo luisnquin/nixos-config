@@ -10,7 +10,7 @@ namespace ee {
 
 /// Wire version. Bump whenever a method's request or reply shape changes in a
 /// way an older `ee` binary would misread.
-constexpr long long kProtocol = 4;
+constexpr long long kProtocol = 5;
 
 /// Which build of this server is answering, opaque to everyone but the packaging
 /// that set it. `kProtocol` only moves when the wire shape changes, so two
