@@ -16,7 +16,7 @@
   # nothing logged on either side.
   subnet = "172.16.42.0/24";
 
-  uplink = "wlo1";
+  hostAddress = "172.16.42.2";
 in {
   systemd.network.links."10-${interface}" = {
     matchConfig.Property = [
@@ -27,11 +27,27 @@ in {
     linkConfig.Name = interface;
   };
 
+  # Static rather than DHCP: the device's dnsmasq is authoritative and sends
+  # itself as a gateway, so NetworkManager default-routes this host through the
+  # phone.
+  networking.networkmanager.unmanaged = ["interface-name:${interface}"];
+  networking.interfaces.${interface}.ipv4.addresses = [
+    {
+      address = hostAddress;
+      prefixLength = 24;
+    }
+  ];
+
   networking.nat = {
     enable = true;
-    externalInterface = uplink;
     internalIPs = [subnet];
+
+    # Unpinned. Naming an uplink stamps `-o <iface>` on both the masquerade and
+    # the forward ACCEPT, and this host has two default routes.
+    externalInterface = null;
   };
+
+  networking.firewall.trustedInterfaces = [interface];
 
   services.avahi.allowInterfaces = [interface];
 }
