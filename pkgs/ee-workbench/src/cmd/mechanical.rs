@@ -1041,7 +1041,11 @@ fn param(command: ParamCommand) -> Result<i32> {
         ParamCommand::List { document, format } => {
             let result = call("param.list", params(vec![("document", text(document))]))?;
 
-            emit(&result, format, param_list_summary)
+            // The registry's own listing was the one surface in this tool where
+            // a broken document read clean and exited 0. It is also the surface
+            // a caller reaches for precisely when something looks wrong.
+            let status = emit(&result, format, param_list_summary)?;
+            Ok(status.max(i32::from(unevaluated(&result) > 0)))
         }
         ParamCommand::Remove {
             name,
@@ -1108,6 +1112,14 @@ fn declare(
         if let Some(expression) = result.get("expression").and_then(Value::as_str) {
             println!("computed ={expression}");
         }
+        // A binding that never ran looks identical to one that ran and produced
+        // this number, and the difference is the whole point of the reply.
+        if field(result, "state") == NOT_EVALUATED {
+            println!(
+                "state    not-evaluated, so that value is not this expression's; \
+                 `param list` names the parameter that stopped the recompute"
+            );
+        }
         if let Some(previous) = result.get("previous").filter(|value| !value.is_null()) {
             println!("previous {previous}");
         }
@@ -1132,18 +1144,110 @@ fn declare(
     })
 }
 
+/// The three the server spells. Compared rather than parsed into an enum: the
+/// client's job here is to relay a judgement the document already made.
+const OK: &str = "ok";
+const INVALID: &str = "invalid";
+const NOT_EVALUATED: &str = "not-evaluated";
+
+/// Rows whose number is not what their own expression produces. Derived from
+/// the rows rather than read from a summary field, so the count and the table
+/// cannot disagree about the same document.
+fn unevaluated(result: &Value) -> usize {
+    result["parameters"].as_array().map_or(0, |rows| {
+        rows.iter().filter(|row| field(row, "state") != OK).count()
+    })
+}
+
+/// FreeCAD's diagnostics are several lines and the later ones name the
+/// expression and the binding, which is the part that identifies the row.
+/// Indented under the name rather than flattened into a cell.
+fn indented(text: &str, width: usize) {
+    for (line, body) in text.lines().enumerate() {
+        if line == 0 {
+            continue;
+        }
+        println!("{:width$} {}", "", body.trim());
+    }
+}
+
+/// Which row to repair, and what the rest of the table is worth until then.
+/// One failing expression aborts the whole VarSet, so a reader looking at three
+/// wrong numbers has one thing to fix, and saying which one is the difference
+/// between a repair and a hunt.
+fn registry_summary(parameters: &[Value]) {
+    let invalid: Vec<&Value> = parameters
+        .iter()
+        .filter(|row| field(row, "state") == INVALID)
+        .collect();
+    let stalled = parameters
+        .iter()
+        .filter(|row| field(row, "state") == NOT_EVALUATED)
+        .count();
+
+    if invalid.is_empty() && stalled == 0 {
+        return;
+    }
+
+    println!();
+    if invalid.is_empty() {
+        // No parameter is the culprit, so the abort came from elsewhere in the
+        // document and this table cannot name it.
+        println!(
+            "{stalled} parameter(s) show a value their expression did not produce; \
+             nothing in the registry is the cause, so `document inspect --features` \
+             has the object that stopped recomputing"
+        );
+        return;
+    }
+
+    let width = invalid
+        .iter()
+        .map(|row| field(row, "name").len())
+        .max()
+        .unwrap_or(0);
+
+    println!(
+        "{} parameter(s) stopped the registry{}",
+        invalid.len(),
+        match stalled {
+            0 => String::new(),
+            1 => "; until that is repaired, 1 other row shows a value its expression \
+                  did not produce"
+                .to_string(),
+            many => format!(
+                "; until those are repaired, {many} other rows show values their \
+                 expressions did not produce"
+            ),
+        }
+    );
+    for row in invalid {
+        let why = field(row, "error");
+        println!(
+            "{:width$} {}",
+            field(row, "name"),
+            why.lines().next().unwrap_or(why)
+        );
+        indented(why, width);
+    }
+}
+
 fn param_list_summary(result: &Value) {
     let parameters = result["parameters"].as_array().cloned().unwrap_or_default();
 
     if parameters.is_empty() {
         println!("no parameters: `param new <name> <value>` declares one");
     } else {
+        // Only when something is wrong. A column reading `ok` on every row of a
+        // healthy registry is noise, and noise is what a reader learns to skip.
+        let shaky = parameters.iter().any(|row| field(row, "state") != OK);
+
         let rows: Vec<Vec<String>> = parameters
             .iter()
             .map(|parameter| {
                 let drives = parameter["drives"].as_array().cloned().unwrap_or_default();
 
-                vec![
+                let mut row = vec![
                     field(parameter, "name").to_string(),
                     parameter["value"].to_string(),
                     parameter
@@ -1151,16 +1255,28 @@ fn param_list_summary(result: &Value) {
                         .and_then(Value::as_str)
                         .map(|expression| format!("={expression}"))
                         .unwrap_or_default(),
+                ];
+                if shaky {
+                    row.push(field(parameter, "state").to_string());
+                }
+                row.push(
                     drives
                         .iter()
                         .map(|entry| format!("{}.{}", field(entry, "object"), field(entry, "slot")))
                         .collect::<Vec<_>>()
                         .join(" "),
-                ]
+                );
+                row
             })
             .collect();
 
-        cmd::print_table(&["name", "value", "computed", "drives"], &rows);
+        if shaky {
+            cmd::print_table(&["name", "value", "computed", "state", "drives"], &rows);
+        } else {
+            cmd::print_table(&["name", "value", "computed", "drives"], &rows);
+        }
+
+        registry_summary(&parameters);
     }
 
     // Named dimensions nothing drives. A document written before this registry

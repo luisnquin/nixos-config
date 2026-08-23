@@ -1599,6 +1599,12 @@ json::Value Session::parameters(const std::string& document) const
         entry.set("expression", binding.expression.empty()
                                     ? json::Value()
                                     : json::Value::string(binding.expression));
+
+        const params::Evaluation checked = params::evaluate(*registry, name);
+        entry.set("state", json::Value::string(params::state_name(checked.state)));
+        if (!checked.error.empty()) {
+            entry.set("error", json::Value::string(checked.error));
+        }
         // Free: the expression engine already stores every reference, so the
         // dependency graph is read out of the document rather than tracked
         // alongside it and able to disagree with it.
@@ -1659,13 +1665,43 @@ json::Value Session::declare_parameter(const ParamTarget& target)
                                              doc.getName() + ": `param new` declares one"};
     }
 
+    // Whether this call is what brings the registry into existence, so a refusal
+    // does not leave an empty one behind: every other refusal in this tool
+    // leaves the document untouched, and a caller reading a nonzero exit as
+    // "nothing happened" has to be right about that.
+    const bool had_registry = params::find(doc) != nullptr;
     App::VarSet& registry = params::ensure(doc);
     const double previous = known ? params::value_of(doc, target.name) : 0.0;
-    if (target.expression.empty()) {
-        params::declare(registry, target.name, target.value);
+
+    // Applied, then checked, then undone if the check refuses. Checking first
+    // would be a different expression from the one that ends up bound - a cycle
+    // is only a cycle once the binding is in place - so the only honest order
+    // is to bind and be prepared to take it back.
+    const params::Restore saved = params::capture(registry, target.name);
+    try {
+        if (target.expression.empty()) {
+            params::declare(registry, target.name, target.value);
+        }
+        else {
+            params::express(registry, target.name, target.expression);
+        }
+
+        // Only this row's own failure rolls back. A valid expression that lands
+        // in a document some other row already poisoned reads NotEvaluated
+        // here, which is also what a correct binding reads before the recompute
+        // writes it, so neither is grounds to refuse.
+        const params::Evaluation checked = params::evaluate(registry, target.name);
+        if (checked.state == params::State::Invalid) {
+            throw Error{"invalid-expression", checked.error};
+        }
     }
-    else {
-        params::express(registry, target.name, target.expression);
+    catch (...) {
+        params::restore(registry, target.name, saved);
+        if (!had_registry && params::names(doc).empty()) {
+            doc.removeObject(registry.getNameInDocument());
+        }
+        (void)recompute_document(doc);
+        throw;
     }
 
     json::Value recomputed = recompute_document(doc);
@@ -1683,6 +1719,8 @@ json::Value Session::declare_parameter(const ParamTarget& target)
     out.set("expression", binding.expression.empty()
                               ? json::Value()
                               : json::Value::string(binding.expression));
+    out.set("state", json::Value::string(params::state_name(
+                         params::evaluate(registry, target.name).state)));
     out.set("created", json::Value::boolean(!known));
     out.set("previous", known ? json::Value::number(measure(previous)) : json::Value());
     out.set("drives", params::drives(doc, target.name));

@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 /// Wire version. The server is `ee-freecad-server`, a native FreeCAD module;
 /// a mismatch here means one of the two binaries is stale, and both sides
 /// refuse rather than misread a frame.
-pub const PROTOCOL: u32 = 5;
+pub const PROTOCOL: u32 = 6;
 
 /// The three verbs that keep working across a build mismatch. Refusing every
 /// method would strand a stale session holding unsaved work: you could neither

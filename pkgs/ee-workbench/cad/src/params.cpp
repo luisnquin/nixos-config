@@ -3,6 +3,7 @@
 #include <cctype>
 #include <map>
 #include <memory>
+#include <typeinfo>
 
 #include <App/Document.h>
 #include <App/DocumentObject.h>
@@ -293,6 +294,119 @@ json::Value drives(App::Document& doc, const std::string& name)
         }
     }
     return out;
+}
+
+const char* state_name(State state)
+{
+    switch (state) {
+        case State::Invalid:
+            return "invalid";
+        case State::NotEvaluated:
+            return "not-evaluated";
+        case State::Ok:
+            break;
+    }
+    return "ok";
+}
+
+Evaluation evaluate(App::VarSet& registry, const std::string& name)
+{
+    Evaluation out;
+
+    const App::ObjectIdentifier path = identifier(registry, name);
+    const auto info = registry.getExpression(path);
+    if (!info.expression) {
+        return out;
+    }
+
+    App::any produced;
+    // Three catches because Base::Exception derives from Base::BaseClass and
+    // not from std::exception, so one of them cannot stand in for the others.
+    // `execute` catches exactly these three, and anything it survives this has
+    // to survive too: a listing that raises is useless precisely when the
+    // registry is broken, which is the only time anyone reads it closely.
+    try {
+        produced = info.expression->getValueAsAny();
+    }
+    catch (const Base::Exception& error) {
+        out.state = State::Invalid;
+        out.error = error.what();
+        return out;
+    }
+    catch (const std::bad_cast&) {
+        out.state = State::Invalid;
+        out.error = "the expression produces a value this parameter cannot hold";
+        return out;
+    }
+    catch (const std::exception& error) {
+        out.state = State::Invalid;
+        out.error = error.what();
+        return out;
+    }
+
+    App::Property* property = path.getProperty();
+    if (property == nullptr) {
+        out.state = State::Invalid;
+        out.error = "no property " + name + " to hold the result";
+        return out;
+    }
+
+    try {
+        // FreeCAD's own comparison, the one `execute` uses to decide a row need
+        // not be written. Comparing doubles here instead would make the answer
+        // depend on a rounding judgement that the engine does not make.
+        if (!App::isAnyEqual(produced, property->getPathValue(path))) {
+            out.state = State::NotEvaluated;
+        }
+    }
+    catch (const Base::Exception&) {
+        out.state = State::NotEvaluated;
+    }
+    catch (const std::exception&) {
+        out.state = State::NotEvaluated;
+    }
+    return out;
+}
+
+Restore capture(App::VarSet& registry, const std::string& name)
+{
+    Restore out;
+
+    App::PropertyFloat* property = property_of(registry, name);
+    if (property == nullptr) {
+        return out;
+    }
+
+    out.existed = true;
+    out.value = property->getValue();
+
+    const auto info = registry.getExpression(identifier(registry, name));
+    if (info.expression) {
+        out.expression = info.expression->toString();
+    }
+    return out;
+}
+
+void restore(App::VarSet& registry, const std::string& name, const Restore& saved)
+{
+    const App::ObjectIdentifier path = identifier(registry, name);
+
+    // Cleared first either way. Removing a property the engine still holds an
+    // expression for would leave the binding pointing at nothing, which is a
+    // worse document than the one being rolled back.
+    registry.setExpression(path, std::shared_ptr<App::Expression>());
+
+    if (!saved.existed) {
+        registry.removeDynamicProperty(name.c_str());
+        return;
+    }
+
+    if (!saved.expression.empty()) {
+        set_expression(registry, path, saved.expression);
+    }
+    if (App::PropertyFloat* property = property_of(registry, name)) {
+        property->setValue(saved.value);
+    }
 }
 
 std::vector<std::string> following(App::Document& doc, const App::DocumentObject& object)

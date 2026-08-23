@@ -89,6 +89,50 @@ json::Value slot_json(const App::DocumentObject& object, const std::string& path
 /// Every slot in the document pointing at `name`, as `{object, slot}` pairs.
 json::Value drives(App::Document& doc, const std::string& name);
 
+/// Whether a row's number is the one its expression produces. Three states and
+/// not two, because "the value is wrong" and "the expression is wrong" want
+/// different repairs and only one of them names a culprit.
+enum class State
+{
+    /// No expression, or one that evaluates to exactly the stored value.
+    Ok,
+    /// This row's own expression does not evaluate. It is the culprit.
+    Invalid,
+    /// The expression evaluates, but the stored number is not what it
+    /// produces - so this row never ran. Deliberately not called "downstream":
+    /// a row here need not reference the broken one at all. One failing
+    /// expression aborts the whole VarSet's recompute, and everything the
+    /// abort skipped is a collateral sibling rather than a dependent.
+    NotEvaluated,
+};
+
+const char* state_name(State state);
+
+struct Evaluation
+{
+    State state = State::Ok;
+    /// FreeCAD's own diagnostic, carried whole and never parsed. Only set when
+    /// `state` is Invalid.
+    std::string error;
+};
+
+/// Re-runs one row the way a recompute would and compares the result to what is
+/// stored, which is `PropertyExpressionEngine::execute` minus the write. Reading
+/// the state off the recompute's error text instead would tie this to the
+/// wording of a diagnostic nobody promised to keep.
+Evaluation evaluate(App::VarSet& registry, const std::string& name);
+
+/// Enough to put one row back exactly as it was, including not existing.
+struct Restore
+{
+    bool existed = false;
+    std::string expression;
+    double value = 0.0;
+};
+
+Restore capture(App::VarSet& registry, const std::string& name);
+void restore(App::VarSet& registry, const std::string& name, const Restore& saved);
+
 /// The parameters whose own expression reads a property of `object`. Geometry
 /// never computes, so this is the only direction a reference can run that
 /// removing an object would break, and relinking cannot repair it: the

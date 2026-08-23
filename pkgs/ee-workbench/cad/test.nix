@@ -443,6 +443,15 @@ runCommand "ee-freecad-slice-test" {
   # Both of them, in one refusal. A refusal that names a sample costs one round
   # trip per follower to discover a set the server already had in hand.
   grep -q "parameter-follows" "$TMPDIR/follows.err"
+
+  # Membership first, per name and order-independently, because that is the
+  # promise the message actually makes.
+  grep -q "echoed" "$TMPDIR/follows.err"
+  grep -q "tripled" "$TMPDIR/follows.err"
+
+  # Then the order, as its own promise with its own reason: getExpressions() is
+  # keyed by ObjectIdentifier so the set arrives sorted, and pinning it keeps
+  # the refusal diffable across runs rather than incidentally stable.
   grep -q "echoed, tripled" "$TMPDIR/follows.err"
   ee mechanical param set echoed 20 --json >/dev/null
   ee mechanical param set tripled 30 --json >/dev/null
@@ -460,6 +469,102 @@ runCommand "ee-freecad-slice-test" {
   ee mechanical document inspect --json | jq -e '.solids == [] and (.bbox | not)' >/dev/null
   if ee mechanical preview export --path "$TMPDIR/empty.stl" --json >/dev/null 2>&1; then
     echo "exporting an emptied body should have been refused" >&2
+    exit 1
+  fi
+
+  ee mechanical session stop --force --json | jq -e '.stopped' >/dev/null
+
+  # Registry integrity. A parameter's number and its own expression have to
+  # agree, or the listing has to say which of the two is not to be trusted -
+  # one failing expression aborts the whole VarSet, so a stale row is the
+  # normal case rather than a corner.
+  socket registry
+
+  ee mechanical document new --name Poison --json >/dev/null
+  ee mechanical body new --name B --json >/dev/null
+  ee mechanical sketch new --plane xy --name S --json >/dev/null
+  ee mechanical sketch rectangle --width 10 --height 10 --centered --json >/dev/null
+  ee mechanical pad new --length 10 --name Pad1 --sketch S --json >/dev/null
+
+  # A bind that does not evaluate leaves nothing behind, the registry itself
+  # included. Every other refusal in this tool leaves the document untouched,
+  # and a caller reading a nonzero exit as "nothing happened" has to be right.
+  ee mechanical document inspect --features --json >"$TMPDIR/pristine.json"
+  if ee mechanical param new broken "=Pad1.Length + 1" --json >/dev/null 2>"$TMPDIR/bind.err"; then
+    echo "a unit mismatch should have been refused" >&2
+    exit 1
+  fi
+  grep -q "invalid-expression" "$TMPDIR/bind.err"
+  ee mechanical document inspect --features --json >"$TMPDIR/rolled.json"
+  diff <(jq -S . "$TMPDIR/pristine.json") <(jq -S . "$TMPDIR/rolled.json")
+  ee mechanical param list --json | jq -e '.parameters == []' >/dev/null
+
+  # And a refused `param set` puts back the expression it replaced, not merely
+  # the number: restoring the value alone would leave the row computing again
+  # from arithmetic nobody chose.
+  ee mechanical param new z 5 --json >/dev/null
+  ee mechanical param new keep "=z + 7" --json | jq -e '.value == 12' >/dev/null
+  if ee mechanical param set keep "=z + nosuch" --json >/dev/null 2>&1; then
+    echo "an expression naming nothing should have been refused" >&2
+    exit 1
+  fi
+  ee mechanical param list --json | jq -e '
+    [.parameters[] | select(.name == "keep")][0]
+    | .value == 12 and .expression == "z + 7" and .state == "ok"
+  ' >/dev/null
+
+  # All three states at once. abad sorts before zgood, and that is exactly what
+  # decides whether the aborted recompute ever reached zgood - so the same
+  # broken registry labels a row differently depending on its name, which is
+  # the reason the flag cannot be left to the reader to infer.
+  ee mechanical param new abad "=10 / z" --json | jq -e '.value == 2' >/dev/null
+  ee mechanical param new zgood "=z + 100" --json | jq -e '.value == 105' >/dev/null
+  if ee mechanical param set z 0 --json >/dev/null 2>&1; then
+    echo "a set that stops another expression should not report success" >&2
+    exit 1
+  fi
+
+  ee mechanical param list --json >"$TMPDIR/states.json" 2>/dev/null || true
+  jq -e '
+    ([.parameters[] | select(.name == "z")][0].state == "ok")
+    and ([.parameters[] | select(.name == "abad")][0].state == "invalid")
+    and ([.parameters[] | select(.name == "zgood")][0].state == "not-evaluated")
+  ' "$TMPDIR/states.json" >/dev/null
+
+  # The culprit carries FreeCAD's own diagnostic through to the machine
+  # surface, whole and unparsed.
+  jq -e '
+    [.parameters[] | select(.name == "abad")][0].error | test("division by zero")
+  ' "$TMPDIR/states.json" >/dev/null
+
+  # The stale row keeps its last good number rather than zeroing, which is why
+  # nothing but the flag tells it apart from a live one: 105 is what z + 100
+  # produced when z was 5, and z is 0.
+  jq -e '[.parameters[] | select(.name == "zgood")][0].value == 105' "$TMPDIR/states.json" \
+    >/dev/null
+
+  # The human surface says both things too, and the listing is the one surface
+  # a caller reaches for precisely when something already looks wrong.
+  ee mechanical param list >"$TMPDIR/table.txt" 2>&1 || true
+  grep -q "not-evaluated" "$TMPDIR/table.txt"
+  grep -q "stopped the registry" "$TMPDIR/table.txt"
+  grep -q "division by zero" "$TMPDIR/table.txt"
+
+  if ee mechanical param list --json >/dev/null 2>&1; then
+    echo "param list should exit nonzero while an expression fails" >&2
+    exit 1
+  fi
+
+  # Repaired, everything clears, and the column disappears with it: a state
+  # reading ok on every row of a healthy registry is noise.
+  ee mechanical param set z 5 --json >/dev/null
+  ee mechanical param list --json | jq -e '
+    ([.parameters[] | select(.state != "ok")] | length) == 0
+    and ([.parameters[] | select(.name == "zgood")][0].value == 105)
+  ' >/dev/null
+  ee mechanical param list >"$TMPDIR/healthy.txt"
+  if head -1 "$TMPDIR/healthy.txt" | grep -q "state"; then
+    echo "a healthy registry should not carry a state column" >&2
     exit 1
   fi
 
