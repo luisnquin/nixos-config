@@ -166,6 +166,38 @@ did not build and why, and **exits nonzero**; `document inspect --features`
 carries the same per-feature error state. Check the exit status. A bounding box
 that prints is not a model that built.
 
+**An expression that does not evaluate is refused, and nothing is left behind.**
+`param new` that fails to compute removes the parameter it was declaring, and
+takes the registry with it when that call created it; a failed `param set`
+restores the expression it replaced, not merely the number. So a nonzero exit
+from either verb means the document is exactly as it was. The cost is that
+forward references are impossible — you cannot write `=head_len / 2` before
+`head_len` exists — which for a registry is the right trade: a parameter that
+cannot be evaluated cannot drive anything, so nothing is lost by refusing it at
+the point it is written.
+
+**One broken expression stops the whole registry.** FreeCAD evaluates the
+parameter set in one pass and abandons the rest at the first failure, so a
+single bad row leaves other rows showing the number they last computed. They are
+not wrong-looking: the value is plausible and the expression beside it is valid.
+Every row therefore carries a `state`:
+
+| state | meaning |
+| --- | --- |
+| `ok` | the value is what this row's expression produces |
+| `invalid` | this row's expression does not evaluate; it is the culprit, and `error` carries FreeCAD's diagnostic |
+| `not-evaluated` | this row never ran, so its value is not what its expression produces |
+
+`not-evaluated` is not "downstream" — such a row need not reference the broken
+one at all. It is a collateral sibling of a recompute that stopped early, and
+which rows get labelled depends on evaluation order, so the same breakage marks
+different rows depending on their names. Repair every `invalid` row and the rest
+clear on the next recompute.
+
+**`param list` exits nonzero while any row is not `ok`**, and names the culprit
+in both surfaces. It is the one listing you reach for when something already
+looks wrong, so it does not report success on a registry that stopped.
+
 ### Taking things back out
 
 `feature remove <name>` is the only verb that makes the model smaller, and so
