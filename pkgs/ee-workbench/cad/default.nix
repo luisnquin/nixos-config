@@ -4,6 +4,11 @@
 # and serves the same protocol from the interface's event loop. FreeCAD ships
 # no dev output, so the headers come from its source and the generated
 # QtCore.h is reconstructed in CMakeLists.txt.
+#
+# To run `ee` against a server built from a checkout, point
+# EE_WORKBENCH_CAD_SERVER at it and use the *unwrapped* client — the installed
+# `ee` is `..#ee-workbench.withCad`, which hard-sets that variable and ignores
+# yours on purpose. `nix run ..#ee-workbench` is the unwrapped one.
 {
   lib,
   stdenv,

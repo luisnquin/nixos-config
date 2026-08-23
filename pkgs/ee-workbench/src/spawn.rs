@@ -10,15 +10,22 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, bail};
 
-/// Overrides the `ee-freecad-server` on PATH. Set by the wrapper the packaging
-/// installs, which names the server by store path, so `ee` starts the one it was
-/// built against and not whatever a shell happens to have inherited.
+/// Which `ee-freecad-server` to start, instead of the one on PATH.
+///
+/// For the installed `ee` this does not override anything: the packaging wraps
+/// it with `--set`, so the wrapper's own value wins over whatever the caller
+/// exports. That is deliberate — a stale value inherited from an older login is
+/// the failure the wrapper exists to stop, and it cannot be told apart from a
+/// deliberate one. To point at a server you built yourself, run the *unwrapped*
+/// client, which is the bare `ee-workbench` package (`nix run .#ee-workbench`,
+/// `cargo run`, or `ee-workbench.client` in the wrapper's passthru); it reads
+/// this, and `BUILD_ENV` with it.
 pub const SERVER_ENV: &str = "EE_WORKBENCH_CAD_SERVER";
 
 /// The identity of that same server, set by the same wrapper from the same
-/// derivation. Read rather than derived from `SERVER_ENV`: the binary sits
-/// behind a symlink into a FreeCAD-shaped home, so the path `ee` executes is not
-/// the path the server reports.
+/// derivation, and hard-set for the same reason. Read rather than derived from
+/// `SERVER_ENV`: the binary sits behind a symlink into a FreeCAD-shaped home, so
+/// the path `ee` executes is not the path the server reports.
 pub const BUILD_ENV: &str = "EE_WORKBENCH_CAD_BUILD";
 
 /// Set to 0, no or never to keep `ee` from starting a session by itself.
@@ -175,7 +182,8 @@ fn launch(socket: &Path, log: &Path) -> Result<Child> {
         if error.kind() == std::io::ErrorKind::NotFound {
             anyhow::anyhow!(
                 "{} is not on PATH: install ee-workbench with programs.ee-workbench.cad.enable, \
-                 or point {SERVER_ENV} at the binary",
+                 which pairs `ee` with a server, or point {SERVER_ENV} at one and run the \
+                 unwrapped client",
                 binary.display()
             )
         } else {

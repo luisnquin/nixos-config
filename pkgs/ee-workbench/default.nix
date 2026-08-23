@@ -62,8 +62,13 @@
   # cannot drift apart, where a session variable would keep pointing at whatever
   # generation the shell was born in. `--set` and not `--set-default` for the
   # same reason — a stale value already in the environment has to lose.
+  #
+  # The price is that EE_WORKBENCH_CAD_SERVER no longer overrides anything here:
+  # a deliberate override and a stale login are the same string. Run a locally
+  # built server through `self` instead, the unwrapped client, which still reads
+  # it — that is what `passthru.client` is for.
   withCad =
-    runCommandLocal "ee-workbench-cad-${version}" {
+    runCommandLocal "ee-workbench-with-cad-${version}" {
       nativeBuildInputs = [makeWrapper];
       passthru = {
         inherit cad;
