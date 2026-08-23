@@ -61,27 +61,82 @@ meets any other copy of itself.
 
 `ee mechanical` drives a real FreeCAD session. The session is
 `ee-freecad-server`, a native binary that links the installed FreeCAD and owns
-`$XDG_RUNTIME_DIR/ee-workbench/cad.sock`; `ee` is only the client. Nothing
-spawns it — if `ee mechanical status` reports the session is not running, ask
-the human to start it rather than starting it yourself, because a session holds
-open documents that may be theirs.
+`$XDG_RUNTIME_DIR/ee-workbench/cad.sock`; `ee` is only the client. **Start
+nothing yourself** — the first verb that needs a session starts one and waits
+for it, and an idle session retires after 15 minutes. `ee mechanical status` is
+the one verb that never starts anything, so it stays a safe probe.
+
+A session with a document nobody saved refuses to retire, and
+`ee mechanical session stop` refuses too unless you pass `--force`. Save before
+you stop, and treat a `--force` stop as discarding work.
 
 ```sh
-ee mechanical status --json
 ee mechanical document new --name Plate --json
-ee mechanical body new --json
+ee mechanical body new --name Bar --json
 ee mechanical sketch new --plane xy --json
-ee mechanical sketch rectangle --width 40 --height 25 --json
-ee mechanical document recompute --json
-ee mechanical document save --path ~/cad/plate.FCStd --json
+ee mechanical sketch rectangle --width 40 --height 20 --centered \
+  --name-width bar_x --name-height bar_y --json
+ee mechanical pad new --length 6 --json
+ee mechanical sketch new --plane xy --offset-z 6 --json
+ee mechanical sketch circle --radius 4 --x 12 --json
+ee mechanical pocket new --through-all --json
 ee mechanical document inspect --json
+ee mechanical document save --path ~/cad/plate.FCStd --json
 ```
 
-`sketch rectangle` produces a fully constrained rectangle (`dof: 0`) and
-`document inspect` reports objects, sketch geometry, constraints and degrees of
-freedom, so verify with `inspect` instead of assuming a mutation landed. Sketch
-and body arguments may be omitted only when the document holds exactly one;
-otherwise name them.
+Every `--path` is resolved where you type it, so relative paths and `~` mean
+what they do in your shell. The session is a daemon started from some other
+directory and outlives it; it never guesses at a path of its own.
+
+Reopening renames: FreeCAD takes a document's internal name from the file, so
+`plate.FCStd` comes back as `plate` whatever `document new --name` called it.
+Read the `document` every response echoes rather than assuming the old name.
+
+### Placement
+
+A sketch is not welded to the global origin. `sketch new` takes
+`--offset-x/--offset-y/--offset-z` along the plane's own axes and `--rotate`
+about its normal, and reports the resulting `basis` — origin, x, y and normal in
+global millimetres — so you can check where you actually are before drawing.
+Geometry takes `--x/--y` in sketch coordinates, and `sketch rectangle
+--centered` reads them as the centre instead of the lower left corner. Centred
+means centred: it is held by a symmetry constraint, so it survives a later
+change of width.
+
+### Named dimensions
+
+`--name-width`, `--name-height` and `--name-radius` name the constraint that
+drives a dimension. `ee mechanical param list --json` reads them back and
+`ee mechanical param set <name> <value>` drives them; follow with
+`document recompute`. The names are FreeCAD constraint names, so they survive a
+save and reopen. Anything unnamed is still a number you have to redraw to
+change.
+
+### Seeing what you built
+
+`dof: 0` proves the sketch is determined, not that it is right. Two verbs
+answer that:
+
+- `document inspect --json` reports, per solid, the bounding box (`min`, `max`,
+  `size`, `centre`), `volume` and `centre_of_mass`, plus one overall `bbox`.
+  Numbers are millimetres rounded to a micron. Check them; a wrong model is
+  usually wrong in the bounding box first.
+- `preview render --path x.png --view iso|front|top|...` rasterizes the model
+  offscreen to a PNG you can open. Silhouettes, creases and pocket rims are
+  outlined, and a red/green/blue triad marks x/y/z.
+
+`preview export` is the other output: a printable STL that keeps following the
+model until the session ends.
+
+### The vocabulary
+
+Sketches: `rectangle`, `circle`. Solids: `pad` (add), `pocket` (remove), both
+with `--midplane`, `--reversed` and a `length` you can retarget afterwards
+(`pad length`, `pocket length`); `pocket` also takes `--through-all`. That is
+all of it. One sketch holds one primitive, so a part is several sketches:
+`--sketch` defaults to the newest one and every response echoes which sketch it
+used, so read it back rather than assuming. `--body` and `--document` are
+stricter — with more than one they refuse rather than guess.
 
 Documents are not workbench records: nothing here touches the ledger, and a
 saved `.FCStd` is only tracked if the human puts it in the repository.
