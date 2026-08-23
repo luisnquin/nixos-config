@@ -166,6 +166,47 @@ did not build and why, and **exits nonzero**; `document inspect --features`
 carries the same per-feature error state. Check the exit status. A bounding box
 that prints is not a model that built.
 
+### Taking things back out
+
+`feature remove <name>` is the only verb that makes the model smaller, and so
+the only one that has to repair links FreeCAD would rather clear. Removing a
+feature from the middle of a body drops the link the feature above it was built
+on, and FreeCAD sets that link to nothing rather than to the feature below: the
+body then rebuilds to the material under the hole and reports itself up to
+date. `feature remove` relinks it, so the tree closes over the gap.
+
+`--dry-run` reports what the removal would change and changes nothing. It is
+the same plan the real run applies — the server computes it once and the flag
+decides only whether to apply it — so a preview cannot describe an edit
+different from the one that follows it.
+
+```sh
+ee mechanical feature remove Pad2 --dry-run --json
+ee mechanical feature remove Pad2 --json
+```
+
+Either way the response is the blast radius: what goes, which link is relinked
+and to what, whether the body's tip moves, which sketches are left behind, and
+which parameters lose their last slot.
+
+- **The profile stays.** Removing a pad leaves the sketch it consumed in the
+  document, where `param list` picks it up as an orphan. Taking that out too is
+  a second `feature remove`, not a policy this verb decides for you.
+- **Emptying a body is allowed**, and a body whose tip is nothing has no shape
+  at all rather than an empty one: it stops appearing among `inspect`'s solids
+  and `preview export` refuses. Padding into it again brings it back.
+- **Parameters are never deleted on your behalf.** One whose last slot went
+  away survives driving nothing and binds straight back when you rebuild.
+- Three refusals: a sketch a live feature still draws from (remove that feature
+  first), a feature some parameter's expression reads (point the parameter
+  elsewhere first — nothing here rewrites arithmetic you wrote), and a body,
+  because what removing one means depends on booleans, which do not exist yet.
+
+**There is no undo**, and none is coming until the session question is settled:
+an idle session retires and the next verb starts a fresh one, so an undo stack
+would be discarded silently at exactly the moment it was wanted. Save before a
+removal you are unsure of, and `--dry-run` first — it costs nothing.
+
 ### Seeing what you built
 
 `dof: 0` proves the sketch is determined, not that it is right. Two verbs
@@ -189,8 +230,8 @@ model until the session ends.
 Sketches: `rectangle`, `circle`. Solids: `pad` (add), `pocket` (remove), both
 with `--midplane`, `--reversed` and a `length` you can retarget afterwards
 (`pad length`, `pocket length`), and `sketch set` for a sketch dimension or
-placement; `pocket` also takes `--through-all`. That is
-all of it. One sketch holds one primitive, so a part is several sketches:
+placement; `pocket` also takes `--through-all`. Removal: `feature remove`, for
+a pad, a pocket or a sketch nothing draws from. That is all of it. One sketch holds one primitive, so a part is several sketches:
 `--sketch` defaults to the newest one and every response echoes which sketch it
 used, so read it back rather than assuming. `--body` and `--document` are
 stricter — with more than one they refuse rather than guess.
