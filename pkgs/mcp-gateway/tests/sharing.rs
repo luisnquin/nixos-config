@@ -161,9 +161,37 @@ fn unsupported_semantics_fail_visibly() {
 }
 
 #[test]
-fn unknown_revisions_fail_closed_without_a_second_backend() {
+fn a_client_on_the_revision_after_the_canonical_one_is_served_in_full() {
+    // Claude Code proposes 2025-11-25 while these servers negotiate 2025-06-18. The revision is
+    // additive over the canonical one, so the client keeps it and reads the older payloads as is.
     let gateway = Gateway::start("2025-06-18");
 
+    let mut client = gateway.client();
+    let init = client.initialize("2025-11-25");
+    assert!(
+        init.get("error").is_none(),
+        "the reported failure must not return: {init}"
+    );
+    assert_eq!(init["result"]["protocolVersion"], json!("2025-11-25"));
+    assert_eq!(
+        init["result"]["serverInfo"]["title"],
+        json!("Fake Server"),
+        "a client at or above 2025-06-18 keeps the fields that revision added"
+    );
+
+    let tools = client.request(json!({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}));
+    assert_eq!(tools["result"]["tools"][0]["name"], json!("echo"));
+    let echoed = client.request(call("echo", "modern", json!(2)));
+    assert_eq!(echoed["result"]["content"][0]["text"], json!("modern"));
+
+    assert_eq!(gateway.spawn_count(), 1);
+}
+
+#[test]
+fn unknown_revisions_negotiate_down_without_a_second_backend() {
+    let gateway = Gateway::start("2025-06-18");
+
+    // A revision released after this gateway was built must not take the server down with it.
     let mut future = gateway.client();
     let response = future.request(json!({
         "jsonrpc": "2.0",
@@ -171,17 +199,24 @@ fn unknown_revisions_fail_closed_without_a_second_backend() {
         "method": "initialize",
         "params": {"protocolVersion": "2099-01-01", "capabilities": {}},
     }));
-    let message = response["error"]["message"].as_str().unwrap_or_default();
-    assert!(message.contains("2099-01-01"), "got {response}");
     assert!(
-        message.contains("compat.rs"),
-        "error must be actionable: {response}"
+        response.get("error").is_none(),
+        "an unknown revision must be negotiated, not refused: {response}"
     );
     assert_eq!(
-        gateway.spawn_count(),
-        0,
-        "a refused revision must never start a backend"
+        response["result"]["protocolVersion"],
+        json!("2025-11-25"),
+        "the answer must be the newest revision the gateway implements: {response}"
     );
+
+    let tools = future.request(json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}));
+    assert_eq!(tools["result"]["tools"][0]["name"], json!("echo"));
+
+    // A client on a known revision joins the same backend rather than forking a second pool.
+    let mut known = gateway.client();
+    let known_init = known.initialize("2025-06-18");
+    assert_eq!(known_init["result"]["protocolVersion"], json!("2025-06-18"));
+    assert_eq!(gateway.spawn_count(), 1);
 
     let batch = future.request_raw("[{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"ping\"}]");
     assert!(
@@ -191,7 +226,7 @@ fn unknown_revisions_fail_closed_without_a_second_backend() {
         "batches must be refused, got {batch}"
     );
 
-    assert!(gateway.daemon_log().contains("protocol_rejected"));
+    assert!(gateway.daemon_log().contains("protocol_negotiated"));
 }
 
 #[test]

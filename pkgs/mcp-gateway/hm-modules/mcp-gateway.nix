@@ -145,20 +145,28 @@ in {
     };
 
     protocolVersion = mkOption {
-      type = types.enum ["2025-03-26" "2025-06-18"];
+      type = types.strMatching "[0-9]{4}-[0-9]{2}-[0-9]{2}";
       default = "2025-06-18";
+      example = "2025-11-25";
       description = ''
-        MCP revision spoken to every upstream server, whatever the clients
-        negotiate. Clients on either listed revision share one process and are
-        answered in their own revision.
+        MCP revision proposed to every upstream server, whatever the clients
+        negotiate. Clients sharing one process are each answered in their own
+        revision; this only sets the revision spoken upstream.
 
-        Lower this only for a server that rejects 2025-06-18: the older revision
-        cannot carry structuredContent, resource links or completion context, so
-        requests and results needing them are refused rather than downgraded
-        silently. A server negotiating down to 2024-11-05 is accepted as is,
-        since an older upstream emits nothing newer clients cannot read.
-        Revisions outside this list are refused at startup; adding one means
-        extending pkgs/mcp-gateway/src/compat.rs.
+        This bounds nothing on the client side. A client is never refused over
+        its revision: one newer than the gateway knows is answered at the newest
+        revision the gateway implements, and a new MCP release therefore needs
+        no change here. This setting exists for the upstream link alone.
+
+        Lower it for a server that rejects the default: revisions before
+        2025-06-18 cannot carry structuredContent, resource links or completion
+        context, so requests and results needing them are refused rather than
+        downgraded silently. A server negotiating down on its own is accepted as
+        is, since an older upstream emits nothing newer clients cannot read.
+
+        Raising it past the newest revision pkgs/mcp-gateway/src/compat.rs can
+        translate down from is refused at startup, because clients on older
+        revisions could then be served payloads the gateway cannot rewrite.
       '';
     };
 

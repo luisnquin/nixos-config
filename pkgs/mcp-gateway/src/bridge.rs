@@ -19,7 +19,8 @@ pub type ClientId = u64;
 pub type ClientSender = mpsc::UnboundedSender<Value>;
 
 /// One shared upstream process, serving every downstream client regardless of its protocol
-/// revision. The canonical revision is spoken upstream; each client is answered in its own.
+/// revision. The canonical revision is spoken upstream; each client is answered in the revision
+/// [`compat::negotiate`] picks for it, and none is ever refused over the revision it asked for.
 pub struct Bridge {
     runtime: Arc<Runtime>,
     active_clients: AtomicUsize,
@@ -133,22 +134,42 @@ impl Bridge {
             .get("protocolVersion")
             .and_then(Value::as_str)
             .ok_or(BridgeError::MissingProtocolVersion)?;
-        let version = Version::parse(requested).map_err(|error| {
-            tracing::error!(
-                mcp.event = "protocol_rejected",
+
+        let (outcome, upstream) = self.runtime.initialize().await?;
+
+        // A revision this build has never heard of is negotiated, not refused: the client is
+        // answered at the newest revision the gateway implements and speaks that instead. A string
+        // that is no revision at all cannot be ordered, so it is answered at the upstream link's.
+        let version = match Version::parse(requested) {
+            Some(requested) => compat::negotiate(requested, upstream),
+            None => {
+                tracing::warn!(
+                    mcp.event = "protocol_unreadable",
+                    mcp.server = %self.runtime.server,
+                    mcp.client_id = client_id,
+                    mcp.requested_version = requested,
+                    mcp.served_version = upstream.as_str(),
+                    "MCP client proposed an unreadable protocol revision; answering with the \
+                     upstream revision"
+                );
+                upstream
+            }
+        };
+        if outcome.get("error").is_some() {
+            return Ok((version, restore_id(outcome, original_id), false));
+        }
+
+        if version.as_str() != requested {
+            tracing::info!(
+                mcp.event = "protocol_negotiated",
                 mcp.server = %self.runtime.server,
                 mcp.client_id = client_id,
                 mcp.requested_version = requested,
-                mcp.supported_versions = %compat::SUPPORTED_VERSIONS.join(", "),
-                mcp.reason = %error,
-                "refusing MCP client on an unsupported protocol revision"
+                mcp.served_version = version.as_str(),
+                mcp.upstream_version = upstream.as_str(),
+                "MCP client asked for a revision the gateway does not serve; \
+                 answering with the newest one it does"
             );
-            error
-        })?;
-
-        let (outcome, upstream) = self.runtime.initialize().await?;
-        if outcome.get("error").is_some() {
-            return Ok((version, restore_id(outcome, original_id), false));
         }
 
         if version == upstream {
@@ -184,6 +205,21 @@ impl Bridge {
                 "protocolVersion".to_owned(),
                 Value::String(version.as_str().to_owned()),
             );
+        }
+        if let Some(handshake) = result.get_mut("result") {
+            let mut notes = Vec::new();
+            compat::redact_unservable_capabilities(handshake, &mut notes);
+            for note in notes {
+                tracing::info!(
+                    mcp.event = "capability_redacted",
+                    mcp.server = %self.runtime.server,
+                    mcp.client_id = client_id,
+                    mcp.field = note.field,
+                    mcp.path = %note.path,
+                    mcp.detail = note.detail,
+                    "withheld an MCP capability the gateway does not relay"
+                );
+            }
         }
 
         self.runtime
@@ -316,13 +352,7 @@ impl Runtime {
             .cloned()
             .ok_or(BridgeError::UnknownClient)?;
 
-        compat::adapt_request(
-            &method,
-            registration.version,
-            connection.upstream(),
-            &message,
-        )
-        .map_err(|error| {
+        compat::adapt_request(&method, connection.upstream(), &message).map_err(|error| {
             tracing::warn!(
                 mcp.event = "contract_rejected",
                 mcp.server = %self.server,
@@ -455,7 +485,7 @@ impl Runtime {
                 .and_then(Value::as_str)
                 .unwrap_or_default();
             if negotiated != self.canonical.as_str() {
-                match Version::parse_downlevel(negotiated) {
+                match Version::parse(negotiated) {
                     Some(version) if version < self.canonical => {
                         let _ = connection.routing.negotiated.set(version);
                         tracing::info!(
@@ -470,7 +500,7 @@ impl Runtime {
                     _ => {
                         let error = CompatError::UpstreamVersionMismatch {
                             negotiated: negotiated.to_owned(),
-                            canonical: self.canonical.as_str(),
+                            canonical: self.canonical,
                         };
                         tracing::error!(
                             mcp.event = "protocol_rejected",
@@ -1143,8 +1173,8 @@ mod tests {
             "srv",
             1,
             "tools/list",
-            Version::V20250618,
-            Version::V20250326,
+            compat::V2025_06_18,
+            compat::V2025_03_26,
             &mut message,
         )
         .unwrap();
@@ -1160,8 +1190,8 @@ mod tests {
             "srv",
             1,
             "tools/call",
-            Version::V20250618,
-            Version::V20250326,
+            compat::V2025_06_18,
+            compat::V2025_03_26,
             &mut message,
         )
         .unwrap();

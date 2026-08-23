@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_writer(std::io::stderr)
         .init();
     let args = Args::parse();
-    let canonical = Version::parse(&args.protocol_version)?;
+    let canonical = Version::parse_canonical(&args.protocol_version)?;
     let config = Config::load(&args.config)?;
     let socket = args.socket.unwrap_or_else(default_socket);
     prepare_socket(&socket).await?;
@@ -60,10 +60,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(
         mcp.event = "gateway_started",
         mcp.canonical_version = canonical.as_str(),
-        mcp.supported_versions = %compat::SUPPORTED_VERSIONS.join(", "),
+        mcp.translatable_range = %format!(
+            "{}..={}",
+            compat::OLDEST_TRANSLATABLE,
+            compat::NEWEST_TRANSLATABLE
+        ),
         mcp.socket = %socket.display(),
         mcp.servers = config.servers.len(),
-        "MCP gateway sharing one upstream process per server across every supported client revision"
+        "MCP gateway sharing one upstream process per server across every client revision"
     );
 
     let gateway = Arc::new(Gateway {
