@@ -66,6 +66,12 @@ nothing yourself** — the first verb that needs a session starts one and waits
 for it, and an idle session retires after 15 minutes. `ee mechanical status` is
 the one verb that never starts anything, so it stays a safe probe.
 
+`ee` is installed together with the exact server it was built against, so the
+two cannot drift. If a session started by an older generation is still holding
+the socket, every verb but `status`, `document save` and `session stop` refuses
+and says so: save what is open, stop the session, and the next command starts
+the right one.
+
 A session with a document nobody saved refuses to retire, and
 `ee mechanical session stop` refuses too unless you pass `--force`. Save before
 you stop, and treat a `--force` stop as discarding work.
