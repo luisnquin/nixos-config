@@ -153,8 +153,12 @@ takes the newest one, which on a document with several is rarely the row you
 were reading. There is no migration verb because none is needed.
 
 Every dimension is named when it is drawn (`width`, `height`, `radius`, `x`,
-`y`), and a sketch's placement is addressable the same way (`offset_x`,
-`offset_y`, `offset_z`, `rotate`). Nothing has to be decided in advance.
+`y`, a line's `x1`..`y2`, a polyline's `x1`..`yN`), and a sketch's placement is
+addressable the same way (`offset_x`, `offset_y`, `offset_z`, `rotate`).
+Nothing has to be decided in advance. A sketch holds many primitives, so the
+second one's names arrive suffixed — `radius_2`, `x1_3` — and every drawing
+verb's reply carries a `slots` object mapping each canonical name to the one it
+actually got; read that back instead of guessing the suffix.
 
 `param remove <name>` refuses while slots still follow it; `--force` freezes
 each one at its current value and the response names every slot it froze.
@@ -198,6 +202,17 @@ clear on the next recompute.
 in both surfaces. It is the one listing you reach for when something already
 looks wrong, so it does not report success on a registry that stopped.
 
+**A creating verb that fails to recompute rolls itself back.** `pad`, `pocket`,
+`revolve`, `groove`, `mirror`, `pattern linear`/`polar`, `fillet` and `chamfer`
+all remove the feature they just added and restore the body's previous tip
+before exiting nonzero, with FreeCAD's own diagnostic in the message. This is
+the opposite of `param set`: one parameter can drive features all over a
+document, so there is no single feature to roll back to and `param set` leaves
+the broken ones in place and names them instead. A failed creating verb, by
+contrast, only ever broke the one thing it just built, so undoing that one
+thing is unambiguous — and it means a failed `fillet new` or `pattern linear`
+never leaves a half-built feature for the next command to trip over.
+
 ### Taking things back out
 
 `feature remove <name>` is the only verb that makes the model smaller, and so
@@ -231,8 +246,9 @@ which parameters lose their last slot.
   away survives driving nothing and binds straight back when you rebuild.
 - Three refusals: a sketch a live feature still draws from (remove that feature
   first), a feature some parameter's expression reads (point the parameter
-  elsewhere first — nothing here rewrites arithmetic you wrote), and a body,
-  because what removing one means depends on booleans, which do not exist yet.
+  elsewhere first — nothing here rewrites arithmetic you wrote), and a body —
+  `feature remove` only ever shrinks one body's own chain, never a body
+  itself.
 
 **There is no undo**, and none is coming until the session question is settled:
 an idle session retires and the next verb starts a fresh one, so an undo stack
@@ -250,6 +266,11 @@ answer that:
   usually wrong in the bounding box first. `--features` adds the build order:
   per body, each feature in turn with the sketch it consumed, that sketch's
   plane, offset and dimensions, what drives each of them, and any error.
+  `--tree` is the same listing with two things `--features` doesn't carry: each
+  feature's `volume_delta` and `bbox_delta` — what that one feature added or
+  removed, not the body's running total — and each sketch's `basis` and
+  `primitives` alongside its dimensions. Diffing consecutive `--features`
+  replies by hand is the thing `--tree` replaces.
 - `preview render --path x.png --view iso|front|top|...` rasterizes the model
   offscreen to a PNG you can open. Silhouettes, creases and pocket rims are
   outlined, and a red/green/blue triad marks x/y/z.
@@ -259,14 +280,144 @@ model until the session ends.
 
 ### The vocabulary
 
-Sketches: `rectangle`, `circle`. Solids: `pad` (add), `pocket` (remove), both
-with `--midplane`, `--reversed` and a `length` you can retarget afterwards
-(`pad length`, `pocket length`), and `sketch set` for a sketch dimension or
-placement; `pocket` also takes `--through-all`. Removal: `feature remove`, for
-a pad, a pocket or a sketch nothing draws from. That is all of it. One sketch holds one primitive, so a part is several sketches:
+Sketches: `rectangle`, `circle`, `line`, `arc`, `polyline`
+(`--points "x,y x,y ..."`, `--close` for a closed wire). Every primitive lands
+fully constrained — the reported `dof` is the solver's own count — and every
+coordinate or dimension is a number or a parameter name like anywhere else.
+
+An arc is endpoints plus radius: counter-clockwise from `--x1/--y1` to
+`--x2/--y2`, `--large` for the major arc, swap the endpoints to bulge the other
+way. Endpoints-plus-radius over centre-plus-angles because every slot stays a
+length a parameter can drive; a radius shorter than half the chord is refused
+with the minimum named.
+
+A sketch holds as many primitives as you draw into it. Lines and arcs whose
+endpoints meet close one wire, and a closed loop inside another becomes a hole,
+so a plate and all its holes are one sketch and one pocket. A pocket cuts away
+from the sketch's normal: a holes sketch belongs on the face it enters (the
+example's `--offset-z 6`), and one drawn at the bottom of the material removes
+nothing and says nothing.
+
+Solids: `pad` (add) and `pocket` (remove) extrude a sketch along its normal;
+`revolve` (add) and `groove` (remove) spin one about an axis instead, for
+anything round a straight extrude cannot make. All four take `--midplane`,
+`--reversed` and a driven dimension you can retarget afterwards (`pad length`,
+`pocket length`, `revolve angle`, `groove angle`); `pad` and `pocket` also take
+`--taper` for a drafted wall, and `pocket` takes `--through-all`. `sketch set`
+covers a sketch dimension or placement. Removal: `feature remove`, for a pad, a
+pocket, a revolve, a groove, a mirror, a pattern, a fillet, a chamfer, a loft
+or a sketch nothing draws from — it takes the same `--body`/`--document`/
+`--json` as everything else, alongside its positional `FEATURE`.
 `--sketch` defaults to the newest one and every response echoes which sketch it
 used, so read it back rather than assuming. `--body` and `--document` are
 stricter — with more than one they refuse rather than guess.
+
+`loft new --sketch <name>... [--ruled] [--closed]` and
+`loft pocket --sketch <name>... [--ruled]` build a solid between two or more
+sketches instead of extruding one along an axis — the first `--sketch` is the
+profile, the rest are sections in the order given, so orientation is the order
+you name them in, not a property of the sketches themselves. `--ruled`
+connects sections with straight lines instead of a smoothed surface,
+`--closed` wraps the last section back to the first. Fewer than two sketches,
+a sketch already consumed by another feature, or two named sketches sharing a
+plane are all refused before anything is built. `loft new` adds
+(`PartDesign::AdditiveLoft`), `loft pocket` cuts (`PartDesign::SubtractiveLoft`).
+
+`revolve`/`groove` take `--axis x` or `--axis y` (default `y`), the sketch's
+own in-plane axes — the only axis every profile already has for free, without
+naming an edge. The profile must lie entirely on one side of the chosen axis;
+one that straddles it fails recompute with "Revolve axis intersects the
+sketch" rather than building a self-intersecting solid.
+
+`mirror new --plane xy|xz|yz` and `pattern linear|polar` copy features instead
+of drawing them twice by hand. Both default to the body's tip — the feature
+your last verb just left behind — so one fin sketch plus `mirror new --plane
+xz` is the whole symmetric pair; name `--feature <name>...` to copy something
+older. `pattern linear --direction x|y|z --count N --spacing <MM|PARAM>`
+repeats along a line, `--spacing` between each copy and the next, not the
+total span; `--reversed` walks the copies the other way along that axis
+instead of the direction's positive side — LinearPattern drives a total
+length internally, so a negative `--spacing` degenerates rather than turning
+the run around, and `--reversed` is the only flag that actually flips it.
+`pattern polar --axis x|y|z --count N --angle <DEG|PARAM>` repeats
+around an axis, `--angle` the total sweep across every copy, same convention
+as `revolve --angle`. `--plane`/`--direction`/`--axis` name a body origin
+plane or axis, never a sketch's own — those are body-global, not sketch-local
+like `revolve`'s. `--body` and `--document` refuse to guess the same as
+everywhere else; so does the direction — there is no default plane or axis to
+fall back on. The plane or axis you mirror or pattern across is one of the
+body's origin planes, not the sketch's own plane: a fin sketch offset off the
+body with `sketch new --offset-z <n>` (the plane's normal, not `--offset-x`/
+`--offset-y`, whichever global axis that maps to) sits clear of `xz`, so
+mirroring across it produces two fins rather than one folded onto itself.
+
+`fillet new --radius <MM|PARAM> [selection...]` rounds edges and
+`chamfer new --size <MM|PARAM> [--angle <DEG|PARAM>] [selection...]` bevels
+them, on the body's tip by default — name `--feature <name>` to dress an
+earlier feature instead, the same idea as `mirror`/`pattern`'s own
+`--feature`, except a dressup's `Base` is a single link so naming more than
+one is refused. FreeCAD's own `Body::insertObject` splices the new fillet or
+chamfer in right after the named feature and reroutes whatever came next to
+build on it instead, so a later feature's own contribution survives — round
+the base of a part without losing the boss padded on top of it later. A
+failed non-tip dressup rolls the whole splice back, not only the feature it
+added: the successor's rerouted link goes back too, the same as any other
+creating verb. Neither takes a raw edge name like `Edge12` —
+FreeCAD's own edge numbering is the topological-naming problem, it shifts
+under any upstream change, so it can never appear in a command a human types.
+Edges are selected by geometry instead, through predicates that compose by
+AND: `--parallel x|y|z` (edges running along that axis), `--near-min x|y|z` /
+`--near-max x|y|z` (edges lying on that face of the tip's own bounding box),
+`--longer-than <MM>` / `--shorter-than <MM>`. No predicate at all means every
+edge — the same all-edges default FreeCAD's own dressup dialog falls back to.
+A selection that matches nothing is refused, not a silent no-op, and the
+reply carries `edges_matched` and `edges_length` so you can tell six short
+edges from one long one without a second `inspect`. `chamfer`'s `--angle` at
+its default (0) is an equal-distance chamfer on `--size` alone, matching how a
+zero `--taper` already means "no taper" elsewhere; any other angle switches to
+FreeCAD's "Distance and Angle" mode. `document inspect --tree` reports each
+dressup's own `radius`/`size` (`chamfer` also shows `angle` when it is in
+angled mode) and `edges`, the edge count it resolved to. There is no
+`--convex`/`--concave` predicate — geometry-only selection covers the
+straightforward cases (a part's outer edges, one face's rim, everything
+longer than X); convexity needs comparing adjacent-face normals per edge, a
+different and heavier piece of OCCT plumbing than the bounding-box and
+direction checks the rest of this uses, so it was left out rather than rushed
+in.
+
+### Booleans between bodies
+
+`body union|cut|intersect --tool <BODY>... --base <BODY>` folds one or more
+tool bodies into a base body's own PartDesign chain — `--base` defaults only
+when exactly one other body exists to be it, and naming the same body as both
+is refused. A tool body is not deleted, only reparented: `PartDesign::Boolean`
+consumes it into the base's chain, so the tool body's own name and feature
+history stay addressable, and `document inspect --tree` keeps listing it —
+marked `consumed_by` the boolean feature — even though it no longer stands on
+its own. `inspect`'s top-level `solids` count is what actually drops: two live
+bodies (or an already-consumed one left dangling) are `ambiguous-shape` to
+`preview export`. A body a boolean has already consumed carries no shape of
+its own, so it is excluded from every other verb's `--body` guess too — union
+two of three bodies together and the one still standing is unambiguous, no
+`--body` needed.
+
+`cut` and `intersect` share the same shape but not the same failure: a
+disjoint `intersect` is refused as `empty-result` rather than silently
+producing a solid with no volume, and the document is left exactly as it was
+— nothing is consumed on a refusal, the same rollback discipline as any other
+creating verb. `document inspect --tree`'s boolean entry reports `operation`,
+`base` (the base body's own feature the chain now runs from, not the body's
+name) and `tool` (the consumed bodies' names).
+
+A `union` whose tool only touches the base at a single point or an exact
+tangency is a real FreeCAD hazard: the recompute succeeds and the volume is
+right, but the result is two solids masquerading as one, and every later
+operation on that body returns `Null shape`. `union` checks for this after
+recompute and refuses as `degenerate-contact` rather than hand back a body
+that is already broken; `cut`/`intersect`/plain `pad`/`pocket`/`revolve`/
+`loft` stacking do not carry this check, since a body's own chain can
+legitimately leave a gap (see `feature remove`, above) and a gap is not what
+this catches.
 
 Documents are not workbench records: nothing here touches the ledger, and a
 saved `.FCStd` is only tracked if the human puts it in the repository.

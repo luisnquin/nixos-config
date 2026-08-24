@@ -3,8 +3,10 @@ use serde_json::{Map, Value, json};
 
 use crate::bridge;
 use crate::cli::{
-    BodyCommand, DocumentCommand, FeatureCommand, Format, MechanicalCommand, PadCommand,
-    ParamCommand, ParamValue, PocketCommand, PreviewCommand, SessionCommand, SketchCommand, Slot,
+    BodyCommand, ChamferCommand, DocumentCommand, EdgeSelection, FeatureCommand, FilletCommand,
+    Format, GrooveCommand, LoftCommand, MechanicalCommand, MirrorCommand, PadCommand, ParamCommand,
+    ParamValue, PatternCommand, PocketCommand, PreviewCommand, RevolveCommand, SessionCommand,
+    SketchCommand, Slot,
 };
 use crate::cmd;
 use crate::paths;
@@ -19,6 +21,13 @@ pub fn run(command: MechanicalCommand) -> Result<i32> {
         MechanicalCommand::Sketch { command } => sketch(command),
         MechanicalCommand::Pad { command } => pad(command),
         MechanicalCommand::Pocket { command } => pocket(command),
+        MechanicalCommand::Revolve { command } => revolve(command),
+        MechanicalCommand::Groove { command } => groove(command),
+        MechanicalCommand::Loft { command } => loft(command),
+        MechanicalCommand::Mirror { command } => mirror(command),
+        MechanicalCommand::Pattern { command } => pattern(command),
+        MechanicalCommand::Fillet { command } => fillet(command),
+        MechanicalCommand::Chamfer { command } => chamfer(command),
         MechanicalCommand::Feature { command } => feature(command),
         MechanicalCommand::Param { command } => param(command),
         MechanicalCommand::Preview { command } => preview(command),
@@ -102,13 +111,16 @@ fn number(value: Option<f64>) -> Option<Value> {
     value.map(|value| json!(value))
 }
 
-/// A slot crosses the wire as its own JSON type: a number is a literal, a
-/// string is the parameter that drives it. Nothing else marks the difference,
-/// which is why the two can be swapped on any call.
+/// A slot crosses the wire as its own JSON shape: a number is a literal, a
+/// string is the parameter that drives it, and `{"expression": "..."}` is a
+/// quantity evaluated once through the parameter grammar - the same path
+/// `param new` takes, which is what lets a unit-bearing "5cm" or "1 in + 2mm"
+/// through where a bare number means millimetres.
 fn slot(value: Slot) -> Option<Value> {
     Some(match value {
         Slot::Literal(number) => json!(number),
         Slot::Parameter(name) => Value::from(name),
+        Slot::Expression(text) => json!({ "expression": text }),
     })
 }
 
@@ -418,12 +430,13 @@ fn document(command: DocumentCommand) -> Result<i32> {
 
             emit(&result, format, |result| {
                 println!("document {}", field(result, "document"));
-                println!("file     {}", field(result, "file"));
+                println!("path     {}", field(result, "path"));
             })
         }
         DocumentCommand::Inspect {
             document,
             features,
+            tree,
             format,
         } => {
             let result = call(
@@ -431,6 +444,7 @@ fn document(command: DocumentCommand) -> Result<i32> {
                 params(vec![
                     ("document", text(document)),
                     ("features", flag(features)),
+                    ("tree", flag(tree)),
                 ]),
             )?;
 
@@ -541,6 +555,9 @@ fn features_summary(result: &Value) {
                                 .get("offset")
                                 .map_or_else(|| "-".to_string(), offset_text),
                             feature
+                                .get("volume_delta")
+                                .map_or_else(|| "-".to_string(), Value::to_string),
+                            feature
                                 .get("error")
                                 .and_then(Value::as_str)
                                 .unwrap_or("")
@@ -558,7 +575,7 @@ fn features_summary(result: &Value) {
 
         cmd::print_table(
             &[
-                "feature", "kind", "length", "sketch", "plane", "offset", "error",
+                "feature", "kind", "length", "sketch", "plane", "offset", "vol delta", "error",
             ],
             &rows,
         );
@@ -609,6 +626,30 @@ fn offset_text(offset: &Value) -> String {
         .join(", ")
 }
 
+/// Sent only when the caller named at least one feature; an empty list and no
+/// list at all mean the same thing on the wire - the body's own tip - so
+/// there is no reason to send one.
+fn features(list: Vec<String>) -> Option<Value> {
+    (!list.is_empty()).then(|| json!(list))
+}
+
+fn features_echo(result: &Value) -> String {
+    string_array_text(&result["features"])
+}
+
+fn string_array_text(value: &Value) -> String {
+    value
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default()
+}
+
 fn flag(value: bool) -> Option<Value> {
     value.then(|| Value::from(true))
 }
@@ -630,7 +671,57 @@ fn body(command: BodyCommand) -> Result<i32> {
                 println!("body     {}", field(result, "body"));
             })
         }
+        BodyCommand::Union {
+            tool,
+            base,
+            document,
+            name,
+            format,
+        } => body_boolean("body.union", tool, base, document, name, format),
+        BodyCommand::Cut {
+            tool,
+            base,
+            document,
+            name,
+            format,
+        } => body_boolean("body.cut", tool, base, document, name, format),
+        BodyCommand::Intersect {
+            tool,
+            base,
+            document,
+            name,
+            format,
+        } => body_boolean("body.intersect", tool, base, document, name, format),
     }
+}
+
+fn body_boolean(
+    method: &str,
+    tool: Vec<String>,
+    base: Option<String>,
+    document: Option<String>,
+    name: Option<String>,
+    format: Format,
+) -> Result<i32> {
+    let result = call(
+        method,
+        params(vec![
+            ("document", text(document)),
+            ("base", text(base)),
+            ("tool", Some(json!(tool))),
+            ("name", text(name)),
+        ]),
+    )?;
+
+    emit(&result, format, |result| {
+        println!("document  {}", field(result, "document"));
+        println!("body      {}", field(result, "body"));
+        println!("boolean   {}", field(result, "boolean"));
+        println!("operation {}", field(result, "operation"));
+        println!("tool      {}", string_array_text(&result["tool"]));
+        println!("solid     {}", result["solid"]);
+        bounds_summary(result);
+    })
 }
 
 fn sketch(command: SketchCommand) -> Result<i32> {
@@ -732,6 +823,107 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                 sketch_summary(result);
             })
         }
+        SketchCommand::Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            document,
+            sketch,
+            format,
+        } => {
+            let result = call(
+                "sketch.line",
+                params(vec![
+                    ("document", text(document)),
+                    ("sketch", text(sketch)),
+                    ("x1", slot(x1)),
+                    ("y1", slot(y1)),
+                    ("x2", slot(x2)),
+                    ("y2", slot(y2)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("sketch      {}", field(result, "sketch"));
+                println!(
+                    "start       {} {}",
+                    result["start"]["x"], result["start"]["y"]
+                );
+                println!("end         {} {}", result["end"]["x"], result["end"]["y"]);
+                slots_summary(result);
+                sketch_summary(result);
+            })
+        }
+        SketchCommand::Arc {
+            x1,
+            y1,
+            x2,
+            y2,
+            radius,
+            large,
+            document,
+            sketch,
+            format,
+        } => {
+            let result = call(
+                "sketch.arc",
+                params(vec![
+                    ("document", text(document)),
+                    ("sketch", text(sketch)),
+                    ("x1", slot(x1)),
+                    ("y1", slot(y1)),
+                    ("x2", slot(x2)),
+                    ("y2", slot(y2)),
+                    ("radius", slot(radius)),
+                    ("large", flag(large)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("sketch      {}", field(result, "sketch"));
+                println!(
+                    "start       {} {}",
+                    result["start"]["x"], result["start"]["y"]
+                );
+                println!("end         {} {}", result["end"]["x"], result["end"]["y"]);
+                println!(
+                    "centre      {} {}",
+                    result["centre"]["x"], result["centre"]["y"]
+                );
+                println!("radius      {}", slot_text(&result["radius"]));
+                slots_summary(result);
+                sketch_summary(result);
+            })
+        }
+        SketchCommand::Polyline {
+            points,
+            close,
+            document,
+            sketch,
+            format,
+        } => {
+            let result = call(
+                "sketch.polyline",
+                params(vec![
+                    ("document", text(document)),
+                    ("sketch", text(sketch)),
+                    ("points", Some(parse_points(&points)?)),
+                    ("close", flag(close)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("sketch      {}", field(result, "sketch"));
+                println!(
+                    "points      {}",
+                    result["points"].as_array().map_or(0, Vec::len)
+                );
+                println!("closed      {}", result["closed"]);
+                slots_summary(result);
+                sketch_summary(result);
+            })
+        }
         SketchCommand::Set {
             slot: name,
             value,
@@ -741,6 +933,50 @@ fn sketch(command: SketchCommand) -> Result<i32> {
             format,
         } => set_slot("sketch", name, value, document, sketch, unbind, format),
     }
+}
+
+/// "x,y x,y ..." to the wire's array of [x, y] pairs. Each coordinate goes
+/// through the same slot grammar as any other numeric flag, so a vertex can be
+/// parameter-driven like a width.
+fn parse_points(input: &str) -> Result<Value> {
+    let mut out = Vec::new();
+
+    for token in input.split_whitespace() {
+        let (x, y) = token
+            .split_once(',')
+            .ok_or_else(|| anyhow!("{token} is not an x,y pair"))?;
+        let pair = [x, y]
+            .map(|coordinate| coordinate.trim().parse::<Slot>().map_err(|err| anyhow!(err)));
+        let [x, y] = pair;
+        out.push(json!([slot(x?), slot(y?)]));
+    }
+
+    if out.is_empty() {
+        return Err(anyhow!("--points needs at least one x,y pair"));
+    }
+    Ok(Value::Array(out))
+}
+
+/// The dimension names this primitive actually got. On a sketch already
+/// holding one, "x1" may really be "x1_2", and that name is what `sketch set`
+/// and `param list` speak.
+fn slots_summary(result: &Value) {
+    let Some(slots) = result["slots"].as_object() else {
+        return;
+    };
+
+    let renamed = slots
+        .iter()
+        .filter(|(canonical, actual)| actual.as_str() != Some(canonical.as_str()))
+        .map(|(canonical, actual)| format!("{canonical} -> {}", field_str(actual)))
+        .collect::<Vec<_>>();
+    if !renamed.is_empty() {
+        println!("slots       {}", renamed.join(", "));
+    }
+}
+
+fn field_str(value: &Value) -> &str {
+    value.as_str().unwrap_or("?")
 }
 
 /// Pad length, pocket depth and every sketch dimension are the same operation
@@ -817,6 +1053,7 @@ fn pad(command: PadCommand) -> Result<i32> {
             sketch,
             midplane,
             reversed,
+            taper,
             name,
             format,
         } => {
@@ -829,6 +1066,7 @@ fn pad(command: PadCommand) -> Result<i32> {
                     ("length", slot(length)),
                     ("midplane", flag(midplane)),
                     ("reversed", flag(reversed)),
+                    ("taper", slot_opt(taper)),
                     ("name", text(name)),
                 ]),
             )?;
@@ -855,6 +1093,65 @@ fn pad(command: PadCommand) -> Result<i32> {
             unbind,
             format,
         ),
+    }
+}
+
+fn loft(command: LoftCommand) -> Result<i32> {
+    match command {
+        LoftCommand::New {
+            sketches,
+            document,
+            body,
+            ruled,
+            closed,
+            name,
+            format,
+        } => {
+            let result = call(
+                "loft.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("sketch", Some(json!(sketches))),
+                    ("ruled", flag(ruled)),
+                    ("closed", flag(closed)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("loft     {}", field(result, "loft"));
+                println!("sketches {}", string_array_text(&result["sketches"]));
+                println!("solid    {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+        LoftCommand::Pocket {
+            sketches,
+            document,
+            body,
+            ruled,
+            name,
+            format,
+        } => {
+            let result = call(
+                "loft.pocket",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("sketch", Some(json!(sketches))),
+                    ("ruled", flag(ruled)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("loft     {}", field(result, "loft"));
+                println!("sketches {}", string_array_text(&result["sketches"]));
+                println!("solid    {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
     }
 }
 
@@ -896,6 +1193,7 @@ fn pocket(command: PocketCommand) -> Result<i32> {
             through_all,
             midplane,
             reversed,
+            taper,
             name,
             format,
         } => {
@@ -909,6 +1207,7 @@ fn pocket(command: PocketCommand) -> Result<i32> {
                     ("through_all", flag(through_all)),
                     ("midplane", flag(midplane)),
                     ("reversed", flag(reversed)),
+                    ("taper", slot_opt(taper)),
                     ("name", text(name)),
                 ]),
             )?;
@@ -938,11 +1237,313 @@ fn pocket(command: PocketCommand) -> Result<i32> {
     }
 }
 
+fn revolve(command: RevolveCommand) -> Result<i32> {
+    match command {
+        RevolveCommand::New {
+            angle,
+            axis,
+            document,
+            body,
+            sketch,
+            midplane,
+            reversed,
+            name,
+            format,
+        } => {
+            let result = call(
+                "revolve.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("sketch", text(sketch)),
+                    ("angle", slot(angle)),
+                    ("axis", Some(Value::from(axis))),
+                    ("midplane", flag(midplane)),
+                    ("reversed", flag(reversed)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("revolve {}", field(result, "revolve"));
+                println!("angle   {}", slot_text(&result["angle"]));
+                println!("axis    {}", field(result, "axis"));
+                println!("solid   {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+        RevolveCommand::Angle {
+            angle,
+            document,
+            revolve,
+            unbind,
+            format,
+        } => set_slot(
+            "revolve",
+            "angle".to_string(),
+            angle,
+            document,
+            revolve,
+            unbind,
+            format,
+        ),
+    }
+}
+
+fn groove(command: GrooveCommand) -> Result<i32> {
+    match command {
+        GrooveCommand::New {
+            angle,
+            axis,
+            document,
+            body,
+            sketch,
+            midplane,
+            reversed,
+            name,
+            format,
+        } => {
+            let result = call(
+                "groove.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("sketch", text(sketch)),
+                    ("angle", slot(angle)),
+                    ("axis", Some(Value::from(axis))),
+                    ("midplane", flag(midplane)),
+                    ("reversed", flag(reversed)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("groove {}", field(result, "groove"));
+                println!("angle  {}", slot_text(&result["angle"]));
+                println!("axis   {}", field(result, "axis"));
+                println!("solid  {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+        GrooveCommand::Angle {
+            angle,
+            document,
+            groove,
+            unbind,
+            format,
+        } => set_slot(
+            "groove",
+            "angle".to_string(),
+            angle,
+            document,
+            groove,
+            unbind,
+            format,
+        ),
+    }
+}
+
+fn mirror(command: MirrorCommand) -> Result<i32> {
+    match command {
+        MirrorCommand::New {
+            plane,
+            features: originals,
+            document,
+            body,
+            name,
+            format,
+        } => {
+            let result = call(
+                "mirror.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("plane", Some(Value::from(plane))),
+                    ("feature", features(originals)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("mirror   {}", field(result, "mirror"));
+                println!("plane    {}", field(result, "plane"));
+                println!("features {}", features_echo(result));
+                println!("solid    {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+    }
+}
+
+fn pattern(command: PatternCommand) -> Result<i32> {
+    match command {
+        PatternCommand::Linear {
+            direction,
+            count,
+            spacing,
+            reversed,
+            features: originals,
+            document,
+            body,
+            name,
+            format,
+        } => {
+            let result = call(
+                "pattern.linear.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("direction", Some(Value::from(direction))),
+                    ("count", Some(json!(count))),
+                    ("spacing", slot(spacing)),
+                    ("reversed", flag(reversed)),
+                    ("feature", features(originals)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("pattern   {}", field(result, "pattern"));
+                println!("direction {}", field(result, "direction"));
+                println!("spacing   {}", slot_text(&result["spacing"]));
+                println!("count     {}", result["count"]);
+                println!("reversed  {}", result["reversed"]);
+                println!("features  {}", features_echo(result));
+                println!("solid     {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+        PatternCommand::Polar {
+            axis,
+            count,
+            angle,
+            features: originals,
+            document,
+            body,
+            name,
+            format,
+        } => {
+            let result = call(
+                "pattern.polar.new",
+                params(vec![
+                    ("document", text(document)),
+                    ("body", text(body)),
+                    ("axis", Some(Value::from(axis))),
+                    ("count", Some(json!(count))),
+                    ("angle", slot(angle)),
+                    ("feature", features(originals)),
+                    ("name", text(name)),
+                ]),
+            )?;
+
+            emit(&result, format, |result| {
+                println!("pattern  {}", field(result, "pattern"));
+                println!("axis     {}", field(result, "axis"));
+                println!("angle    {}", slot_text(&result["angle"]));
+                println!("count    {}", result["count"]);
+                println!("features {}", features_echo(result));
+                println!("solid    {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+    }
+}
+
+fn edge_selection(selection: EdgeSelection) -> Vec<(&'static str, Option<Value>)> {
+    vec![
+        ("parallel", text(selection.parallel)),
+        ("near_min", text(selection.near_min)),
+        ("near_max", text(selection.near_max)),
+        ("longer_than", number(selection.longer_than)),
+        ("shorter_than", number(selection.shorter_than)),
+    ]
+}
+
+fn fillet(command: FilletCommand) -> Result<i32> {
+    match command {
+        FilletCommand::New {
+            radius,
+            selection,
+            features: based,
+            document,
+            body,
+            name,
+            format,
+        } => {
+            let mut entries = vec![
+                ("document", text(document)),
+                ("body", text(body)),
+                ("radius", slot(radius)),
+                ("feature", features(based)),
+                ("name", text(name)),
+            ];
+            entries.extend(edge_selection(selection));
+
+            let result = call("fillet.new", params(entries))?;
+
+            emit(&result, format, |result| {
+                println!("fillet {}", field(result, "fillet"));
+                println!("base   {}", field(result, "base"));
+                println!("radius {}", slot_text(&result["radius"]));
+                println!(
+                    "edges  {} ({} mm)",
+                    result["edges_matched"], result["edges_length"]
+                );
+                println!("solid  {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+    }
+}
+
+fn chamfer(command: ChamferCommand) -> Result<i32> {
+    match command {
+        ChamferCommand::New {
+            size,
+            angle,
+            selection,
+            features: based,
+            document,
+            body,
+            name,
+            format,
+        } => {
+            let mut entries = vec![
+                ("document", text(document)),
+                ("body", text(body)),
+                ("size", slot(size)),
+                ("angle", slot_opt(angle)),
+                ("feature", features(based)),
+                ("name", text(name)),
+            ];
+            entries.extend(edge_selection(selection));
+
+            let result = call("chamfer.new", params(entries))?;
+
+            emit(&result, format, |result| {
+                println!("chamfer {}", field(result, "chamfer"));
+                println!("base    {}", field(result, "base"));
+                println!("size    {}", slot_text(&result["size"]));
+                if let Some(angle) = result.get("angle") {
+                    println!("angle   {}", slot_text(angle));
+                }
+                println!(
+                    "edges   {} ({} mm)",
+                    result["edges_matched"], result["edges_length"]
+                );
+                println!("solid   {}", result["solid"]);
+                bounds_summary(result);
+            })
+        }
+    }
+}
+
 fn feature(command: FeatureCommand) -> Result<i32> {
     match command {
         FeatureCommand::Remove {
             feature,
             document,
+            body,
             dry_run,
             format,
         } => {
@@ -950,6 +1551,7 @@ fn feature(command: FeatureCommand) -> Result<i32> {
                 "feature.remove",
                 params(vec![
                     ("document", text(document)),
+                    ("body", text(body)),
                     ("feature", Some(Value::from(feature))),
                     ("dry_run", flag(dry_run)),
                 ]),

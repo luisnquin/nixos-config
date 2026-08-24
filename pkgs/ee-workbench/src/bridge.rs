@@ -9,14 +9,14 @@ use serde_json::{Value, json};
 /// Wire version. The server is `ee-freecad-server`, a native FreeCAD module;
 /// a mismatch here means one of the two binaries is stale, and both sides
 /// refuse rather than misread a frame.
-pub const PROTOCOL: u32 = 6;
+pub const PROTOCOL: u32 = 12;
 
-/// The three verbs that keep working across a build mismatch. Refusing every
-/// method would strand a stale session holding unsaved work: you could neither
-/// see what it has, write it out, nor retire it. Everything else refuses,
-/// because a session started by an older generation does not behave the way the
-/// caller's `ee` was written against, and answering anyway is how that goes
-/// unnoticed.
+/// The three verbs that keep working across a build mismatch or a protocol
+/// mismatch. Refusing every method would strand a stale session holding
+/// unsaved work: you could neither see what it has, write it out, nor retire
+/// it. Everything else refuses, because a session started by an older
+/// generation does not behave the way the caller's `ee` was written against,
+/// and answering anyway is how that goes unnoticed.
 const RESCUE: [&str; 3] = ["session.status", "document.save", "server.shutdown"];
 
 /// The peer closed the connection without answering. Typed rather than a
@@ -116,6 +116,11 @@ impl Client {
 
         match reply.get("protocol").and_then(Value::as_u64) {
             Some(version) if version == u64::from(PROTOCOL) => {}
+            // A protocol-mismatched session is the one a caller most needs to
+            // get out of: refusing session.status/document.save/server.shutdown
+            // here too would leave `session stop` unable to reach a server old
+            // or new enough to misread the request it is carrying.
+            Some(_) if RESCUE.contains(&method) => {}
             Some(version) => bail!(
                 "cad session speaks protocol {version}, this ee speaks {PROTOCOL}: rebuild both"
             ),
@@ -258,8 +263,37 @@ mod tests {
             vec![json!({ "ok": true, "protocol": 1, "id": 1, "result": {} }).to_string()],
         );
 
-        let error = call(&socket, "session.status", json!({})).unwrap_err();
+        let error = call(&socket, "document.inspect", json!({})).unwrap_err();
         assert!(error.to_string().contains("rebuild both"), "{error}");
+    }
+
+    /// The one refusal a protocol mismatch must not produce: the three rescue
+    /// verbs exist so a session speaking a different protocol can still be
+    /// read, saved and stopped. This is defect 3 from the brief - `session
+    /// stop` against a server rebuilt out from under it was a no-op before this
+    /// exemption existed.
+    #[test]
+    fn a_protocol_mismatch_is_still_rescuable() {
+        let _exclusive = exclusive();
+
+        for rescue in RESCUE {
+            let socket = scratch(&format!("proto-drift-{}", rescue.replace('.', "-")));
+            spawn_mock(
+                &socket,
+                vec![json!({ "ok": true, "protocol": 1, "id": 1, "result": {} }).to_string()],
+            );
+            assert!(
+                call(&socket, rescue, json!({})).is_ok(),
+                "{rescue} has to survive a protocol mismatch"
+            );
+        }
+
+        let socket = scratch("proto-drift-refused");
+        spawn_mock(
+            &socket,
+            vec![json!({ "ok": true, "protocol": 1, "id": 1, "result": {} }).to_string()],
+        );
+        assert!(call(&socket, "document.inspect", json!({})).is_err());
     }
 
     #[test]

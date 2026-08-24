@@ -8,6 +8,7 @@
 #include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/Expression.h>
+#include <App/ExpressionParser.h>
 #include <App/ObjectIdentifier.h>
 #include <App/PropertyStandard.h>
 #include <App/VarSet.h>
@@ -137,6 +138,30 @@ void require_name(const std::string& name)
                         name + " may only hold letters, digits and underscores"};
         }
     }
+}
+
+void require_usable_name(App::DocumentObject& owner, const std::string& name)
+{
+    std::unique_ptr<App::Expression> parsed;
+    try {
+        parsed.reset(App::ExpressionParser::parse(&owner, name.c_str()));
+    }
+    catch (const Base::Exception&) {
+        parsed.reset();
+    }
+
+    // A bare reference parses to a VariableExpression and nothing else does.
+    // Checking the type rather than the absence of a throw, because a unit
+    // parses perfectly well - it just is not a name.
+    if (dynamic_cast<App::VariableExpression*>(parsed.get()) != nullptr) {
+        return;
+    }
+
+    throw Error{"unit-name",
+                name + " is a unit in FreeCAD's expression grammar, not a name it reads back "
+                       "as a parameter: an expression saying " +
+                    name + " means the unit, so `=10 / " + name + "` would divide by one " +
+                    name + " rather than by anything declared here. Pick another name"};
 }
 
 std::vector<std::string> names(App::Document& doc)
@@ -389,12 +414,18 @@ Restore capture(App::VarSet& registry, const std::string& name)
 
 void restore(App::VarSet& registry, const std::string& name, const Restore& saved)
 {
-    const App::ObjectIdentifier path = identifier(registry, name);
-
-    // Cleared first either way. Removing a property the engine still holds an
-    // expression for would leave the binding pointing at nothing, which is a
-    // worse document than the one being rolled back.
-    registry.setExpression(path, std::shared_ptr<App::Expression>());
+    // Never resolved up front. A name the grammar will not parse is exactly the
+    // case this has to clean up, and parsing it is what failed - routing the
+    // cleanup through the same parse threw a second time and left the property
+    // it was called to remove sitting in the registry, refused but present.
+    // `removeDynamicProperty` takes the raw name and needs no parse at all.
+    try {
+        registry.setExpression(identifier(registry, name), std::shared_ptr<App::Expression>());
+    }
+    catch (const Error&) {
+        // No expression can be bound to a path that does not parse, so there is
+        // nothing to clear and the property removal below is the whole job.
+    }
 
     if (!saved.existed) {
         registry.removeDynamicProperty(name.c_str());
@@ -402,7 +433,7 @@ void restore(App::VarSet& registry, const std::string& name, const Restore& save
     }
 
     if (!saved.expression.empty()) {
-        set_expression(registry, path, saved.expression);
+        set_expression(registry, identifier(registry, name), saved.expression);
     }
     if (App::PropertyFloat* property = property_of(registry, name)) {
         property->setValue(saved.value);

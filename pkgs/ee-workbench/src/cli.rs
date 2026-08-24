@@ -301,6 +301,41 @@ pub enum MechanicalCommand {
         #[command(subcommand)]
         command: PocketCommand,
     },
+    /// Revolves: a sketch spun into a solid about one of its own axes
+    Revolve {
+        #[command(subcommand)]
+        command: RevolveCommand,
+    },
+    /// Grooves: the subtractive twin of revolve
+    Groove {
+        #[command(subcommand)]
+        command: GrooveCommand,
+    },
+    /// Lofts: one solid threaded through two or more sketches
+    Loft {
+        #[command(subcommand)]
+        command: LoftCommand,
+    },
+    /// Reflect a feature across a body origin plane
+    Mirror {
+        #[command(subcommand)]
+        command: MirrorCommand,
+    },
+    /// Repeat a feature along a line or around an axis
+    Pattern {
+        #[command(subcommand)]
+        command: PatternCommand,
+    },
+    /// Round edges of the body's tip into a curved fillet
+    Fillet {
+        #[command(subcommand)]
+        command: FilletCommand,
+    },
+    /// Bevel edges of the body's tip into a flat chamfer
+    Chamfer {
+        #[command(subcommand)]
+        command: ChamferCommand,
+    },
     /// Take a feature back out of a body's tree, or a sketch out of a document
     Feature {
         #[command(subcommand)]
@@ -375,36 +410,43 @@ pub enum DocumentCommand {
         /// which ones FreeCAD could not build
         #[arg(long)]
         features: bool,
+        /// The same feature list as `--features`, plus the volume and bbox
+        /// each feature contributed and each sketch's basis and primitives
+        #[arg(long)]
+        tree: bool,
         #[command(flatten)]
         format: Format,
     },
 }
 
-/// A numeric slot argument: a literal, or the name of the parameter that
-/// drives it. Every verb that sets a dimension takes both forms on every call,
-/// so binding a slot to a parameter is an edit rather than a property of how
-/// the slot was first created.
+/// A numeric slot argument: a literal, the name of the parameter that drives
+/// it, or a unit-bearing expression evaluated through the same grammar a
+/// parameter's own expression takes. Every verb that sets a dimension takes
+/// all three forms on every call, so binding a slot to a parameter is an edit
+/// rather than a property of how the slot was first created. A bare number is
+/// millimetres; anything else that is not a parameter name is handed to the
+/// server to evaluate, which is what lets "5cm" or "1 in + 2mm" through.
 #[derive(Clone, Debug)]
 pub enum Slot {
     Literal(f64),
     Parameter(String),
+    Expression(String),
 }
 
 impl std::str::FromStr for Slot {
     type Err = String;
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        if let Ok(number) = text.parse::<f64>() {
-            return Ok(Self::Literal(number));
+        match text.parse::<f64>() {
+            Ok(number) => return Ok(Self::Literal(number)),
+            Err(_) if text.is_empty() => return Err("a value is required".to_string()),
+            Err(_) => {}
         }
         if is_parameter_name(text) {
             return Ok(Self::Parameter(text.to_string()));
         }
 
-        Err(format!(
-            "{text} is neither a number nor a parameter name: a name starts with a letter or \
-             an underscore and holds letters, digits and underscores"
-        ))
+        Ok(Self::Expression(text.to_string()))
     }
 }
 
@@ -473,6 +515,45 @@ pub enum BodyCommand {
         #[command(flatten)]
         format: Format,
     },
+    /// Fold one or more tool bodies into a base body's own chain (PartDesign::Boolean)
+    Union {
+        #[arg(long = "tool", required = true)]
+        tool: Vec<String>,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Subtract one or more tool bodies from a base body (PartDesign::Boolean)
+    Cut {
+        #[arg(long = "tool", required = true)]
+        tool: Vec<String>,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Keep only what a base body and its tool bodies share (PartDesign::Boolean)
+    Intersect {
+        #[arg(long = "tool", required = true)]
+        tool: Vec<String>,
+        #[arg(long)]
+        base: Option<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
 }
 
 #[derive(Subcommand)]
@@ -505,9 +586,9 @@ pub enum SketchCommand {
     },
     /// Draw a fully constrained rectangle
     Rectangle {
-        #[arg(long, value_name = "MM|PARAM")]
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
         width: Slot,
-        #[arg(long, value_name = "MM|PARAM")]
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
         height: Slot,
         #[arg(long)]
         document: Option<String>,
@@ -527,7 +608,7 @@ pub enum SketchCommand {
     },
     /// Draw a fully constrained circle
     Circle {
-        #[arg(long, value_name = "MM|PARAM")]
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
         radius: Slot,
         #[arg(long)]
         document: Option<String>,
@@ -539,6 +620,64 @@ pub enum SketchCommand {
         x: Option<Slot>,
         #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
         y: Option<Slot>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Draw a fully constrained line segment
+    Line {
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        x1: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        y1: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        x2: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        y2: Slot,
+        #[arg(long)]
+        document: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Draw a fully constrained circular arc, counter-clockwise from
+    /// (x1,y1) to (x2,y2); swap the endpoints to bulge the other way
+    Arc {
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        x1: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        y1: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        x2: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        y2: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        radius: Slot,
+        /// Take the major arc instead of the minor one
+        #[arg(long)]
+        large: bool,
+        #[arg(long)]
+        document: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Draw a chain of fully constrained line segments
+    Polyline {
+        /// Vertices as "x,y x,y ...", each coordinate a number or a parameter
+        #[arg(long, allow_hyphen_values = true, value_name = "X,Y ...")]
+        points: String,
+        /// Join the last vertex back to the first
+        #[arg(long)]
+        close: bool,
+        #[arg(long)]
+        document: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
         #[command(flatten)]
         format: Format,
     },
@@ -565,7 +704,7 @@ pub enum SketchCommand {
 pub enum PadCommand {
     /// Pad a sketch into a solid inside its body
     New {
-        #[arg(long, value_name = "MM|PARAM")]
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
         length: Slot,
         #[arg(long)]
         document: Option<String>,
@@ -580,6 +719,9 @@ pub enum PadCommand {
         /// Grow against the sketch normal
         #[arg(long)]
         reversed: bool,
+        /// Draft angle on the walls; needs no edge selection
+        #[arg(long, allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        taper: Option<Slot>,
         #[arg(long)]
         name: Option<String>,
         #[command(flatten)]
@@ -587,7 +729,7 @@ pub enum PadCommand {
     },
     /// Change the length of an existing pad and recompute
     Length {
-        #[arg(value_name = "MM|PARAM")]
+        #[arg(allow_negative_numbers = true, value_name = "MM|PARAM")]
         length: Slot,
         #[arg(long)]
         document: Option<String>,
@@ -606,7 +748,7 @@ pub enum PocketCommand {
     /// Cut a sketch into the body's existing material
     New {
         /// Depth of the cut; ignored with --through-all
-        #[arg(long, default_value = "0", value_name = "MM|PARAM")]
+        #[arg(long, default_value = "0", allow_negative_numbers = true, value_name = "MM|PARAM")]
         length: Slot,
         #[arg(long)]
         document: Option<String>,
@@ -624,6 +766,9 @@ pub enum PocketCommand {
         /// Cut along the sketch normal instead of against it
         #[arg(long)]
         reversed: bool,
+        /// Draft angle on the walls; needs no edge selection
+        #[arg(long, allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        taper: Option<Slot>,
         #[arg(long)]
         name: Option<String>,
         #[command(flatten)]
@@ -631,7 +776,7 @@ pub enum PocketCommand {
     },
     /// Change the depth of an existing pocket and recompute
     Length {
-        #[arg(value_name = "MM|PARAM")]
+        #[arg(allow_negative_numbers = true, value_name = "MM|PARAM")]
         length: Slot,
         #[arg(long)]
         document: Option<String>,
@@ -640,6 +785,285 @@ pub enum PocketCommand {
         /// Replace a parameter with a literal, which no other spelling will do
         #[arg(long)]
         unbind: bool,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// A profile spun about an axis: everything round that a pad or pocket
+/// cannot make. `axis` names one of the sketch's own in-plane axes, because
+/// those are the only axes every profile already has for free.
+#[derive(Subcommand)]
+pub enum RevolveCommand {
+    /// Revolve a sketch into a solid inside its body
+    New {
+        #[arg(long, default_value = "360", allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        angle: Slot,
+        /// The sketch's own local axis to revolve about
+        #[arg(long, default_value = "y", value_parser = ["x", "y"])]
+        axis: String,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
+        /// Revolve symmetrically about the sketch plane
+        #[arg(long)]
+        midplane: bool,
+        /// Revolve against the sketch normal
+        #[arg(long)]
+        reversed: bool,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Change the angle of an existing revolve and recompute
+    Angle {
+        #[arg(allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        angle: Slot,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        revolve: Option<String>,
+        /// Replace a parameter with a literal, which no other spelling will do
+        #[arg(long)]
+        unbind: bool,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// The subtractive twin of revolve: it cuts the swept profile out of whatever
+/// material the body already has, the way pocket cuts what pad adds.
+#[derive(Subcommand)]
+pub enum GrooveCommand {
+    /// Cut a revolved sketch out of the body's existing material
+    New {
+        #[arg(long, default_value = "360", allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        angle: Slot,
+        /// The sketch's own local axis to revolve about
+        #[arg(long, default_value = "y", value_parser = ["x", "y"])]
+        axis: String,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        /// Defaults to the newest sketch, which is the one just drawn on
+        #[arg(long)]
+        sketch: Option<String>,
+        /// Cut symmetrically about the sketch plane
+        #[arg(long)]
+        midplane: bool,
+        /// Cut along the sketch normal instead of against it
+        #[arg(long)]
+        reversed: bool,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Change the angle of an existing groove and recompute
+    Angle {
+        #[arg(allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        angle: Slot,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        groove: Option<String>,
+        /// Replace a parameter with a literal, which no other spelling will do
+        #[arg(long)]
+        unbind: bool,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// Threads one solid through two or more sketches (`PartDesign::AdditiveLoft` /
+/// `PartDesign::SubtractiveLoft`). The first `--sketch` is the profile, every
+/// other one is a section in the order given - the order the loft threads the
+/// shape through.
+#[derive(Subcommand)]
+pub enum LoftCommand {
+    /// Add a solid lofted through two or more sketches
+    New {
+        /// First is the profile, the rest are sections in order; give at least two
+        #[arg(long = "sketch")]
+        sketches: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        /// Connect corresponding points with straight lines instead of a smooth surface
+        #[arg(long)]
+        ruled: bool,
+        /// Loop the last section back into the first
+        #[arg(long)]
+        closed: bool,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Cut a solid lofted through two or more sketches out of the body's existing material
+    Pocket {
+        #[arg(long = "sketch")]
+        sketches: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        ruled: bool,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// Reflects one or more features across a body origin plane
+/// (`PartDesign::Mirrored`). Defaults to the body's own tip - the feature the
+/// previous call in this vocabulary left behind - so one fin sketch plus a pad
+/// plus this is the whole symmetric pair, and driving the fin sketch by a
+/// parameter moves both halves.
+#[derive(Subcommand)]
+pub enum MirrorCommand {
+    New {
+        #[arg(long, value_parser = ["xy", "xz", "yz"])]
+        plane: String,
+        /// Defaults to the body's tip; repeat to mirror several at once
+        #[arg(long = "feature")]
+        features: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// Repeats one or more features along a line or around an axis
+/// (`PartDesign::LinearPattern` / `PartDesign::PolarPattern`). Same default
+/// and same refusal discipline as `mirror`: the most recent feature unless
+/// named, and no guessing which body when more than one exists.
+#[derive(Subcommand)]
+pub enum PatternCommand {
+    /// Repeat along one of the body's own axes, `count` copies apart by `spacing`
+    Linear {
+        #[arg(long, value_parser = ["x", "y", "z"])]
+        direction: String,
+        #[arg(long)]
+        count: i64,
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        spacing: Slot,
+        /// Walk the other way; a negative spacing is not the same thing, it
+        /// degenerates FreeCAD's Length instead of flipping direction
+        #[arg(long)]
+        reversed: bool,
+        /// Defaults to the body's tip; repeat to pattern several at once
+        #[arg(long = "feature")]
+        features: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Repeat around one of the body's own axes, `count` copies over the total `angle`
+    Polar {
+        #[arg(long, value_parser = ["x", "y", "z"])]
+        axis: String,
+        #[arg(long)]
+        count: i64,
+        #[arg(long, default_value = "360", allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        angle: Slot,
+        /// Defaults to the body's tip; repeat to pattern several at once
+        #[arg(long = "feature")]
+        features: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// Which edges of the body's tip a fillet or chamfer applies to, composed by
+/// AND. FreeCAD's own edge names (`Edge12`) are the topological naming
+/// problem and shift under any upstream change, so they never appear here -
+/// every predicate is geometric, and none given means every edge.
+#[derive(Args)]
+pub struct EdgeSelection {
+    /// Only edges running along this global axis
+    #[arg(long, value_parser = ["x", "y", "z"])]
+    pub parallel: Option<String>,
+    /// Only edges lying on the body's bounding-box face at this axis's low end
+    #[arg(long, value_parser = ["x", "y", "z"])]
+    pub near_min: Option<String>,
+    /// Only edges lying on the body's bounding-box face at this axis's high end
+    #[arg(long, value_parser = ["x", "y", "z"])]
+    pub near_max: Option<String>,
+    #[arg(long, allow_negative_numbers = true, value_name = "MM")]
+    pub longer_than: Option<f64>,
+    #[arg(long, allow_negative_numbers = true, value_name = "MM")]
+    pub shorter_than: Option<f64>,
+}
+
+/// Rounds edges of the tip into a curved fillet (`PartDesign::Fillet`).
+#[derive(Subcommand)]
+pub enum FilletCommand {
+    New {
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        radius: Slot,
+        #[command(flatten)]
+        selection: EdgeSelection,
+        /// Defaults to the body's tip; at most one, a fillet dresses a single feature
+        #[arg(long = "feature")]
+        features: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
+        #[command(flatten)]
+        format: Format,
+    },
+}
+
+/// Bevels edges of the tip into a flat chamfer (`PartDesign::Chamfer`), the
+/// same edge selection as fillet. Without `--angle` the cut is an equal
+/// distance on both faces; with it, `--size` and `--angle` cut asymmetrically.
+#[derive(Subcommand)]
+pub enum ChamferCommand {
+    New {
+        #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
+        size: Slot,
+        #[arg(long, allow_negative_numbers = true, value_name = "DEG|PARAM")]
+        angle: Option<Slot>,
+        #[command(flatten)]
+        selection: EdgeSelection,
+        /// Defaults to the body's tip; at most one, a chamfer dresses a single feature
+        #[arg(long = "feature")]
+        features: Vec<String>,
+        #[arg(long)]
+        document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
+        #[arg(long)]
+        name: Option<String>,
         #[command(flatten)]
         format: Format,
     },
@@ -658,6 +1082,8 @@ pub enum FeatureCommand {
         feature: String,
         #[arg(long)]
         document: Option<String>,
+        #[arg(long)]
+        body: Option<String>,
         /// Report what this would change and change nothing
         #[arg(long)]
         dry_run: bool,
@@ -675,7 +1101,7 @@ pub enum ParamCommand {
     /// Declare a parameter, as a number or an expression over the others
     New {
         name: String,
-        #[arg(allow_negative_numbers = true, value_name = "VALUE|EXPR")]
+        #[arg(allow_hyphen_values = true, value_name = "VALUE|EXPR")]
         value: ParamValue,
         #[arg(long)]
         document: Option<String>,
@@ -685,7 +1111,7 @@ pub enum ParamCommand {
     /// Drive a parameter to a new value and recompute everything it reaches
     Set {
         name: String,
-        #[arg(allow_negative_numbers = true, value_name = "VALUE|EXPR")]
+        #[arg(allow_hyphen_values = true, value_name = "VALUE|EXPR")]
         value: ParamValue,
         #[arg(long)]
         document: Option<String>,

@@ -47,6 +47,14 @@ App::VarSet& ensure(App::Document& doc);
 /// to tell them apart, which only stays unambiguous while no name is a number.
 void require_name(const std::string& name);
 
+/// Refuses a name FreeCAD's own parser does not read back as a bare reference.
+/// The charset check above cannot see this: `m` is spelled like a name and
+/// parses as a metre, so declaring it produces a parameter that no expression
+/// can name and that breaks every later read of the registry. Asked of the
+/// parser rather than of a table of unit symbols, because the table that
+/// matters is the one the grammar actually uses.
+void require_usable_name(App::DocumentObject& owner, const std::string& name);
+
 /// Every parameter in the registry, in declaration order.
 std::vector<std::string> names(App::Document& doc);
 
