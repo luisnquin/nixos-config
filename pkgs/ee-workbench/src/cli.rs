@@ -111,7 +111,7 @@ pub enum InventoryCommand {
     /// Record parts arriving
     Receive {
         part: String,
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
         qty: u32,
         #[arg(long)]
         location: Option<String>,
@@ -121,7 +121,7 @@ pub enum InventoryCommand {
     /// Record parts leaving, optionally against a project
     Consume {
         part: String,
-        #[arg(long, default_value_t = 1)]
+        #[arg(long, default_value_t = 1, allow_negative_numbers = true)]
         qty: u32,
         #[arg(long)]
         project: Option<String>,
@@ -138,7 +138,7 @@ pub enum InventoryCommand {
     Events {
         #[arg(long)]
         part: Option<String>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         limit: Option<usize>,
         #[command(flatten)]
         format: Format,
@@ -250,7 +250,7 @@ pub enum MeasurementCommand {
         experiment: Option<String>,
         #[arg(long)]
         quantity: Option<String>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         limit: Option<usize>,
         #[command(flatten)]
         format: Format,
@@ -958,7 +958,7 @@ pub enum PatternCommand {
     Linear {
         #[arg(long, value_parser = ["x", "y", "z"])]
         direction: String,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         count: i64,
         #[arg(long, allow_negative_numbers = true, value_name = "MM|PARAM")]
         spacing: Slot,
@@ -982,7 +982,7 @@ pub enum PatternCommand {
     Polar {
         #[arg(long, value_parser = ["x", "y", "z"])]
         axis: String,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         count: i64,
         #[arg(long, default_value = "360", allow_negative_numbers = true, value_name = "DEG|PARAM")]
         angle: Slot,
@@ -1150,10 +1150,10 @@ pub enum PreviewCommand {
         #[arg(long)]
         path: Option<String>,
         /// Maximum linear deviation of the mesh, in millimetres
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         deflection: Option<f64>,
         /// Maximum angular deviation of the mesh, in radians
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         angular: Option<f64>,
         /// Stop re-exporting this document after every successful recompute
         #[arg(long)]
@@ -1174,12 +1174,12 @@ pub enum PreviewCommand {
         /// iso, front, back, left, right, top or bottom
         #[arg(long, default_value = "iso")]
         view: String,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         width: Option<u32>,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         height: Option<u32>,
         /// Maximum linear deviation of the mesh, in millimetres
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         deflection: Option<f64>,
         #[command(flatten)]
         format: Format,

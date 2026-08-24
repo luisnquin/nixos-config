@@ -39,6 +39,31 @@ impl fmt::Display for Hangup {
 
 impl std::error::Error for Hangup {}
 
+/// A refusal the session actually answered with, carrying its code and
+/// message structurally rather than only inside the formatted string - so a
+/// caller under `--json` can hand the same code and message back out as JSON
+/// instead of the `Display` text this is really meant for a terminal.
+#[derive(Debug)]
+pub struct Refusal {
+    pub method: String,
+    pub code: String,
+    pub message: String,
+}
+
+impl fmt::Display for Refusal {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(out, "{} refused [{}]: {}", self.method, self.code, self.message)
+    }
+}
+
+impl std::error::Error for Refusal {}
+
+/// The refusal in an error's chain, if the failure reached a live server that
+/// answered `ok: false` rather than a transport problem or a bug on this side.
+pub fn refusal(error: &anyhow::Error) -> Option<&Refusal> {
+    error.chain().find_map(|cause| cause.downcast_ref::<Refusal>())
+}
+
 /// True when the failure means nothing was listening any more, which is what a
 /// session retiring on its idle deadline looks like from this side. A refusal,
 /// a protocol mismatch or unparseable JSON all mean the request reached a live
@@ -160,12 +185,18 @@ impl Client {
             let code = reply
                 .pointer("/error/code")
                 .and_then(Value::as_str)
-                .unwrap_or("unknown");
+                .unwrap_or("unknown")
+                .to_string();
             let message = reply
                 .pointer("/error/message")
                 .and_then(Value::as_str)
-                .unwrap_or("no message");
-            bail!("{method} refused [{code}]: {message}");
+                .unwrap_or("no message")
+                .to_string();
+            return Err(anyhow::Error::new(Refusal {
+                method: method.to_string(),
+                code,
+                message,
+            }));
         }
 
         Ok(reply.get("result").cloned().unwrap_or(Value::Null))

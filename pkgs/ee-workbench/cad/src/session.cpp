@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <initializer_list>
 #include <map>
+#include <numeric>
 #include <set>
 #include <string>
 #include <vector>
@@ -18,6 +20,7 @@
 #include <Base/Interpreter.h>
 #include <Base/Placement.h>
 #include <Base/Rotation.h>
+#include <Base/Tools.h>
 #include <Base/Vector3D.h>
 #include <Mod/Part/App/Geometry.h>
 #include <Mod/Part/App/Part2DObject.h>
@@ -59,8 +62,12 @@
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
 #include <TopoDS_Edge.hxx>
+#include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
+#include <TopoDS_Vertex.hxx>
+#include <TopTools_IndexedDataMapOfShapeListOfShape.hxx>
 #include <TopTools_IndexedMapOfShape.hxx>
+#include <TopTools_ListOfShape.hxx>
 
 #include "ee/gui.hpp"
 #include "ee/mesh.hpp"
@@ -93,6 +100,21 @@ double measure(double value)
 {
     const double snapped = std::round(value * 1e6) / 1e6;
     return snapped == 0.0 ? 0.0 : snapped;
+}
+
+// `Document::addObject` runs every requested name through this same function
+// before using it, silently replacing whatever it rejects — so a hyphenated
+// name is accepted, then answers to a different name than the one that was
+// typed. Asking it up front, before anything is created, means a bad name is
+// refused instead of being turned into an object nobody can address.
+void require_document_identifier(const std::string& name)
+{
+    if (Base::Tools::getIdentifier(name) != name) {
+        throw Error{"invalid-name",
+                    name + " is not usable as a FreeCAD object name: it must start with a "
+                           "letter or underscore, and hold only letters, digits and "
+                           "underscores after that"};
+    }
 }
 
 App::Document& document_for(const std::string& name)
@@ -670,6 +692,95 @@ json::Value recompute_document(App::Document& doc)
 /// previous tip was itself a clean single solid; a brand new body, or one
 /// already broken by something else, has nothing valid to compare against,
 /// so there is nothing this check could add.
+/// `valid_additive_result` catches a union that leaves two solids where it
+/// promised one, but a pad, revolve or loft that touches a body's own,
+/// already-present material at a single point or edge instead of a face
+/// still passes both of its signals: OCCT merges the touching pieces into
+/// `solid_count == 1`, and `BRepCheck_Analyzer` calls the result valid - it
+/// checks self-intersection and orientation, not whether every edge borders
+/// the two faces a solid boundary requires. This checks that directly: build
+/// edge->face and vertex->face incidence from the shape, and require every
+/// edge to border exactly two faces. A pinch edge borders four. A pinch
+/// vertex - the case a revolve's own apex singularity produces when it lands
+/// on existing material - still only shows two faces on the edge check (its
+/// own degenerate meridian edge is one of them), so the edges touching that
+/// vertex are clustered by which faces they connect: material that meets
+/// cleanly clusters into one group, two solids meeting at a point cluster
+/// into two groups sharing no edge through it. Independent of `solid_count`,
+/// so a body chain's deliberate gap (see the `Stack` slice test, where the
+/// two solids never touch at all) leaves every edge and vertex cleanly
+/// 2-manifold and passes.
+bool is_manifold(const TopoDS_Shape& shape)
+{
+    TopTools_IndexedDataMapOfShapeListOfShape edge_faces;
+    TopExp::MapShapesAndAncestors(shape, TopAbs_EDGE, TopAbs_FACE, edge_faces);
+    for (int i = 1; i <= edge_faces.Extent(); ++i) {
+        if (edge_faces.FindFromIndex(i).Extent() > 2) {
+            return false;
+        }
+    }
+
+    TopTools_IndexedDataMapOfShapeListOfShape vertex_faces;
+    TopExp::MapShapesAndAncestors(shape, TopAbs_VERTEX, TopAbs_FACE, vertex_faces);
+    TopTools_IndexedDataMapOfShapeListOfShape vertex_edges;
+    TopExp::MapShapesAndAncestors(shape, TopAbs_VERTEX, TopAbs_EDGE, vertex_edges);
+
+    for (int i = 1; i <= vertex_faces.Extent(); ++i) {
+        const TopTools_ListOfShape& faces = vertex_faces.FindFromIndex(i);
+        if (faces.Extent() < 2) {
+            continue;
+        }
+
+        TopTools_IndexedMapOfShape face_index;
+        for (TopTools_ListIteratorOfListOfShape it(faces); it.More(); it.Next()) {
+            face_index.Add(it.Value());
+        }
+
+        std::vector<int> parent(static_cast<std::size_t>(face_index.Extent()) + 1);
+        std::iota(parent.begin(), parent.end(), 0);
+        std::function<int(int)> find = [&](int node) {
+            while (parent[node] != node) {
+                node = parent[node] = parent[parent[node]];
+            }
+            return node;
+        };
+
+        const TopTools_ListOfShape& edges = vertex_edges.FindFromKey(vertex_faces.FindKey(i));
+        for (TopTools_ListIteratorOfListOfShape eit(edges); eit.More(); eit.Next()) {
+            if (!edge_faces.Contains(eit.Value())) {
+                continue;
+            }
+            int first = 0;
+            const TopTools_ListOfShape& incident = edge_faces.FindFromKey(eit.Value());
+            for (TopTools_ListIteratorOfListOfShape fit(incident); fit.More(); fit.Next()) {
+                if (!face_index.Contains(fit.Value())) {
+                    continue;
+                }
+                const int index = face_index.FindIndex(fit.Value());
+                if (first == 0) {
+                    first = index;
+                }
+                else {
+                    const int a = find(first);
+                    const int b = find(index);
+                    if (a != b) {
+                        parent[a] = b;
+                    }
+                }
+            }
+        }
+
+        std::set<int> clusters;
+        for (int f = 1; f <= face_index.Extent(); ++f) {
+            clusters.insert(find(f));
+        }
+        if (clusters.size() > 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool valid_additive_result(PartDesign::Body& body, App::DocumentObject* previous_tip)
 {
     auto* previous = dynamic_cast<Part::Feature*>(previous_tip);
@@ -686,16 +797,22 @@ bool valid_additive_result(PartDesign::Body& body, App::DocumentObject* previous
 /// and on failure take the feature back out rather than let it survive red in
 /// the tree. Mirrors apply_removal's tip-restore + removeObject order, since a
 /// half-built feature leaving the tip pointed at it is the same problem a
-/// removed one is. `additive` opts a union into the degenerate-contact check
-/// above; every other creating verb leaves it off.
+/// removed one is. `additive` opts a union into `valid_additive_result`'s
+/// solid-count check above, which only makes sense for a union's
+/// exactly-one-result contract. `check_manifold` opts in the pinch check
+/// instead - meaningful for any creating verb that can touch existing
+/// material (pad, revolve, loft, union), not just union.
 json::Value recompute_or_rollback(App::Document& doc, PartDesign::Body& body,
                                    App::DocumentObject* previous_tip,
                                    PartDesign::Feature& created,
-                                   bool additive = false)
+                                   bool additive = false,
+                                   bool check_manifold = false)
 {
     json::Value recomputed = recompute_document(doc);
     const bool clean = recomputed.find("failed")->as_bool() != true;
-    const bool degenerate = clean && additive && !valid_additive_result(body, previous_tip);
+    const bool bad_union = clean && additive && !valid_additive_result(body, previous_tip);
+    const bool pinched = clean && check_manifold && !is_manifold(body.Shape.getValue());
+    const bool degenerate = bad_union || pinched;
     if (clean && !degenerate) {
         return recomputed;
     }
@@ -1604,8 +1721,9 @@ json::Value Session::body_boolean(const BooleanTarget& target)
     feature->addObjects(std::vector<App::DocumentObject*>(tools.begin(), tools.end()));
     feature->Visibility.setValue(true);
 
-    json::Value recomputed =
-        recompute_or_rollback(doc, base, previous_tip, *feature, /*additive=*/type == "Fuse");
+    json::Value recomputed = recompute_or_rollback(doc, base, previous_tip, *feature,
+                                                    /*additive=*/type == "Fuse",
+                                                    /*check_manifold=*/type == "Fuse");
 
     // FreeCAD's own recompute does not treat an empty result as an error - an
     // intersect of disjoint bodies produces a valid, empty compound - so a
@@ -1672,6 +1790,9 @@ json::Value Session::new_sketch(const SketchTarget& target)
         throw Error{"no-origin", "origin plane " + wanted_plane + " is missing"};
     }
 
+    if (!target.name.empty()) {
+        require_document_identifier(target.name);
+    }
     const std::string wanted = target.name.empty() ? std::string("Sketch") : target.name;
     auto* sketch = static_cast<Sketcher::SketchObject*>(
         doc.addObject("Sketcher::SketchObject", wanted.c_str()));
@@ -2291,7 +2412,8 @@ json::Value Session::pad(const ExtrudeTarget& target)
     parts.profile->Visibility.setValue(false);
     feature->Visibility.setValue(true);
 
-    json::Value recomputed = recompute_or_rollback(doc, *parts.body, previous_tip, *feature);
+    json::Value recomputed = recompute_or_rollback(doc, *parts.body, previous_tip, *feature,
+                                                    /*additive=*/false, /*check_manifold=*/true);
     mark_changed(doc.getName());
     gui::fit_view();
 
@@ -2406,7 +2528,8 @@ json::Value Session::revolve(const RevolveTarget& target)
     parts.profile->Visibility.setValue(false);
     feature->Visibility.setValue(true);
 
-    json::Value recomputed = recompute_or_rollback(doc, *parts.body, previous_tip, *feature);
+    json::Value recomputed = recompute_or_rollback(doc, *parts.body, previous_tip, *feature,
+                                                    /*additive=*/false, /*check_manifold=*/true);
     mark_changed(doc.getName());
     gui::fit_view();
 
@@ -2509,7 +2632,8 @@ json::Value Session::loft_new(const LoftTarget& target)
     }
     feature->Visibility.setValue(true);
 
-    json::Value recomputed = recompute_or_rollback(doc, *parts.body, previous_tip, *feature);
+    json::Value recomputed = recompute_or_rollback(doc, *parts.body, previous_tip, *feature,
+                                                    /*additive=*/false, /*check_manifold=*/true);
     mark_changed(doc.getName());
     gui::fit_view();
 

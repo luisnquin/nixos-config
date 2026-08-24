@@ -109,7 +109,15 @@ runCommand "ee-freecad-slice-test" {
     echo "stopping with unsaved changes should have been refused" >&2
     exit 1
   fi
-  grep -q "unsaved" "$TMPDIR/refused.err"
+  test ! -s "$TMPDIR/refused.err"
+  jq -e '.error.message | contains("unsaved")' "$TMPDIR/refused.json" >/dev/null
+
+  # And the same refusal without --json is unchanged: plain text on stderr.
+  if ee mechanical session stop >/dev/null 2>"$TMPDIR/refused-plain.err"; then
+    echo "the non-json refusal should also have failed" >&2
+    exit 1
+  fi
+  grep -q "unsaved" "$TMPDIR/refused-plain.err"
 
   ee mechanical document save --path "$document" --json | jq -e --arg f "$document" '.path == $f' >/dev/null
   ee mechanical status --json | jq -e '
@@ -213,12 +221,14 @@ runCommand "ee-freecad-slice-test" {
 
   # A literal over a driven slot is a real intention and a common accident, and
   # they are the same command; only the accident is silent.
-  if ee mechanical sketch set width 33 --sketch Plan --json >/dev/null 2>"$TMPDIR/driven.err"; then
+  if ee mechanical sketch set width 33 --sketch Plan --json \
+      >"$TMPDIR/slotdriven.json" 2>"$TMPDIR/driven.err"; then
     echo "a literal silently replaced a parameter" >&2
     exit 1
   fi
-  grep -q "slot-is-driven" "$TMPDIR/driven.err"
-  grep -q -- "--unbind" "$TMPDIR/driven.err"
+  test ! -s "$TMPDIR/driven.err"
+  jq -e '.error.code == "slot-is-driven" and (.error.message | contains("--unbind"))' \
+    "$TMPDIR/slotdriven.json" >/dev/null
 
   ee mechanical sketch set width 33 --sketch Plan --unbind --json | jq -e '
     .value == {value: 33, parameter: null} and .previous == 40
@@ -289,11 +299,13 @@ runCommand "ee-freecad-slice-test" {
 
   # A parameter other slots still use cannot be removed by accident, and
   # --force says which relationships it turned back into numbers.
-  if ee mechanical param remove bar_x --json >/dev/null 2>"$TMPDIR/inuse.err"; then
+  if ee mechanical param remove bar_x --json \
+      >"$TMPDIR/inuse.json" 2>"$TMPDIR/inuse.err"; then
     echo "removing a parameter in use should have been refused" >&2
     exit 1
   fi
-  grep -q "parameter-in-use" "$TMPDIR/inuse.err"
+  test ! -s "$TMPDIR/inuse.err"
+  jq -e '.error.code == "parameter-in-use"' "$TMPDIR/inuse.json" >/dev/null
 
   # Change 2: driving a parameter can break features the caller cannot see, so
   # the failure is named and the exit status carries it.
@@ -411,12 +423,14 @@ runCommand "ee-freecad-slice-test" {
   # A sketch a live feature still draws from refuses. Removing it anyway leaves
   # the holder with a null profile, an Invalid status and the shape it last
   # built, which looks right and cannot be rebuilt.
-  if ee mechanical feature remove S1 --json >/dev/null 2>"$TMPDIR/inuse.err"; then
+  if ee mechanical feature remove S1 --json \
+      >"$TMPDIR/inuse.json" 2>"$TMPDIR/inuse.err"; then
     echo "removing a profile in use should have been refused" >&2
     exit 1
   fi
-  grep -q "sketch-in-use" "$TMPDIR/inuse.err"
-  grep -q "Pad1" "$TMPDIR/inuse.err"
+  test ! -s "$TMPDIR/inuse.err"
+  jq -e '.error.code == "sketch-in-use" and (.error.message | contains("Pad1"))' \
+    "$TMPDIR/inuse.json" >/dev/null
 
   # The widowed one goes, which is why removal leaves profiles behind instead
   # of taking them: cleaning up is a second command, not a policy.
@@ -424,11 +438,13 @@ runCommand "ee-freecad-slice-test" {
 
   # A body is not a feature. What removing one means depends on whether another
   # is built from it, so it waits for booleans rather than guessing now.
-  if ee mechanical feature remove Stem --json >/dev/null 2>"$TMPDIR/body.err"; then
+  if ee mechanical feature remove Stem --json \
+      >"$TMPDIR/body.json" 2>"$TMPDIR/body.err"; then
     echo "removing a body should have been refused" >&2
     exit 1
   fi
-  grep -q "unremovable" "$TMPDIR/body.err"
+  test ! -s "$TMPDIR/body.err"
+  jq -e '.error.code == "unremovable"' "$TMPDIR/body.json" >/dev/null
 
   # Arithmetic written over a feature is the one reference removal cannot
   # repair, and rewriting somebody's expression is not this verb's business.
@@ -436,23 +452,21 @@ runCommand "ee-freecad-slice-test" {
   ee mechanical pad length 10 --pad Pad1 --unbind --json >/dev/null
   ee mechanical param new echoed "=Pad1.Length * 2" --json | jq -e '.value == 20' >/dev/null
   ee mechanical param new tripled "=Pad1.Length * 3" --json | jq -e '.value == 30' >/dev/null
-  if ee mechanical feature remove Pad1 --dry-run --json >/dev/null 2>"$TMPDIR/follows.err"; then
+  if ee mechanical feature remove Pad1 --dry-run --json \
+      >"$TMPDIR/follows.json" 2>"$TMPDIR/follows.err"; then
     echo "removing a feature a parameter reads should have been refused" >&2
     exit 1
   fi
+  test ! -s "$TMPDIR/follows.err"
+
   # Both of them, in one refusal. A refusal that names a sample costs one round
-  # trip per follower to discover a set the server already had in hand.
-  grep -q "parameter-follows" "$TMPDIR/follows.err"
-
-  # Membership first, per name and order-independently, because that is the
-  # promise the message actually makes.
-  grep -q "echoed" "$TMPDIR/follows.err"
-  grep -q "tripled" "$TMPDIR/follows.err"
-
-  # Then the order, as its own promise with its own reason: getExpressions() is
-  # keyed by ObjectIdentifier so the set arrives sorted, and pinning it keeps
-  # the refusal diffable across runs rather than incidentally stable.
-  grep -q "echoed, tripled" "$TMPDIR/follows.err"
+  # trip per follower to discover a set the server already had in hand. The
+  # order is its own promise with its own reason: getExpressions() is keyed
+  # by ObjectIdentifier so the set arrives sorted, and pinning it keeps the
+  # refusal diffable across runs rather than incidentally stable.
+  jq -e '
+    .error.code == "parameter-follows" and (.error.message | contains("echoed, tripled"))
+  ' "$TMPDIR/follows.json" >/dev/null
   ee mechanical param set echoed 20 --json >/dev/null
   ee mechanical param set tripled 30 --json >/dev/null
 
@@ -490,11 +504,13 @@ runCommand "ee-freecad-slice-test" {
   # included. Every other refusal in this tool leaves the document untouched,
   # and a caller reading a nonzero exit as "nothing happened" has to be right.
   ee mechanical document inspect --features --json >"$TMPDIR/pristine.json"
-  if ee mechanical param new broken "=Pad1.Length + 1" --json >/dev/null 2>"$TMPDIR/bind.err"; then
+  if ee mechanical param new broken "=Pad1.Length + 1" --json \
+      >"$TMPDIR/bind.json" 2>"$TMPDIR/bind.err"; then
     echo "a unit mismatch should have been refused" >&2
     exit 1
   fi
-  grep -q "invalid-expression" "$TMPDIR/bind.err"
+  test ! -s "$TMPDIR/bind.err"
+  jq -e '.error.code == "invalid-expression"' "$TMPDIR/bind.json" >/dev/null
   ee mechanical document inspect --features --json >"$TMPDIR/rolled.json"
   diff <(jq -S . "$TMPDIR/pristine.json") <(jq -S . "$TMPDIR/rolled.json")
   ee mechanical param list --json | jq -e '.parameters == []' >/dev/null
@@ -600,11 +616,12 @@ runCommand "ee-freecad-slice-test" {
 
   # A radius too small to span its chord is a refusal, not a NaN centre.
   if ee mechanical sketch arc --x1 0 --y1 0 --x2 30 --y2 0 --radius 5 --json \
-      >/dev/null 2>"$TMPDIR/short.err"; then
+      >"$TMPDIR/short.json" 2>"$TMPDIR/short.err"; then
     echo "an arc radius shorter than half the chord should have been refused" >&2
     exit 1
   fi
-  grep -q "invalid-dimension" "$TMPDIR/short.err"
+  test ! -s "$TMPDIR/short.err"
+  jq -e '.error.code == "invalid-dimension"' "$TMPDIR/short.json" >/dev/null
 
   # 30x20 rectangle plus the circular segment the arc bulges out:
   # r=12, chord=20 -> theta = 2*asin(10/12), segment = r^2/2*(theta - sin theta)
@@ -675,11 +692,12 @@ runCommand "ee-freecad-slice-test" {
   # An open polyline cannot close a wire and --close needs three points; both
   # are refusals at the sketch, not a broken pad later.
   if ee mechanical sketch polyline --points "0,0 10,0" --close --document Tri --json \
-      >/dev/null 2>"$TMPDIR/two.err"; then
+      >"$TMPDIR/two.json" 2>"$TMPDIR/two.err"; then
     echo "a closed polyline of two points should have been refused" >&2
     exit 1
   fi
-  grep -q "invalid-dimension" "$TMPDIR/two.err"
+  test ! -s "$TMPDIR/two.err"
+  jq -e '.error.code == "invalid-dimension"' "$TMPDIR/two.json" >/dev/null
 
   # An outer loop and an inner loop in the same sketch pad to a solid with a
   # hole in one operation: 30*30*6 - pi*25*6.
@@ -812,11 +830,13 @@ runCommand "ee-freecad-slice-test" {
 
   # An angle outside (0, 360] is refused before a feature is built, the same
   # class of error as a bad length.
-  if ee mechanical revolve new --angle 400 --axis y --json >/dev/null 2>"$TMPDIR/angle.err"; then
+  if ee mechanical revolve new --angle 400 --axis y --json \
+      >"$TMPDIR/angle.json" 2>"$TMPDIR/angle.err"; then
     echo "an angle outside (0, 360] should have been refused" >&2
     exit 1
   fi
-  grep -q "invalid-dimension" "$TMPDIR/angle.err"
+  test ! -s "$TMPDIR/angle.err"
+  jq -e '.error.code == "invalid-dimension"' "$TMPDIR/angle.json" >/dev/null
 
   # Groove is the subtractive twin: a concentric smaller circle revolved into
   # the same torus removes exactly the smaller torus, 2*pi^2*R*(r1^2 - r2^2).
@@ -831,11 +851,13 @@ runCommand "ee-freecad-slice-test" {
   ee mechanical body new --json >/dev/null
   ee mechanical sketch new --plane xy --json >/dev/null
   ee mechanical sketch circle --radius 5 --json >/dev/null
-  if ee mechanical groove new --angle 360 --axis y --json >/dev/null 2>"$TMPDIR/nomat.err"; then
+  if ee mechanical groove new --angle 360 --axis y --json \
+      >"$TMPDIR/nomat.json" 2>"$TMPDIR/nomat.err"; then
     echo "a groove on an empty body should have been refused" >&2
     exit 1
   fi
-  grep -q "no-material" "$TMPDIR/nomat.err"
+  test ! -s "$TMPDIR/nomat.err"
+  jq -e '.error.code == "no-material"' "$TMPDIR/nomat.json" >/dev/null
 
   # Both angle and taper are named parameter slots like every other dimension.
   ee mechanical param list --document Torus --json | jq -e '
@@ -1013,11 +1035,12 @@ runCommand "ee-freecad-slice-test" {
   # produces, and that refusal has to leave the tree exactly as it found it.
   before=$(ee mechanical document inspect --features --json | jq '[.bodies[0].features[].name] | length')
   if ee mechanical pattern linear --direction x --count 2 --spacing -8 --json \
-      >/dev/null 2>"$TMPDIR/negative.err"; then
+      >"$TMPDIR/negative.json" 2>"$TMPDIR/negative.err"; then
     echo "a degenerate negative-spacing pattern should have been refused" >&2
     exit 1
   fi
-  grep -q "recompute-failed" "$TMPDIR/negative.err"
+  test ! -s "$TMPDIR/negative.err"
+  jq -e '.error.code == "recompute-failed"' "$TMPDIR/negative.json" >/dev/null
   after=$(ee mechanical document inspect --features --json | jq '[.bodies[0].features[].name] | length')
   test "$before" = "$after"
 
@@ -1103,11 +1126,12 @@ runCommand "ee-freecad-slice-test" {
   ee mechanical sketch rectangle --width 40 --height 30 --json >/dev/null
   ee mechanical pad new --length 10 --json >/dev/null
   if ee mechanical fillet new --radius 1 --shorter-than 5 --json \
-      >/dev/null 2>"$TMPDIR/nomatch.err"; then
+      >"$TMPDIR/nomatch.json" 2>"$TMPDIR/nomatch.err"; then
     echo "a selection matching no edge should have been refused" >&2
     exit 1
   fi
-  grep -q "no-edges-matched" "$TMPDIR/nomatch.err"
+  test ! -s "$TMPDIR/nomatch.err"
+  jq -e '.error.code == "no-edges-matched"' "$TMPDIR/nomatch.json" >/dev/null
 
   # No predicate at all is the documented default: every edge.
   ee mechanical document new --name AllEdges --json >/dev/null
@@ -1151,21 +1175,23 @@ runCommand "ee-freecad-slice-test" {
   # More than one --feature is a refusal, not a pick of the first: a dressup's
   # Base is a single link.
   if ee mechanical fillet new --radius 1 --feature Base --feature Top --json \
-      >/dev/null 2>"$TMPDIR/toomany.err"; then
+      >"$TMPDIR/toomany.json" 2>"$TMPDIR/toomany.err"; then
     echo "fillet naming two features should have been refused" >&2
     exit 1
   fi
-  grep -q "too-many-features" "$TMPDIR/toomany.err"
+  test ! -s "$TMPDIR/toomany.err"
+  jq -e '.error.code == "too-many-features"' "$TMPDIR/toomany.json" >/dev/null
 
   # A failed dressup on a non-tip feature rolls back the whole splice, not
   # only the feature it added: the successor's rerouted link goes back too.
   before=$(ee mechanical document inspect --features --json | jq -c '[.bodies[0].features[].name]')
   if ee mechanical fillet new --radius 15 --parallel x --feature Base --json \
-      >/dev/null 2>"$TMPDIR/badradius.err"; then
+      >"$TMPDIR/badradius.json" 2>"$TMPDIR/badradius.err"; then
     echo "an oversized fillet should have been refused" >&2
     exit 1
   fi
-  grep -q "recompute-failed" "$TMPDIR/badradius.err"
+  test ! -s "$TMPDIR/badradius.err"
+  jq -e '.error.code == "recompute-failed"' "$TMPDIR/badradius.json" >/dev/null
   after=$(ee mechanical document inspect --features --json | jq -c '[.bodies[0].features[].name]')
   test "$before" = "$after"
 
@@ -1208,26 +1234,31 @@ runCommand "ee-freecad-slice-test" {
 
   # Two live bodies is a dead end until they are joined.
   if ee mechanical preview export --path "$TMPDIR/ambiguous.stl" --json \
-      >/dev/null 2>"$TMPDIR/ambiguous.err"; then
+      >"$TMPDIR/ambiguous.json" 2>"$TMPDIR/ambiguous.err"; then
     echo "exporting two live bodies should have been refused" >&2
     exit 1
   fi
-  grep -q "ambiguous-shape" "$TMPDIR/ambiguous.err"
+  test ! -s "$TMPDIR/ambiguous.err"
+  jq -e '.error.code == "ambiguous-shape"' "$TMPDIR/ambiguous.json" >/dev/null
   ee mechanical document inspect --json | jq -e '.solids | length == 2' >/dev/null
 
   # Without --base and two bodies to choose from, the verb refuses rather than
   # guessing, the same discipline --body and --document already hold to.
-  if ee mechanical body union --tool B --json >/dev/null 2>"$TMPDIR/noBase.err"; then
+  if ee mechanical body union --tool B --json \
+      >"$TMPDIR/noBase.json" 2>"$TMPDIR/noBase.err"; then
     echo "body union without --base and two bodies should have been refused" >&2
     exit 1
   fi
-  grep -q "ambiguous-body" "$TMPDIR/noBase.err"
+  test ! -s "$TMPDIR/noBase.err"
+  jq -e '.error.code == "ambiguous-body"' "$TMPDIR/noBase.json" >/dev/null
 
-  if ee mechanical body union --tool A --base A --json >/dev/null 2>"$TMPDIR/self.err"; then
+  if ee mechanical body union --tool A --base A --json \
+      >"$TMPDIR/self.json" 2>"$TMPDIR/self.err"; then
     echo "a body union of A into itself should have been refused" >&2
     exit 1
   fi
-  grep -q "self-boolean" "$TMPDIR/self.err"
+  test ! -s "$TMPDIR/self.err"
+  jq -e '.error.code == "self-boolean"' "$TMPDIR/self.json" >/dev/null
 
   # The two boxes overlap by 10x20x10 = 2000: union is 4000+4000-2000, cut is
   # A minus the overlap, intersect is the overlap alone.
@@ -1288,11 +1319,12 @@ runCommand "ee-freecad-slice-test" {
 
   before=$(ee mechanical document inspect --json | jq -c '[.objects[].name]')
   if ee mechanical body intersect --tool B --base A --json \
-      >/dev/null 2>"$TMPDIR/disjoint.err"; then
+      >"$TMPDIR/disjoint.json" 2>"$TMPDIR/disjoint.err"; then
     echo "an intersect of disjoint bodies should have been refused" >&2
     exit 1
   fi
-  grep -q "empty-result" "$TMPDIR/disjoint.err"
+  test ! -s "$TMPDIR/disjoint.err"
+  jq -e '.error.code == "empty-result"' "$TMPDIR/disjoint.json" >/dev/null
   after=$(ee mechanical document inspect --json | jq -c '[.objects[].name]')
   test "$before" = "$after"
   ee mechanical document inspect --json | jq -e '.solids | length == 2' >/dev/null
@@ -1320,14 +1352,91 @@ runCommand "ee-freecad-slice-test" {
 
   before=$(ee mechanical document inspect --json | jq -c '[.objects[].name]')
   if ee mechanical body union --tool Cone --base Cube --name PointFuse --json \
-      >/dev/null 2>"$TMPDIR/pointContact.err"; then
+      >"$TMPDIR/pointContact.json" 2>"$TMPDIR/pointContact.err"; then
     echo "a fuse touching at a single point should have been refused" >&2
     exit 1
   fi
-  grep -q "degenerate-contact" "$TMPDIR/pointContact.err"
+  test ! -s "$TMPDIR/pointContact.err"
+  jq -e '.error.code == "degenerate-contact"' "$TMPDIR/pointContact.json" >/dev/null
   after=$(ee mechanical document inspect --json | jq -c '[.objects[].name]')
   test "$before" = "$after"
   ee mechanical document inspect --json | jq -e '.solids | length == 2' >/dev/null
+
+  # The originally reported case: not a union of two bodies, but a single
+  # body's own chain, where a revolve's zero-radius apex lands on material
+  # already in the same body. There is no "tool" and "base" here for
+  # solid_count to compare - OCCT merges the touch into one solid - so this
+  # needs the same is_manifold signal wired into pad, revolve and loft too.
+  ee mechanical document new --name PoisonRevolve --json >/dev/null
+  ee mechanical body new --name B --json >/dev/null
+  ee mechanical sketch new --plane xy --json >/dev/null
+  ee mechanical sketch rectangle --width 40 --height 40 --centered --json >/dev/null
+  ee mechanical pad new --length 10 --json | jq -e '.shape.volume == 16000' >/dev/null
+
+  ee mechanical sketch new --plane xz --name cone --json >/dev/null
+  ee mechanical sketch polyline --points "0,10 15,40 0,40" --close --json \
+    | jq -e '.dof == 0' >/dev/null
+
+  before=$(ee mechanical document inspect --json | jq -c '[.objects[].name]')
+  if ee mechanical revolve new --sketch cone --axis y --json \
+      >"$TMPDIR/poisonRevolve.json" 2>"$TMPDIR/poisonRevolve.err"; then
+    echo "a revolve whose apex touches the body's own pad at a single point should have been refused" >&2
+    exit 1
+  fi
+  test ! -s "$TMPDIR/poisonRevolve.err"
+  jq -e '.error.code == "degenerate-contact"' "$TMPDIR/poisonRevolve.json" >/dev/null
+  after=$(ee mechanical document inspect --json | jq -c '[.objects[].name]')
+  test "$before" = "$after"
+  ee mechanical document inspect --json | jq -e '
+    (.solids | length == 1) and (.solids[0].shape.volume == 16000)
+  ' >/dev/null
+
+  # Refusing the revolve, not poisoning the body, is the whole point of the
+  # fix - a later pad must still build cleanly.
+  ee mechanical sketch new --plane xy --offset-z 10 --name cap --json >/dev/null
+  ee mechanical sketch circle --radius 5 --sketch cap --json >/dev/null
+  ee mechanical pad new --sketch cap --length 5 --json \
+    | jq -e '((.shape.volume - 16392.699082) | fabs) < 0.001' >/dev/null
+
+  # A refusal under --json used to print the same plain text as a terminal
+  # failure, so a scripted caller piping it to jq went blind instead of
+  # reading a code. It must come back as the same JSON shape a success does.
+  if ee mechanical sketch circle --radius 5 --sketch DoesNotExist --json \
+      >"$TMPDIR/refusal.json" 2>"$TMPDIR/refusal.err"; then
+    echo "drawing on a sketch that does not exist should have been refused" >&2
+    exit 1
+  fi
+  test ! -s "$TMPDIR/refusal.err"
+  jq -e '.error.code == "unknown-sketch" and (.error.message | length > 0)' \
+    "$TMPDIR/refusal.json" >/dev/null
+
+  # The same refusal without --json is unchanged: plain text on stderr, the
+  # code and message folded into one line, nothing on stdout.
+  if ee mechanical sketch circle --radius 5 --sketch DoesNotExist \
+      >"$TMPDIR/refusal.out" 2>"$TMPDIR/refusal.txt"; then
+    echo "the non-json refusal should also have failed" >&2
+    exit 1
+  fi
+  test ! -s "$TMPDIR/refusal.out"
+  grep -q "unknown-sketch" "$TMPDIR/refusal.txt"
+
+  # A hyphenated --name used to be silently rewritten to an underscore and
+  # accepted, so a later --sketch rc-96 found nothing. Refuse it up front
+  # instead, before anything is created.
+  if ee mechanical sketch new --plane xy --name rc-96 --json \
+      >"$TMPDIR/badname.json" 2>"$TMPDIR/badname.err"; then
+    echo "a hyphenated sketch name should have been refused" >&2
+    exit 1
+  fi
+  test ! -s "$TMPDIR/badname.err"
+  jq -e '.error.code == "invalid-name" and (.error.message | contains("rc-96"))' \
+    "$TMPDIR/badname.json" >/dev/null
+
+  # An underscore is a legal identifier character, so the same name spelled
+  # that way must still work end to end: create it, then find it by name.
+  ee mechanical sketch new --plane xy --name rc_96 --json >/dev/null
+  ee mechanical sketch circle --radius 5 --sketch rc_96 --json \
+    | jq -e '.sketch == "rc_96"' >/dev/null
 
   ee mechanical session stop --force --json | jq -e '.stopped' >/dev/null
 

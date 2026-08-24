@@ -185,6 +185,31 @@ fn emit(result: &Value, format: Format, summary: impl FnOnce(&Value)) -> Result<
     Ok(i32::from(broke(result)))
 }
 
+/// Every verb calls the session through here instead of `emit(&call(...)?, ...)`
+/// directly, because `?` on the raw call would hand a plain-text refusal
+/// straight to `main`'s `eprintln` even under `--json` - defect 3 from the
+/// wave-7 brief, which cost a real debugging session when a scripted loop fed
+/// that text to `jq` and went blind. Under `--json` a refusal is answered the
+/// same shape success is; every other error, and every non-`--json` call,
+/// propagates exactly as it did before this existed.
+fn respond(outcome: Result<Value>, format: Format, summary: impl FnOnce(&Value)) -> Result<i32> {
+    match outcome {
+        Ok(result) => emit(&result, format, summary),
+        Err(error) if format.json => report_refusal(error),
+        Err(error) => Err(error),
+    }
+}
+
+fn report_refusal(error: anyhow::Error) -> Result<i32> {
+    let (code, message) = match bridge::refusal(&error) {
+        Some(refusal) => (refusal.code.clone(), refusal.message.clone()),
+        None => ("internal".to_string(), format!("{error:#}")),
+    };
+
+    cmd::emit_json(&json!({ "error": { "code": code, "message": message } }))?;
+    Ok(1)
+}
+
 fn broken_summary(result: &Value) {
     let errors = failures(result);
     if errors.is_empty() {
@@ -358,10 +383,12 @@ fn session(command: SessionCommand) -> Result<i32> {
                 .unwrap_or_default();
 
             if !unsaved.is_empty() && !force {
-                anyhow::bail!(
+                let error = anyhow!(
                     "{} has unsaved changes: save it, or stop with --force to discard it",
                     unsaved.join(", ")
                 );
+
+                return if format.json { report_refusal(error) } else { Err(error) };
             }
 
             bridge::call(&socket, "server.shutdown", json!({}))?;
@@ -383,9 +410,9 @@ fn session(command: SessionCommand) -> Result<i32> {
 fn document(command: DocumentCommand) -> Result<i32> {
     match command {
         DocumentCommand::New { name, format } => {
-            let result = call("document.new", params(vec![("name", text(name))]))?;
+            let result = call("document.new", params(vec![("name", text(name))]));
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("document {}", field(result, "document"));
             })
         }
@@ -396,9 +423,9 @@ fn document(command: DocumentCommand) -> Result<i32> {
             let result = call(
                 "document.open",
                 params(vec![("path", resolved_path(target.get())?)]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("document {}", field(result, "document"));
                 println!("objects  {}", result["objects"]);
             })
@@ -407,9 +434,9 @@ fn document(command: DocumentCommand) -> Result<i32> {
             let result = call(
                 "document.recompute",
                 params(vec![("document", text(document))]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("document   {}", field(result, "document"));
                 println!("recomputed {}", result["recomputed"]);
                 println!("failed     {}", result["failed"]);
@@ -426,9 +453,9 @@ fn document(command: DocumentCommand) -> Result<i32> {
                     ("document", text(document)),
                     ("path", resolved_path(path)?),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("document {}", field(result, "document"));
                 println!("path     {}", field(result, "path"));
             })
@@ -446,9 +473,9 @@ fn document(command: DocumentCommand) -> Result<i32> {
                     ("features", flag(features)),
                     ("tree", flag(tree)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, inspect_summary)
+            respond(result, format, inspect_summary)
         }
     }
 }
@@ -664,9 +691,9 @@ fn body(command: BodyCommand) -> Result<i32> {
             let result = call(
                 "body.new",
                 params(vec![("document", text(document)), ("name", text(name))]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("document {}", field(result, "document"));
                 println!("body     {}", field(result, "body"));
             })
@@ -711,9 +738,9 @@ fn body_boolean(
             ("tool", Some(json!(tool))),
             ("name", text(name)),
         ]),
-    )?;
+    );
 
-    emit(&result, format, |result| {
+    respond(result, format, |result| {
         println!("document  {}", field(result, "document"));
         println!("body      {}", field(result, "body"));
         println!("boolean   {}", field(result, "boolean"));
@@ -749,9 +776,9 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("offset_z", slot_opt(offset_z)),
                     ("rotate", slot_opt(rotate)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("document {}", field(result, "document"));
                 println!("body     {}", field(result, "body"));
                 println!("sketch   {}", field(result, "sketch"));
@@ -781,9 +808,9 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("y", slot_opt(y)),
                     ("centered", flag(centered)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
                 println!("width       {}", slot_text(&result["width"]));
                 println!("height      {}", slot_text(&result["height"]));
@@ -811,9 +838,9 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("x", slot_opt(x)),
                     ("y", slot_opt(y)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
                 println!("radius      {}", slot_text(&result["radius"]));
                 println!(
@@ -842,9 +869,9 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("x2", slot(x2)),
                     ("y2", slot(y2)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
                 println!(
                     "start       {} {}",
@@ -878,9 +905,9 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("radius", slot(radius)),
                     ("large", flag(large)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
                 println!(
                     "start       {} {}",
@@ -911,9 +938,9 @@ fn sketch(command: SketchCommand) -> Result<i32> {
                     ("points", Some(parse_points(&points)?)),
                     ("close", flag(close)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("sketch      {}", field(result, "sketch"));
                 println!(
                     "points      {}",
@@ -1001,9 +1028,9 @@ fn set_slot(
             ("value", slot(value)),
             ("unbind", flag(unbind)),
         ]),
-    )?;
+    );
 
-    emit(&result, format, |result| {
+    respond(result, format, |result| {
         println!("object   {}", field(result, "object"));
         println!("slot     {}", field(result, "slot"));
         println!("value    {}", slot_text(&result["value"]));
@@ -1069,9 +1096,9 @@ fn pad(command: PadCommand) -> Result<i32> {
                     ("taper", slot_opt(taper)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("pad    {}", field(result, "pad"));
                 println!("length {}", slot_text(&result["length"]));
                 println!("solid  {}", result["solid"]);
@@ -1117,9 +1144,9 @@ fn loft(command: LoftCommand) -> Result<i32> {
                     ("closed", flag(closed)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("loft     {}", field(result, "loft"));
                 println!("sketches {}", string_array_text(&result["sketches"]));
                 println!("solid    {}", result["solid"]);
@@ -1143,9 +1170,9 @@ fn loft(command: LoftCommand) -> Result<i32> {
                     ("ruled", flag(ruled)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("loft     {}", field(result, "loft"));
                 println!("sketches {}", string_array_text(&result["sketches"]));
                 println!("solid    {}", result["solid"]);
@@ -1210,9 +1237,9 @@ fn pocket(command: PocketCommand) -> Result<i32> {
                     ("taper", slot_opt(taper)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("pocket {}", field(result, "pocket"));
                 println!("length {}", slot_text(&result["length"]));
                 println!("solid  {}", result["solid"]);
@@ -1262,9 +1289,9 @@ fn revolve(command: RevolveCommand) -> Result<i32> {
                     ("reversed", flag(reversed)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("revolve {}", field(result, "revolve"));
                 println!("angle   {}", slot_text(&result["angle"]));
                 println!("axis    {}", field(result, "axis"));
@@ -1315,9 +1342,9 @@ fn groove(command: GrooveCommand) -> Result<i32> {
                     ("reversed", flag(reversed)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("groove {}", field(result, "groove"));
                 println!("angle  {}", slot_text(&result["angle"]));
                 println!("axis   {}", field(result, "axis"));
@@ -1362,9 +1389,9 @@ fn mirror(command: MirrorCommand) -> Result<i32> {
                     ("feature", features(originals)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("mirror   {}", field(result, "mirror"));
                 println!("plane    {}", field(result, "plane"));
                 println!("features {}", features_echo(result));
@@ -1400,9 +1427,9 @@ fn pattern(command: PatternCommand) -> Result<i32> {
                     ("feature", features(originals)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("pattern   {}", field(result, "pattern"));
                 println!("direction {}", field(result, "direction"));
                 println!("spacing   {}", slot_text(&result["spacing"]));
@@ -1434,9 +1461,9 @@ fn pattern(command: PatternCommand) -> Result<i32> {
                     ("feature", features(originals)),
                     ("name", text(name)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("pattern  {}", field(result, "pattern"));
                 println!("axis     {}", field(result, "axis"));
                 println!("angle    {}", slot_text(&result["angle"]));
@@ -1479,9 +1506,9 @@ fn fillet(command: FilletCommand) -> Result<i32> {
             ];
             entries.extend(edge_selection(selection));
 
-            let result = call("fillet.new", params(entries))?;
+            let result = call("fillet.new", params(entries));
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("fillet {}", field(result, "fillet"));
                 println!("base   {}", field(result, "base"));
                 println!("radius {}", slot_text(&result["radius"]));
@@ -1518,9 +1545,9 @@ fn chamfer(command: ChamferCommand) -> Result<i32> {
             ];
             entries.extend(edge_selection(selection));
 
-            let result = call("chamfer.new", params(entries))?;
+            let result = call("chamfer.new", params(entries));
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("chamfer {}", field(result, "chamfer"));
                 println!("base    {}", field(result, "base"));
                 println!("size    {}", slot_text(&result["size"]));
@@ -1555,9 +1582,9 @@ fn feature(command: FeatureCommand) -> Result<i32> {
                     ("feature", Some(Value::from(feature))),
                     ("dry_run", flag(dry_run)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, removal_summary)
+            respond(result, format, removal_summary)
         }
     }
 }
@@ -1641,13 +1668,18 @@ fn param(command: ParamCommand) -> Result<i32> {
             format,
         } => declare("param.set", name, value, document, format),
         ParamCommand::List { document, format } => {
-            let result = call("param.list", params(vec![("document", text(document))]))?;
+            let outcome = call("param.list", params(vec![("document", text(document))]));
 
             // The registry's own listing was the one surface in this tool where
             // a broken document read clean and exited 0. It is also the surface
             // a caller reaches for precisely when something looks wrong.
-            let status = emit(&result, format, param_list_summary)?;
-            Ok(status.max(i32::from(unevaluated(&result) > 0)))
+            match &outcome {
+                Ok(result) => {
+                    let status = emit(result, format, param_list_summary)?;
+                    Ok(status.max(i32::from(unevaluated(result) > 0)))
+                }
+                Err(_) => respond(outcome, format, param_list_summary),
+            }
         }
         ParamCommand::Remove {
             name,
@@ -1662,9 +1694,9 @@ fn param(command: ParamCommand) -> Result<i32> {
                     ("name", Some(Value::from(name))),
                     ("force", flag(force)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("removed {}", field(result, "name"));
 
                 let froze = result["froze"].as_array().cloned().unwrap_or_default();
@@ -1706,9 +1738,9 @@ fn declare(
     ];
     request.extend(param_value(value));
 
-    let result = call(method, params(request))?;
+    let result = call(method, params(request));
 
-    emit(&result, format, |result| {
+    respond(result, format, |result| {
         println!("name     {}", field(result, "name"));
         println!("value    {}", result["value"]);
         if let Some(expression) = result.get("expression").and_then(Value::as_str) {
@@ -1940,9 +1972,9 @@ fn preview(command: PreviewCommand) -> Result<i32> {
                     ("angular", angular.map(|value| json!(value))),
                     ("follow", once.then(|| Value::from(false))),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("object    {}", field(result, "object"));
                 println!("path      {}", field(result, "path"));
                 println!("triangles {}", result["triangles"]);
@@ -1970,9 +2002,9 @@ fn preview(command: PreviewCommand) -> Result<i32> {
                     ("height", height.map(|value| json!(value))),
                     ("deflection", number(deflection)),
                 ]),
-            )?;
+            );
 
-            emit(&result, format, |result| {
+            respond(result, format, |result| {
                 println!("path      {}", field(result, "path"));
                 println!("view      {}", field(result, "view"));
                 println!("size      {} x {}", result["width"], result["height"]);
