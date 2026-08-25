@@ -85,7 +85,7 @@ mod tests {
             .expect("clock before Unix epoch")
             .as_nanos();
         let directory = std::env::temp_dir().join(format!(
-            "nyx-mcp-proxy-test-{}-{suffix}",
+            "nyx-mcp-gw-client-test-{}-{suffix}",
             std::process::id()
         ));
         let socket = directory.join("gateway.sock");

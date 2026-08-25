@@ -20,7 +20,7 @@
 
     meta = {
       description = "Nix-native shared MCP process gateway";
-      mainProgram = "mcp-proxy";
+      mainProgram = "mcp-gw-client";
     };
   };
 in
@@ -29,6 +29,6 @@ in
       (old.passthru or {})
       // {
         daemon = "${package}/bin/mcp-gatewayd";
-        proxy = "${package}/bin/mcp-proxy";
+        proxy = "${package}/bin/mcp-gw-client";
       };
   })
