@@ -50,7 +50,7 @@ in {
         "swift-lsp@claude-plugins-official" = true;
       };
 
-      model = "opus";
+      model = "sonnet";
       effortLevel = "high";
       outputStyle = "Explanatory";
       language = "english";
