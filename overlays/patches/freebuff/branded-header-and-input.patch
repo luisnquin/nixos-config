@@ -1,0 +1,36 @@
+diff --git a/cli/src/components/chat-header.tsx b/cli/src/components/chat-header.tsx
+index ab40f88..eb9de6c 100644
+--- a/cli/src/components/chat-header.tsx
++++ b/cli/src/components/chat-header.tsx
+@@ -56,6 +56,18 @@ export const ChatHeader = memo(function ChatHeader({
+       >
+         {logoComponent}
+       </box>
++      <text style={{ wrapMode: 'word', marginBottom: 1, fg: theme.foreground }}>
++        <span fg={theme.muted}>{'>_ '}</span>
++        <span fg={theme.primary} attributes={1}>{'ϟ '}</span>
++        <span attributes={1}>{'freebuff'}</span>
++        <span fg={theme.muted}>{'@codebuff'}</span>
++      </text>
++      <text style={{ wrapMode: 'word', marginBottom: 1, fg: theme.muted }}>
++        <span>{'   '}</span>
++        <span fg={theme.primary}>{'⛧ '}</span>
++        <span attributes={2}>{'unstoppable agent'}</span>
++        <span>{' · '}</span>
++      </text>
+       <text style={{ wrapMode: 'word', marginBottom: 1, fg: theme.foreground }}>
+         {IS_FREEBUFF ? 'Freebuff' : 'Codebuff'} will run commands on your behalf
+         to help you build.
+diff --git a/cli/src/components/chat-input-bar.tsx b/cli/src/components/chat-input-bar.tsx
+index 8f2aadf..7729761 100644
+--- a/cli/src/components/chat-input-bar.tsx
++++ b/cli/src/components/chat-input-bar.tsx
+@@ -383,7 +383,7 @@ export const ChatInputBar = ({
+               that it's a focusable input — costs no extra height. */}
+           {!modeConfig.label && !modeConfig.icon && (
+             <box style={{ flexShrink: 0 }}>
+-              <text style={{ fg: theme.primary }}>❯</text>
++              <text style={{ fg: theme.primary }}>λ</text>
+             </box>
+           )}
+           <MultilineInput

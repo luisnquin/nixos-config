@@ -73,12 +73,18 @@
       url = "github:ogulcancelik/herdr";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    bun2nix = {
+      url = "github:nix-community/bun2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         systems.follows = "systems";
         flake-parts.follows = "flake-parts";
+        bun2nix.follows = "bun2nix";
+        treefmt-nix.follows = "bun2nix/treefmt-nix";
       };
     };
     nao = {
