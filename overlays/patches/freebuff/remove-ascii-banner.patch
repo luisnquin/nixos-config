@@ -1,0 +1,52 @@
+diff --git a/cli/src/components/chat-header.tsx b/cli/src/components/chat-header.tsx
+index eb9de6c27..75e3386c1 100644
+--- a/cli/src/components/chat-header.tsx
++++ b/cli/src/components/chat-header.tsx
+@@ -1,6 +1,5 @@
+ import { memo, useState } from 'react'
+ 
+-import { useLogo } from '../hooks/use-logo'
+ import { useSheenAnimation } from '../hooks/use-sheen-animation'
+ import { useTerminalDimensions } from '../hooks/use-terminal-dimensions'
+ import { useTheme } from '../hooks/use-theme'
+@@ -17,7 +16,7 @@ export const ChatHeader = memo(function ChatHeader({
+   projectRoot: string
+   animationEnabled: boolean
+ }) {
+-  const { contentMaxWidth, terminalWidth } = useTerminalDimensions()
++  const { terminalWidth } = useTerminalDimensions()
+   const theme = useTheme()
+   const [sheenPosition, setSheenPosition] = useState(0)
+   const blockColor = getLogoBlockColor(theme.name)
+@@ -31,13 +30,6 @@ export const ChatHeader = memo(function ChatHeader({
+     sheenPosition,
+     setSheenPosition,
+   })
+-  const { component: logoComponent } = useLogo({
+-    availableWidth: contentMaxWidth,
+-    accentColor,
+-    blockColor,
+-    applySheenToChar,
+-  })
+-
+   return (
+     <box
+       style={{
+@@ -47,16 +39,7 @@ export const ChatHeader = memo(function ChatHeader({
+         paddingRight: 1,
+       }}
+     >
+-      <box
+-        style={{
+-          flexDirection: 'column',
+-          marginBottom: 1,
+-          marginTop: 2,
+-        }}
+-      >
+-        {logoComponent}
+-      </box>
+-      <text style={{ wrapMode: 'word', marginBottom: 1, fg: theme.foreground }}>
++      <text style={{ wrapMode: 'word', marginBottom: 1, marginTop: 2, fg: theme.foreground }}>
+         <span fg={theme.muted}>{'>_ '}</span>
+         <span fg={theme.primary} attributes={1}>{'ϟ '}</span>
+         <span attributes={1}>{'freebuff'}</span>
