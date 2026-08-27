@@ -6,8 +6,6 @@
 # or `pkgs.callPackage` if you wish to handle
 # it manually.
 {
-  fetchFromGitHub,
-  fetchgit,
   fetchurl,
   ...
 }:
