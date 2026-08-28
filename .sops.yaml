@@ -1,8 +1,10 @@
 keys:
   - &luisnquin age1x7t9w0wrauwtgaf5r2xf6m4ux64rx3tltq3ptd3v2lldxx5yk9yqfpal8t
+  - &nyx age1y0fp67d989zcxppfukwmnnd0ca533c8xgp5mux8flccdamqv9fwsslpzlt
 
 creation_rules:
   - path_regex: ^secrets/secrets\.yaml$
     key_groups:
       - age:
           - *luisnquin
+          - *nyx

@@ -5,7 +5,6 @@
 }: {
   sops = {
     defaultSopsFile = ./secrets.yaml;
-    age.sshKeyPaths = ["/home/${user.alias}/.ssh/id_ed25519"];
 
     secrets = {
       "certs/ccd/rootCA.crt" = {
