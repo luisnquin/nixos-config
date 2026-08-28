@@ -1,0 +1,42 @@
+id = "herdr-recall"
+name = "Herdr Recall"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "per-pane record of the last command, or the agent resume invocation"
+platforms = ["linux", "macos"]
+
+# Agent panes are swept from the socket API on every event; per-command records
+# for shell panes come from shell/hook.zsh because herdr has no "foreground
+# command changed" event.
+[[startup]]
+command = ["bin/herdr-recall", "sync"]
+
+[[actions]]
+id = "show"
+title = "Show what each pane was running"
+contexts = ["global", "workspace", "tab", "pane"]
+command = ["bin/herdr-recall", "sync"]
+
+[[events]]
+on = "pane.created"
+command = ["bin/herdr-recall", "sync"]
+
+[[events]]
+on = "pane.focused"
+command = ["bin/herdr-recall", "sync"]
+
+[[events]]
+on = "pane.exited"
+command = ["bin/herdr-recall", "sync"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["bin/herdr-recall", "sync"]
+
+[[events]]
+on = "workspace.created"
+command = ["bin/herdr-recall", "sync"]
+
+[[events]]
+on = "workspace.closed"
+command = ["bin/herdr-recall", "sync"]

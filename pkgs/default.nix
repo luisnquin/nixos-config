@@ -8,6 +8,7 @@ pkgs:
   ee-workbench = pkgs.callPackage ./ee-workbench {};
   heft = pkgs.callPackage ./heft {};
   herdr-autoname = pkgs.callPackage ./herdr-autoname {};
+  herdr-recall = pkgs.callPackage ./herdr-recall {};
   mcp-gateway = pkgs.callPackage ./mcp-gateway {};
   phone = pkgs.callPackage ./phone {};
   setup = pkgs.callPackage ./setup {};

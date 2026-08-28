@@ -8,6 +8,7 @@
   plugins = [
     pkgs.herdr-autoname
     pkgs.herdr-pluck
+    pkgs.herdr-recall
     pkgs.herdr-sesh
   ];
 
@@ -69,7 +70,9 @@ in {
           delay_seconds = 1;
         };
 
-        # `$icon` comes from herdr-autoname's reported metadata.
+        # `$icon` comes from herdr-autoname's reported metadata, `$last` from
+        # herdr-recall's. Agent rows carry the terminal title already, so only
+        # the plain-pane rows below show the last command.
         sidebar = {
           agents.rows_by_agent = builtins.listToAttrs (
             map (agent: {
@@ -86,6 +89,12 @@ in {
               "pi"
             ]
           );
+
+          agents.rows = [
+            ["state_icon" "$icon" "state_text"]
+            ["terminal_title_stripped"]
+            ["$last"]
+          ];
 
           spaces.rows = [
             ["state_icon" "$icon" "workspace"]
@@ -110,6 +119,14 @@ in {
             command = "lazygit";
             description = "lazygit";
           }
+          {
+            key = "prefix+alt+r";
+            type = "popup";
+            width = "80%";
+            height = "60%";
+            command = "${lib.getExe pkgs.herdr-recall} show | ${lib.getExe' pkgs.less "less"} -R";
+            description = "what each pane was running";
+          }
         ];
       };
     };
@@ -120,7 +137,10 @@ in {
     run install -Dm644 ${pluginRegistry} "$HOME/.config/herdr/plugins.json"
   '';
 
+  home.packages = [pkgs.herdr-recall];
+
   programs.zsh.initContent = lib.mkAfter ''
     source ${pkgs.herdr-autoname}/shell/hook.zsh
+    source ${pkgs.herdr-recall}/shell/hook.zsh
   '';
 }

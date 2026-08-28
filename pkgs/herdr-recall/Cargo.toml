@@ -1,0 +1,9 @@
+[package]
+name = "herdr-recall"
+version = "0.1.0"
+edition = "2021"
+description = "remembers what each herdr pane was running across a restart"
+license = "MIT"
+
+[dependencies]
+tinyjson = "2"
