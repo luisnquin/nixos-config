@@ -15,8 +15,8 @@ const METADATA_SOURCE: &str = "herdr-recall";
 const TOKEN: &str = "last";
 const TOKEN_MAX_LEN: usize = 28;
 const COMMAND_MAX_LEN: usize = 512;
-/// Entries for panes herdr no longer knows about are kept this long, then swept.
-const STALE_SECS: u64 = 60 * 60 * 24 * 30;
+/// How long a dead pane's record is kept before it is swept.
+const STALE_SECS: u64 = 60 * 60 * 24 * 7;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -245,13 +245,25 @@ fn sync() {
         save(&entry);
     }
 
-    prune(&live);
+    // An empty list means the socket was unreachable, not that every pane is
+    // gone. Pruning against it would wipe the store on any failed query.
+    if !panes.is_empty() {
+        prune(&live);
+    }
 }
 
+/// A record outlives its pane on purpose — recalling what a closed pane ran is
+/// the whole point, so liveness alone is never grounds to drop one. Only two
+/// things are: age, and having nothing to recall.
 fn prune(live: &[String]) {
     let cutoff = now().saturating_sub(STALE_SECS);
     for entry in load_all() {
-        if live.contains(&entry.pane_id) || entry.updated >= cutoff {
+        if live.contains(&entry.pane_id) {
+            continue;
+        }
+        // `show` skips an entry with no restore line, so one belonging to a dead
+        // pane will never be rendered again and can go on sight.
+        if entry.restore().is_some() && entry.updated >= cutoff {
             continue;
         }
         let _ = std::fs::remove_file(store_dir().join(format!("{}.json", key(&entry.pane_id))));
