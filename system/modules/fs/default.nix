@@ -1,5 +1,6 @@
 {
   imports = [
+    ./ephemeral.nix
     ./incron.nix
     ./utils.nix
   ];
