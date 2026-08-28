@@ -1,5 +1,6 @@
 {
   nixosConfig,
+  inputs,
   config,
   libx,
   pkgs,
@@ -226,6 +227,19 @@
       name = "agent-terminal-status";
       text = builtins.readFile ../../terminal/scripts/agent-terminal-status.sh;
     };
+
+    # The scripts shell out to python3, which a hook's inherited PATH does not
+    # guarantee.
+    herdrSessionHook = agent:
+      pkgs.runCommandLocal "herdr-agent-state-${agent}" {
+        nativeBuildInputs = [pkgs.makeWrapper];
+      } ''
+        install -Dm755 \
+          ${inputs.herdr}/src/integration/assets/${agent}/herdr-agent-state.sh \
+          $out/libexec/herdr-agent-state
+        makeWrapper $out/libexec/herdr-agent-state $out/bin/herdr-agent-state \
+          --prefix PATH : ${lib.makeBinPath [pkgs.python3]}
+      '';
   in {
     inherit (import ./assets {inherit lib;}) sounds images;
     inherit memories allowedDomains;
@@ -303,6 +317,13 @@
           (lib.escapeShellArg title)
         ]
       );
+
+    # herdr learns a pane's agent session id only from this script, and it
+    # installs the script by rewriting the agent's own settings file. Those
+    # files belong to home-manager, so every rebuild dropped herdr's entry and
+    # `session.resume_agents_on_restore` had nothing to resume. Ship the script
+    # from the flake input instead and wire it beside the other hooks.
+    mkHerdrSessionCmd = agent: "${herdrSessionHook agent}/bin/herdr-agent-state session";
 
     mkCmdEntry = {
       matcher ? null,

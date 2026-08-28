@@ -4,6 +4,7 @@
   ...
 }: let
   kit = mkAgentKit {};
+  herdrSession = kit.mkHerdrSessionCmd "codex";
 in {
   home.file = {
     ".codex/hooks.json" = {
@@ -17,6 +18,7 @@ in {
                 (kit.mkAudioCmd [kit.sounds.ifdarm])
               ];
             })
+            (kit.mkCmdEntry {commands = [herdrSession];})
           ];
           PreToolUse = [
             (kit.mkCmdEntry {

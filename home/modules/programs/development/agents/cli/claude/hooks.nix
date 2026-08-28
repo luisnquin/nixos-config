@@ -7,6 +7,7 @@
 }: let
   kit = mkAgentKit {};
   cbm = lib.getExe pkgs.codebase-memory-mcp;
+  herdrSession = kit.mkHerdrSessionCmd "claude";
 in {
   programs.claude-code.settings.hooks = {
     Notification = [
@@ -28,6 +29,7 @@ in {
         commands = [
           (kit.mkTerminalStatusCmd "clear" "claude")
           (kit.mkAudioCmd [kit.sounds.ifarm])
+          herdrSession
         ];
       })
     ];
