@@ -75,7 +75,10 @@
     };
     bun2nix = {
       url = "github:nix-community/bun2nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+      };
     };
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
