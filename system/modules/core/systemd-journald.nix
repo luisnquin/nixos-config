@@ -8,14 +8,19 @@
   security.sudo.extraRules = [
     {
       users = [user.alias];
-      commands = let
-        commands = ["systemctl" "journalctl"];
-      in
-        builtins.map (cmd: {
-          command = "/run/current-system/sw/bin/${cmd}";
+      commands =
+        builtins.map (verb: {
+          command = "/run/current-system/sw/bin/systemctl ${verb} *";
           options = ["NOPASSWD"];
-        })
-        commands;
+        }) [
+          "daemon-reload"
+          "reload"
+          "reload-or-restart"
+          "restart"
+          "start"
+          "stop"
+          "try-restart"
+        ];
     }
   ];
 
