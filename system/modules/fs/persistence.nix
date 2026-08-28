@@ -61,6 +61,11 @@
         # account and device registration, rewritten by the daemon at runtime
         "/etc/mullvad-vpn"
         {
+          # the lectured flag; ephemeral means the sudo lecture on every boot
+          directory = "/var/db/sudo";
+          mode = "0711";
+        }
+        {
           # the uid/gid maps; without them activation reallocates ids and every
           # persisted file ends up owned by a stranger
           directory = "/var/lib/nixos";
