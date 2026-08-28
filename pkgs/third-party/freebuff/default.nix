@@ -5,8 +5,7 @@
   bun2nix,
   ripgrep,
   makeWrapper,
-}:
-let
+}: let
   version = "0.0.154";
   src = fetchFromGitHub {
     owner = "CodebuffAI";
@@ -27,66 +26,66 @@ let
     NEXT_PUBLIC_CODEBUFF_APP_URL = "https://www.codebuff.com";
   };
 in
-stdenv.mkDerivation (
-  publicEnv
-  // {
-    pname = "freebuff";
-    inherit version src bunDeps;
+  stdenv.mkDerivation (
+    publicEnv
+    // {
+      pname = "freebuff";
+      inherit version src bunDeps;
 
-    nativeBuildInputs = [
-      bun2nix.hook
-      makeWrapper
-    ];
+      nativeBuildInputs = [
+        bun2nix.hook
+        makeWrapper
+      ];
 
-    patches = [
-      ../../../overlays/patches/freebuff/branded-header-and-input.patch
-      ../../../overlays/patches/freebuff/cli-only-client-env.patch
-      ../../../overlays/patches/freebuff/remove-ascii-banner.patch
-      ../../../overlays/patches/freebuff/herdr-agent-session.patch
-    ];
+      patches = [
+        ../../../overlays/patches/freebuff/branded-header-and-input.patch
+        ../../../overlays/patches/freebuff/cli-only-client-env.patch
+        ../../../overlays/patches/freebuff/remove-ascii-banner.patch
+        ../../../overlays/patches/freebuff/herdr-agent-session.patch
+      ];
 
-    buildPhase = ''
-      runHook preBuild
+      buildPhase = ''
+        runHook preBuild
 
-      export HOME=$TMPDIR
-      export FREEBUFF_MODE=true
+        export HOME=$TMPDIR
+        export FREEBUFF_MODE=true
 
-      cp ${receipt-glibc} node_modules/@opentui/core-linux-x64/.freebuff-native-bundle.json
-      cp ${receipt-musl} node_modules/@opentui/core-linux-x64-musl/.freebuff-native-bundle.json
+        cp ${receipt-glibc} node_modules/@opentui/core-linux-x64/.freebuff-native-bundle.json
+        cp ${receipt-musl} node_modules/@opentui/core-linux-x64-musl/.freebuff-native-bundle.json
 
-      cd sdk && bun run build && cd ..
-      bun freebuff/cli/build.ts ${version}
+        cd sdk && bun run build && cd ..
+        bun freebuff/cli/build.ts ${version}
 
-      runHook postBuild
-    '';
+        runHook postBuild
+      '';
 
-    installPhase = ''
-      runHook preInstall
+      installPhase = ''
+        runHook preInstall
 
-      mkdir -p $out/bin
-      install -m755 ./cli/bin/freebuff $out/bin/freebuff
-      install -m644 ./cli/bin/tree-sitter.wasm $out/bin/tree-sitter.wasm
-      wrapProgram $out/bin/freebuff \
-        --argv0 freebuff \
-        --prefix PATH : ${lib.makeBinPath [ ripgrep ]}
+        mkdir -p $out/bin
+        install -m755 ./cli/bin/freebuff $out/bin/freebuff
+        install -m644 ./cli/bin/tree-sitter.wasm $out/bin/tree-sitter.wasm
+        wrapProgram $out/bin/freebuff \
+          --argv0 freebuff \
+          --prefix PATH : ${lib.makeBinPath [ripgrep]}
 
-      runHook postInstall
-    '';
+        runHook postInstall
+      '';
 
-    bunInstallFlags = [ "--linker=hoisted" ];
+      bunInstallFlags = ["--linker=hoisted"];
 
-    dontUseBunBuild = true;
-    dontUseBunInstall = true;
+      dontUseBunBuild = true;
+      dontUseBunInstall = true;
 
-    dontStrip = true;
-    doInstallCheck = false;
+      dontStrip = true;
+      doInstallCheck = false;
 
-    meta = with lib; {
-      description = "The world's strongest free coding agent - built from source";
-      homepage = "https://freebuff.com";
-      license = licenses.asl20;
-      platforms = [ "x86_64-linux" ];
-      mainProgram = "freebuff";
-    };
-  }
-)
+      meta = with lib; {
+        description = "The world's strongest free coding agent - built from source";
+        homepage = "https://freebuff.com";
+        license = licenses.asl20;
+        platforms = ["x86_64-linux"];
+        mainProgram = "freebuff";
+      };
+    }
+  )

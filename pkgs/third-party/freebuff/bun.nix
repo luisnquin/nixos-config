@@ -5,11 +5,7 @@
 # Consume this with `fetchBunDeps` (recommended)
 # or `pkgs.callPackage` if you wish to handle
 # it manually.
-{
-  fetchurl,
-  ...
-}:
-{
+{fetchurl, ...}: {
   "@ai-sdk/anthropic@2.0.50" = fetchurl {
     url = "https://registry.npmjs.org/@ai-sdk/anthropic/-/anthropic-2.0.50.tgz";
     hash = "sha512-21PaHfoLmouOXXNINTsZJsMw+wE5oLR2He/1kq/sKokTVKyq7ObGT1LDk6ahwxaz/GoaNaGankMh+EgVcdv2Cw==";
