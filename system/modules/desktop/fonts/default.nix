@@ -9,7 +9,8 @@
         output="$out/share/fonts/truetype/$(basename "$font")"
         fontforge -lang=py -script ${./patch-custom-glyphs.py} \
           "$font" ${./tailscale.svg} ${./memory.svg} \
-          ${./ssh-outbound.svg} ${./ssh-inbound.svg} "$output"
+          ${./ssh-outbound.svg} ${./ssh-inbound.svg} \
+          ${./claude.svg} ${./codex.svg} "$output"
       done
     '';
 in {
