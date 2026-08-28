@@ -26,10 +26,11 @@ pub struct Adb {
     pub focus: Option<(i32, i32)>,
 }
 
-/// CoreSimulator is macOS-local, so the verbs run on the host that owns the
-/// simulator rather than over a transport pointed at it.
+/// CoreSimulator is macOS-local, so the verbs run on the machine that owns the
+/// simulator rather than over a transport pointed at it — which is this one when
+/// the simulator is here.
 pub struct Simulator {
-    pub host: String,
+    pub at: crate::ssh::Where,
     pub udid: String,
 }
 
@@ -261,7 +262,7 @@ const DUMP_TRIES: usize = 3;
 pub async fn dump(t: &Target) -> Result<Vec<Node>> {
     let a = match t {
         Target::Adb(a) => a,
-        Target::Simulator(s) => return simctl::snapshot(&s.host, &s.udid).await,
+        Target::Simulator(s) => return simctl::snapshot(&s.at, &s.udid).await,
     };
 
     let mut last = None;
@@ -306,7 +307,7 @@ pub async fn size(t: &Target) -> Result<Size> {
                 scale: 1.0,
             })
         }
-        Target::Simulator(s) => simctl::size(&s.host, &s.udid).await,
+        Target::Simulator(s) => simctl::size(&s.at, &s.udid).await,
     }
 }
 
@@ -383,7 +384,7 @@ async fn input(a: &Adb, args: &str) -> Result<()> {
 pub async fn tap(t: &Target, x: i32, y: i32) -> Result<()> {
     match t {
         Target::Adb(a) => input(a, &format!("tap {x} {y}")).await,
-        Target::Simulator(s) => simctl::tap(&s.host, &s.udid, x, y).await,
+        Target::Simulator(s) => simctl::tap(&s.at, &s.udid, x, y).await,
     }
 }
 
@@ -396,7 +397,7 @@ pub async fn swipe(t: &Target, from: (i32, i32), to: (i32, i32), hold: Duration)
 
     match t {
         Target::Adb(a) => input(a, &format!("swipe {x1} {y1} {x2} {y2} {ms}")).await,
-        Target::Simulator(s) => simctl::swipe(&s.host, &s.udid, from, to, ms as u64).await,
+        Target::Simulator(s) => simctl::swipe(&s.at, &s.udid, from, to, ms as u64).await,
     }
 }
 
@@ -474,7 +475,7 @@ pub async fn type_text(t: &Target, text: &str) -> Result<()> {
 
     match t {
         Target::Adb(a) => input(a, &format!("text {}", shell_quote(text))).await,
-        Target::Simulator(s) => simctl::type_text(&s.host, &s.udid, text).await,
+        Target::Simulator(s) => simctl::type_text(&s.at, &s.udid, text).await,
     }
 }
 
@@ -511,7 +512,7 @@ pub async fn key(t: &Target, name: &str) -> Result<()> {
     // actually has rather than against a union of both.
     match t {
         Target::Adb(a) => input(a, &format!("keyevent {}", keycode(name)?)).await,
-        Target::Simulator(s) => simctl::key(&s.host, &s.udid, name).await,
+        Target::Simulator(s) => simctl::key(&s.at, &s.udid, name).await,
     }
 }
 

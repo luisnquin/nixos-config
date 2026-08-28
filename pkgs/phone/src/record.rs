@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 
-use crate::actions::{self, host_of, Shot};
+use crate::actions::{self, where_of, Shot};
 use crate::adb::{self, Server};
 use crate::connect::{attached_serial, Reporter};
 use crate::model::{Device, Platform};
@@ -170,11 +170,10 @@ wait "$pid" 2>/dev/null
 cat "$clip"
 rm -f "$clip""#;
 
-    let host = host_of(device)?;
     let udid = simctl::udid(device)?;
 
     let bytes = ssh::output(
-        ssh::script(host, SCRIPT, &[udid, &seconds.to_string()]),
+        where_of(device).run(SCRIPT, &[udid, &seconds.to_string()]),
         Duration::from_secs(u64::from(seconds) + 60),
     )
     .await?;

@@ -114,8 +114,12 @@ is not on the device at all, which is what makes a wiped emulator rebuild withou
 being told to. `--rebuild` forces it when the check is right and the answer is
 still wrong.
 
-Everything declared runs on the host phone.toml names, in the directory it names,
-so a build and a bundler live wherever the sdk is rather than on this machine.
+When phone.toml names a host, the whole command runs there rather than being
+driven from here: the manifest is handed over as it reads on this machine and the
+run happens next to the tree, the toolchain and the devices, with its output
+coming back as it goes. What it remembers having built stays there too, so a
+second machine converging the same project does not rebuild what the first one
+already did.
 `phone status` says what is not there yet without changing any of it.
 
 `--profile` narrows a run to a named subset of the declared devices. Without one
@@ -138,6 +142,10 @@ each line of output says which device it came from."#)]
         /// Give up on a device that is still not usable by then
         #[arg(long, default_value = "180s", value_parser = parse_duration)]
         timeout: Duration,
+
+        /// The manifest itself, sent by the machine handing this run over
+        #[arg(long, hide = true, value_name = "TOML")]
+        manifest: Option<String>,
     },
     /// Stop what `up` started, leaving handsets alone
     #[command(after_help = r#"Examples:
@@ -154,7 +162,11 @@ name it: `phone device shutdown NAME`.
 
 What is installed on a device stays installed, so the next `up` boots it and
 goes straight to the app."#)]
-    Down,
+    Down {
+        /// The manifest itself, sent by the machine handing this run over
+        #[arg(long, hide = true, value_name = "TOML")]
+        manifest: Option<String>,
+    },
     /// Say what this project declares and what is actually there
     #[command(after_help = r#"Examples:
   phone status
@@ -175,6 +187,10 @@ the manifest never declared is listed under them."#)]
         /// Emit JSON instead of a table
         #[arg(long)]
         json: bool,
+
+        /// The manifest itself, sent by the machine handing this run over
+        #[arg(long, hide = true, value_name = "TOML")]
+        manifest: Option<String>,
     },
 
     // the screen: read it, then act on what the reading named

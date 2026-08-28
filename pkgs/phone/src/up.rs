@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::connect;
@@ -47,11 +47,15 @@ pub struct Opts {
     /// Run the build steps whatever the stamps say.
     pub rebuild: bool,
     pub timeout: Duration,
+    /// Whether this run arrived from another machine. Only the line naming the
+    /// project depends on it: the sender printed that one already, and it knows
+    /// the host's name, which this side no longer does.
+    pub relayed: bool,
 }
 
 /// What one declared device wants and what it has, as `status` prints it and
 /// `up` decides from.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Row {
     pub name: String,
     pub platform: Option<String>,
@@ -61,7 +65,10 @@ pub struct Row {
     pub note: String,
 }
 
-#[derive(Debug, Serialize)]
+/// Deserialised as well as written: a `status` handed to the host that owns the
+/// project comes back as this, so the printing and the exit code stay on the
+/// machine the command was typed on.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Report {
     pub project: String,
     pub host: Option<String>,
@@ -210,8 +217,8 @@ fn failed(what: &str, status: &Status, said: &str) -> anyhow::Error {
     }
 }
 
-/// Where a project's declared commands run, and under what name this machine
-/// remembers what it has already done there. Every step asks those two
+/// Where a project's declared commands run, and under what name the host
+/// running them remembers what it has already done. Every step asks those two
 /// questions and no step answers them differently, so they travel together
 /// rather than as three more parameters on each.
 struct Site {
@@ -221,12 +228,27 @@ struct Site {
 }
 
 impl Site {
-    fn of(project: &Project) -> Self {
-        Site {
-            at: Where::of(project.host()),
-            dir: project.dir(),
-            key: project.key(),
+    /// The site, and what its host remembers having built there.
+    ///
+    /// One round trip for both. Neither answer is worth a session of its own,
+    /// and `status` pays for them before it can start on any device.
+    async fn of(at: Where, dir: String) -> Result<(Self, Stamps)> {
+        let ran = at
+            .exec(&scripted(OPEN), &args(&dir, None), Duration::from_secs(20))
+            .await
+            .with_context(|| format!("opening {dir} on {}", at.label()))?;
+
+        if !ran.ok() {
+            return Err(failed("locating the project", &ran.status, &ran.said));
         }
+
+        let read = ran.text();
+        let mut lines = read.splitn(3, '\n');
+        let key = lines.next().unwrap_or_default().to_string();
+        let state = lines.next().unwrap_or_default();
+        let stamps = Stamps::read(at.clone(), state, lines.next().unwrap_or_default().as_bytes());
+
+        Ok((Site { at, dir, key }, stamps))
     }
 
     #[cfg(test)]
@@ -238,6 +260,19 @@ impl Site {
         }
     }
 }
+
+/// What the host calls the tree, where it keeps its ledger, and the ledger.
+///
+/// The name comes first because the stamps are filed under it, and it has to be
+/// one every machine driving the host agrees on: `~/p` and `/Users/x/p` are one
+/// checkout and not two, and the path this machine sees is not a name that host
+/// would recognise at all. A ledger that is not there yet is the normal first
+/// run, not a failure.
+const OPEN: &str = r#"pwd -P
+state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
+printf '%s\n' "$state"
+cat "$state/stamps.json" 2>/dev/null
+exit 0"#;
 
 /// The hash of what a step says its inputs are, or `None` when it declares no
 /// way of telling — which makes it stale forever, and is worth being explicit
@@ -289,7 +324,7 @@ async fn perform(
         let mut stamps = stamps.lock().await;
 
         stamps.set(&site.key, step, &hash);
-        stamps.save()?;
+        stamps.save().await?;
     }
 
     Ok(())
@@ -368,9 +403,100 @@ pids=$(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null)
 kill $pids 2>/dev/null
 exit 0"#;
 
+/// Hands a whole verb to the machine the manifest names.
+///
+/// `"$@"` and nothing else: every word comes over as an argument rather than as
+/// text spliced into a script, so a profile name is a profile name whatever it
+/// contains.
+const RELAY: &str = r#"exec phone "$@""#;
+
+/// Where to hand this run, and the manifest to hand over with it.
+///
+/// The text goes rather than a path to it, so an edit that has not been
+/// committed, pushed or synced to that machine still takes effect — the point
+/// of a manifest is to be the declaration, and a stale copy on the far side
+/// would quietly not be one.
+///
+/// `None` means there is nothing to hand over: the project is on this machine.
+/// A run that arrived here already delegated reads as that too, since the
+/// sender dropped the host on the way out, which is what stops a command
+/// bouncing back to the machine it came from.
+fn sending(project: &Project) -> Result<Option<(Where, String)>> {
+    let Some(host) = project.host() else {
+        return Ok(None);
+    };
+
+    let file = project.root.join(crate::project::FILE);
+    let text = std::fs::read_to_string(&file)
+        .with_context(|| format!("reading {}", file.display()))?;
+
+    Ok(Some((Where::On(host.to_string()), text)))
+}
+
+/// The verb, run on the host, with its output arriving here as it happens.
+///
+/// The alternative is what this did before: drive that machine's devices from
+/// this one, a round trip per question, with the registry on the wrong side of
+/// the link and the survey unable to see a simulator sitting right next to the
+/// tree. `Ok(None)` when the project is here and there is nobody to hand it to.
+pub async fn relay(project: &Project, argv: &[String]) -> Result<Option<()>> {
+    let Some((at, text)) = sending(project)? else {
+        return Ok(None);
+    };
+
+    eprintln!("phone: {} on {}", project.name(), at.label());
+
+    let mut args: Vec<&str> = vec![&argv[0], "--manifest", &text];
+
+    args.extend(argv[1..].iter().map(String::as_str));
+
+    match at.stream(RELAY, &args, None).await? {
+        Status::Code(0) => Ok(Some(())),
+        other => Err(failed(
+            &format!("{} on {}", argv[0], at.label()),
+            &other,
+            "",
+        )),
+    }
+}
+
+/// The same handover for `status`, which wants the report back rather than the
+/// rendering of it: the exit code and `--json` belong to the machine the
+/// command was typed on, so the far side is asked for the data and nothing else.
+pub async fn relay_status(project: &Project, profile: Option<&str>) -> Result<Option<Report>> {
+    let Some((at, text)) = sending(project)? else {
+        return Ok(None);
+    };
+
+    let mut args: Vec<&str> = vec!["status", "--json", "--manifest", &text];
+
+    if let Some(profile) = profile {
+        args.extend(["--profile", profile]);
+    }
+
+    // `status` exits 2 for drift, which is an answer and not a failure, so the
+    // report is read first and the status only consulted when there is none
+    let ran = at
+        .exec(RELAY, &args, Duration::from_secs(180))
+        .await
+        .with_context(|| format!("asking {} for its status", at.label()))?;
+
+    match serde_json::from_slice::<Report>(&ran.stdout) {
+        // stamped here rather than there: the manifest arrives on that side
+        // with its host stripped, so the machine that answered cannot say its
+        // own name. This one asked for it and knows which name it used.
+        Ok(mut report) => {
+            report.host = at.host().map(str::to_string);
+
+            Ok(Some(report))
+        }
+        Err(_) => Err(failed("status", &ran.status, &ran.said)),
+    }
+}
+
 /// Brings the project's steps and devices to what the manifest declares.
 pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()> {
-    let site = Site::of(project);
+    let (site, ledger) = Site::of(Where::of(project.host()), project.dir()).await?;
     let declared = project.devices(opts.profile.as_deref())?;
 
     if declared.is_empty() {
@@ -379,23 +505,22 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
 
     // behind a lock from here on: the devices converge together below and each
     // one stamps its own build in the same ledger
-    let stamps = Mutex::new(Stamps::load()?);
+    let stamps = Mutex::new(ledger);
 
     if opts.rebuild {
         let mut ledger = stamps.lock().await;
 
         ledger.forget(&site.key);
-        ledger.save()?;
+        ledger.save().await?;
     }
 
-    eprintln!(
-        "phone: {} on {}",
-        project.name(),
-        match project.host() {
-            Some(host) => host.to_string(),
-            None => "this machine".to_string(),
-        }
-    );
+    if !opts.relayed {
+        eprintln!(
+            "phone: {} on {}",
+            project.name(),
+            Where::of(project.host()).label()
+        );
+    }
 
     // the tree first: a build against half-installed dependencies fails in a
     // way that reads as a broken project rather than as a missing step
@@ -766,9 +891,8 @@ pub async fn status(
     project: &Project,
     profile: Option<&str>,
 ) -> Result<Report> {
-    let site = Site::of(project);
+    let (site, stamps) = Site::of(Where::of(project.host()), project.dir()).await?;
     let declared = project.devices(profile)?;
-    let stamps = Stamps::load()?;
 
     let mut steps = Vec::new();
 
@@ -803,7 +927,11 @@ pub async fn status(
                 true => "up".to_string(),
                 false => "down".to_string(),
             },
-            note: format!("{}:{}", site.at.label(), bundler.port),
+            // the port alone: whoever computed this report is on the machine
+            // holding the bundler, so naming it "this machine" here would name
+            // the wrong one to a client reading the report from elsewhere. The
+            // host belongs to the report, not to the row.
+            note: bundler.port.to_string(),
         });
     }
 
@@ -1025,6 +1153,22 @@ pub fn strays(views: &[View], project: &Project) -> Vec<String> {
 }
 
 pub fn print(report: &Report) {
+    let mut out = std::io::stdout();
+
+    // nothing to do about a closed stdout that printing an error would not also
+    // hit; `status` still leaves through its exit code
+    let _ = write(report, &mut out);
+}
+
+/// Split from `print` so the table can be read back in a test. Everything the
+/// reader needs is in the report, including which machine answered.
+fn write(report: &Report, out: &mut impl std::io::Write) -> std::io::Result<()> {
+    // Named only when the run happened somewhere else. A report computed here
+    // has no host to name, and a line saying so on every `status` is noise.
+    if let Some(host) = &report.host {
+        writeln!(out, "{} on {host}", report.project)?;
+    }
+
     let rows: Vec<&Row> = report.steps.iter().chain(&report.devices).collect();
 
     let width = |f: fn(&Row) -> &str| rows.iter().map(|r| f(r).len()).max().unwrap_or(0);
@@ -1039,18 +1183,22 @@ pub fn print(report: &Report) {
             false => "!",
         };
 
-        println!(
+        writeln!(
+            out,
             "{mark} {:name$}  {:want$} -> {:have$}  {}",
             row.name, row.want, row.have, row.note
-        );
+        )?;
     }
 
     for label in &report.strays {
-        println!(
+        writeln!(
+            out,
             "  {label:name$}  {:want$}    {:have$}  running, declared nowhere here",
             "", ""
-        );
+        )?;
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1225,6 +1373,46 @@ mod tests {
         );
     }
 
+    /// The bug this closes: the stamps were filed under the path the *client*
+    /// saw, so `~/p` from this machine and `/Users/x/p` from a shell on the host
+    /// were two projects, and neither could read what the other had built.
+    #[tokio::test]
+    async fn a_project_is_named_by_the_host_that_owns_it() {
+        // the nix sandbox builds with no home at all, where a tilde expands to
+        // nothing that can be entered
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|home| home.is_dir());
+
+        if let Some(home) = home {
+            assert_eq!(
+                Site::of(Where::Here, "~".to_string()).await.unwrap().0.key,
+                std::fs::canonicalize(&home).unwrap().display().to_string(),
+                "a tilde is the host's, and the host is the one that expands it"
+            );
+        }
+
+        let real = std::env::temp_dir().join(format!("phone-named-{}", std::process::id()));
+        let link = std::env::temp_dir().join(format!("phone-link-{}", std::process::id()));
+
+        std::fs::create_dir_all(&real).unwrap();
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+
+        assert_eq!(
+            Site::of(Where::Here, link.display().to_string())
+                .await
+                .unwrap()
+                .0
+                .key,
+            std::fs::canonicalize(&real).unwrap().display().to_string(),
+            "two names for one checkout are one name, or it gets built twice"
+        );
+
+        std::fs::remove_file(&link).unwrap();
+        std::fs::remove_dir_all(&real).unwrap();
+    }
+
     /// Not knowing whether a step is done is not the same as knowing it is, and
     /// treating it as done would skip the work forever.
     #[tokio::test]
@@ -1369,6 +1557,41 @@ mod tests {
         assert!(!report.converged());
     }
 
+    fn shown(report: &Report) -> String {
+        let mut out = Vec::new();
+
+        write(report, &mut out).unwrap();
+
+        String::from_utf8(out).unwrap()
+    }
+
+    /// The bug this closes: the host that answered was named inside a row, by a
+    /// side that had just been told to forget its own name — so `status` on a
+    /// delegated project reported the bundler as running on "this machine",
+    /// meaning the one it was not running on.
+    #[test]
+    fn a_report_that_came_from_elsewhere_names_where_it_came_from() {
+        let mut report = Report {
+            strays: Vec::new(),
+            project: "sevastopol".to_string(),
+            host: Some("rose".to_string()),
+            steps: vec![Row {
+                note: "8081".to_string(),
+                ..row_of("bundler", "up", "down")
+            }],
+            devices: Vec::new(),
+        };
+
+        let table = shown(&report);
+
+        assert!(table.starts_with("sevastopol on rose\n"), "{table}");
+        assert!(!table.contains("this machine"), "{table}");
+
+        report.host = None;
+
+        assert!(!shown(&report).contains(" on "), "{}", shown(&report));
+    }
+
     fn declaring(text: &str) -> Project {
         Project {
             root: "/tmp/p".into(),
@@ -1417,5 +1640,45 @@ mod tests {
 
         assert_eq!(project.devices(Some("android")).unwrap().len(), 1);
         assert!(strays(&views, &project).is_empty());
+    }
+
+    /// The manifest travels as text, so what takes effect is what this machine
+    /// reads now — not whatever copy the host happens to have, which for an
+    /// uncommitted edit is a different declaration entirely.
+    #[test]
+    fn a_project_on_a_host_is_handed_over_with_the_manifest_as_it_reads_here() {
+        let dir = std::env::temp_dir().join(format!("phone-send-{}", std::process::id()));
+
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let file = dir.join(crate::project::FILE);
+        let text = "host = \"rose\"\ndir = \"/w\"\n[devices.pixel]\n";
+
+        std::fs::write(&file, text).unwrap();
+
+        let project = Project::load(&file).unwrap();
+        let (at, sent) = sending(&project).unwrap().expect("a host to hand it to");
+
+        assert_eq!(at, Where::On("rose".to_string()));
+        assert_eq!(sent, text);
+
+        // and the same project once the host has been consumed: there is nobody
+        // left to hand it to, which is what stops the run bouncing
+        assert!(sending(&Project::sent(&sent).unwrap()).unwrap().is_none());
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Nothing to hand over when the work is already here. Worth pinning: the
+    /// whole delegation hangs off this returning `None`, and a bug that made it
+    /// return a `Where::Here` would run every project through an extra process.
+    #[test]
+    fn a_project_on_this_machine_is_not_handed_anywhere() {
+        let project = Project {
+            root: std::path::PathBuf::from("/tmp/here"),
+            manifest: Project::parse("[devices.pixel]\n").unwrap(),
+        };
+
+        assert!(sending(&project).unwrap().is_none());
     }
 }

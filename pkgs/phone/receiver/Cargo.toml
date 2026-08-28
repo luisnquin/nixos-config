@@ -6,6 +6,12 @@ edition = "2021"
 # Its own root; the controller crate one directory up is an implicit workspace.
 [workspace]
 
+# Not `phone`: the CLI one directory up now runs on macOS too, and takes that
+# name on the host it drives simulators from.
+[[bin]]
+name = "phone-receiver"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }

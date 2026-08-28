@@ -93,6 +93,13 @@ async fn attached(fleet: &[Server]) -> Vec<(Server, Vec<adb::Attached>)> {
 async fn hosted(enabled: &[(String, Caps)]) -> Vec<(Device, bool)> {
     let mut tasks = tokio::task::JoinSet::new();
 
+    // Unasked rather than behind a capability check: this machine is not a
+    // registered host and has no caps recorded, and one that cannot run simctl
+    // lists nothing, which is the same answer a probe would have cost a
+    // round trip to get. What it buys is a `phone` on the mac seeing the
+    // simulators that are right there.
+    tasks.spawn(async move { crate::simctl::devices(&Where::Here).await });
+
     for (host, caps) in enabled.iter().cloned() {
         if caps.tunneld {
             let host = host.clone();
@@ -108,7 +115,7 @@ async fn hosted(enabled: &[(String, Caps)]) -> Vec<(Device, bool)> {
         }
 
         if caps.simctl {
-            tasks.spawn(async move { crate::simctl::devices(&host).await });
+            tasks.spawn(async move { crate::simctl::devices(&Where::On(host)).await });
         }
     }
 

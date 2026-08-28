@@ -247,6 +247,29 @@ impl Project {
         })
     }
 
+    /// A manifest handed over by the machine delegating the run, rather than one
+    /// found on disk here.
+    ///
+    /// `host` is dropped on arrival. The sender already resolved it — this is
+    /// the machine it names — and honouring it would send the command straight
+    /// back out to where it came from. `dir` is what is left of it, and is where
+    /// the tree sits on this side, so it stands in for the directory the
+    /// manifest would have been found in.
+    ///
+    /// The name is not thrown away on the way out, though: it is what the sender
+    /// calls this machine, and every line streamed back is read there, where
+    /// "this machine" would name the wrong one.
+    pub fn sent(text: &str) -> Result<Project> {
+        let mut manifest = Self::parse(text)?;
+        let root = PathBuf::from(manifest.dir.clone().unwrap_or_else(|| ".".to_string()));
+
+        if let Some(host) = manifest.host.take() {
+            crate::ssh::called(&host);
+        }
+
+        Ok(Project { root, manifest })
+    }
+
     pub fn parse(text: &str) -> Result<Manifest> {
         let manifest: Manifest = toml::from_str(text)?;
 
@@ -268,9 +291,8 @@ impl Project {
         }
     }
 
-    /// What the remembered hashes are filed under. The local path, because that
-    /// is the one thing that is the same across `up`, `status` and `down` and
-    /// different between two checkouts of the same repository.
+    /// Where the manifest was found on this machine, which is the only name a
+    /// project has before anyone asks the host that owns it.
     pub fn key(&self) -> String {
         self.root.display().to_string()
     }
@@ -688,5 +710,37 @@ devices = ["pixel_7-api36"]
     #[test]
     fn no_manifest_anywhere_is_not_an_error() {
         assert!(Project::find(Path::new("/")).unwrap().is_none());
+    }
+
+    /// The bug this would be: a manifest naming a host, run on that host, would
+    /// read the name and hand the command straight back out to the machine it
+    /// arrived from, forever. The host is what the sender consumed, so it is not
+    /// part of what it sends on.
+    #[test]
+    fn a_manifest_that_was_handed_over_is_not_handed_on() {
+        let sent = Project::sent(SEVASTOPOL).unwrap();
+
+        assert_eq!(sent.host(), None, "the host is spent once it has been used");
+        assert_eq!(sent.dir(), "~/Projects/github.com/cuentacero/sevastopol");
+        assert_eq!(
+            sent.name(),
+            "sevastopol",
+            "named by the directory it lives in there, as it is here"
+        );
+
+        // and it is still the same declaration otherwise
+        assert_eq!(sent.manifest.default.as_deref(), Some("pixel_7-api36"));
+        assert_eq!(sent.every_device().len(), 2);
+    }
+
+    /// The bug this closes: a handed-over run streamed its progress back saying
+    /// "booting iPhone 17 Pro Max on this machine", read on the machine that had
+    /// booted nothing. The name is in the manifest that arrived; dropping it as
+    /// a route is not a reason to drop it as a word.
+    #[test]
+    fn a_handed_over_run_calls_this_machine_what_the_sender_called_it() {
+        Project::sent(SEVASTOPOL).unwrap();
+
+        assert_eq!(crate::ssh::Where::Here.label(), "rose");
     }
 }

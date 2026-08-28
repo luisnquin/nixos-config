@@ -18,8 +18,17 @@ const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 /// the browser has no way to pass one.
 pub const BOOT_TIMEOUT: Duration = Duration::from_secs(180);
 
+/// Where a device is driven from: the machine it hangs off, or this one when it
+/// hangs off nothing. A simulator on the mac reads as `Here` to a `phone`
+/// running on that mac, and as `On("rose")` to one running anywhere else.
+pub fn where_of(device: &Device) -> Where {
+    Where::of(device.host.as_deref())
+}
+
 /// The machine a hosted device hangs off. An error rather than a fallback to
-/// this machine, which would silently drive the wrong device.
+/// this machine, which would silently drive the wrong device — which is right
+/// for the paths that can only reach a device over the network, and wrong for
+/// the ones that also work on the machine holding it. Those take `where_of`.
 pub fn host_of(device: &Device) -> Result<&str> {
     device
         .host
@@ -191,7 +200,9 @@ async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result<Vec
 
             png
         }
-        Platform::Simulator => simctl::screenshot(host_of(device)?, simctl::udid(device)?).await?,
+        Platform::Simulator => {
+            simctl::screenshot(&where_of(device), simctl::udid(device)?).await?
+        }
         _ => {
             let serial = attached_serial(server, device)
                 .await
@@ -377,7 +388,7 @@ pub async fn logs_command(
     match device.platform {
         Platform::Ios => return ios::logs_command(host_of(device)?, ios::udid(device)?, app),
         Platform::Simulator => {
-            return simctl::logs_command(host_of(device)?, simctl::udid(device)?, app)
+            return simctl::logs_command(&where_of(device), simctl::udid(device)?, app)
         }
         _ => {}
     }
@@ -701,7 +712,7 @@ pub async fn install(
 
     if device.platform == Platform::Simulator {
         rep.try_(format!("install {}", bundle.display()));
-        simctl::install(host_of(device)?, simctl::udid(device)?, bundle).await?;
+        simctl::install(&where_of(device), simctl::udid(device)?, bundle).await?;
 
         return Ok(format!("installed on {}", device.label));
     }
@@ -745,15 +756,15 @@ pub async fn boot(device: &Device, timeout: Duration, rep: &Reporter) -> Result<
 
     match device.platform {
         Platform::Simulator => {
-            let host = host_of(device)?;
+            let at = where_of(device);
 
-            rep.try_(format!("booting {label} on {host}"));
+            rep.try_(format!("booting {label} on {}", at.label()));
 
             // strictly longer than the deadline above, so the message that comes
             // back is the one that names the device rather than the host
             let backstop = timeout + Duration::from_secs(5);
 
-            tokio::time::timeout(timeout, simctl::boot(host, simctl::udid(device)?, backstop))
+            tokio::time::timeout(timeout, simctl::boot(&at, simctl::udid(device)?, backstop))
                 .await
                 .map_err(|_| anyhow!("{label} was still not up after {}s", timeout.as_secs()))??;
 
@@ -761,7 +772,7 @@ pub async fn boot(device: &Device, timeout: Duration, rep: &Reporter) -> Result<
         }
 
         Platform::Emulator => {
-            let at = Where::of(device.host.as_deref());
+            let at = where_of(device);
 
             rep.try_(format!("booting {label} on {}", at.label()));
 
@@ -804,14 +815,16 @@ pub async fn stop(device: &Device, reach: &Reach) -> Result<String> {
     }
 
     match device.platform {
-        Platform::Simulator => simctl::shutdown(host_of(device)?, simctl::udid(device)?).await?,
+        Platform::Simulator => {
+            simctl::shutdown(&where_of(device), simctl::udid(device)?).await?
+        }
 
         Platform::Emulator => {
             let serial = reach
                 .serial()
                 .ok_or_else(|| anyhow!("{label} holds no transport to ask to exit"))?;
 
-            avd::shutdown(&Where::of(device.host.as_deref()), serial).await?;
+            avd::shutdown(&where_of(device), serial).await?;
         }
 
         other => bail!(
@@ -925,5 +938,25 @@ mod tests {
         let err = pipe_to(&mut cmd, b"payload", "wl-copy").await.unwrap_err();
 
         assert_eq!(err.to_string(), "wl-copy failed: boom");
+    }
+
+    /// The bug this closes: a device with no host was "not on any known host",
+    /// so a `phone` running on the mac could not drive the simulator sitting
+    /// next to it. Absent means here, which is the one machine it cannot mean
+    /// anything else.
+    #[test]
+    fn a_device_that_hangs_off_nothing_is_driven_from_here() {
+        let mut device = Device::new("udid", "iPhone 17", Platform::Simulator);
+
+        assert_eq!(where_of(&device), Where::Here);
+        assert!(host_of(&device).is_err());
+
+        device.host = Some("rose".to_string());
+        assert_eq!(where_of(&device), Where::On("rose".to_string()));
+
+        // a host recorded as empty is no host, or a survey that wrote one would
+        // send every command to a machine called ""
+        device.host = Some(String::new());
+        assert_eq!(where_of(&device), Where::Here);
     }
 }

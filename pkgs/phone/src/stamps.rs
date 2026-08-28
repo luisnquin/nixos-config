@@ -6,19 +6,33 @@
 //! fingerprint, a `git rev-parse` — and this remembers the hash of that. When
 //! the print changes, the work runs.
 //!
-//! Kept beside the registry rather than in the project, because it describes
-//! this machine's idea of what it has already done and would be noise in a
-//! repository shared with anyone else.
+//! Kept on the host that owns the tree rather than on the machine driving it.
+//! The print it remembers is taken there, out of files that live there, and the
+//! artifact it describes was written there; a ledger on the client would be one
+//! per client, so a second laptop, or CI, or a shell on the host itself would
+//! each rebuild what the others had already built.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 
-use crate::registry::state_dir;
+use crate::ssh::Where;
 
+/// The scripts below spell it themselves, being shell; this is for the tests
+/// that go looking for the file afterwards.
+#[cfg(test)]
 const FILE: &str = "stamps.json";
+
+/// Long enough for a host that has to open an ssh session first, short enough
+/// that an unreachable one fails rather than hangs a build.
+const TIMEOUT: Duration = Duration::from_secs(20);
+
+/// A rename rather than a truncate-and-fill, for the reason the registry gives:
+/// two runs against two projects share this file.
+const WRITE: &str = r#"mkdir -p "$1" || exit 1
+tmp="$1/stamps.json.$$.tmp"
+printf '%s' "$2" > "$tmp" && mv "$tmp" "$1/stamps.json""#;
 
 /// FNV-1a, 64 bit.
 ///
@@ -38,34 +52,36 @@ pub fn hash(bytes: &[u8]) -> String {
     format!("{h:016x}")
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default)]
 pub struct Stamps {
-    /// Project root on this machine -> step name -> hash of what it was built
-    /// from. Keyed by the local path because that is what tells two checkouts
-    /// of the same repository apart.
-    #[serde(flatten)]
+    /// Project root as the host that owns it spells it -> step name -> hash of
+    /// what it was built from. Keyed by that path because it is what tells two
+    /// checkouts of the same repository apart, and the only spelling every
+    /// machine driving the host agrees on.
     projects: BTreeMap<String, BTreeMap<String, String>>,
 
-    #[serde(skip)]
-    path: PathBuf,
+    at: Where,
+
+    /// The directory holding the file, as that host spells it. Empty means
+    /// nothing was read and nothing will be written, which is what the tests
+    /// that only exercise the map want.
+    dir: String,
 }
 
 impl Stamps {
-    pub fn load() -> Result<Self> {
-        Self::load_from(&state_dir().join(FILE))
-    }
-
-    pub fn load_from(path: &Path) -> Result<Self> {
-        // a stamp file that cannot be read is not worth failing a run over: the
-        // worst it costs is one rebuild, and refusing to start would cost more
-        let mut stamps = match std::fs::read(path) {
-            Ok(bytes) => serde_json::from_slice::<Stamps>(&bytes).unwrap_or_default(),
-            Err(_) => Stamps::default(),
-        };
-
-        stamps.path = path.to_path_buf();
-
-        Ok(stamps)
+    /// The ledger that `dir` on `at` holds, out of bytes somebody else has
+    /// already fetched: the caller reads it in the same round trip it asks the
+    /// host what it calls the project, since neither answer is worth a session
+    /// of its own.
+    ///
+    /// A stamp file that cannot be read is not worth failing a run over: the
+    /// worst it costs is one rebuild, and refusing to start would cost more.
+    pub fn read(at: Where, dir: &str, body: &[u8]) -> Self {
+        Stamps {
+            projects: serde_json::from_slice(body).unwrap_or_default(),
+            at,
+            dir: dir.to_string(),
+        }
     }
 
     pub fn get(&self, project: &str, step: &str) -> Option<&str> {
@@ -80,38 +96,41 @@ impl Stamps {
     }
 
     /// Forgets everything known about a project, which is what makes the next
-    /// run rebuild. `down` does it: a torn-down device carries nothing, so a
-    /// stamp saying otherwise is a lie that survives the teardown.
+    /// run rebuild. `--rebuild` does it: a stamp is a claim about an artifact,
+    /// and the point of forcing a build is that the claim is not believed.
     pub fn forget(&mut self, project: &str) {
         self.projects.remove(project);
     }
 
-    /// A rename rather than a truncate-and-fill, for the reason the registry
-    /// gives: two runs against two projects share this file.
-    pub fn save(&self) -> Result<()> {
-        if self.path.as_os_str().is_empty() {
+    pub async fn save(&self) -> Result<()> {
+        if self.dir.is_empty() {
             return Ok(());
         }
 
-        let dir = self
-            .path
-            .parent()
-            .context("stamp path has no parent directory")?;
+        let body = serde_json::to_string_pretty(&self.projects)?;
+        let ran = self
+            .at
+            .exec(WRITE, &[&self.dir, &body], TIMEOUT)
+            .await
+            .with_context(|| format!("writing the stamps on {}", self.at.label()))?;
 
-        std::fs::create_dir_all(dir)?;
-
-        let tmp = dir.join(format!("{FILE}.{}.tmp", std::process::id()));
-
-        std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
-        std::fs::rename(&tmp, &self.path)?;
-
-        Ok(())
+        match ran.ok() {
+            true => Ok(()),
+            false => anyhow::bail!("could not write the stamps on {}: {}", self.at.label(), ran.said),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn temp(what: &str) -> String {
+        std::env::temp_dir()
+            .join(format!("phone-stamps-{what}-{}", std::process::id()))
+            .display()
+            .to_string()
+    }
 
     /// The stamps outlive the binary, so the hash has to be the same number
     /// next year. Pinning the values is the only way that claim gets checked.
@@ -130,20 +149,26 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_step_is_remembered_per_project() {
-        let dir = std::env::temp_dir().join(format!("phone-stamps-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+    async fn reread(dir: &str) -> Stamps {
+        let ran = Where::Here
+            .exec(r#"cat "$1/stamps.json" 2>/dev/null; exit 0"#, &[dir], TIMEOUT)
+            .await
+            .unwrap();
 
-        let path = dir.join(FILE);
-        let mut stamps = Stamps::load_from(&path).unwrap();
+        Stamps::read(Where::Here, dir, &ran.stdout)
+    }
+
+    #[tokio::test]
+    async fn a_step_is_remembered_per_project() {
+        let dir = temp("kept");
+        let mut stamps = Stamps::read(Where::Here, &dir, b"");
 
         stamps.set("/a", "deps", "1111");
         stamps.set("/a", "build.android", "2222");
         stamps.set("/b", "deps", "3333");
-        stamps.save().unwrap();
+        stamps.save().await.unwrap();
 
-        let read = Stamps::load_from(&path).unwrap();
+        let read = reread(&dir).await;
 
         assert_eq!(read.get("/a", "deps"), Some("1111"));
         assert_eq!(read.get("/a", "build.android"), Some("2222"));
@@ -154,8 +179,29 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    #[test]
-    fn forgetting_one_project_leaves_the_others() {
+    /// The bug this closes: the ledger was written on the machine running the
+    /// command, so the host that had actually done the building was never asked
+    /// what it remembered.
+    #[tokio::test]
+    async fn the_ledger_is_written_where_the_work_happens() {
+        let dir = temp("there");
+        let mut stamps = Stamps::read(Where::Here, &dir, b"");
+
+        stamps.set("/w", "deps", "4444");
+        stamps.save().await.unwrap();
+
+        let written = std::fs::read_to_string(format!("{dir}/{FILE}")).unwrap();
+
+        assert!(
+            written.contains("4444"),
+            "the host holds the file, not the client: {written}"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn forgetting_one_project_leaves_the_others() {
         let mut stamps = Stamps::default();
 
         stamps.set("/a", "deps", "1111");
@@ -168,16 +214,25 @@ mod tests {
 
     /// A stamp file left half-written, or written by an older shape of this
     /// struct, must cost one rebuild rather than every command in the project.
-    #[test]
-    fn an_unreadable_stamp_file_reads_as_nothing_built() {
-        let dir = std::env::temp_dir().join(format!("phone-stamps-bad-{}", std::process::id()));
+    #[tokio::test]
+    async fn an_unreadable_stamp_file_reads_as_nothing_built() {
+        let dir = temp("bad");
         std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(format!("{dir}/{FILE}"), b"{ not json").unwrap();
 
-        let path = dir.join(FILE);
-        std::fs::write(&path, b"{ not json").unwrap();
-
-        assert_eq!(Stamps::load_from(&path).unwrap().get("/a", "deps"), None);
+        assert_eq!(reread(&dir).await.get("/a", "deps"), None);
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Nothing was read, so there is nowhere to write: a default ledger is a
+    /// scratch map, and saving one would land it on top of a real file.
+    #[tokio::test]
+    async fn a_ledger_that_came_from_nowhere_is_not_written_anywhere() {
+        let mut stamps = Stamps::default();
+
+        stamps.set("/a", "deps", "1111");
+
+        stamps.save().await.unwrap();
     }
 }

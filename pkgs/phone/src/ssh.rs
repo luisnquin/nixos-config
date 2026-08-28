@@ -217,11 +217,29 @@ pub async fn free_port() -> Result<u16> {
     Ok(port)
 }
 
+/// What whoever asked for this run calls the machine it is running on.
+///
+/// Unset for a command typed here, which is the ordinary case: a person reading
+/// their own terminal wants "this machine", not their own hostname. A run handed
+/// over by another machine sets it, so that every line it streams back names the
+/// host the reader is not sitting at.
+static CALLED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Set once, by the side receiving a handed-over run, out of the name the
+/// manifest arrived with. Later calls are ignored rather than an error: one run
+/// is handed over once, and a second name would mean the first was wrong.
+pub fn called(name: &str) {
+    if !name.is_empty() {
+        let _ = CALLED.set(name.to_string());
+    }
+}
+
 /// A machine to run a shell command on. `Here` is not a host name: this process
 /// already has a shell on this machine, and reaching it through ssh would need a
 /// loopback config nothing else in the tool depends on.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum Where {
+    #[default]
     Here,
     On(String),
 }
@@ -241,8 +259,12 @@ impl Where {
         }
     }
 
+    /// What to call this machine in a line somebody reads. Not `host()`: that
+    /// answers where to run something, and `Here` is the right answer to that
+    /// even on a run whose output is read a network away.
     pub fn label(&self) -> &str {
-        self.host().unwrap_or("this machine")
+        self.host()
+            .unwrap_or_else(|| CALLED.get().map_or("this machine", String::as_str))
     }
 
     /// `script` with `args` bound to `$1`, `$2`, … either way, so a caller writes

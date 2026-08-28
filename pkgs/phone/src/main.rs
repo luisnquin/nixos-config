@@ -27,7 +27,7 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser};
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use actions::{host_of, Sink};
+use actions::Sink;
 use adb::Server;
 use cli::{AppAction, Cli, Command, DeviceAction, HostAction, DEFAULT_AMOUNT};
 use connect::{Reporter, Step};
@@ -111,27 +111,58 @@ async fn dispatch(cli: Cli) -> Result<()> {
             profile,
             rebuild,
             timeout,
+            manifest,
         }) => {
-            let project = declared()?;
+            let relayed = manifest.is_some();
+            let project = declared(manifest)?;
+
+            let mut argv = vec!["up".to_string()];
+
+            if let Some(profile) = &profile {
+                argv.extend(["--profile".to_string(), profile.clone()]);
+            }
+
+            if rebuild {
+                argv.push("--rebuild".to_string());
+            }
+
+            argv.extend(["--timeout".to_string(), format!("{}s", timeout.as_secs())]);
+
+            if up::relay(&project, &argv).await?.is_some() {
+                return Ok(());
+            }
 
             let opts = up::Opts {
                 profile,
                 rebuild,
                 timeout,
+                relayed,
             };
 
             up::up(&mut reg, &project, &opts).await
         }
 
-        Some(Command::Down) => {
-            let project = declared()?;
+        Some(Command::Down { manifest }) => {
+            let project = declared(manifest)?;
+
+            if up::relay(&project, &["down".to_string()]).await?.is_some() {
+                return Ok(());
+            }
 
             up::down(&mut reg, &project).await
         }
 
-        Some(Command::Status { profile, json }) => {
-            let project = declared()?;
-            let report = up::status(&mut reg, &project, profile.as_deref()).await?;
+        Some(Command::Status {
+            profile,
+            json,
+            manifest,
+        }) => {
+            let project = declared(manifest)?;
+
+            let report = match up::relay_status(&project, profile.as_deref()).await? {
+                Some(report) => report,
+                None => up::status(&mut reg, &project, profile.as_deref()).await?,
+            };
 
             match json {
                 true => println!("{}", serde_json::to_string_pretty(&report)?),
@@ -491,7 +522,11 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
 /// The manifest the project verbs act on. Not finding one is the mistake that
 /// actually gets made — the command was typed outside the checkout — so the
 /// error says what was looked for and where, not that a file is missing.
-fn declared() -> Result<Project> {
+fn declared(sent: Option<String>) -> Result<Project> {
+    if let Some(text) = sent {
+        return Project::sent(&text);
+    }
+
     let here = std::env::current_dir()?;
 
     Project::here()?.ok_or_else(|| {
@@ -839,7 +874,7 @@ async fn target_of(view: &View, focus: Option<(i32, i32)>) -> Result<a11y::Targe
         }
 
         return Ok(a11y::Target::Simulator(a11y::Simulator {
-            host: host_of(&view.device)?.to_string(),
+            at: actions::where_of(&view.device),
             udid: simctl::udid(&view.device)?.to_string(),
         }));
     }

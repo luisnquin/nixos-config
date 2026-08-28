@@ -96,16 +96,15 @@ pub async fn launch(
 
         argv.extend(args.iter().map(String::as_str));
 
-        let host = crate::actions::host_of(device)?;
-        let ran = ssh::run(
-            host,
-            // `"$@"` rather than a fixed `"$1" "$2"`, so that however many
-            // arguments the manifest declares arrive as that many words
-            r#"xcrun simctl launch "$@""#,
-            &argv,
-            LAUNCH_TIMEOUT,
-        )
-        .await?;
+        let ran = crate::actions::where_of(device)
+            .exec(
+                // `"$@"` rather than a fixed `"$1" "$2"`, so that however many
+                // arguments the manifest declares arrive as that many words
+                r#"xcrun simctl launch "$@""#,
+                &argv,
+                LAUNCH_TIMEOUT,
+            )
+            .await?;
 
         if !ran.ok() {
             bail!("{}", missing(&ran.said, app));
@@ -329,14 +328,15 @@ fn detail(said: &str) -> &str {
 }
 
 /// One `simctl` verb against a simulator, always in the shape `<verb> <udid>
-/// <thing>`. It goes through `ssh::run` rather than a plain command because the
-/// ssh session's own exit code cannot be trusted: a brokered one is 0 whatever
-/// simctl did, which is the difference between reporting a launch and reporting
-/// that an app nobody installed started fine.
+/// <thing>`, run on the machine holding the simulator — this one when it is
+/// here. It goes through `Where::exec` rather than a plain command because a
+/// remote session's own exit code cannot be trusted: a brokered one is 0
+/// whatever simctl did, which is the difference between reporting a launch and
+/// reporting that an app nobody installed started fine.
 async fn on_host(device: &Device, verb: &str, arg: &str, limit: Duration) -> Result<ssh::Ran> {
-    let host = crate::actions::host_of(device)?;
-
-    ssh::run(host, verb, &[simctl::udid(device)?, arg], limit).await
+    crate::actions::where_of(device)
+        .exec(verb, &[simctl::udid(device)?, arg], limit)
+        .await
 }
 
 async fn attached(server: &Server, device: &Device) -> Result<String> {
@@ -366,6 +366,33 @@ mod tests {
         assert!(url("exp+cuenta-cero://expo-development-client/?url=x").is_ok());
         assert!(url("https://example.com/'; reboot; '").is_err());
         assert!(url("https://example.com/a b").is_err());
+    }
+
+    /// The bug this closes: every simulator verb went through `host_of`, which
+    /// errors for a device that hangs off no host — so a `phone` running on the
+    /// mac could not stop, open or query an app on a simulator sitting right
+    /// there. The script stands in for `xcrun`, which this machine has not got.
+    #[tokio::test]
+    async fn a_simulator_verb_runs_here_when_the_simulator_is_here() {
+        let device = Device::new(
+            "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE".to_string(),
+            "iPhone 16".to_string(),
+            Platform::Simulator,
+        );
+
+        let ran = on_host(
+            &device,
+            r#"printf '%s %s' "$1" "$2""#,
+            "com.example.app",
+            LAUNCH_TIMEOUT,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            ran.text(),
+            "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE com.example.app"
+        );
     }
 
     /// Without a scheme `am start -d` resolves nothing and says so in words

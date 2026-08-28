@@ -29,8 +29,9 @@ rustPlatform.buildRustPackage {
 
   meta = {
     description = "Read and press an iOS Simulator on the host that owns it";
-    # The name the controlling host looks for over ssh.
-    mainProgram = "phone";
+    # The name the controlling host looks for. `phone` on that host is the
+    # CLI itself now, which is what drives this one.
+    mainProgram = "phone-receiver";
     license = lib.licenses.asl20;
     platforms = ["aarch64-darwin"];
     sourceProvenance = [lib.sourceTypes.fromSource];
