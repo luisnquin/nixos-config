@@ -201,6 +201,11 @@
     # every restored agent pane, so a restart silently re-enters conversations
     # the user may be done with, and a stale id burns the pane on an error.
     # Dropping the return leaves the command staged at the prompt instead.
+    #
+    # The fourth patch adds `--dangerously-skip-permissions` to the claude
+    # resume argv, which upstream hardcodes with no room for extra flags. It
+    # only rides along because the patch above leaves the command staged: the
+    # flag is on screen, unsubmitted, until it is read and accepted.
     herdr = prev.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
@@ -208,6 +213,7 @@
           ./patches/herdr/larger-sidebar-toggle-hit-area.patch
           ./patches/herdr/freebuff-agent-session.patch
           ./patches/herdr/stage-agent-resume-command.patch
+          ./patches/herdr/claude-resume-skip-permissions.patch
         ];
     });
   })

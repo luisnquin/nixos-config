@@ -1,0 +1,24 @@
+--- a/src/agent_resume.rs
++++ b/src/agent_resume.rs
+@@ -126,6 +126,7 @@
+                 "claude".into(),
+                 "--resume".into(),
+                 session_ref.value.clone(),
++                "--dangerously-skip-permissions".into(),
+             ]
+         }
+         ("herdr:codex", "codex", AgentSessionRefKind::Id) => {
+@@ -294,7 +295,12 @@
+             )
+             .unwrap()
+             .argv,
+-            vec!["claude", "--resume", "claude-session"]
++            vec![
++                "claude",
++                "--resume",
++                "claude-session",
++                "--dangerously-skip-permissions"
++            ]
+         );
+         assert_eq!(
+             plan(
