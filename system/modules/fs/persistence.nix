@@ -53,6 +53,14 @@
           group = "caddy";
         }
         {
+          # imperative wifi profiles and their psks; networkmanager.ensureProfiles
+          # declares none, so these exist only here
+          directory = "/etc/NetworkManager/system-connections";
+          mode = "0700";
+        }
+        # account and device registration, rewritten by the daemon at runtime
+        "/etc/mullvad-vpn"
+        {
           # the uid/gid maps; without them activation reallocates ids and every
           # persisted file ends up owned by a stranger
           directory = "/var/lib/nixos";
