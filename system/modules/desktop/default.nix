@@ -26,6 +26,10 @@
   };
 
   services = {
+    # graphical-desktop.nix turns speechd on by mkDefault for any desktop. no
+    # screen reader here, and its module probes leave unreaped children behind.
+    speechd.enable = false;
+
     greetd = {
       enable = true;
       settings = {
