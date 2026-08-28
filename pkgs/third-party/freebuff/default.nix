@@ -42,6 +42,7 @@ stdenv.mkDerivation (
       ../../../overlays/patches/freebuff/branded-header-and-input.patch
       ../../../overlays/patches/freebuff/cli-only-client-env.patch
       ../../../overlays/patches/freebuff/remove-ascii-banner.patch
+      ../../../overlays/patches/freebuff/herdr-agent-session.patch
     ];
 
     buildPhase = ''

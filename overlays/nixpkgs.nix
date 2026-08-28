@@ -187,11 +187,20 @@
     # unhittable with a finger over ssh from a phone. The icon stays where it is,
     # only its press area grows — left and up, never onto the divider column,
     # which upstream keeps draggable down to its last row.
+    #
+    # The second patch teaches herdr about freebuff, which upstream does not
+    # know at all. Two halves: the resume planner checks every session source
+    # against a hardcoded allowlist, so freebuff chats were refused before they
+    # could be persisted; and `Agent` is a closed enum, so a freebuff pane
+    # rendered nameless in the agents sidebar with no state of its own. It pairs
+    # with the freebuff-side patch that reports the chat id, since freebuff has
+    # no hook or plugin surface for herdr to install into.
     herdr = prev.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
         ++ [
           ./patches/herdr/larger-sidebar-toggle-hit-area.patch
+          ./patches/herdr/freebuff-agent-session.patch
         ];
     });
   })

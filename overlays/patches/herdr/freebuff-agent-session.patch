@@ -1,0 +1,232 @@
+diff --git a/src/agent_resume.rs b/src/agent_resume.rs
+index cd1ae7b..b37f107 100644
+--- a/src/agent_resume.rs
++++ b/src/agent_resume.rs
+@@ -140,6 +140,16 @@ pub fn plan(source: &str, agent: &str, session_ref: &AgentSessionRef) -> Option<
+         ("herdr:droid", "droid", AgentSessionRefKind::Id) => {
+             vec!["droid".into(), "--resume".into(), session_ref.value.clone()]
+         }
++        ("herdr:freebuff", "freebuff", AgentSessionRefKind::Id) => {
++            // freebuff names a chat by the ISO timestamp of its first turn, not
++            // a uuid, and `--continue` with no value silently falls back to the
++            // most recently touched chat in the project. Always pass the value.
++            vec![
++                "freebuff".into(),
++                "--continue".into(),
++                session_ref.value.clone(),
++            ]
++        }
+         ("herdr:kimi", "kimi", AgentSessionRefKind::Id) => {
+             vec!["kimi".into(), "--session".into(), session_ref.value.clone()]
+         }
+@@ -232,6 +242,7 @@ pub(crate) fn is_official_agent_source(source: &str, agent: &str) -> bool {
+             | ("herdr:copilot", "copilot")
+             | ("herdr:devin", "devin")
+             | ("herdr:droid", "droid")
++            | ("herdr:freebuff", "freebuff")
+             | ("herdr:kimi", "kimi")
+             | ("herdr:omp", "omp")
+             | ("herdr:mastracode", "mastracode")
+@@ -336,6 +347,16 @@ mod tests {
+             .argv,
+             vec!["droid", "--resume", "droid-session"]
+         );
++        assert_eq!(
++            plan(
++                "herdr:freebuff",
++                "freebuff",
++                &AgentSessionRef::id("2026-08-27T18-50-27.123Z").unwrap()
++            )
++            .unwrap()
++            .argv,
++            vec!["freebuff", "--continue", "2026-08-27T18-50-27.123Z"]
++        );
+         assert_eq!(
+             plan(
+                 "herdr:kimi",
+diff --git a/src/config/sound.rs b/src/config/sound.rs
+index 2215c83..7f15238 100644
+--- a/src/config/sound.rs
++++ b/src/config/sound.rs
+@@ -144,6 +144,7 @@ impl AgentSoundOverrides {
+             Some(Agent::Qwen) => self.qwen,
+             Some(Agent::Maki) => self.maki,
+             Some(Agent::Muse) => self.muse,
++            Some(Agent::Freebuff) => AgentSoundSetting::Default,
+             None => AgentSoundSetting::Default,
+         }
+     }
+diff --git a/src/detect/manifest.rs b/src/detect/manifest.rs
+index 4ef77d2..2beb594 100644
+--- a/src/detect/manifest.rs
++++ b/src/detect/manifest.rs
+@@ -258,6 +258,7 @@ const BUNDLED_MANIFESTS: &[(&str, &str)] = &[
+     ("qodercli", include_str!("manifests/qodercli.toml")),
+     ("qwen", include_str!("manifests/qwen.toml")),
+     ("copilot", include_str!("manifests/github-copilot.toml")),
++    ("freebuff", include_str!("manifests/freebuff.toml")),
+ ];
+ 
+ static MANIFEST_CACHE: OnceLock<RwLock<ManifestCache>> = OnceLock::new();
+diff --git a/src/detect/manifests/freebuff.toml b/src/detect/manifests/freebuff.toml
+new file mode 100644
+index 0000000..e3886b9
+--- /dev/null
++++ b/src/detect/manifests/freebuff.toml
+@@ -0,0 +1,71 @@
++id = "freebuff"
++version = "2026.08.27.1"
++min_engine_version = 2
++updated_at = "2026-08-27T00:00:00Z"
++aliases = ["codebuff"]
++
++# freebuff never emits a state-bearing OSC title: `setTerminalTitle` writes
++# `Freebuff: <first words of the prompt>` once per submit and leaves it there.
++# Everything below reads the status bar and the input box, which render in that
++# order directly above the bottom of the screen.
++
++[[rules]]
++id = "ask_user_form_blocked"
++state = "blocked"
++priority = 1000
++region = "bottom_non_empty_lines(16)"
++visible_blocker = true
++# The ask_user form replaces the whole input box, so its hints cannot coexist
++# with the composer placeholder below.
++all = [
++  { contains = ["navigate"] },
++  { contains = ["enter select"] },
++]
++
++[[rules]]
++id = "gate_banner_blocked"
++state = "blocked"
++priority = 950
++region = "bottom_non_empty_lines(16)"
++visible_blocker = true
++any = [
++  { contains = ["press enter to continue"] },
++  { contains = ["press enter to buy more credits"] },
++  { contains = ["credit spending is disabled"] },
++  { contains = ["press enter to login"] },
++  { contains = ["open this url", "to login:"] },
++]
++
++[[rules]]
++id = "status_bar_working"
++state = "working"
++priority = 900
++region = "bottom_non_empty_lines(12)"
++visible_working = true
++any = [
++  { line_regex = ['(?i)(?:^|\s)thinking\.\.\.\s*$'] },
++  { line_regex = ['(?i)(?:^|\s)working\.\.\.\s*$'] },
++  { line_regex = ['(?i)(?:^|\s)connecting\.\.\.\s*$'] },
++  { line_regex = ['(?i)(?:^|\s)retrying\.\.\.\s*$'] },
++  { contains = ["in line, starting soon"] },
++]
++
++[[rules]]
++id = "stop_button_working"
++state = "working"
++priority = 880
++region = "bottom_non_empty_lines(12)"
++visible_working = true
++# The status bar only mounts this button while waiting or streaming.
++contains = ["■ esc"]
++
++[[rules]]
++id = "composer_idle"
++state = "idle"
++priority = 100
++region = "bottom_non_empty_lines(8)"
++visible_idle = true
++any = [
++  { contains = ["enter a coding task"] },
++  { contains = ["ctrl-c to cancel queued messages"] },
++]
+diff --git a/src/detect/mod.rs b/src/detect/mod.rs
+index 0f956ee..d6c17c9 100644
+--- a/src/detect/mod.rs
++++ b/src/detect/mod.rs
+@@ -64,10 +64,11 @@ pub enum Agent {
+     Qwen,
+     Maki,
+     Muse,
++    Freebuff,
+ }
+ 
+ impl Agent {
+-    pub const ALL: [Self; 23] = [
++    pub const ALL: [Self; 24] = [
+         Self::Pi,
+         Self::Claude,
+         Self::Codex,
+@@ -91,9 +92,10 @@ impl Agent {
+         Self::Qwen,
+         Self::Maki,
+         Self::Muse,
++        Self::Freebuff,
+     ];
+ 
+-    pub const SCREEN_MANIFEST_AGENTS: [Self; 21] = [
++    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
+         Self::Pi,
+         Self::Claude,
+         Self::Codex,
+@@ -115,6 +117,7 @@ impl Agent {
+         Self::Qwen,
+         Self::Maki,
+         Self::Muse,
++        Self::Freebuff,
+     ];
+ }
+ 
+@@ -143,6 +146,7 @@ pub fn agent_label(agent: Agent) -> &'static str {
+         Agent::Qwen => "qwen",
+         Agent::Maki => "maki",
+         Agent::Muse => "muse",
++        Agent::Freebuff => "freebuff",
+     }
+ }
+ 
+@@ -177,6 +181,7 @@ pub fn interactive_agent_executable(agent: Agent) -> &'static str {
+         Agent::Qwen => "qwen",
+         Agent::Maki => "maki",
+         Agent::Muse => "muse",
++        Agent::Freebuff => "freebuff",
+     }
+ }
+ 
+@@ -216,6 +221,7 @@ fn lookup_agent(name: &str) -> Option<Agent> {
+         "qwen" | "qwen-code" | "qwen code" => Some(Agent::Qwen),
+         "maki" => Some(Agent::Maki),
+         "muse" | "muse-code" | "muse-cli" => Some(Agent::Muse),
++        "freebuff" | "codebuff" => Some(Agent::Freebuff),
+         _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
+         _ => None,
+     }
+@@ -328,7 +334,10 @@ pub(crate) fn full_lifecycle_hook_authority(source: &str, agent_label: &str) ->
+ pub(crate) fn session_identity_only_integration(source: &str, agent_label: &str) -> bool {
+     matches!(
+         (source, agent_label),
+-        ("herdr:hermes", "hermes") | ("herdr:qwen", "qwen") | ("herdr:antigravity_cli", "agy")
++        ("herdr:hermes", "hermes")
++            | ("herdr:qwen", "qwen")
++            | ("herdr:antigravity_cli", "agy")
++            | ("herdr:freebuff", "freebuff")
+     )
+ }
+ 
+diff --git a/src/terminal/state.rs b/src/terminal/state.rs
+index 5c659eb..608ff7d 100644
+--- a/src/terminal/state.rs
++++ b/src/terminal/state.rs
+@@ -1327,6 +1327,7 @@ impl TerminalState {
+                 Some("startup" | "clear" | "resume" | "compact")
+             ) | ("herdr:mastracode", "mastracode", Some("startup"))
+                 | ("herdr:hermes", "hermes", Some("startup" | "new" | "resume"))
++                | ("herdr:freebuff", "freebuff", Some("startup" | "new" | "resume"))
+                 | ("herdr:opencode", "opencode", Some("select"))
+                 | ("herdr:pi", "pi", Some("new" | "resume" | "fork"))
+                 | (

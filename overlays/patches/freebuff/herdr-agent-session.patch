@@ -1,0 +1,97 @@
+diff --git a/cli/src/project-files.ts b/cli/src/project-files.ts
+index 99ffa73..b62d5cb 100644
+--- a/cli/src/project-files.ts
++++ b/cli/src/project-files.ts
+@@ -2,6 +2,7 @@ import { mkdirSync, readdirSync, statSync } from 'fs'
+ import path from 'path'
+ 
+ import { getConfigDir } from './utils/auth'
++import { reportChatIdToHerdr } from './utils/herdr'
+ 
+ let projectRoot: string | undefined
+ let currentChatId: string | undefined
+@@ -29,17 +30,20 @@ export function tryGetProjectRoot() {
+ export function getCurrentChatId() {
+   if (!currentChatId) {
+     currentChatId = new Date().toISOString().replace(/:/g, '-')
++    reportChatIdToHerdr(currentChatId, 'startup')
+   }
+   return currentChatId
+ }
+ 
+ export function setCurrentChatId(chatId: string) {
+   currentChatId = chatId
++  reportChatIdToHerdr(currentChatId, 'resume')
+   return currentChatId
+ }
+ 
+ export function startNewChat() {
+   currentChatId = new Date().toISOString().replace(/:/g, '-')
++  reportChatIdToHerdr(currentChatId, 'new')
+   return currentChatId
+ }
+ 
+diff --git a/cli/src/utils/herdr.ts b/cli/src/utils/herdr.ts
+new file mode 100644
+index 0000000..ec38fc0
+--- /dev/null
++++ b/cli/src/utils/herdr.ts
+@@ -0,0 +1,58 @@
++import { randomUUID } from 'node:crypto'
++import { connect } from 'node:net'
++
++const SOURCE = 'herdr:freebuff'
++
++let lastSeq = 0
++
++/**
++ * herdr drops a report whose sequence is not strictly greater than the last one
++ * it accepted for this source. Milliseconds are coarse enough that two chat
++ * switches can land in the same tick, so never emit the same value twice.
++ */
++function nextSeq(): number {
++  lastSeq = Math.max(Date.now() * 1000, lastSeq + 1)
++  return lastSeq
++}
++
++/**
++ * Tell the surrounding herdr pane which chat it is holding, so restarting herdr
++ * relaunches `freebuff --continue <chatId>` instead of a bare shell.
++ *
++ * Best-effort and silent: freebuff runs fine outside herdr, the socket may be
++ * gone, and a report that never lands must not surface to the user.
++ */
++export function reportChatIdToHerdr(
++  chatId: string,
++  sessionStartSource: 'startup' | 'new' | 'resume',
++): void {
++  const { HERDR_ENV, HERDR_SOCKET_PATH, HERDR_PANE_ID } = process.env
++  if (HERDR_ENV !== '1' || !HERDR_SOCKET_PATH || !HERDR_PANE_ID || !chatId) {
++    return
++  }
++
++  try {
++    const request = JSON.stringify({
++      id: `${SOURCE}:${randomUUID()}`,
++      method: 'pane.report_agent_session',
++      params: {
++        pane_id: HERDR_PANE_ID,
++        source: SOURCE,
++        agent: 'freebuff',
++        seq: nextSeq(),
++        agent_session_id: chatId,
++        session_start_source: sessionStartSource,
++      },
++    })
++
++    const socket = connect(HERDR_SOCKET_PATH)
++    socket.unref()
++    socket.on('error', () => {})
++    socket.setTimeout(500, () => socket.destroy())
++    socket.on('connect', () => {
++      socket.end(`${request}\n`)
++    })
++  } catch {
++    // Never let herdr reporting break the CLI.
++  }
++}
