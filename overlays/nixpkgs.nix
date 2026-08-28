@@ -217,6 +217,27 @@
         ];
     });
   })
+  (_final: prev: {
+    # OpenSession can find no ServiceClient record for the caller: the negotiate
+    # helpers then return FALSE without setting the GError, and
+    # service_method_open_session takes the success branch and completes the
+    # call with a NULL output variant, which g_variant_new turns into SIGABRT.
+    # Losing the daemon loses the keyring PAM unlocked at login, so the next
+    # client gets a dbus-activated daemon and a password prompt. Both patches
+    # are the unmerged upstream fix (issue #190, MR !112, vendored verbatim):
+    # the first makes the handler branch on the return value and gives the
+    # negotiate helpers a real error, the second creates the client record on
+    # demand instead of trusting the message-filter idle to have run. Drop both
+    # once a release contains MR !112.
+    gnome-keyring = prev.gnome-keyring.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/gnome-keyring/open-session-missing-session-error.patch
+          ./patches/gnome-keyring/create-client-record-on-demand.patch
+        ];
+    });
+  })
   # Everything ./pkgs defines — first-party and packaged upstreams alike —
   # lands on `pkgs.<name>`, so no module has to be wired its own way.
   (final: _prev: import ../pkgs final)

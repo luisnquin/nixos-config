@@ -1,0 +1,102 @@
+From c06dd839a40517c5c0470fd492d2b07ce1356d2e Mon Sep 17 00:00:00 2001
+From: Kacper Paczos <kacper-paczos@linux.pl>
+Date: Tue, 25 Aug 2026 13:35:19 +0200
+Subject: [PATCH] secret-service: don't abort OpenSession when the session is
+ missing
+
+aes_negotiate() and plain_negotiate() bail out through g_return_val_if_fail()
+when gkd_secret_service_get_pkcs11_session() returns NULL, which reports
+failure without ever setting the GError. service_method_open_session() only
+inspected the error, so it took the success branch and passed a NULL body to
+gkd_exported_service_complete_open_session(), where g_variant_new() logs at
+G_LOG_LEVEL_ERROR and aborts the daemon.
+
+Set a real G_DBUS_ERROR_FAILED on that path, and branch on the return value
+rather than on the error alone, refusing to complete the call with a NULL
+output or result.
+
+A caller that connects and invokes OpenSession immediately can reach the
+service before its ServiceClient record exists, so this is reachable from
+unprivileged callers: with a client opening a fresh connection per call, an
+unpatched daemon aborts within a few thousand calls.
+
+Closes: https://gitlab.gnome.org/GNOME/gnome-keyring/-/issues/190
+---
+ daemon/dbus/gkd-secret-service.c | 20 ++++++++++++++++----
+ daemon/dbus/gkd-secret-session.c | 14 ++++++++++++--
+ 2 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/daemon/dbus/gkd-secret-service.c b/daemon/dbus/gkd-secret-service.c
+index 7a445815..7bfb5388 100644
+--- a/daemon/dbus/gkd-secret-service.c
++++ b/daemon/dbus/gkd-secret-service.c
+@@ -422,18 +422,30 @@ service_method_open_session (GkdExportedService *skeleton,
+ 	GError *error = NULL;
+ 	const gchar *caller;
+ 	GVariant *input_payload;
++	gboolean opened;
+ 
+ 	caller = g_dbus_method_invocation_get_sender (invocation);
+ 
+ 	/* Now we can create a session with this information */
+ 	session = gkd_secret_session_new (self, caller);
+ 	input_payload = g_variant_get_variant (input);
+-	gkd_secret_session_handle_open (session, algorithm, input_payload,
+-					&output, &result,
+-					&error);
++	opened = gkd_secret_session_handle_open (session, algorithm, input_payload,
++						 &output, &result,
++						 &error);
+ 	g_variant_unref (input_payload);
+ 
+-	if (error != NULL) {
++	/* Branch on the return value, not on the error alone: a negotiate helper
++	 * that bails out through g_return_val_if_fail() reports failure without
++	 * ever setting one, and completing the call with a NULL body makes
++	 * g_variant_new() abort the whole daemon. */
++	if (!opened || output == NULL || result == NULL) {
++		if (error == NULL)
++			g_set_error_literal (&error, G_DBUS_ERROR,
++					     G_DBUS_ERROR_FAILED,
++					     "Couldn't open a session for this caller.");
++		if (output != NULL)
++			g_variant_unref (g_variant_ref_sink (output));
++		g_free (result);
+ 		g_dbus_method_invocation_take_error (invocation, error);
+ 	} else {
+ 		gkd_secret_service_publish_dispatch (self, caller,
+diff --git a/daemon/dbus/gkd-secret-session.c b/daemon/dbus/gkd-secret-session.c
+index f84076da..74d52982 100644
+--- a/daemon/dbus/gkd-secret-session.c
++++ b/daemon/dbus/gkd-secret-session.c
+@@ -183,7 +183,12 @@ aes_negotiate (GkdSecretSession *self,
+ 	gboolean ret;
+ 
+ 	session = gkd_secret_service_get_pkcs11_session (self->service, self->caller);
+-	g_return_val_if_fail (session, FALSE);
++	if (session == NULL) {
++		g_set_error_literal (error_out, G_DBUS_ERROR,
++				     G_DBUS_ERROR_FAILED,
++				     "Couldn't open a session for this caller.");
++		return FALSE;
++	}
+ 
+ 	if (!aes_create_dh_keys (session, "ietf-ike-grp-modp-1024", &pub, &priv)) {
+ 		g_set_error_literal (error_out, G_DBUS_ERROR,
+@@ -250,7 +255,12 @@ plain_negotiate (GkdSecretSession *self,
+ 	GckSession *session;
+ 
+ 	session = gkd_secret_service_get_pkcs11_session (self->service, self->caller);
+-	g_return_val_if_fail (session, FALSE);
++	if (session == NULL) {
++		g_set_error_literal (error_out, G_DBUS_ERROR,
++				     G_DBUS_ERROR_FAILED,
++				     "Couldn't open a session for this caller.");
++		return FALSE;
++	}
+ 
+ 	gck_builder_add_ulong (&builder, CKA_CLASS, CKO_SECRET_KEY);
+ 	gck_builder_add_ulong (&builder, CKA_KEY_TYPE, CKK_G_NULL);
+-- 
+GitLab
+

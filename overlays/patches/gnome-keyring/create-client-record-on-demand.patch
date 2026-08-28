@@ -1,0 +1,65 @@
+From 8fcdeffe67ae8c1600eae9637816acbf73f66b81 Mon Sep 17 00:00:00 2001
+From: Kacper Paczos <kacper-paczos@linux.pl>
+Date: Tue, 25 Aug 2026 13:35:39 +0200
+Subject: [PATCH] secret-service: create the client record on demand
+
+The ServiceClient record for a peer is created from an idle callback queued by
+the message filter. The comment there assumes G_PRIORITY_HIGH orders that idle
+ahead of the method call it belongs to, but priority only orders idles against
+each other, not against a dispatched method call: a peer that connects and
+calls straight away can reach the service first.
+
+gkd_secret_service_get_pkcs11_session() and gkd_secret_service_publish_dispatch()
+then find no record and give up. With the previous commit in place that is no
+longer fatal, but the caller still gets an error for a request that was
+perfectly valid.
+
+Create the record when it is missing instead. initialize_service_client() is a
+struct allocation, a strdup, a hash table insert and the small local file read
+in update_default() -- no D-Bus round trip and no PKCS#11 work, since the
+PKCS#11 session is opened lazily further down the same function. That makes the
+idle an optimisation rather than a correctness requirement.
+
+Measured with a client opening a fresh connection per call, 3200 calls over 16
+threads: unpatched aborts, with only the previous commit 15 calls fail with
+"Couldn't open a session for this caller", with both none fail.
+---
+ daemon/dbus/gkd-secret-service.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/daemon/dbus/gkd-secret-service.c b/daemon/dbus/gkd-secret-service.c
+index 7bfb5388..09092342 100644
+--- a/daemon/dbus/gkd-secret-service.c
++++ b/daemon/dbus/gkd-secret-service.c
+@@ -1258,7 +1258,16 @@ gkd_secret_service_get_pkcs11_session (GkdSecretService *self, const gchar *call
+ 	g_return_val_if_fail (caller, NULL);
+ 
+ 	client = g_hash_table_lookup (self->clients, caller);
+-	g_return_val_if_fail (client, NULL);
++	if (client == NULL) {
++		/* The record is normally created by a high priority idle queued from
++		 * the message filter, but that idle is not ordered against the method
++		 * call that queued it: a peer which connects and calls straight away
++		 * can reach us first. Create it here instead of failing the call --
++		 * it is a hash table insert, not I/O. */
++		gkd_secret_service_ensure_client (self, caller);
++		client = g_hash_table_lookup (self->clients, caller);
++		g_return_val_if_fail (client, NULL);
++	}
+ 
+ 	/* Open a new session if necessary */
+ 	if (!client->pkcs11_session) {
+@@ -1393,6 +1402,10 @@ gkd_secret_service_publish_dispatch (GkdSecretService *self, const gchar *caller
+ 
+ 	/* Take ownership of the session */
+ 	client = g_hash_table_lookup (self->clients, caller);
++	if (client == NULL) {
++		gkd_secret_service_ensure_client (self, caller);
++		client = g_hash_table_lookup (self->clients, caller);
++	}
+ 	g_return_if_fail (client);
+ 	path = gkd_secret_dispatch_get_object_path (object);
+ 	g_return_if_fail (!g_hash_table_lookup (client->dispatch, path));
+-- 
+GitLab
+
