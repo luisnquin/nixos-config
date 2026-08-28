@@ -8,7 +8,10 @@
     device = "nodev";
 
     forceInstall = false;
-    useOSProber = true;
+
+    # with an ephemeral root, os-prober no longer excludes the disk holding /
+    # and detects /persist as a second NixOS, duplicating every generation
+    useOSProber = false;
 
     # For a better future: https://github.com/NixOS/nixpkgs/issues/23926
     configurationLimit = 42;
