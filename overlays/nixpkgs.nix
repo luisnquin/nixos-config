@@ -195,12 +195,19 @@
     # rendered nameless in the agents sidebar with no state of its own. It pairs
     # with the freebuff-side patch that reports the chat id, since freebuff has
     # no hook or plugin surface for herdr to install into.
+    #
+    # The third patch stops `session.resume_agents_on_restore` from pressing
+    # enter. Upstream types `claude --resume <id>` plus a carriage return into
+    # every restored agent pane, so a restart silently re-enters conversations
+    # the user may be done with, and a stale id burns the pane on an error.
+    # Dropping the return leaves the command staged at the prompt instead.
     herdr = prev.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
         ++ [
           ./patches/herdr/larger-sidebar-toggle-hit-area.patch
           ./patches/herdr/freebuff-agent-session.patch
+          ./patches/herdr/stage-agent-resume-command.patch
         ];
     });
   })

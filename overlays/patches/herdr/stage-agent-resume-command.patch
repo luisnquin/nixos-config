@@ -1,0 +1,17 @@
+--- a/src/app/agent_resume.rs
++++ b/src/app/agent_resume.rs
+@@ -263,9 +263,11 @@
+             }
+         };
+ 
+-        let mut input = resume_command;
+-        input.push('\r');
+-        if let Err(err) = runtime.try_send_bytes(Bytes::from(input)) {
++        // Staged, not submitted: the command lands in the shell's edit buffer so
++        // the pane comes back showing what it would run and waits for the user to
++        // press enter. Upstream appends a carriage return here, which re-enters
++        // every agent conversation unattended on restore.
++        if let Err(err) = runtime.try_send_bytes(Bytes::from(resume_command)) {
+             tracing::warn!(
+                 pane = pane_id.raw(),
+                 terminal = %terminal_id,
