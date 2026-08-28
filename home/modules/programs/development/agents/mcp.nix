@@ -43,6 +43,11 @@ in {
         ];
       }
       {
+        name = "codebase-memory-mcp";
+        package = pkgs.codebase-memory-mcp;
+        scope = "workspace";
+      }
+      {
         name = "firefox-devtools";
         package = pkgs.firefox-devtools-mcp;
         args = [
@@ -58,8 +63,6 @@ in {
   programs.mcp = {
     enable = true;
     servers = {
-      codebase-memory-mcp.command = lib.getExe pkgs.codebase-memory-mcp;
-
       context7.url = "https://mcp.context7.com/mcp";
 
       linear.url = "https://mcp.linear.app/mcp";
