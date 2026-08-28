@@ -1,9 +1,13 @@
-{pkgs, ...}: let
+{
+  pkgs,
+  lib,
+  ...
+}: let
   postgresql-client = (
     pkgs.linkFarm "postgresql-client" [
       {
         name = "bin/psql";
-        path = "${pkgs.postgresql}/bin/psql";
+        path = lib.getExe' pkgs.postgresql_19 "psql";
       }
     ]
   );
@@ -12,7 +16,7 @@
     pkgs.linkFarm "redis-cli" [
       {
         name = "bin/redis-cli";
-        path = "${pkgs.redis}/bin/redis-cli";
+        path = lib.getExe' pkgs.redis "redis-cli";
       }
     ]
   );
