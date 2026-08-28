@@ -95,6 +95,16 @@ pub struct Identity {
 /// shares it and no handset serial has the shape.
 pub const EMULATOR_BUILD_SERIAL: &str = "EMULATOR";
 
+/// `adb shell` merges what a command prints with what it complains about, so a
+/// settings read that fails comes back looking exactly like an answer: the id
+/// becomes `cmd: Failure calling service settings: ...`. Every real one is hex,
+/// which is enough to tell the two apart — and without the check an emulator
+/// earns a second, permanent registry entry under the error text, which then
+/// makes its own name ambiguous.
+fn is_settings_id(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 impl Identity {
     fn parse(out: &str) -> Self {
         let mut ident = Identity::default();
@@ -114,7 +124,7 @@ impl Identity {
                 "model" => ident.model = value,
                 "avd" => ident.avd = value,
                 "avd_kernel" => avd_kernel = value,
-                "android_id" if value != "null" => ident.android_id = value,
+                "android_id" if is_settings_id(&value) => ident.android_id = value,
                 _ => {}
             }
         }
@@ -502,6 +512,21 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
                 logical: 3,
             })
         );
+    }
+
+    /// The failure this actually produced: a broken pipe became the emulator's
+    /// id, and the registry then held two devices answering to `pixel_7-api36`,
+    /// so naming it was ambiguous and every command against it stopped.
+    #[test]
+    fn a_settings_read_that_failed_is_not_mistaken_for_an_id() {
+        let broken = Identity::parse(
+            "serialno=EMULATOR36X6X11X0\r\nboot_serialno=EMULATOR36X6X11X0\r\n\
+             model=sdk_gphone64_arm64\r\navd=pixel_7-api36\r\n\
+             android_id=cmd: Failure calling service settings: Broken pipe (32)\r\n",
+        );
+
+        assert!(broken.android_id.is_empty());
+        assert_eq!(broken.best_id(), None, "no id at all beats a wrong one");
     }
 
     /// The one shell answers for every device, so a handset leaves the emulator

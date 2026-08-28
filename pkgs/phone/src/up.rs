@@ -1,0 +1,1381 @@
+//! Converging a project's devices on the state its manifest declares.
+//!
+//! Every other verb here is imperative: it does one thing to one device and
+//! reports what happened. That is the right shape for driving a screen and the
+//! wrong shape for getting to the point where a screen can be driven, which is
+//! a dozen steps that each have to be skipped when they are already done — boot
+//! the emulator, attach to it, forward the bundler's port, unfreeze the
+//! animations, install a build that matches the source, start the app.
+//!
+//! So `up` is not a script of those verbs. It reads what the project says it
+//! wants, reads what is actually there, and does the difference. Running it
+//! twice does the work once; running it after nothing changed opens the app and
+//! stops. That property is what lets an agent begin every session with it
+//! rather than having to work out which half of the setup survived.
+//!
+//! Nothing in here knows what Expo or Gradle or npm are. The manifest supplies
+//! a command that prints what the inputs are, and a command that does the work;
+//! this decides when to run the second one.
+
+use std::collections::BTreeMap;
+use std::time::Duration;
+
+use anyhow::{anyhow, bail, Context, Result};
+use serde::Serialize;
+use tokio::sync::Mutex;
+
+use crate::connect;
+use crate::discover::survey;
+use crate::model::{Platform, Reach, View};
+use crate::project::{Build, Level, Project, Spec, Task};
+use crate::registry::Registry;
+use crate::ssh::{Status, Where};
+use crate::stamps::{self, Stamps};
+use crate::{actions, apps};
+
+/// Long enough for a `git rev-parse` over a cold ssh session or an Expo
+/// fingerprint over a large tree, short enough that a hung probe is reported
+/// rather than waited on. Freshness is a question, not the work.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// How long to wait for the bundler's port to start answering after starting
+/// it. Metro on a cold cache is the slow case.
+const BUNDLER_TIMEOUT: Duration = Duration::from_secs(90);
+
+pub struct Opts {
+    pub profile: Option<String>,
+    /// Run the build steps whatever the stamps say.
+    pub rebuild: bool,
+    pub timeout: Duration,
+}
+
+/// What one declared device wants and what it has, as `status` prints it and
+/// `up` decides from.
+#[derive(Debug, Serialize)]
+pub struct Row {
+    pub name: String,
+    pub platform: Option<String>,
+    pub want: String,
+    pub have: String,
+    /// Why it is not there yet, or what it is doing while it is.
+    pub note: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Report {
+    pub project: String,
+    pub host: Option<String>,
+    pub steps: Vec<Row>,
+    pub devices: Vec<Row>,
+
+    /// Running, reachable, and named nowhere in the manifest. Reported but not
+    /// counted as drift: nothing declared it, so nothing is out of place.
+    pub strays: Vec<String>,
+}
+
+impl Report {
+    /// Whether everything declared is where it was declared to be. `status`
+    /// exits on this, so a script can gate on one command.
+    pub fn converged(&self) -> bool {
+        self.steps
+            .iter()
+            .chain(&self.devices)
+            .all(|row| row.want == row.have)
+    }
+}
+
+/// The level a device is at without asking the project anything: how far up the
+/// ladder the survey alone can prove it.
+///
+/// A simulator is drivable the moment its host lists it as booted — there is no
+/// transport to attach — so `online` is `attached` for one and only `booted`
+/// for anything that speaks adb.
+fn reached(view: &View) -> Option<Level> {
+    match &view.reach {
+        Reach::Attached { .. } => Some(Level::Attached),
+        Reach::Online if view.device.platform.is_adb() => Some(Level::Booted),
+        Reach::Online => Some(Level::Attached),
+        Reach::Unauthorized { .. } => Some(Level::Booted),
+        Reach::Off | Reach::Known | Reach::Offline { .. } => None,
+    }
+}
+
+fn below(level: Level) -> String {
+    match level {
+        Level::Booted => "off".to_string(),
+        other => format!("below {}", other.as_str()),
+    }
+}
+
+fn shown(level: Option<Level>) -> String {
+    match level {
+        Some(level) => level.as_str().to_string(),
+        None => "off".to_string(),
+    }
+}
+
+/// The one declared device a name refers to.
+///
+/// Exact before fuzzy, and an ambiguous name is refused rather than picked
+/// from: `up` runs unattended, so there is nobody to answer a prompt, and
+/// converging the wrong emulator is worse than saying which two were meant.
+fn pick<'a>(views: &'a [View], name: &str) -> Result<&'a View> {
+    if let Some(view) = views.iter().find(|v| v.device.is(name)) {
+        return Ok(view);
+    }
+
+    let fuzzy: Vec<&View> = views.iter().filter(|v| v.device.matches(name)).collect();
+
+    match fuzzy.len() {
+        1 => Ok(fuzzy[0]),
+        0 => Err(anyhow!("no device named {name}")),
+        _ => Err(anyhow!(
+            "{name} matches {}; name one of them exactly",
+            fuzzy
+                .iter()
+                .map(|v| v.device.label.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
+}
+
+/// The build entry that covers a device, by the platform it runs.
+fn build_for(project: &Project, platform: Platform) -> Option<(&str, &Build)> {
+    let key = build_key(platform);
+
+    project.manifest.build.get(key).map(|build| (key, build))
+}
+
+/// What a manifest and an sdk call the platform, which is not what the survey
+/// calls it: an emulator builds and installs exactly as a handset does, so
+/// `[build.android]` covers both and `expo run:android` is the same command.
+fn build_key(platform: Platform) -> &'static str {
+    match platform {
+        Platform::Android | Platform::Emulator => "android",
+        Platform::Ios | Platform::Simulator => "ios",
+    }
+}
+
+/// Runs a declared command with the project's directory as its cwd and the
+/// device it is for named in the environment.
+///
+/// The directory arrives as a positional rather than interpolated, so a path
+/// with a space in it is a path rather than two arguments — and its `~` is
+/// expanded where the tilde means something, which is the host's home and not
+/// this machine's.
+fn scripted(body: &str) -> String {
+    format!(
+        r#"dir=$1
+case "$dir" in "~"|"~/"*) dir="$HOME${{dir#\~}}" ;; esac
+cd "$dir" || {{ echo "no such directory: $dir" >&2; exit 1; }}
+export PHONE_SERIAL="$2" PHONE_ID="$3" PHONE_PLATFORM="$4" PHONE_KIND="$5" PHONE_DEVICE="$6"
+{body}"#
+    )
+}
+
+/// The six positionals every declared command is handed. A project-wide step is
+/// for no device in particular and gets them empty rather than a fake.
+///
+/// Two of them say what the device is, because the two answers are used for
+/// different things: PHONE_PLATFORM is `android` or `ios`, which is what a build
+/// command is spelled with, and PHONE_KIND keeps the distinction the survey
+/// draws, for a script that only wants `--device` on real hardware.
+fn args<'a>(dir: &'a str, view: Option<&'a View>) -> [&'a str; 6] {
+    let Some(view) = view else {
+        return [dir, "", "", "", "", ""];
+    };
+
+    [
+        dir,
+        view.reach.serial().unwrap_or(""),
+        &view.device.id,
+        build_key(view.device.platform),
+        view.device.platform.as_str(),
+        &view.device.label,
+    ]
+}
+
+fn failed(what: &str, status: &Status, said: &str) -> anyhow::Error {
+    let said = said.trim();
+    let tail = match said.is_empty() {
+        true => String::new(),
+        false => format!(": {}", said.lines().next_back().unwrap_or(said)),
+    };
+
+    match status {
+        Status::Code(code) => anyhow!("{what} exited {code}{tail}"),
+        Status::Garbled(v) => anyhow!("{what} ended with an unreadable status '{v}'{tail}"),
+        Status::Missing => anyhow!("{what} never reported a status{tail}"),
+    }
+}
+
+/// Where a project's declared commands run, and under what name this machine
+/// remembers what it has already done there. Every step asks those two
+/// questions and no step answers them differently, so they travel together
+/// rather than as three more parameters on each.
+struct Site {
+    at: Where,
+    dir: String,
+    key: String,
+}
+
+impl Site {
+    fn of(project: &Project) -> Self {
+        Site {
+            at: Where::of(project.host()),
+            dir: project.dir(),
+            key: project.key(),
+        }
+    }
+
+    #[cfg(test)]
+    fn here(dir: &str, key: &str) -> Self {
+        Site {
+            at: Where::Here,
+            dir: dir.to_string(),
+            key: key.to_string(),
+        }
+    }
+}
+
+/// The hash of what a step says its inputs are, or `None` when it declares no
+/// way of telling — which makes it stale forever, and is worth being explicit
+/// about rather than treating as fresh.
+async fn probe(site: &Site, view: Option<&View>, stale: Option<&str>) -> Result<Option<String>> {
+    let Some(stale) = stale else {
+        return Ok(None);
+    };
+
+    let ran = site
+        .at
+        .exec(&scripted(stale), &args(&site.dir, view), PROBE_TIMEOUT)
+        .await
+        .with_context(|| format!("asking {} what changed", site.at.label()))?;
+
+    if !ran.ok() {
+        return Err(failed("the freshness check", &ran.status, &ran.said));
+    }
+
+    Ok(Some(stamps::hash(&ran.stdout)))
+}
+
+/// Runs a step, live, and remembers what it was built from.
+///
+/// The stamp is written after the work rather than before it, so a build that
+/// fails halfway is stale on the next run. It is also written from the hash
+/// taken *before* the work, because a build that touches the tree it was
+/// fingerprinted from would otherwise stamp itself as already out of date.
+async fn perform(
+    site: &Site,
+    view: Option<&View>,
+    step: &str,
+    run: &str,
+    hash: Option<String>,
+    stamps: &Mutex<Stamps>,
+    tag: Option<&str>,
+) -> Result<()> {
+    let status = site
+        .at
+        .stream(&scripted(run), &args(&site.dir, view), tag)
+        .await
+        .with_context(|| format!("running {step} on {}", site.at.label()))?;
+
+    if status != Status::Code(0) {
+        return Err(failed(step, &status, ""));
+    }
+
+    if let Some(hash) = hash {
+        let mut stamps = stamps.lock().await;
+
+        stamps.set(&site.key, step, &hash);
+        stamps.save()?;
+    }
+
+    Ok(())
+}
+
+/// What the last run stamped a step with, copied out rather than borrowed.
+///
+/// The ledger is one file shared by every device converging at once, and the
+/// work between reading it and writing it is minutes long. Holding it open for
+/// that would make the devices take turns again.
+async fn stamped(stamps: &Mutex<Stamps>, key: &str, step: &str) -> Option<String> {
+    stamps.lock().await.get(key, step).map(str::to_string)
+}
+
+/// Whether a `Task` still needs doing, and the hash that will stamp it if it
+/// does.
+async fn due(
+    site: &Site,
+    view: Option<&View>,
+    task: &Task,
+    prior: Option<&str>,
+    force: bool,
+) -> Result<(bool, Option<String>)> {
+    let hash = probe(site, view, task.stale.as_deref()).await?;
+
+    let fresh = !force
+        && match (&hash, prior) {
+            (Some(now), Some(then)) => now == then,
+            // a step with no way of telling whether it is done is never done
+            _ => false,
+        };
+
+    Ok((!fresh, hash))
+}
+
+/// Whether something is listening on a port on a machine.
+///
+/// Two tools, because neither is everywhere: `lsof` is on macOS by default and
+/// often absent from a stripped Linux, `nc` the other way round. Asked over
+/// HTTP it would only answer for an HTTP bundler, and nothing here knows that
+/// the bundler speaks HTTP.
+const LISTENING: &str = r#"port=$1
+if command -v lsof >/dev/null 2>&1; then
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && exit 0
+fi
+if command -v nc >/dev/null 2>&1; then
+  nc -z 127.0.0.1 "$port" >/dev/null 2>&1 && exit 0
+fi
+exit 1"#;
+
+async fn listening(at: &Where, port: u16) -> bool {
+    at.exec(LISTENING, &[&port.to_string()], Duration::from_secs(20))
+        .await
+        .map(|ran| ran.ok())
+        .unwrap_or(false)
+}
+
+/// Starts the bundler detached, with its output going to a log rather than to
+/// this terminal.
+///
+/// It has to outlive this process: `up` returns and the devices keep talking to
+/// it. Its stdio goes to the log because a background job holding the ssh
+/// session's stdout would keep the session — and so this command — from ever
+/// finishing.
+const START_BUNDLER: &str = r#"log=${TMPDIR:-/tmp}/phone-bundler-$7.log
+: > "$log"
+nohup sh -c "$8" >>"$log" 2>&1 &
+echo "$log""#;
+
+/// Kills whatever holds the port, rather than a pid remembered from when it was
+/// started. The bundler is a shell that spawns a runtime that spawns workers,
+/// so the pid that was backgrounded is rarely the one holding the socket.
+const STOP_BUNDLER: &str = r#"port=$1
+pids=$(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null)
+[ -z "$pids" ] && exit 0
+kill $pids 2>/dev/null
+exit 0"#;
+
+/// Brings the project's steps and devices to what the manifest declares.
+pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()> {
+    let site = Site::of(project);
+    let declared = project.devices(opts.profile.as_deref())?;
+
+    if declared.is_empty() {
+        bail!("{} declares no devices", crate::project::FILE);
+    }
+
+    // behind a lock from here on: the devices converge together below and each
+    // one stamps its own build in the same ledger
+    let stamps = Mutex::new(Stamps::load()?);
+
+    if opts.rebuild {
+        let mut ledger = stamps.lock().await;
+
+        ledger.forget(&site.key);
+        ledger.save()?;
+    }
+
+    eprintln!(
+        "phone: {} on {}",
+        project.name(),
+        match project.host() {
+            Some(host) => host.to_string(),
+            None => "this machine".to_string(),
+        }
+    );
+
+    // the tree first: a build against half-installed dependencies fails in a
+    // way that reads as a broken project rather than as a missing step
+    if let Some(task) = &project.manifest.deps {
+        let prior = stamped(&stamps, &site.key, "deps").await;
+        let (due_now, hash) = due(&site, None, task, prior.as_deref(), opts.rebuild).await?;
+
+        match due_now {
+            true => {
+                eprintln!("phone: deps");
+                perform(&site, None, "deps", &task.run, hash, &stamps, None).await?;
+            }
+            false => eprintln!("phone: deps are current"),
+        }
+    }
+
+    if let Some(bundler) = &project.manifest.bundler {
+        match listening(&site.at, bundler.port).await {
+            true => eprintln!(
+                "phone: bundler already up on {}:{}",
+                site.at.label(),
+                bundler.port
+            ),
+            false => {
+                let log = start_bundler(&site, project, bundler.port, &bundler.run).await?;
+
+                eprintln!(
+                    "phone: bundler up on {}:{} ({log})",
+                    site.at.label(),
+                    bundler.port
+                );
+            }
+        }
+    }
+
+    // one survey for every device, rather than one each: it is the most
+    // expensive thing a command does and it answers the same question for all
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let mut wanted: Vec<Climb> = declared
+        .iter()
+        .map(|(name, spec)| Ok((*name, *spec, pick(&views, name)?.clone())))
+        .collect::<Result<_>>()?;
+
+    // boots run together because they are minutes of waiting each and touch
+    // nothing in common; everything after this needs the registry, and so is
+    // one at a time
+    let cold: Vec<&Climb> = wanted
+        .iter()
+        .filter(|(_, spec, view)| spec.state >= Level::Booted && reached(view).is_none())
+        .collect();
+
+    if !cold.is_empty() {
+        let (rep, drain) = crate::reporter();
+
+        let booting = cold
+            .iter()
+            .map(|(_, _, view)| actions::boot(&view.device, opts.timeout, &rep));
+
+        let outcomes = futures_util::future::join_all(booting).await;
+
+        drop(rep);
+        drain.await;
+
+        for outcome in outcomes {
+            eprintln!("phone: {}", outcome?);
+        }
+    }
+
+    // whatever just came up has a transport now that it did not have during the
+    // first survey, and everything below reads the serial off it
+    let views = match cold.is_empty() {
+        true => views,
+        false => {
+            let views = survey(reg).await;
+            reg.save()?;
+
+            views
+        }
+    };
+
+    for (name, _, view) in &mut wanted {
+        *view = pick(&views, name)?.clone();
+    }
+
+    // the attach writes to the registry, so it is the one rung a device cannot
+    // climb beside another. It is also seconds rather than the minutes
+    // everything above it takes.
+    for (name, spec, view) in &mut wanted {
+        *view = attach(reg, name, spec, view.clone()).await?;
+    }
+
+    let lanes = lanes(&wanted);
+    let tagged = lanes.len() > 1;
+
+    let climbing = lanes
+        .iter()
+        .map(|lane| converge(project, &site, lane, &stamps, tagged));
+
+    // every lane's complaint and not just the first: they ran together, and
+    // reporting one of two failures would leave the other looking like it worked
+    let failures: Vec<String> = futures_util::future::join_all(climbing)
+        .await
+        .into_iter()
+        .filter_map(|outcome| outcome.err())
+        .map(|err| format!("{err:#}"))
+        .collect();
+
+    if !failures.is_empty() {
+        bail!("{}", failures.join("\n"));
+    }
+
+    Ok(())
+}
+
+/// A device, what it was declared to be, and where it currently is.
+type Climb<'a> = (&'a str, &'a Spec, View);
+
+/// The devices grouped by the build they share.
+///
+/// Two devices on one platform run the same build in the same directory, and a
+/// second gradle or xcodebuild started there while the first is going fails on
+/// a lock it does not hold — so they take turns. Two platforms share nothing
+/// but the tree they read, so they do not: an iPhone stops waiting out an
+/// android build it has no part in.
+fn lanes<'a>(wanted: &'a [Climb<'a>]) -> Vec<Vec<&'a Climb<'a>>> {
+    let mut lanes: BTreeMap<&'static str, Vec<&Climb>> = BTreeMap::new();
+
+    for climb in wanted {
+        lanes
+            .entry(build_key(climb.2.device.platform))
+            .or_default()
+            .push(climb);
+    }
+
+    lanes.into_values().collect()
+}
+
+/// One lane's devices, in the order they were declared.
+async fn converge(
+    project: &Project,
+    site: &Site,
+    lane: &[&Climb<'_>],
+    stamps: &Mutex<Stamps>,
+    tagged: bool,
+) -> Result<()> {
+    for (name, spec, view) in lane.iter().copied() {
+        // only once more than one lane is running: a single build streaming to
+        // a terminal it has to itself reads better without a name in front of
+        // every line of it
+        let tag = tagged.then(|| format!("{name}: "));
+
+        raise(project, site, name, spec, view, stamps, tag.as_deref())
+            .await
+            .with_context(|| format!("bringing up {name}"))?;
+    }
+
+    Ok(())
+}
+
+/// The transport, which is the one thing a device needs that is written down.
+async fn attach(reg: &mut Registry, name: &str, spec: &Spec, view: View) -> Result<View> {
+    if spec.state < Level::Attached
+        || reached(&view) >= Some(Level::Attached)
+        || !view.device.platform.is_adb()
+    {
+        return Ok(view);
+    }
+
+    let (rep, drain) = crate::reporter();
+    let opts = connect::Opts::default();
+    let res = connect::connect(reg, &view.server, &view.device, &opts, &rep).await;
+
+    drop(rep);
+    drain.await;
+
+    res.with_context(|| format!("attaching to {name}"))?;
+
+    // the transport it just came up on is what every later step names
+    let view = pick(&survey(reg).await, name)?.clone();
+
+    reg.save()?;
+
+    Ok(view)
+}
+
+async fn start_bundler(site: &Site, project: &Project, port: u16, run: &str) -> Result<String> {
+    let name = project.name();
+    let mut args = args(&site.dir, None).to_vec();
+
+    args.push(&name);
+    args.push(run);
+
+    let ran = site
+        .at
+        .exec(&scripted(START_BUNDLER), &args, Duration::from_secs(30))
+        .await
+        .with_context(|| format!("starting the bundler on {}", site.at.label()))?;
+
+    if !ran.ok() {
+        return Err(failed("the bundler", &ran.status, &ran.said));
+    }
+
+    let log = ran.text();
+    let began = std::time::Instant::now();
+
+    while began.elapsed() < BUNDLER_TIMEOUT {
+        if listening(&site.at, port).await {
+            return Ok(log);
+        }
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+
+    bail!(
+        "the bundler never started answering on port {port}; see {log} on {}",
+        site.at.label()
+    )
+}
+
+/// Takes one attached device the rest of the way to what it was declared to be.
+async fn raise(
+    project: &Project,
+    site: &Site,
+    name: &str,
+    spec: &Spec,
+    view: &View,
+    stamps: &Mutex<Stamps>,
+    tag: Option<&str>,
+) -> Result<()> {
+    let want = spec.state;
+
+    if want < Level::Ready {
+        eprintln!("phone: {name} is {}", shown(reached(view)));
+
+        return Ok(());
+    }
+
+    ready(view, spec, name).await?;
+
+    if want < Level::Prepared {
+        eprintln!("phone: {name} is ready");
+
+        return Ok(());
+    }
+
+    prepared(project, site, name, view, stamps, tag).await
+}
+
+/// The forwards and the settings, which are what turn an attached device into
+/// one an app can be driven on. Both are Android's; a simulator shares its
+/// host's loopback already and takes its configuration from the host.
+async fn ready(view: &View, spec: &Spec, name: &str) -> Result<()> {
+    if !view.device.platform.is_adb() {
+        if !spec.reverse.is_empty() || !spec.settings.is_empty() {
+            eprintln!(
+                "phone: {name} is a {}, so `reverse` and `settings` do not apply to it",
+                view.device.platform
+            );
+        }
+
+        return Ok(());
+    }
+
+    if !spec.reverse.is_empty() {
+        let open = actions::reversed(&view.server, &view.device).await?;
+
+        for port in &spec.reverse {
+            if open.iter().any(|(device, _)| device == port) {
+                continue;
+            }
+
+            let what = actions::Reverse::Open {
+                device: *port,
+                host: *port,
+            };
+
+            eprintln!(
+                "phone: {}",
+                actions::reverse(&view.server, &view.device, what).await?
+            );
+        }
+    }
+
+    let want = spec.settings.each();
+
+    for changed in actions::settings(&view.server, &view.device, &want).await? {
+        eprintln!("phone: {name} {changed}");
+    }
+
+    Ok(())
+}
+
+/// The build, and the app in front.
+///
+/// Two questions, not one: the artifact can be current and the device still not
+/// carry it — a fresh emulator, a wipe, an uninstall between runs. Asking both
+/// is what makes `up` right on a device it has never seen and cheap on one it
+/// converged a minute ago.
+async fn prepared(
+    project: &Project,
+    site: &Site,
+    name: &str,
+    view: &View,
+    stamps: &Mutex<Stamps>,
+    tag: Option<&str>,
+) -> Result<()> {
+    let Some((platform, build)) = build_for(project, view.device.platform) else {
+        bail!(
+            "{name} wants a build and {} declares none for {}",
+            crate::project::FILE,
+            view.device.platform
+        );
+    };
+
+    let step = format!("build.{platform}");
+    let task = build.task();
+
+    let prior = stamped(stamps, &site.key, &step).await;
+    let (stale, hash) = due(site, Some(view), &task, prior.as_deref(), false).await?;
+    let here = apps::installed(&view.server, &view.device, &build.app).await?;
+
+    if stale || !here {
+        eprintln!(
+            "phone: {step} for {name} ({})",
+            match here {
+                false => format!("{} is not installed", build.app),
+                true => "the sources moved".to_string(),
+            }
+        );
+
+        perform(site, Some(view), &step, &build.run, hash, stamps, tag).await?;
+    }
+
+    eprintln!(
+        "phone: {}",
+        apps::launch(&view.server, &view.device, &build.app, &build.args).await?
+    );
+
+    // after the launch and not instead of it: a simulator delivers a url to a
+    // running app and silently drops one aimed at an app that is not, so the
+    // icon has to come first and the link second
+    if let Some(url) = &build.open {
+        eprintln!(
+            "phone: {}",
+            apps::open(&view.server, &view.device, url).await?
+        );
+    }
+
+    Ok(())
+}
+
+/// Reads what is there against what was declared, without changing any of it.
+pub async fn status(
+    reg: &mut Registry,
+    project: &Project,
+    profile: Option<&str>,
+) -> Result<Report> {
+    let site = Site::of(project);
+    let declared = project.devices(profile)?;
+    let stamps = Stamps::load()?;
+
+    let mut steps = Vec::new();
+
+    if let Some(task) = &project.manifest.deps {
+        let prior = stamps.get(&site.key, "deps");
+        let (stale, _) = due(&site, None, task, prior, false).await?;
+
+        steps.push(Row {
+            name: "deps".to_string(),
+            platform: None,
+            want: "current".to_string(),
+            have: match stale {
+                true => "stale".to_string(),
+                false => "current".to_string(),
+            },
+            note: match (stale, task.stale.is_some()) {
+                (true, false) => "declares no freshness check, so it always runs".to_string(),
+                (true, true) => task.run.clone(),
+                (false, _) => String::new(),
+            },
+        });
+    }
+
+    if let Some(bundler) = &project.manifest.bundler {
+        let up = listening(&site.at, bundler.port).await;
+
+        steps.push(Row {
+            name: "bundler".to_string(),
+            platform: None,
+            want: "up".to_string(),
+            have: match up {
+                true => "up".to_string(),
+                false => "down".to_string(),
+            },
+            note: format!("{}:{}", site.at.label(), bundler.port),
+        });
+    }
+
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let mut devices = Vec::new();
+
+    for &(name, spec) in &declared {
+        devices.push(row(project, &site, &views, &stamps, name, spec).await);
+    }
+
+    Ok(Report {
+        project: project.name(),
+        host: project.host().map(str::to_string),
+        steps,
+        devices,
+        strays: strays(&views, project),
+    })
+}
+
+async fn row(
+    project: &Project,
+    site: &Site,
+    views: &[View],
+    stamps: &Stamps,
+    name: &str,
+    spec: &Spec,
+) -> Row {
+    let want = spec.state;
+
+    let view = match pick(views, name) {
+        Ok(view) => view,
+        Err(e) => {
+            return Row {
+                name: name.to_string(),
+                platform: None,
+                want: want.as_str().to_string(),
+                have: "unknown".to_string(),
+                note: e.to_string(),
+            }
+        }
+    };
+
+    let mut note = String::new();
+    let mut have = reached(view);
+
+    // each rung is only asked about once the one below it holds, because the
+    // question does not mean anything otherwise: a device with no transport
+    // cannot be asked what it has installed
+    if have >= Some(Level::Attached) && want >= Level::Ready {
+        match settled(view, spec).await {
+            Ok(true) => have = Some(Level::Ready),
+            Ok(false) => note = "its forwards or settings have drifted".to_string(),
+            Err(e) => note = e.to_string(),
+        }
+    }
+
+    if have >= Some(Level::Ready) && want >= Level::Prepared {
+        match current(project, site, stamps, view).await {
+            Ok(true) => have = Some(Level::Prepared),
+            Ok(false) => note = "its build is behind the sources or is not installed".to_string(),
+            Err(e) => note = e.to_string(),
+        }
+    }
+
+    if have.is_none() {
+        note = below(want);
+    }
+
+    Row {
+        name: name.to_string(),
+        platform: Some(view.device.platform.as_str().to_string()),
+        want: want.as_str().to_string(),
+        have: shown(have),
+        note,
+    }
+}
+
+/// Whether a device's forwards and settings are already what was declared.
+async fn settled(view: &View, spec: &Spec) -> Result<bool> {
+    if !view.device.platform.is_adb() {
+        return Ok(true);
+    }
+
+    if !spec.reverse.is_empty() {
+        let open = actions::reversed(&view.server, &view.device).await?;
+
+        if !spec
+            .reverse
+            .iter()
+            .all(|port| open.iter().any(|(device, _)| device == port))
+        {
+            return Ok(false);
+        }
+    }
+
+    // `settings` writes only what differs and reports what it wrote, so an
+    // empty answer is the reading and there is nothing separate to check
+    Ok(
+        actions::settings(&view.server, &view.device, &spec.settings.each())
+            .await?
+            .is_empty(),
+    )
+}
+
+/// Whether a device carries a build no older than the sources. Read-only, which
+/// is why the stamp is compared rather than written.
+async fn current(project: &Project, site: &Site, stamps: &Stamps, view: &View) -> Result<bool> {
+    let Some((platform, build)) = build_for(project, view.device.platform) else {
+        bail!("no [build.*] entry covers {}", view.device.platform);
+    };
+
+    if !apps::installed(&view.server, &view.device, &build.app).await? {
+        return Ok(false);
+    }
+
+    let hash = probe(site, Some(view), build.stale.as_deref()).await?;
+
+    Ok(
+        match (hash, stamps.get(&site.key, &format!("build.{platform}"))) {
+            (Some(now), Some(then)) => now == then,
+            _ => false,
+        },
+    )
+}
+
+/// Puts a project's devices back where it found them: the bundler stopped, the
+/// forwards dropped, whatever was started shut down.
+///
+/// A handset is never one of those. It was already on when `up` ran, `up` did
+/// not turn it on, and turning off the phone somebody is holding to make a
+/// teardown symmetrical is not a trade worth making.
+pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
+    let at = Where::of(project.host());
+    let declared = project.every_device();
+
+    if let Some(bundler) = &project.manifest.bundler {
+        let ran = at
+            .exec(
+                STOP_BUNDLER,
+                &[&bundler.port.to_string()],
+                Duration::from_secs(20),
+            )
+            .await?;
+
+        match ran.ok() {
+            true => eprintln!("phone: bundler on {}:{} stopped", at.label(), bundler.port),
+            false => eprintln!("phone: could not stop the bundler: {}", ran.said),
+        }
+    }
+
+    let views = survey(reg).await;
+    reg.save()?;
+
+    for (name, _) in declared {
+        let Ok(view) = pick(&views, name) else {
+            continue;
+        };
+
+        if !actions::running(&view.reach) {
+            eprintln!("phone: {name} is already off");
+
+            continue;
+        }
+
+        if matches!(view.device.platform, Platform::Android | Platform::Ios) {
+            eprintln!("phone: {name} is a handset, so it is left running");
+
+            continue;
+        }
+
+        // before the device goes, while there is still a transport to ask over
+        if view.device.platform.is_adb() {
+            let _ = actions::reverse(&view.server, &view.device, actions::Reverse::Clear).await;
+        }
+
+        match actions::stop(&view.device, &view.reach).await {
+            Ok(said) => eprintln!("phone: {said}"),
+            Err(e) => eprintln!("phone: {name}: {e}"),
+        }
+    }
+
+    Ok(())
+}
+
+/// An emulator or simulator that is running and named nowhere in the manifest.
+/// Not an error — the point is to say so, since a second emulator on the same
+/// host is the usual reason a test drove the wrong screen.
+///
+/// Measured against every `[devices]` entry rather than against the profile
+/// being run: a simulator this project declares and this run leaves alone is
+/// accounted for, and calling it a stray would be the report crying wolf.
+///
+/// Handsets are left out. One is attached because somebody plugged it in or
+/// paired it, which is a deliberate act rather than something left running, and
+/// reporting it on every `status` would train the reader to skip the line.
+pub fn strays(views: &[View], project: &Project) -> Vec<String> {
+    views
+        .iter()
+        // the same reading of "running" the rest of this module uses: a
+        // simulator has no transport to attach over and would never qualify
+        .filter(|v| reached(v) >= Some(Level::Attached))
+        .filter(|v| matches!(v.device.platform, Platform::Emulator | Platform::Simulator))
+        .filter(|v| {
+            !project
+                .manifest
+                .devices
+                .keys()
+                .any(|name| v.device.is(name))
+        })
+        .map(|v| v.device.label.clone())
+        .collect()
+}
+
+pub fn print(report: &Report) {
+    let rows: Vec<&Row> = report.steps.iter().chain(&report.devices).collect();
+
+    let width = |f: fn(&Row) -> &str| rows.iter().map(|r| f(r).len()).max().unwrap_or(0);
+
+    let name = width(|r| &r.name).max(6);
+    let want = width(|r| &r.want).max(4);
+    let have = width(|r| &r.have).max(4);
+
+    for row in rows {
+        let mark = match row.want == row.have {
+            true => " ",
+            false => "!",
+        };
+
+        println!(
+            "{mark} {:name$}  {:want$} -> {:have$}  {}",
+            row.name, row.want, row.have, row.note
+        );
+    }
+
+    for label in &report.strays {
+        println!(
+            "  {label:name$}  {:want$}    {:have$}  running, declared nowhere here",
+            "", ""
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{Device, Platform, Reach, View};
+
+    fn view(label: &str, platform: Platform, reach: Reach) -> View {
+        View::new(Device::new(label, label, platform), reach)
+    }
+
+    fn attached(label: &str) -> View {
+        view(
+            label,
+            Platform::Emulator,
+            Reach::Attached {
+                serial: "emulator-5554".to_string(),
+                wireless: false,
+            },
+        )
+    }
+
+    /// The rung a survey alone can prove, which is not the same question for a
+    /// device with a transport and one without.
+    #[test]
+    fn a_simulator_is_attached_the_moment_its_host_lists_it() {
+        assert_eq!(
+            reached(&view("iPhone 17", Platform::Simulator, Reach::Online)),
+            Some(Level::Attached)
+        );
+        assert_eq!(
+            reached(&view("pixel", Platform::Emulator, Reach::Online)),
+            Some(Level::Booted),
+            "an emulator that is running without a transport is only booted"
+        );
+        assert_eq!(reached(&attached("pixel")), Some(Level::Attached));
+        assert_eq!(
+            reached(&view("pixel", Platform::Emulator, Reach::Off)),
+            None
+        );
+        assert_eq!(
+            reached(&view(
+                "f",
+                Platform::Android,
+                Reach::Offline { last_seen: None }
+            )),
+            None
+        );
+    }
+
+    /// An unattended run has nobody to answer a picker, so a name that could
+    /// mean two devices has to end the run rather than pick one.
+    #[test]
+    fn an_ambiguous_name_is_refused_rather_than_chosen_from() {
+        let views = [attached("pixel_7-api36"), attached("pixel_7-api35")];
+
+        assert!(pick(&views, "pixel_7").is_err());
+        assert_eq!(
+            pick(&views, "pixel_7-api36").unwrap().device.label,
+            "pixel_7-api36"
+        );
+        assert!(pick(&views, "nothing").is_err());
+    }
+
+    /// A name that is a prefix of another is what `use` and `-t` settle with a
+    /// prompt; here the exact spelling has to win outright.
+    #[test]
+    fn an_exact_name_beats_the_longer_one_it_is_inside_of() {
+        let views = [attached("pixel"), attached("pixel_7-api36")];
+
+        assert_eq!(pick(&views, "pixel").unwrap().device.label, "pixel");
+    }
+
+    #[test]
+    fn a_build_is_chosen_by_the_platform_the_device_runs() {
+        let manifest = Project::parse(
+            "[build.android]\napp = \"a\"\nrun = \"x\"\n[build.ios]\napp = \"b\"\nrun = \"y\"\n",
+        )
+        .unwrap();
+
+        let project = Project {
+            root: "/tmp/p".into(),
+            manifest,
+        };
+
+        assert_eq!(
+            build_for(&project, Platform::Emulator).unwrap().0,
+            "android"
+        );
+        assert_eq!(build_for(&project, Platform::Android).unwrap().0, "android");
+        assert_eq!(build_for(&project, Platform::Simulator).unwrap().0, "ios");
+        assert_eq!(build_for(&project, Platform::Ios).unwrap().0, "ios");
+    }
+
+    /// The manifest's `dir` is written the way it is typed into a shell, and a
+    /// `~` in it means the home of the machine the command runs on.
+    #[test]
+    fn the_project_directory_is_a_positional_and_its_tilde_is_the_hosts() {
+        let script = scripted("pwd");
+
+        assert!(script.contains("dir=$1"), "{script}");
+        assert!(script.contains("$HOME"), "{script}");
+        assert!(
+            !script.contains("cd ~"),
+            "the tilde must not be expanded before it is sent"
+        );
+    }
+
+    #[test]
+    fn a_project_wide_step_names_no_device() {
+        assert_eq!(args("/tmp/p", None), ["/tmp/p", "", "", "", "", ""]);
+
+        let view = attached("pixel");
+        let bound = args("/tmp/p", Some(&view));
+
+        assert_eq!(bound[0], "/tmp/p");
+        assert_eq!(bound[1], "emulator-5554");
+        assert_eq!(bound[3], "android", "what a build command is spelled with");
+        assert_eq!(bound[4], "emu", "and what the survey calls the same device");
+        assert_eq!(bound[5], "pixel");
+    }
+
+    /// The two halves of what makes a run concurrent: devices that would run
+    /// the same build take turns, and devices that would not, do not.
+    #[test]
+    fn devices_are_grouped_by_the_build_they_share() {
+        let spec = Spec::default();
+
+        let wanted: Vec<Climb> = vec![
+            ("pixel", &spec, attached("pixel")),
+            (
+                "iPhone 17",
+                &spec,
+                view("iPhone 17", Platform::Simulator, Reach::Online),
+            ),
+            ("nexus", &spec, attached("nexus")),
+        ];
+
+        let grouped: Vec<Vec<&str>> = lanes(&wanted)
+            .iter()
+            .map(|lane| lane.iter().map(|(name, _, _)| *name).collect())
+            .collect();
+
+        assert_eq!(
+            grouped,
+            [vec!["pixel", "nexus"], vec!["iPhone 17"]],
+            "the emulators share a lane, in the order they were declared"
+        );
+    }
+
+    /// Not knowing whether a step is done is not the same as knowing it is, and
+    /// treating it as done would skip the work forever.
+    #[tokio::test]
+    async fn a_step_with_no_freshness_check_is_never_current() {
+        let stamps = Stamps::default();
+        let task = Task {
+            stale: None,
+            run: "true".to_string(),
+        };
+
+        let (stale, hash) = due(
+            &Site::here("/tmp", "/tmp/p"),
+            None,
+            &task,
+            stamps.get("/tmp/p", "deps"),
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert!(stale);
+        assert!(hash.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_step_is_current_only_while_what_it_prints_stays_the_same() {
+        let dir = std::env::temp_dir();
+        let key = "/tmp/p";
+
+        let task = Task {
+            stale: Some("echo one".to_string()),
+            run: "true".to_string(),
+        };
+
+        let mut stamps = Stamps::default();
+        let site = Site::here(&dir.display().to_string(), key);
+
+        let (stale, hash) = due(&site, None, &task, stamps.get(key, "deps"), false)
+            .await
+            .unwrap();
+
+        assert!(stale, "nothing has been stamped yet");
+        stamps.set(key, "deps", hash.as_deref().unwrap());
+
+        let (stale, _) = due(&site, None, &task, stamps.get(key, "deps"), false)
+            .await
+            .unwrap();
+
+        assert!(!stale, "the same print means the same inputs");
+
+        let moved = Task {
+            stale: Some("echo two".to_string()),
+            run: "true".to_string(),
+        };
+
+        let (stale, _) = due(&site, None, &moved, stamps.get(key, "deps"), false)
+            .await
+            .unwrap();
+
+        assert!(stale, "a different print means different inputs");
+    }
+
+    /// `--rebuild` is the escape hatch for when the freshness check is right
+    /// and the answer is still wrong.
+    #[tokio::test]
+    async fn a_forced_step_is_due_however_fresh_it_looks() {
+        let mut stamps = Stamps::default();
+        let task = Task {
+            stale: Some("echo one".to_string()),
+            run: "true".to_string(),
+        };
+
+        let site = Site::here(&std::env::temp_dir().display().to_string(), "/p");
+
+        let (_, hash) = due(&site, None, &task, stamps.get("/p", "deps"), false)
+            .await
+            .unwrap();
+
+        stamps.set("/p", "deps", hash.as_deref().unwrap());
+
+        let (stale, _) = due(&site, None, &task, stamps.get("/p", "deps"), true)
+            .await
+            .unwrap();
+
+        assert!(stale);
+    }
+
+    /// A freshness check that cannot run is not a reason to rebuild: it is a
+    /// broken manifest, and rebuilding would hide it behind twenty minutes of
+    /// gradle every single time.
+    #[tokio::test]
+    async fn a_freshness_check_that_fails_ends_the_run() {
+        let site = Site::here(&std::env::temp_dir().display().to_string(), "/p");
+        let err = probe(&site, None, Some("exit 3"))
+            .await
+            .unwrap_err()
+            .to_string();
+
+        assert!(err.contains("exited 3"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_step_that_cannot_reach_the_project_directory_says_which_one() {
+        let err = probe(
+            &Site::here("/nowhere/at/all", "/p"),
+            None,
+            Some("echo hello"),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("/nowhere/at/all"), "{err}");
+    }
+
+    fn row_of(name: &str, want: &str, have: &str) -> Row {
+        Row {
+            name: name.to_string(),
+            platform: None,
+            want: want.to_string(),
+            have: have.to_string(),
+            note: String::new(),
+        }
+    }
+
+    /// `status` exits on this, so a script gates on one command rather than on
+    /// parsing the table.
+    #[test]
+    fn a_report_has_converged_only_when_every_row_has() {
+        let mut report = Report {
+            strays: Vec::new(),
+            project: "p".to_string(),
+            host: None,
+            steps: vec![row_of("deps", "current", "current")],
+            devices: vec![row_of("pixel", "prepared", "prepared")],
+        };
+
+        assert!(report.converged());
+
+        report.devices.push(row_of("iphone", "ready", "off"));
+
+        assert!(!report.converged());
+    }
+
+    fn declaring(text: &str) -> Project {
+        Project {
+            root: "/tmp/p".into(),
+            manifest: Project::parse(text).unwrap(),
+        }
+    }
+
+    #[test]
+    fn a_device_nobody_declared_is_named_rather_than_ignored() {
+        let views = [attached("pixel_7-api36"), attached("leftover-avd")];
+
+        assert_eq!(
+            strays(&views, &declaring("[devices.\"pixel_7-api36\"]\n")),
+            ["leftover-avd"]
+        );
+    }
+
+    #[test]
+    fn a_declared_device_that_is_not_attached_is_not_a_stray() {
+        let views = [view("pixel", Platform::Emulator, Reach::Off)];
+
+        assert!(strays(&views, &declaring("[devices.pixel]\n")).is_empty());
+    }
+
+    /// A simulator never reaches `attached` — there is no transport to attach
+    /// over — so asking that question of one would hide every loose simulator.
+    #[test]
+    fn a_running_simulator_nobody_declared_is_a_stray() {
+        let views = [view("iPhone 17", Platform::Simulator, Reach::Online)];
+
+        assert_eq!(
+            strays(&views, &declaring("[devices.pixel]\n")),
+            ["iPhone 17"]
+        );
+    }
+
+    /// A device the manifest declares and this run's profile leaves out is
+    /// accounted for, not loose. Reporting it would make the line meaningless
+    /// on any project that declares more than it converges at once.
+    #[test]
+    fn a_device_outside_the_profile_being_run_is_not_a_stray() {
+        let views = [attached("pixel"), attached("iphone")];
+        let project = declaring(
+            "[devices.pixel]\n[devices.iphone]\n\n[profiles.android]\ndevices = [\"pixel\"]\n",
+        );
+
+        assert_eq!(project.devices(Some("android")).unwrap().len(), 1);
+        assert!(strays(&views, &project).is_empty());
+    }
+}

@@ -13,7 +13,7 @@ use crate::registry::Registry;
 use app::{App, Mode, Outcome, Prompt};
 
 /// Returns a command the caller must run after the terminal is back to normal;
-/// `phone logs` is the only action that cannot coexist with the UI.
+/// `phone app logs` is the only action that cannot coexist with the UI.
 pub async fn run(reg: Registry) -> Result<Option<std::process::Command>> {
     let current = reg.current.clone();
     let shared = Arc::new(Mutex::new(reg));

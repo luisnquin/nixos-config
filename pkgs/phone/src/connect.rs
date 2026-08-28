@@ -101,7 +101,7 @@ pub async fn connect(
         }
     }
 
-    rep.note("plug it in over USB and run `phone pin` to fix a port for next time");
+    rep.note("plug it in over USB and run `phone device pin` to fix a port for next time");
 
     Err(anyhow!("no route to {}", device.label))
 }

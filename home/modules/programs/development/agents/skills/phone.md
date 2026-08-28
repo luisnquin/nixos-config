@@ -8,7 +8,7 @@ into it.
 own adb server. A simulator has no such transport — CoreSimulator only runs on
 the Mac that owns it — so those verbs run as a `phone` on that host and come
 back over ssh. Either way the commands are the same. A physical iPhone shows up
-in `phone devices` but can only be screenshotted and tailed, not read or
+in `phone device list` but can only be screenshotted and tailed, not read or
 pressed.
 
 **The CLI documents itself. `phone --help` carries the verb list and the loop
@@ -16,20 +16,42 @@ they are meant to be used in; `phone help <verb>` carries that verb's flags,
 worked examples and what it is for.** This file covers only what the CLI cannot
 tell you about the devices themselves.
 
+The verbs are grouped: `phone device …` for the devices, `phone app …` for what
+runs on them, `phone host …` for the machines that hold them. Everything that
+touches the screen — `shot`, `snapshot`, `tap`, `type`, `wait` — is top level,
+because that is the loop.
+
+## Start with `phone up`
+
+A repository that declares a `phone.toml` beside its code has already said what
+a working device looks like for it: which emulator, which ports forwarded, which
+build, which bundler and on which machine. `phone up` reads that and does only
+what is missing.
+
+That is the first command to run in such a project, before reaching for anything
+below. It is safe to repeat — a second run against a converged project opens the
+app and stops, it does not rebuild — so there is never a reason to work out by
+hand which half of the setup survived. `phone status` answers the same question
+without changing anything and exits non-zero when something has drifted, which
+is what a test script gates on.
+
+Nothing below is wrong in such a project, it is just the long way round.
+
 ## Device states
 
-`phone devices` prints a state per device, and the state says what to do next:
+`phone device list` prints a state per device, and the state says what to do
+next:
 
 | state | meaning | next step |
 | --- | --- | --- |
 | `attached`, `online` | ready to drive | nothing |
-| `off` | defined on its host, not running | `phone boot` |
-| `known` | remembered, not visible anywhere right now | `phone connect` |
-| `offline` | last seen at an address that no longer answers | `phone connect` |
+| `off` | defined on its host, not running | `phone device boot` |
+| `known` | remembered, not visible anywhere right now | `phone device connect` |
+| `offline` | last seen at an address that no longer answers | `phone device connect` |
 | `unauthorized` | plugged in, waiting on the dialog | accept it on the device |
 
-`boot` starts a device that already exists. Creating an AVD or a simulator that
-was never defined is `avdmanager` or `simctl` over ssh by hand.
+`device boot` starts a device that already exists. Creating an AVD or a
+simulator that was never defined is `avdmanager` or `simctl` over ssh by hand.
 
 ## Never sleep between an act and a read
 

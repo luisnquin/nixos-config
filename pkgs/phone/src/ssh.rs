@@ -2,7 +2,8 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
 
 use crate::discover::sweep;
@@ -265,6 +266,108 @@ impl Where {
             Ok(bytes) => String::from_utf8_lossy(&bytes).trim().to_string(),
             Err(_) => String::new(),
         }
+    }
+
+    /// `script`, with everything it printed kept. The local half reads the exit
+    /// code off the process because there is one to read; the remote half reads
+    /// it off the stream, for the reason `run` gives.
+    pub async fn exec(&self, script: &str, args: &[&str], limit: Duration) -> Result<Ran> {
+        let Where::Here = self else {
+            return run(self.host().expect("not Here"), script, args, limit).await;
+        };
+
+        let out = tokio::time::timeout(limit, self.run(script, args).output())
+            .await
+            .map_err(|_| anyhow!("the command did not finish in {}s", limit.as_secs()))??;
+
+        Ok(Ran {
+            status: match out.status.code() {
+                Some(code) => Status::Code(code),
+                None => Status::Missing,
+            },
+            stdout: out.stdout,
+            said: String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        })
+    }
+
+    /// `script` with its output going straight to this terminal as it arrives.
+    ///
+    /// For the long ones — a dependency install, a gradle build — where a
+    /// captured run means minutes of silence and then a wall of text. The exit
+    /// code still comes off the stream rather than off ssh, so the status line
+    /// has to be picked back out of the stderr being forwarded.
+    /// `tag`, when there is one, is written in front of every line the command
+    /// produces. Nothing needs it while one command runs at a time; two of them
+    /// streaming into the same terminal do, because a gradle line and an
+    /// xcodebuild line are otherwise indistinguishable. It costs a pipe on
+    /// stdout, which is why the untagged case keeps inheriting it and whatever
+    /// redraws its own progress there still can.
+    pub async fn stream(&self, script: &str, args: &[&str], tag: Option<&str>) -> Result<Status> {
+        let wrapped = wrapped(script);
+
+        let mut cmd = match self {
+            Where::Here => {
+                let mut cmd = Command::new("sh");
+
+                cmd.arg("-c").arg(&wrapped).arg("sh").args(args);
+                cmd.stdin(Stdio::null());
+
+                cmd
+            }
+            Where::On(host) => self::script(host, &wrapped, args),
+        };
+
+        let mut child = cmd
+            .stdout(match tag {
+                Some(_) => Stdio::piped(),
+                None => Stdio::inherit(),
+            })
+            .stderr(Stdio::piped())
+            .spawn()
+            .context("starting the command")?;
+
+        // its own task rather than a second arm of the loop below: a command
+        // whose stdout pipe fills up while nothing is draining it stops dead
+        let forwarding = child.stdout.take().map(|out| {
+            let tag = tag.unwrap_or_default().to_string();
+
+            tokio::spawn(async move {
+                let mut lines = tokio::io::BufReader::new(out).lines();
+
+                while let Ok(Some(line)) = lines.next_line().await {
+                    println!("{tag}{line}");
+                }
+            })
+        });
+
+        let tag = tag.unwrap_or_default();
+        let piped = child.stderr.take().expect("stderr is piped");
+        let mut lines = tokio::io::BufReader::new(piped).lines();
+        let mut status = Status::Missing;
+
+        while let Some(line) = lines.next_line().await? {
+            let Some((before, value)) = line.split_once(STATUS) else {
+                eprintln!("{tag}{line}");
+                continue;
+            };
+
+            status = match value.trim().parse() {
+                Ok(code) => Status::Code(code),
+                Err(_) => Status::Garbled(value.trim().to_string()),
+            };
+
+            if !before.is_empty() {
+                eprintln!("{tag}{before}");
+            }
+        }
+
+        child.wait().await?;
+
+        if let Some(forwarding) = forwarding {
+            forwarding.await.ok();
+        }
+
+        Ok(status)
     }
 }
 

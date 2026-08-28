@@ -43,7 +43,7 @@ pub fn app_id(app: &str) -> Result<&str> {
 /// A URL is not an identifier and cannot be validated down to a charset — a
 /// query string is allowed to hold nearly anything. What it must not do is end
 /// the quoting it is about to sit inside, so that is the whole of the check.
-fn url(raw: &str) -> Result<&str> {
+pub fn url(raw: &str) -> Result<&str> {
     if raw.is_empty() || raw.contains('\'') || raw.chars().any(char::is_whitespace) {
         bail!("a url cannot be empty or hold quotes or spaces: {raw}");
     }
@@ -74,7 +74,17 @@ esac"#
     )
 }
 
-pub async fn launch(server: &Server, device: &Device, app: &str) -> Result<String> {
+/// `args` reach the app as its own `argv`, which is how a runtime that would
+/// otherwise sit on a menu can be told what to start. Only a simulator takes
+/// them: `am start` sends an intent rather than spawning a process, so Android
+/// has no argv to put them in, and a manifest declaring them for it is refused
+/// when it is read rather than ignored here.
+pub async fn launch(
+    server: &Server,
+    device: &Device,
+    app: &str,
+    args: &[String],
+) -> Result<String> {
     let app = app_id(app)?;
 
     if device.platform == Platform::Ios {
@@ -82,10 +92,17 @@ pub async fn launch(server: &Server, device: &Device, app: &str) -> Result<Strin
     }
 
     if device.platform == Platform::Simulator {
-        let ran = on_host(
-            device,
-            r#"xcrun simctl launch "$1" "$2""#,
-            app,
+        let mut argv = vec![simctl::udid(device)?, app];
+
+        argv.extend(args.iter().map(String::as_str));
+
+        let host = crate::actions::host_of(device)?;
+        let ran = ssh::run(
+            host,
+            // `"$@"` rather than a fixed `"$1" "$2"`, so that however many
+            // arguments the manifest declares arrive as that many words
+            r#"xcrun simctl launch "$@""#,
+            &argv,
             LAUNCH_TIMEOUT,
         )
         .await?;
@@ -101,6 +118,10 @@ pub async fn launch(server: &Server, device: &Device, app: &str) -> Result<Strin
             Some((_, pid)) => format!("launched {app} on {} (pid {})", device.label, pid.trim()),
             None => format!("launched {app} on {}", device.label),
         });
+    }
+
+    if !args.is_empty() {
+        bail!("{} takes no launch arguments", device.label);
     }
 
     let serial = attached(server, device).await?;
@@ -136,7 +157,7 @@ fn missing(said: &str, app: &str) -> String {
         || said.contains("FBSOpenApplicationServiceErrorDomain, code=4")
         || said.is_empty()
     {
-        return format!("nothing launchable named {app}; `phone install` it first");
+        return format!("nothing launchable named {app}; `phone app install` it first");
     }
 
     detail(said).to_string()
@@ -223,6 +244,52 @@ pub async fn open(server: &Server, device: &Device, raw: &str) -> Result<String>
     }
 
     Ok(format!("opened {raw} on {}", device.label))
+}
+
+/// Whether `app` is on the device at all.
+///
+/// The other half of the freshness question `up` asks: a build can be current
+/// and the device still not carry it — a wiped emulator, a fresh AVD, an
+/// uninstall between runs. Answering it costs one round trip and saves a build
+/// that would otherwise be skipped as up to date.
+pub async fn installed(server: &Server, device: &Device, app: &str) -> Result<bool> {
+    let app = app_id(app)?;
+
+    if device.platform == Platform::Ios {
+        bail!("cannot read what is installed on an iPhone from here");
+    }
+
+    if device.platform == Platform::Simulator {
+        // `get_app_container` exits non-zero for a bundle id the simulator does
+        // not carry, which is the whole answer
+        let ran = on_host(
+            device,
+            r#"xcrun simctl get_app_container "$1" "$2""#,
+            app,
+            LAUNCH_TIMEOUT,
+        )
+        .await?;
+
+        return Ok(ran.ok());
+    }
+
+    let serial = attached(server, device).await?;
+
+    // `pm list packages <name>` matches on substring, so the answer has to be
+    // compared rather than counted: `app.example` would report `app.example.dev`
+    // as itself
+    let script = format!("pm list packages {app}");
+    let out = adb::run_timeout(server, &["-s", &serial, "shell", &script], LAUNCH_TIMEOUT).await?;
+
+    if !out.ok() {
+        bail!("{}", out.stderr.trim());
+    }
+
+    Ok(out
+        .stdout
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("package:"))
+        .any(|name| name == app))
 }
 
 /// A url nothing is registered for is the common failure and both platforms
@@ -314,7 +381,7 @@ mod tests {
     fn a_launch_that_resolves_nothing_says_what_to_do_about_it() {
         let said = missing("Error: Activity class does not exist.", "com.example.app");
 
-        assert!(said.contains("phone install"), "{said}");
+        assert!(said.contains("phone app install"), "{said}");
     }
 
     /// The fallback has to run for an app whose launcher activity is missing
@@ -337,7 +404,7 @@ mod tests {
         const NOT_INSTALLED: &str = "An error was encountered processing the command (domain=FBSOpenApplicationServiceErrorDomain, code=4):\nSimulator device failed to launch com.example.nope.";
         const NO_HANDLER: &str = "An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=115):\nSimulator device failed to open exp+nope://x.";
 
-        assert!(missing(NOT_INSTALLED, "com.example.nope").contains("phone install"));
+        assert!(missing(NOT_INSTALLED, "com.example.nope").contains("phone app install"));
         assert_eq!(
             unhandled(NO_HANDLER, "exp+nope://x"),
             "no app on this device handles exp+nope: urls"

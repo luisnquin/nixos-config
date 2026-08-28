@@ -33,12 +33,17 @@ pub struct Cli {
 /// them again.
 const OVERVIEW: &str = r#"How this is meant to be used
 
-  A screen cannot be acted on until it has been read, so the loop is: pick a
-  device, read what is on it, press something by the name you just read, wait
-  for the result, read again.
+  In a project with a phone.toml, one command puts everything where that file
+  says it should be: devices booted, ports forwarded, a build no older than the
+  sources installed, the app in front.
 
-    phone devices            # what exists; `boot` anything listed as `off`
-    phone use pixel_7-api36  # the default for every later command, set once
+    phone up                 # start here; safe to repeat, and cheap when nothing moved
+    phone status             # what drifted; exits non-zero when anything has
+
+  Then drive it. A screen cannot be acted on until it has been read, so the loop
+  is: read what is on it, press something by the name you just read, wait for the
+  result, read again.
+
     phone snapshot           # read: every element on screen, by name
     phone tap "Log in"       # act: by a name that came from the snapshot
     phone wait Dashboard     # let the screen catch up before reading again
@@ -48,13 +53,14 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
     phone do "tap 'Log in'" "wait Dashboard" "shot --crop @2"
 
-The verbs, in the order they are reached for
+The commands
 
-  device   devices connect disconnect pair pin use forget hosts boot shutdown
+  project  up down status
   screen   snapshot shot size tap press swipe type key wait do
+  device   list connect disconnect pair pin use forget boot shutdown reverse
   app      install launch stop open logs
-  host     reverse mirror record
-  this     doctor
+  host     list enable disable
+  this     mirror record doctor
 
 What to know before scripting it
 
@@ -69,7 +75,8 @@ What to know before scripting it
 Naming things
 
   -t <name> targets one command and PHONE_TARGET a whole shell; both beat the
-  default set by `use`. A name matches on text, model, host or alias, and an
+  default set by `phone device use`, and that beats the `default` a project's
+  phone.toml names. A name matches on text, model, host or alias, and an
   ambiguous one is refused with the candidates listed rather than guessed at.
 
   @index numbers the rows of one snapshot only. Two commands are two dumps and
@@ -88,155 +95,86 @@ pub const DEFAULT_AMOUNT: f64 = 0.6;
 
 #[derive(Subcommand)]
 pub enum Command {
-    // the device: what exists, how to reach it, and whether it is up
-    /// List every reachable and remembered device
+    // the project: everything phone.toml declares, brought to where it says
+    /// Bring this project's devices to the state phone.toml declares
     #[command(after_help = r#"Examples:
-  phone devices
-  phone devices --json
+  phone up
+  phone up --profile e2e
+  phone up --rebuild
+  phone up --timeout 5m
 
-The state column says what to do next: `attached` and `online` are ready to
-drive, `off` exists but is not running and takes `boot`, `known` and `offline`
-take `connect`."#)]
-    Devices {
-        /// Emit JSON instead of a table
+Reads the nearest phone.toml, works out what is missing, and does only that:
+boots what is off, attaches to it, forwards the ports it declares, writes the
+settings it declares, builds when the sources have moved, and starts the app.
+
+Safe to repeat, and that is the point. A second run against a converged project
+opens the app and stops — it does not rebuild. A build happens when the project's
+own freshness command prints something different from last time, or when the app
+is not on the device at all, which is what makes a wiped emulator rebuild without
+being told to. `--rebuild` forces it when the check is right and the answer is
+still wrong.
+
+Everything declared runs on the host phone.toml names, in the directory it names,
+so a build and a bundler live wherever the sdk is rather than on this machine.
+`phone status` says what is not there yet without changing any of it.
+
+`--profile` narrows a run to a named subset of the declared devices. Without one
+every declared device is converged, which is what makes `phone down` the exact
+inverse of `phone up`.
+
+Devices on different platforms converge at once rather than in turn, so an iPhone
+does not wait out an android build. Two devices that would run the same build take
+turns, since they would run it in the same directory. While more than one is going
+each line of output says which device it came from."#)]
+    Up {
+        /// Only the devices this profile names
         #[arg(long)]
-        json: bool,
-    },
-    /// Bring up a transport to a device, trying history before discovery
-    #[command(after_help = r#"Examples:
-  phone connect             # the most recent device
-  phone connect faraday
-  phone connect --no-sweep  # skip the port sweep when an address is remembered
+        profile: Option<String>,
 
-Brings up a transport to a device that is already running. To start one that is
-not, see `phone boot`."#)]
-    Connect {
-        #[arg(id = "device")]
-        target: Option<String>,
-
-        /// Skip the tailnet port sweep
+        /// Run the build steps whatever the freshness checks say
         #[arg(long)]
-        no_sweep: bool,
+        rebuild: bool,
 
-        /// Ports to sweep, as START-END
-        #[arg(long, value_parser = parse_range)]
-        range: Option<RangeInclusive<u16>>,
-
-        /// Concurrent probes during the sweep
-        #[arg(long, default_value_t = 512)]
-        concurrency: usize,
-    },
-    /// Drop a wireless transport
-    #[command(after_help = r#"Examples:
-  phone disconnect        # the device in use
-  phone disconnect --all  # every wireless transport at once
-
-Only drops the transport. The device keeps running, and `connect` brings it
-back without a new pairing."#)]
-    Disconnect {
-        #[arg(id = "device")]
-        target: Option<String>,
-
-        /// Drop every wireless transport
-        #[arg(long)]
-        all: bool,
-    },
-    /// Pair with a device that is in wireless-debugging pairing mode
-    #[command(after_help = r#"Examples:
-  phone pair 314159                        # address found over mDNS
-  phone pair 314159 --addr 192.168.1.40:37021
-
-Needed once per handset, from Developer options > Wireless debugging > Pair
-device with pairing code. The code and the port are both shown in that dialog
-and both expire when it closes. Emulators and simulators never need this."#)]
-    Pair {
-        /// Six digit code from the pairing dialog
-        code: String,
-
-        /// host:port from the dialog; discovered over mDNS when omitted
-        #[arg(long)]
-        addr: Option<String>,
-    },
-    /// Restart adbd on a fixed port so later reconnects skip discovery
-    #[command(after_help = r#"Examples:
-  phone pin              # port 5555 on the device in use
-  phone pin --port 5678
-
-A paired handset picks a fresh port every time it reconnects, which is what
-makes `connect` sweep for it. Pinning one costs a few seconds now and saves that
-sweep on every later connect. Does not survive a reboot of the device."#)]
-    Pin {
-        #[arg(id = "device")]
-        target: Option<String>,
-
-        #[arg(long, default_value_t = 5555)]
-        port: u16,
-    },
-    /// Set the device other commands target by default
-    #[command(after_help = r#"Examples:
-  phone use pixel_7-api36  # every later command targets it
-  phone use                # settle on the default already in force
-
-Set once at the start of a session rather than passing -t to every command. A
--t or PHONE_TARGET on a single command still wins over it."#)]
-    Use {
-        #[arg(id = "device")]
-        target: Option<String>,
-    },
-    /// Drop a device from the registry
-    #[command(after_help = r#"Examples:
-  phone forget galaxy-s26-plus
-
-Removes what was remembered about it: its address, its alias, its pairing. It
-reappears the next time it is discovered, so this is for a device that is gone
-for good or one whose remembered address is wrong."#)]
-    Forget {
-        #[arg(id = "device")]
-        target: String,
-    },
-    /// Choose which ssh hosts to survey for devices
-    #[command(after_help = r#"Examples:
-  phone hosts              # what each host was found to offer
-  phone hosts enable rose  # probe it, and survey it from then on
-  phone hosts disable rose
-
-Only enabled hosts are surveyed, so each one adds to what every command costs.
-Enabling a host again re-probes what it can drive."#)]
-    Hosts {
-        #[command(subcommand)]
-        action: Option<HostAction>,
-    },
-    /// Start a simulator or emulator and wait until it can be driven
-    #[command(after_help = r#"Examples:
-  phone boot "iPhone 17 Pro"  # a simulator, on whichever host has it
-  phone boot medium_phone     # an AVD, here or on a host
-  phone boot --timeout 5m nyx-remote-android
-
-Returns only once the device can actually be driven, not when the process
-starts: a simulator answers immediately and an emulator shows its window well
-before its system is up, and a tap sent at either moment is lost. Booting one
-that is already running says so and exits 0, so it is safe in front of a script.
-
-`phone devices` lists what can be booted as `off`. Expect 20-30s. This starts
-something already defined; creating an AVD or a simulator is still `avdmanager`
-or `simctl create`."#)]
-    Boot {
-        #[arg(id = "device")]
-        target: Option<String>,
-
-        /// Give up if it is still not usable by then
+        /// Give up on a device that is still not usable by then
         #[arg(long, default_value = "180s", value_parser = parse_duration)]
         timeout: Duration,
     },
-    /// Stop a running simulator or emulator
+    /// Stop what `up` started, leaving handsets alone
     #[command(after_help = r#"Examples:
-  phone shutdown medium_phone
-  phone shutdown "iPhone 17 Pro"
+  phone down
 
-Stopping one that is not running is a no-op. Handsets cannot be stopped."#)]
-    Shutdown {
-        #[arg(id = "device")]
-        target: Option<String>,
+Stops the bundler, drops the forwards and shuts down the emulators and
+simulators this project declares. A handset is left running: it was on before
+`up` ran and `up` did not turn it on.
+
+Every declared device, and no `--profile` to narrow it. A bare `up` brings all of
+them up, so a teardown that took only some down would leave the rest as the
+strays the next `status` complains about. To stop one device and nothing else,
+name it: `phone device shutdown NAME`.
+
+What is installed on a device stays installed, so the next `up` boots it and
+goes straight to the app."#)]
+    Down,
+    /// Say what this project declares and what is actually there
+    #[command(after_help = r#"Examples:
+  phone status
+  phone status --json
+  phone status --profile e2e
+
+Reads and changes nothing. Exits 0 when everything declared is where it was
+declared to be and non-zero when anything has drifted, which is what lets a test
+script gate on one command: `phone status || phone up`.
+
+A `!` in the first column marks the rows that differ, and a device running that
+the manifest never declared is listed under them."#)]
+    Status {
+        /// Only the devices this profile names
+        #[arg(long)]
+        profile: Option<String>,
+
+        /// Emit JSON instead of a table
+        #[arg(long)]
+        json: bool,
     },
 
     // the screen: read it, then act on what the reading named
@@ -434,84 +372,45 @@ belong on `do` rather than on a step."#)]
         steps: Vec<String>,
     },
 
-    // the app: put it there, start it, point it somewhere, watch it
-    /// Install an apk, or a .app bundle on a simulator
+    /// What exists, how to reach it, and whether it is up
     #[command(after_help = r#"Examples:
-  phone install ./app/build/outputs/apk/debug/app-debug.apk
-  phone install -t "iPhone 17 Pro" ./build/Debug-iphonesimulator/App.app
+  phone device                    # same as `phone device list`
+  phone device list --json
+  phone device use pixel_7-api36
+  phone device boot medium_phone
 
-An .apk goes to a handset or an emulator, a .app bundle to a simulator. The file
-is read here and sent to whichever host holds the device, so a path on this
-machine is what it wants. `phone launch <app>` starts what was installed."#)]
-    Install { apk: PathBuf },
-    /// Start an app, whatever is on screen
-    #[command(after_help = r#"Examples:
-  phone launch com.example.app
-  phone launch -t "iPhone 17 Pro Max" com.example.app
-
-Sends the intent the launcher icon sends, so the app comes up the way a person
-starting it would find it. Returns once the process exists, which is what makes
-the next `snapshot` a snapshot of the app rather than of whatever was in front.
-
-A package name on Android, a bundle id on a simulator. The app has to be
-installed already — `phone install` puts it there."#)]
-    Launch { app: String },
-    /// Force-stop an app, leaving the device up
-    #[command(after_help = r#"Examples:
-  phone stop com.example.app
-
-This is the app, not the device: `phone shutdown` is the one that turns a device
-off. Stopping an app that was not running is not an error, and says so."#)]
-    Stop { app: String },
-    /// Open a url or a deep link on the device
-    #[command(after_help = r#"Examples:
-  phone open https://example.com
-  phone open "exp+myapp://expo-development-client/?url=http://localhost:8081"
-
-The device resolves the url, so a deep link lands in whichever app registered
-the scheme and an http url lands in the browser. Quote it: a shell reads `?` and
-`&` before this ever sees them."#)]
-    Open { url: String },
-    /// Stream logs for a package name or bundle id
-    #[command(after_help = r#"Examples:
-  phone logs com.example.app
-  phone logs -t faraday com.example.app
-
-A package name on Android, a bundle id on a simulator or an iPhone."#)]
-    Logs { app: String },
-
-    // the host the device hangs off, and what it can carry back
-    /// Point a port on the device at the same port on its host
-    #[command(after_help = r#"Examples:
-  phone reverse 8081
-  phone reverse 8081:3000
-  phone reverse --list
-  phone reverse --clear
-
-A dev server is reachable from a device only if the device has a port that
-answers to it, and `localhost:8081` inside an emulator is the emulator, not the
-machine the bundler is on. This is the forward that fixes that.
-
-The port it reaches is on the machine running the adb server that holds the
-device: for an emulator on a mac, `phone reverse 8081` sends the device to that
-mac's loopback, where a Metro started over ssh there is listening. A bundler on
-this machine is not what it will find.
-
-`DEVICE:HOST` when the two differ. Android only — a simulator is already on its
-host's loopback."#)]
-    Reverse {
-        /// PORT, or DEVICE:HOST when the numbers differ
-        #[arg(value_parser = parse_ports, conflicts_with_all = ["list", "clear"])]
-        ports: Option<(u16, u16)>,
-
-        /// Show the forwards this device already has
-        #[arg(long, conflicts_with = "clear")]
-        list: bool,
-
-        /// Remove every forward on this device
-        #[arg(long)]
-        clear: bool,
+A bare `phone device` lists. Everything a device is or has — its transport, its
+pairing, whether it is running — is under here."#)]
+    Device {
+        #[command(subcommand)]
+        action: Option<DeviceAction>,
     },
+    /// Put an app on a device, start it, point it somewhere, watch it
+    #[command(after_help = r#"Examples:
+  phone app launch com.example.app
+  phone app logs com.example.app
+
+In a project with a phone.toml, `phone up` installs and starts the app already.
+These are for the times that is not what is wanted: a one-off apk, a url, a log
+stream."#)]
+    App {
+        #[command(subcommand)]
+        action: AppAction,
+    },
+    /// Choose which ssh hosts to survey for devices
+    #[command(after_help = r#"Examples:
+  phone host              # what each host was found to offer
+  phone host enable rose  # probe it, and survey it from then on
+  phone host disable rose
+
+Only enabled hosts are surveyed, so each one adds to what every command costs.
+Enabling a host again re-probes what it can drive."#)]
+    Host {
+        #[command(subcommand)]
+        action: Option<HostAction>,
+    },
+
+    // this machine, and the two verbs that want a person watching
     /// Watch the screen live in a window on this machine
     #[command(after_help = r#"Examples:
   phone mirror
@@ -575,8 +474,6 @@ Android and simulators; up to 180 seconds."#)]
         #[arg(long, requires = "frames", value_parser = clap::value_parser!(u8).range(1..=100))]
         jpeg: Option<u8>,
     },
-
-    // this program
     /// Check the tools and daemons this depends on
     #[command(after_help = r#"Examples:
   phone doctor
@@ -590,6 +487,252 @@ will not respond."#)]
     /// postInstall to generate the completion files, and nothing else does.
     #[command(hide = true)]
     Completions { shell: Shell },
+}
+
+#[derive(Subcommand)]
+pub enum DeviceAction {
+    /// List every reachable and remembered device
+    #[command(after_help = r#"Examples:
+  phone device list
+  phone device list --json
+
+The state column says what to do next: `attached` and `online` are ready to
+drive, `off` exists but is not running and takes `boot`, `known` and `offline`
+take `connect`."#)]
+    List {
+        /// Emit JSON instead of a table
+        #[arg(long)]
+        json: bool,
+    },
+    /// Bring up a transport to a device, trying history before discovery
+    #[command(after_help = r#"Examples:
+  phone device connect             # the most recent device
+  phone device connect faraday
+  phone device connect --no-sweep  # skip the port sweep when an address is remembered
+
+Brings up a transport to a device that is already running. To start one that is
+not, see `phone device boot`."#)]
+    Connect {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        /// Skip the tailnet port sweep
+        #[arg(long)]
+        no_sweep: bool,
+
+        /// Ports to sweep, as START-END
+        #[arg(long, value_parser = parse_range)]
+        range: Option<RangeInclusive<u16>>,
+
+        /// Concurrent probes during the sweep
+        #[arg(long, default_value_t = 512)]
+        concurrency: usize,
+    },
+    /// Drop a wireless transport
+    #[command(after_help = r#"Examples:
+  phone device disconnect        # the device in use
+  phone device disconnect --all  # every wireless transport at once
+
+Only drops the transport. The device keeps running, and `connect` brings it back
+without a new pairing."#)]
+    Disconnect {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        /// Drop every wireless transport
+        #[arg(long)]
+        all: bool,
+    },
+    /// Pair with a device that is in wireless-debugging pairing mode
+    #[command(after_help = r#"Examples:
+  phone device pair 314159
+  phone device pair 314159 --addr 192.168.1.40:37021
+
+Needed once per handset, from Developer options > Wireless debugging > Pair
+device with pairing code. The code and the port are both shown in that dialog
+and both expire when it closes. Emulators and simulators never need this."#)]
+    Pair {
+        /// Six digit code from the pairing dialog
+        code: String,
+
+        /// host:port from the dialog; discovered over mDNS when omitted
+        #[arg(long)]
+        addr: Option<String>,
+    },
+    /// Restart adbd on a fixed port so later reconnects skip discovery
+    #[command(after_help = r#"Examples:
+  phone device pin              # port 5555 on the device in use
+  phone device pin --port 5678
+
+A paired handset picks a fresh port every time it reconnects, which is what
+makes `connect` sweep for it. Pinning one costs a few seconds now and saves that
+sweep on every later connect. Does not survive a reboot of the device."#)]
+    Pin {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        #[arg(long, default_value_t = 5555)]
+        port: u16,
+    },
+    /// Set the device other commands target by default
+    #[command(after_help = r#"Examples:
+  phone device use pixel_7-api36  # every later command targets it
+  phone device use                # settle on the default already in force
+
+Set once at the start of a session rather than passing -t to every command. A
+-t or PHONE_TARGET on a single command still wins over it, and this wins over
+the `default` a project's phone.toml names."#)]
+    Use {
+        #[arg(id = "device")]
+        target: Option<String>,
+    },
+    /// Drop a device from the registry
+    #[command(after_help = r#"Examples:
+  phone device forget galaxy-s26-plus
+
+Removes what was remembered about it: its address, its alias, its pairing. It
+reappears the next time it is discovered, so this is for a device that is gone
+for good or one whose remembered address is wrong."#)]
+    Forget {
+        #[arg(id = "device")]
+        target: String,
+    },
+    /// Start a simulator or emulator and wait until it can be driven
+    #[command(after_help = r#"Examples:
+  phone device boot "iPhone 17 Pro"  # a simulator, on whichever host has it
+  phone device boot medium_phone     # an AVD, here or on a host
+  phone device boot --timeout 5m nyx-remote-android
+
+Returns only once the device can actually be driven, not when the process
+starts: a simulator answers immediately and an emulator shows its window well
+before its system is up, and a tap sent at either moment is lost. Booting one
+that is already running says so and exits 0, so it is safe in front of a script.
+
+`phone device list` lists what can be booted as `off`. Expect 20-30s. This
+starts something already defined; creating an AVD or a simulator is still
+`avdmanager` or `simctl create`."#)]
+    Boot {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        /// Give up if it is still not usable by then
+        #[arg(long, default_value = "180s", value_parser = parse_duration)]
+        timeout: Duration,
+    },
+    /// Stop a running simulator or emulator
+    #[command(after_help = r#"Examples:
+  phone device shutdown medium_phone
+  phone device shutdown "iPhone 17 Pro"
+
+Stopping one that is not running is a no-op. Handsets cannot be stopped."#)]
+    Shutdown {
+        #[arg(id = "device")]
+        target: Option<String>,
+    },
+    /// Point a port on the device at the same port on its host
+    #[command(after_help = r#"Examples:
+  phone device reverse 8081
+  phone device reverse 8081:3000
+  phone device reverse --list
+  phone device reverse --clear
+
+A dev server is reachable from a device only if the device has a port that
+answers to it, and `localhost:8081` inside an emulator is the emulator, not the
+machine the bundler is on. This is the forward that fixes that.
+
+The port it reaches is on the machine running the adb server that holds the
+device: for an emulator on a mac, this sends the device to that mac's loopback,
+where a bundler started over ssh there is listening. One on this machine is not
+what it will find.
+
+`DEVICE:HOST` when the two differ. Android only — a simulator is already on its
+host's loopback. A project's phone.toml declares these per device, and `phone
+up` opens them."#)]
+    Reverse {
+        /// PORT, or DEVICE:HOST when the numbers differ
+        #[arg(value_parser = parse_ports, conflicts_with_all = ["list", "clear"])]
+        ports: Option<(u16, u16)>,
+
+        /// Show the forwards this device already has
+        #[arg(long, conflicts_with = "clear")]
+        list: bool,
+
+        /// Remove every forward on this device
+        #[arg(long)]
+        clear: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AppAction {
+    /// Install an apk, or a .app bundle on a simulator
+    #[command(after_help = r#"Examples:
+  phone app install ./app/build/outputs/apk/debug/app-debug.apk
+  phone app install -t "iPhone 17 Pro" ./build/Debug-iphonesimulator/App.app
+
+An .apk goes to a handset or an emulator, a .app bundle to a simulator. The file
+is read here and sent to whichever host holds the device, so a path on this
+machine is what it wants. `phone app launch <app>` starts what was installed."#)]
+    Install { apk: PathBuf },
+    /// Start an app, whatever is on screen
+    #[command(after_help = r#"Examples:
+  phone app launch com.example.app
+  phone app launch -t "iPhone 17 Pro Max" com.example.app
+
+Sends the intent the launcher icon sends, so the app comes up the way a person
+starting it would find it. Returns once the process exists, which is what makes
+the next `snapshot` a snapshot of the app rather than of whatever was in front.
+
+A package name on Android, a bundle id on a simulator. The app has to be
+installed already — `phone app install` puts it there."#)]
+    Launch { app: String },
+    /// Force-stop an app, leaving the device up
+    #[command(after_help = r#"Examples:
+  phone app stop com.example.app
+
+This is the app, not the device: `phone device shutdown` is the one that turns a
+device off. Stopping an app that was not running is not an error, and says so."#)]
+    Stop { app: String },
+    /// Open a url or a deep link on the device
+    #[command(after_help = r#"Examples:
+  phone app open https://example.com
+  phone app open "exp+myapp://expo-development-client/?url=http://localhost:8081"
+
+The device resolves the url, so a deep link lands in whichever app registered
+the scheme and an http url lands in the browser. Quote it: a shell reads `?` and
+`&` before this ever sees them."#)]
+    Open { url: String },
+    /// Stream logs for a package name or bundle id
+    #[command(after_help = r#"Examples:
+  phone app logs com.example.app
+  phone app logs -t faraday com.example.app
+
+A package name on Android, a bundle id on a simulator or an iPhone."#)]
+    Logs { app: String },
+}
+
+#[derive(Subcommand)]
+pub enum HostAction {
+    /// Show every ssh host and what it was found to offer
+    #[command(after_help = r#"Examples:
+  phone host list"#)]
+    List,
+
+    /// Survey this host's devices from now on, probing what it can drive
+    #[command(after_help = r#"Examples:
+  phone host enable rose
+
+Probes the host once for adb, the Android sdk and the iOS tools, remembers what
+answered, and surveys it from then on."#)]
+    Enable { name: String },
+
+    /// Stop surveying it
+    #[command(after_help = r#"Examples:
+  phone host disable rose
+
+Its devices stop appearing and every command gets quicker. What was remembered
+about it is kept, so enabling it again does not re-probe from nothing."#)]
+    Disable { name: String },
 }
 
 impl Command {
@@ -615,15 +758,6 @@ impl Command {
 
         Some(positional)
     }
-}
-
-#[derive(Subcommand)]
-pub enum HostAction {
-    /// Survey this host's devices from now on, probing what it can drive
-    Enable { name: String },
-
-    /// Stop surveying it
-    Disable { name: String },
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -691,9 +825,6 @@ fn parse_scale(s: &str) -> Result<f64, String> {
     Ok(by)
 }
 
-/// Every verb takes the device first, so `record 12` is a device named `12` —
-/// a survey and an ambiguity to say what `--seconds` says plainly. No device is
-/// named for a number alone, so reading it as one costs nothing.
 /// `--frames 4` is four evenly spaced stills, `--frames changed` however many
 /// moments the picture moved in. One flag rather than two, because both answer
 /// the same question and a caller should not have to know which one it is
@@ -712,6 +843,9 @@ fn parse_frames(s: &str) -> Result<crate::record::Frames, String> {
     }
 }
 
+/// Every verb takes the device first, so `record 12` is a device named `12` —
+/// survey and an ambiguity to say what `--seconds` says plainly. No device is
+/// named for a number alone, so reading it as one costs nothing.
 fn not_a_length(s: &str) -> Result<String, String> {
     if s.parse::<u32>().is_ok() {
         return Err(format!(
@@ -762,6 +896,7 @@ fn parse_range(s: &str) -> Result<RangeInclusive<u16>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::CommandFactory;
 
     #[test]
     fn the_word_and_the_count_are_the_same_flag() {
@@ -807,40 +942,102 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_time_carries_the_unit_it_is_in() {
+        assert_eq!(parse_duration("800ms").unwrap(), Duration::from_millis(800));
+        assert_eq!(parse_duration("15s").unwrap(), Duration::from_secs(15));
+        assert_eq!(parse_duration("2m").unwrap(), Duration::from_secs(120));
+        assert_eq!(
+            parse_duration("15").unwrap(),
+            Duration::from_secs(15),
+            "a bare number is seconds, as everywhere else a timeout is typed"
+        );
+
+        assert!(parse_duration("soon").is_err());
+        assert!(parse_duration("15 fortnights").is_err());
+    }
+
+    /// The overview's table of commands, as `(heading, verbs)`. A heading that
+    /// is itself a command names a group and its verbs are that group's; one
+    /// that is not — `project`, `screen`, `this` — is only a way of reading
+    /// the list, and its verbs are top level.
+    fn overview_rows() -> Vec<(&'static str, Vec<&'static str>)> {
+        OVERVIEW
+            .lines()
+            .skip_while(|line| *line != "The commands")
+            .take_while(|line| !line.starts_with("What to know"))
+            .filter_map(|line| line.strip_prefix("  "))
+            .filter(|line| !line.starts_with(' ') && !line.is_empty())
+            .filter_map(|line| line.split_once("  "))
+            .map(|(head, verbs)| (head.trim(), verbs.split_whitespace().collect()))
+            .collect()
+    }
+
+    fn subcommands(cmd: &clap::Command) -> Vec<String> {
+        cmd.get_subcommands()
+            .filter(|sub| !sub.is_hide_set())
+            .map(|sub| sub.get_name().to_string())
+            .filter(|name| name != "help")
+            .collect()
+    }
+
     /// The overview groups the verbs and `--help` lists them; a reader who
     /// learns the order in one has to find it in the other. Nothing in clap
     /// enforces that, so it is enforced here.
     #[test]
     fn the_overview_lists_every_verb_in_the_order_help_does() {
-        use clap::CommandFactory;
+        let cli = Cli::command();
+        let top = subcommands(&cli);
 
-        let grouped: Vec<&str> = OVERVIEW
-            .lines()
-            .skip_while(|l| !l.starts_with("The verbs,"))
-            .take_while(|l| !l.starts_with("What to know"))
-            .filter_map(|l| l.split_once("   "))
-            .flat_map(|(_, verbs)| verbs.split_whitespace())
-            .collect();
+        let mut expected: Vec<String> = Vec::new();
 
-        let listed: Vec<String> = Cli::command()
-            .get_subcommands()
-            .filter(|c| !c.is_hide_set())
-            .map(|c| c.get_name().to_string())
-            .filter(|name| name != "help")
-            .collect();
+        for (head, verbs) in overview_rows() {
+            // a heading that is a command of its own is the group, and what
+            // follows it belongs to that group rather than to the top level
+            match top.iter().any(|name| name == head) {
+                true => expected.push(head.to_string()),
+                false => expected.extend(verbs.iter().map(|verb| verb.to_string())),
+            }
+        }
 
-        assert_eq!(
-            grouped, listed,
-            "the overview and the command list disagree"
-        );
+        assert_eq!(expected, top, "the overview and the command list disagree");
+    }
+
+    /// A group is only worth grouping if the overview says what is in it, and
+    /// only useful if that list is the real one.
+    #[test]
+    fn every_group_lists_the_verbs_it_actually_has() {
+        let cli = Cli::command();
+        let top = subcommands(&cli);
+
+        let mut checked = 0;
+
+        for (head, verbs) in overview_rows() {
+            if !top.iter().any(|name| name == head) {
+                continue;
+            }
+
+            let group = cli
+                .get_subcommands()
+                .find(|sub| sub.get_name() == head)
+                .expect("named in the top level list");
+
+            assert_eq!(
+                verbs,
+                subcommands(group),
+                "the overview and `phone {head} --help` disagree"
+            );
+
+            checked += 1;
+        }
+
+        assert_eq!(checked, 3, "device, app and host are the groups");
     }
 
     /// Every invocation printed under `--help`, from the overview and from each
     /// verb alike. A line is a command up to its `#`, which is what lets the
     /// examples be checked rather than merely written.
     fn documented_invocations() -> Vec<String> {
-        use clap::CommandFactory;
-
         fn collect(cmd: &clap::Command, out: &mut Vec<String>) {
             if let Some(help) = cmd.get_after_help() {
                 for line in help.to_string().lines() {
@@ -894,25 +1091,33 @@ mod tests {
     /// takes it over, and the global stops reaching that subcommand at all.
     #[test]
     fn a_subcommand_does_not_shadow_a_global_flag() {
-        use clap::CommandFactory;
         Cli::command().debug_assert();
 
         let cli = Cli::try_parse_from(["phone", "size", "-t", "faraday"]).unwrap();
         assert_eq!(cli.target.as_deref(), Some("faraday"));
     }
 
+    /// `-t` has to survive being written after a group as well as after a verb,
+    /// which is the position it is typed in for everything under `app`.
     #[test]
-    fn a_time_carries_the_unit_it_is_in() {
-        assert_eq!(parse_duration("800ms").unwrap(), Duration::from_millis(800));
-        assert_eq!(parse_duration("15s").unwrap(), Duration::from_secs(15));
-        assert_eq!(parse_duration("2m").unwrap(), Duration::from_secs(120));
-        assert_eq!(
-            parse_duration("15").unwrap(),
-            Duration::from_secs(15),
-            "a bare number is seconds, as everywhere else a timeout is typed"
-        );
+    fn a_global_flag_reaches_through_a_group_to_its_verb() {
+        let cli =
+            Cli::try_parse_from(["phone", "app", "launch", "-t", "faraday", "com.example.app"])
+                .unwrap();
 
-        assert!(parse_duration("soon").is_err());
-        assert!(parse_duration("15 fortnights").is_err());
+        assert_eq!(cli.target.as_deref(), Some("faraday"));
+    }
+
+    /// A group with nothing after it is a question about what it holds, and the
+    /// two whose answer is a list say it rather than a usage error.
+    #[test]
+    fn the_groups_that_list_can_be_asked_bare() {
+        let bare = |args: &[&str]| {
+            Cli::try_parse_from(std::iter::once("phone").chain(args.iter().copied())).is_ok()
+        };
+
+        assert!(bare(&["device"]));
+        assert!(bare(&["host"]));
+        assert!(!bare(&["app"]), "there is nothing to list without a device");
     }
 }

@@ -257,7 +257,7 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     // no adb transport to remember, but the row must outlive the tunnel: it
     // drops often enough that a device listed only while reachable cannot be
     // selected or made the default. `last_connected` stays unset, since a bare
-    // `phone connect` reaches for the most recent device.
+    // `phone device connect` reaches for the most recent device.
     for (device, booted) in hosted_devices {
         claimed.insert(device.id.clone());
 

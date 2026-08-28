@@ -10,11 +10,14 @@ mod hosts;
 mod ios;
 mod model;
 mod picker;
+mod project;
 mod record;
 mod registry;
 mod simctl;
 mod ssh;
+mod stamps;
 mod tui;
+mod up;
 use std::time::Duration;
 
 use std::os::unix::process::CommandExt;
@@ -26,10 +29,11 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use actions::{host_of, Sink};
 use adb::Server;
-use cli::{Cli, Command, HostAction, DEFAULT_AMOUNT};
+use cli::{AppAction, Cli, Command, DeviceAction, HostAction, DEFAULT_AMOUNT};
 use connect::{Reporter, Step};
 use discover::survey;
 use model::{Platform, View};
+use project::Project;
 use registry::Registry;
 
 #[tokio::main]
@@ -42,7 +46,9 @@ async fn main() -> ExitCode {
     match dispatch(Cli::parse()).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("phone: {e}");
+            // the alternate form walks the context chain; without it a failure
+            // reads as "in phone.toml" with the reason it failed dropped
+            eprintln!("phone: {e:#}");
 
             ExitCode::FAILURE
         }
@@ -101,131 +107,255 @@ async fn dispatch(cli: Cli) -> Result<()> {
             Ok(())
         }
 
-        Some(Command::Devices { json }) => {
-            let views = survey(&mut reg).await;
-            reg.save()?;
-
-            if json {
-                print_json(&views)?;
-            } else {
-                print_table(&views);
-            }
-
-            Ok(())
-        }
-
-        Some(Command::Connect {
-            target,
-            no_sweep,
-            range,
-            concurrency,
+        Some(Command::Up {
+            profile,
+            rebuild,
+            timeout,
         }) => {
-            let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+            let project = declared()?;
 
-            let opts = connect::Opts {
-                sweep: !no_sweep,
-                range: range.unwrap_or(discover::sweep::EPHEMERAL),
-                concurrency,
+            let opts = up::Opts {
+                profile,
+                rebuild,
+                timeout,
             };
 
-            let (rep, drain) = reporter();
-            let serial = connect::connect(&mut reg, &view.server, &view.device, &opts, &rep).await;
-
-            drop(rep);
-            drain.await;
-
-            println!("{}", serial?);
-
-            Ok(())
+            up::up(&mut reg, &project, &opts).await
         }
 
-        Some(Command::Disconnect { target, all }) => {
-            if all {
-                adb::run(&Server::Local, &["disconnect"]).await?;
-                eprintln!("phone: dropped every wireless transport");
+        Some(Command::Down) => {
+            let project = declared()?;
 
-                return Ok(());
+            up::down(&mut reg, &project).await
+        }
+
+        Some(Command::Status { profile, json }) => {
+            let project = declared()?;
+            let report = up::status(&mut reg, &project, profile.as_deref()).await?;
+
+            match json {
+                true => println!("{}", serde_json::to_string_pretty(&report)?),
+                false => up::print(&report),
             }
 
-            let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+            // this verb exists to be branched on — `phone status || phone up` —
+            // so drift has to leave through the exit code rather than the report
+            if !report.converged() {
+                use std::io::Write;
 
-            let Some(serial) = view.reach.serial().filter(|s| s.contains(':')) else {
-                bail!("{} has no wireless transport", view.device.label);
-            };
-
-            adb::disconnect(&view.server, serial).await?;
-            eprintln!("phone: disconnected {serial}");
-
-            Ok(())
-        }
-
-        Some(Command::Pair { code, addr }) => {
-            let (rep, drain) = reporter();
-            let res = connect::pair(&Server::Local, addr.as_deref(), &code, &rep).await;
-
-            drop(rep);
-            drain.await;
-
-            res?;
-
-            eprintln!("phone: now run `phone connect` to bring the transport up");
+                std::io::stdout().flush().ok();
+                std::process::exit(2);
+            }
 
             Ok(())
         }
 
-        Some(Command::Pin { target, port }) => {
-            let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+        // a bare `phone device` is the question the list answers
+        Some(Command::Device { action }) => {
+            match action.unwrap_or(DeviceAction::List { json: false }) {
+                DeviceAction::List { json } => {
+                    let views = survey(&mut reg).await;
+                    reg.save()?;
 
-            let (rep, drain) = reporter();
-            let res = connect::pin(&mut reg, &view.server, &view.device, port, &rep).await;
+                    if json {
+                        print_json(&views)?;
+                    } else {
+                        print_table(&views);
+                    }
 
-            drop(rep);
-            drain.await;
+                    Ok(())
+                }
+                DeviceAction::Connect {
+                    target,
+                    no_sweep,
+                    range,
+                    concurrency,
+                } => {
+                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
 
-            res
+                    let opts = connect::Opts {
+                        sweep: !no_sweep,
+                        range: range.unwrap_or(discover::sweep::EPHEMERAL),
+                        concurrency,
+                    };
+
+                    let (rep, drain) = reporter();
+                    let serial =
+                        connect::connect(&mut reg, &view.server, &view.device, &opts, &rep).await;
+
+                    drop(rep);
+                    drain.await;
+
+                    println!("{}", serial?);
+
+                    Ok(())
+                }
+                DeviceAction::Disconnect { target, all } => {
+                    if all {
+                        adb::run(&Server::Local, &["disconnect"]).await?;
+                        eprintln!("phone: dropped every wireless transport");
+
+                        return Ok(());
+                    }
+
+                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+
+                    let Some(serial) = view.reach.serial().filter(|s| s.contains(':')) else {
+                        bail!("{} has no wireless transport", view.device.label);
+                    };
+
+                    adb::disconnect(&view.server, serial).await?;
+                    eprintln!("phone: disconnected {serial}");
+
+                    Ok(())
+                }
+                DeviceAction::Pair { code, addr } => {
+                    let (rep, drain) = reporter();
+                    let res = connect::pair(&Server::Local, addr.as_deref(), &code, &rep).await;
+
+                    drop(rep);
+                    drain.await;
+
+                    res?;
+
+                    eprintln!("phone: now run `phone device connect` to bring the transport up");
+
+                    Ok(())
+                }
+                DeviceAction::Pin { target, port } => {
+                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+
+                    let (rep, drain) = reporter();
+                    let res = connect::pin(&mut reg, &view.server, &view.device, port, &rep).await;
+
+                    drop(rep);
+                    drain.await;
+
+                    res
+                }
+                DeviceAction::Use { target } => {
+                    let view = resolve(&mut reg, target.as_deref(), false).await?;
+
+                    reg.current = Some(view.device.id.clone());
+                    reg.save()?;
+
+                    eprintln!("phone: default target is {}", view.device.label);
+
+                    Ok(())
+                }
+                DeviceAction::Forget { target } => {
+                    let matches = reg.find(&target);
+
+                    let Some(id) = matches.first().map(|d| d.id.clone()) else {
+                        bail!("nothing in the registry matches '{target}'");
+                    };
+
+                    if matches.len() > 1 {
+                        bail!(
+                            "'{target}' matches {} devices; be more specific",
+                            matches.len()
+                        );
+                    }
+
+                    reg.remove(&id);
+                    reg.save()?;
+
+                    eprintln!("phone: forgot {id}");
+
+                    Ok(())
+                }
+                DeviceAction::Boot { target, timeout } => {
+                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+
+                    boot(&mut reg, view, timeout).await
+                }
+                DeviceAction::Shutdown { target } => {
+                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+
+                    eprintln!("phone: {}", actions::stop(&view.device, &view.reach).await?);
+
+                    Ok(())
+                }
+                DeviceAction::Reverse { ports, list, clear } => {
+                    let view = driving(&mut reg, want(None).as_deref(), true).await?;
+
+                    let what = match (ports, list, clear) {
+                        (Some((device, host)), ..) => actions::Reverse::Open { device, host },
+                        (None, _, true) => actions::Reverse::Clear,
+                        // a bare `phone device reverse` is a question, not a broken command:
+                        // nothing was named to forward, so say what is forwarded
+                        (None, ..) => actions::Reverse::List,
+                    };
+
+                    let said = actions::reverse(&view.server, &view.device, what).await?;
+
+                    // a listing is the one form worth piping into something; the rest
+                    // is the same status line every other verb writes
+                    match list || ports.is_none() && !clear {
+                        true => println!("{said}"),
+                        false => eprintln!("phone: {said}"),
+                    }
+
+                    Ok(())
+                }
+            }
         }
 
-        Some(Command::Use { target }) => {
-            let view = resolve(&mut reg, target.as_deref(), false).await?;
+        Some(Command::App { action }) => match action {
+            AppAction::Install { apk } => {
+                let view = driving(&mut reg, want(None).as_deref(), true).await?;
 
-            reg.current = Some(view.device.id.clone());
-            reg.save()?;
+                let (rep, drain) = reporter();
+                let res = actions::install(&view.server, &view.device, &apk, &rep).await;
 
-            eprintln!("phone: default target is {}", view.device.label);
+                drop(rep);
+                drain.await;
 
-            Ok(())
-        }
+                eprintln!("phone: {}", res?);
 
-        Some(Command::Forget { target }) => {
-            let matches = reg.find(&target);
+                Ok(())
+            }
+            AppAction::Launch { app } => {
+                let view = driving(&mut reg, want(None).as_deref(), true).await?;
 
-            let Some(id) = matches.first().map(|d| d.id.clone()) else {
-                bail!("nothing in the registry matches '{target}'");
-            };
-
-            if matches.len() > 1 {
-                bail!(
-                    "'{target}' matches {} devices; be more specific",
-                    matches.len()
+                eprintln!(
+                    "phone: {}",
+                    apps::launch(&view.server, &view.device, &app, &[]).await?
                 );
+
+                Ok(())
             }
+            AppAction::Stop { app } => {
+                let view = driving(&mut reg, want(None).as_deref(), true).await?;
 
-            reg.remove(&id);
-            reg.save()?;
+                eprintln!(
+                    "phone: {}",
+                    apps::stop(&view.server, &view.device, &app).await?
+                );
 
-            eprintln!("phone: forgot {id}");
+                Ok(())
+            }
+            AppAction::Open { url } => {
+                let view = driving(&mut reg, want(None).as_deref(), true).await?;
 
-            Ok(())
-        }
+                eprintln!(
+                    "phone: {}",
+                    apps::open(&view.server, &view.device, &url).await?
+                );
 
-        Some(Command::Logs { app }) => {
-            let view = driving(&mut reg, want(None).as_deref(), true).await?;
-            let err = actions::logs_command(&view.server, &view.device, &app)
-                .await?
-                .exec();
+                Ok(())
+            }
+            AppAction::Logs { app } => {
+                let view = driving(&mut reg, want(None).as_deref(), true).await?;
+                let err = actions::logs_command(&view.server, &view.device, &app)
+                    .await?
+                    .exec();
 
-            bail!("{err}");
-        }
+                bail!("{err}");
+            }
+        },
+
+        Some(Command::Host { action }) => hosts_cmd(&mut reg, action).await,
 
         Some(Command::Mirror { target }) => {
             let view = driving(&mut reg, want(target).as_deref(), true).await?;
@@ -233,67 +363,6 @@ async fn dispatch(cli: Cli) -> Result<()> {
             eprintln!(
                 "phone: {}",
                 actions::mirror(&view.server, &view.device).await?
-            );
-
-            Ok(())
-        }
-
-        Some(Command::Install { apk }) => {
-            let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-            let (rep, drain) = reporter();
-            let res = actions::install(&view.server, &view.device, &apk, &rep).await;
-
-            drop(rep);
-            drain.await;
-
-            eprintln!("phone: {}", res?);
-
-            Ok(())
-        }
-
-        Some(Command::Boot { target, timeout }) => {
-            let view = resolve(&mut reg, want(target).as_deref(), true).await?;
-
-            boot(&mut reg, view, timeout).await
-        }
-
-        Some(Command::Shutdown { target }) => {
-            let view = resolve(&mut reg, want(target).as_deref(), true).await?;
-
-            eprintln!("phone: {}", actions::stop(&view.device, &view.reach).await?);
-
-            Ok(())
-        }
-
-        Some(Command::Launch { app }) => {
-            let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-            eprintln!(
-                "phone: {}",
-                apps::launch(&view.server, &view.device, &app).await?
-            );
-
-            Ok(())
-        }
-
-        Some(Command::Stop { app }) => {
-            let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-            eprintln!(
-                "phone: {}",
-                apps::stop(&view.server, &view.device, &app).await?
-            );
-
-            Ok(())
-        }
-
-        Some(Command::Open { url }) => {
-            let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-            eprintln!(
-                "phone: {}",
-                apps::open(&view.server, &view.device, &url).await?
             );
 
             Ok(())
@@ -332,31 +401,6 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
             Ok(())
         }
-
-        Some(Command::Reverse { ports, list, clear }) => {
-            let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-            let what = match (ports, list, clear) {
-                (Some((device, host)), ..) => actions::Reverse::Open { device, host },
-                (None, _, true) => actions::Reverse::Clear,
-                // a bare `phone reverse` is a question, not a broken command:
-                // nothing was named to forward, so say what is forwarded
-                (None, ..) => actions::Reverse::List,
-            };
-
-            let said = actions::reverse(&view.server, &view.device, what).await?;
-
-            // a listing is the one form worth piping into something; the rest
-            // is the same status line every other verb writes
-            match list || ports.is_none() && !clear {
-                true => println!("{said}"),
-                false => eprintln!("phone: {said}"),
-            }
-
-            Ok(())
-        }
-
-        Some(Command::Hosts { action }) => hosts_cmd(&mut reg, action).await,
 
         Some(Command::Doctor) => doctor(&mut reg).await,
 
@@ -409,7 +453,7 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
             Ok(())
         }
 
-        None => {
+        None | Some(HostAction::List) => {
             if reg.hosts.is_empty() {
                 eprintln!("phone: no Host stanzas in your ssh config");
 
@@ -442,6 +486,29 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
             Ok(())
         }
     }
+}
+
+/// The manifest the project verbs act on. Not finding one is the mistake that
+/// actually gets made — the command was typed outside the checkout — so the
+/// error says what was looked for and where, not that a file is missing.
+fn declared() -> Result<Project> {
+    let here = std::env::current_dir()?;
+
+    Project::here()?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "no {} in {} or any directory above it",
+            project::FILE,
+            here.display()
+        )
+    })
+}
+
+/// The device a project would rather have, for when nothing typed and nothing
+/// remembered names one. A manifest that does not parse reads as no preference
+/// at all: `phone up` is where that is reported, and a broken file has no
+/// business taking the screen verbs down with it.
+fn preferred() -> Option<String> {
+    Project::here().ok().flatten()?.manifest.default
 }
 
 /// A reporter whose steps stream to stderr, so stdout stays reserved for the
@@ -981,7 +1048,7 @@ fn print_elements_json(nodes: &[a11y::Node]) -> Result<()> {
 }
 
 /// Turns whatever the user typed into exactly one device. `prefer_recent` is
-/// what makes a bare `phone connect` one keystroke: with nothing to go on it
+/// what makes a bare `phone device connect` one keystroke: with nothing to go on it
 /// reaches for the last device used rather than a mostly-offline picker.
 /// The device has to be surveyed again once it is up: the survey is what opens
 /// the forward to its host's adb server, so a device that just booted is not
@@ -1035,7 +1102,7 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         let label = &view.device.label;
 
         bail!(
-            "{label} is off; start it with `phone boot {}`",
+            "{label} is off; start it with `phone device boot {}`",
             quoted(label)
         );
     }
@@ -1088,6 +1155,14 @@ async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
     if want.is_none() {
         if let Some(id) = reg.current.clone() {
             if let Some(view) = candidates.iter().find(|v| v.device.id == id) {
+                return Ok(view.clone());
+            }
+        }
+
+        // the weakest claim of the four: a project names a device it prefers,
+        // and anything typed or anything remembered overrules it
+        if let Some(name) = preferred() {
+            if let Some(view) = candidates.iter().find(|v| v.device.is(&name)) {
                 return Ok(view.clone());
             }
         }
@@ -1302,7 +1377,7 @@ async fn doctor(reg: &mut Registry) -> Result<()> {
         "ssh hosts",
         if enabled.is_empty() {
             format!(
-                "{} in your ssh config, none enabled; `phone hosts enable NAME`",
+                "{} in your ssh config, none enabled; `phone host enable NAME`",
                 known.len()
             )
         } else {

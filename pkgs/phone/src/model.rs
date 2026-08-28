@@ -280,7 +280,7 @@ impl Device {
     }
 
     /// Folds a placeholder record into this device, keeping its key resolvable
-    /// so `phone connect peer:…` and any saved default still land here.
+    /// so `phone device connect peer:…` and any saved default still land here.
     pub fn absorb(&mut self, other: &Device) {
         if self.label.is_empty() {
             self.label = other.label.clone();

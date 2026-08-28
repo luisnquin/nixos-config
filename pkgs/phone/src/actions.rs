@@ -412,7 +412,7 @@ const REVERSE_TIMEOUT: Duration = Duration::from_secs(10);
 ///
 /// Which machine that is, is the whole subtlety, and it is not this one: the
 /// forward terminates wherever the adb server holding the device runs. For an
-/// emulator on a mac, `phone reverse 8081` points the device at that mac's
+/// emulator on a mac, `phone device reverse 8081` points the device at that mac's
 /// loopback, which is where a Metro started in an ssh session there is
 /// listening. A bundler running here is not what the device will reach.
 pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<String> {
@@ -470,6 +470,168 @@ pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<
         Reverse::Clear => format!("removed every reverse forward on {}", device.label),
     })
 }
+
+/// The reverse forwards a device already holds, as `(device, host)` port pairs.
+///
+/// `reverse` formats them for a reader; converging on them needs the numbers.
+/// Opening one that is already open is harmless, but asking first is what lets
+/// `up` say a device was already ready instead of reporting work it did not do.
+pub async fn reversed(server: &Server, device: &Device) -> Result<Vec<(u16, u16)>> {
+    let serial = attached_serial(server, device)
+        .await
+        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+
+    let out = adb::run_timeout(
+        server,
+        &["-s", &serial, "reverse", "--list"],
+        REVERSE_TIMEOUT,
+    )
+    .await?;
+
+    if !out.ok() {
+        bail!(
+            "{}",
+            first_line(&out.stderr).unwrap_or("adb refused to list the reverses")
+        );
+    }
+
+    let port = |raw: &str| raw.trim_start_matches("tcp:").parse::<u16>().ok();
+
+    Ok(out
+        .trimmed()
+        .lines()
+        .filter_map(
+            |line| match line.split_whitespace().collect::<Vec<_>>()[..] {
+                [_, from, to] => Some((port(from)?, port(to)?)),
+                _ => None,
+            },
+        )
+        .collect())
+}
+
+/// The namespaces `settings` divides a device's configuration into. Anything
+/// else is a typo, and interpolating it into the device-side command would be
+/// the injection this check exists to stop.
+fn namespace(ns: &str) -> Result<&str> {
+    match ns {
+        "global" | "system" | "secure" => Ok(ns),
+        other => bail!("{other} is not a settings namespace (global, system, secure)"),
+    }
+}
+
+/// A key or a value, on its way into a shell command on the device.
+fn word(raw: &str, what: &str) -> Result<()> {
+    if raw.is_empty()
+        || !raw
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    {
+        bail!("invalid setting {what}: {raw}");
+    }
+
+    Ok(())
+}
+
+/// Brings a device's settings to what was asked for, and reports only what it
+/// had to change.
+///
+/// Every one is read before any is written, in one round trip, because the
+/// common case is that they already match: an emulator that was left as it was
+/// converges without touching the device at all. The reads and the writes are
+/// each one `adb shell`, since a per-setting call would be a round trip to the
+/// host holding the device for each.
+///
+/// These are the animation scales more than anything else. An emulator created
+/// from a headless image has them at 0, and a UI test driven against that reads
+/// screens that are still mid-transition.
+pub async fn settings(
+    server: &Server,
+    device: &Device,
+    want: &[(&str, &str, String)],
+) -> Result<Vec<String>> {
+    if want.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    if !device.platform.is_adb() {
+        bail!(
+            "{} takes its settings from its host, not from adb",
+            device.platform
+        );
+    }
+
+    for (ns, key, value) in want {
+        namespace(ns)?;
+        word(key, "key")?;
+        word(value, "value")?;
+    }
+
+    let serial = attached_serial(server, device)
+        .await
+        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+
+    let reads: Vec<String> = want
+        .iter()
+        .map(|(ns, key, _)| format!("settings get {ns} {key}"))
+        .collect();
+
+    let out = adb::run_timeout(
+        server,
+        &["-s", &serial, "shell", &reads.join("\n")],
+        SETTINGS_TIMEOUT,
+    )
+    .await?;
+
+    if !out.ok() {
+        bail!(
+            "{}",
+            first_line(&out.stderr).unwrap_or("adb refused to read the settings")
+        );
+    }
+
+    // an unset setting answers `null`, which is a value nothing will ever be
+    // asked for and so never matches
+    let have: Vec<&str> = out.stdout.lines().map(str::trim).collect();
+
+    let stale: Vec<&(&str, &str, String)> = want
+        .iter()
+        .enumerate()
+        .filter(|(i, (_, _, value))| have.get(*i).copied() != Some(value.as_str()))
+        .map(|(_, spec)| spec)
+        .collect();
+
+    if stale.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let writes: Vec<String> = stale
+        .iter()
+        .map(|(ns, key, value)| format!("settings put {ns} {key} {value}"))
+        .collect();
+
+    let out = adb::run_timeout(
+        server,
+        &["-s", &serial, "shell", &writes.join("\n")],
+        SETTINGS_TIMEOUT,
+    )
+    .await?;
+
+    if !out.ok() {
+        bail!(
+            "{}",
+            first_line(&out.stderr).unwrap_or("adb refused to write the settings")
+        );
+    }
+
+    Ok(stale
+        .iter()
+        .map(|(ns, key, value)| format!("{ns}.{key} = {value}"))
+        .collect())
+}
+
+/// Short: `settings` is a local database read, and a device that cannot answer
+/// it in this long is not going to.
+const SETTINGS_TIMEOUT: Duration = Duration::from_secs(15);
 
 fn first_line(text: &str) -> Option<&str> {
     text.lines().map(str::trim).find(|l| !l.is_empty())
