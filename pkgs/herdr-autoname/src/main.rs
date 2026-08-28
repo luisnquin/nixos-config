@@ -39,20 +39,52 @@ const METADATA_SOURCE: &str = "herdr-autoname";
 const MAX_ICON_CHARS: usize = 2;
 
 /// Marker file at the repository root, `icon.<key>` override key, glyph.
+///
+/// First match wins, so the order runs framework, then language, then packaging.
+/// `flake.nix` sits near the bottom: nearly every repository here carries one,
+/// and a snowflake on all of them tells the spaces apart from nothing.
 const PROJECT_ICONS: &[(&str, &str, &str)] = &[
-    ("flake.nix", "nix", "\u{f313}"),
+    ("app.config.ts", "expo", "\u{e7ba}"),
+    ("app.config.js", "expo", "\u{e7ba}"),
+    ("encore.app", "encore", "\u{f233}"),
+    ("svelte.config.js", "svelte", "\u{e697}"),
+    ("nuxt.config.ts", "vue", "\u{e6a0}"),
+    ("Chart.yaml", "helm", "\u{f10fe}"),
+    ("main.tf", "terraform", "\u{e69a}"),
+    ("Dockerfile", "docker", "\u{f308}"),
+    ("compose.yaml", "docker", "\u{f308}"),
+    ("docker-compose.yml", "docker", "\u{f308}"),
     ("Cargo.toml", "rust", "\u{e7a8}"),
     ("go.mod", "go", "\u{e627}"),
-    ("package.json", "node", "\u{e718}"),
+    ("build.zig", "zig", "\u{e6a9}"),
     ("pyproject.toml", "python", "\u{e73c}"),
     ("requirements.txt", "python", "\u{e73c}"),
+    ("mix.exs", "elixir", "\u{e62d}"),
+    ("Gemfile", "ruby", "\u{e739}"),
+    ("composer.json", "php", "\u{e73d}"),
+    ("Package.swift", "swift", "\u{e755}"),
+    ("build.gradle.kts", "kotlin", "\u{e634}"),
+    ("build.gradle", "java", "\u{e738}"),
+    ("pom.xml", "java", "\u{e738}"),
+    ("stack.yaml", "haskell", "\u{e777}"),
+    ("dune-project", "ocaml", "\u{e67a}"),
+    ("build.sbt", "scala", "\u{e737}"),
+    ("elm.json", "elm", "\u{e62c}"),
+    (".luarc.json", "lua", "\u{e620}"),
+    ("CMakeLists.txt", "cpp", "\u{e646}"),
+    ("tsconfig.json", "typescript", "\u{e628}"),
+    ("jsconfig.json", "javascript", "\u{e781}"),
+    ("package.json", "node", "\u{e718}"),
+    ("flake.nix", "nix", "\u{f313}"),
     ("default.nix", "nix", "\u{f313}"),
     ("shell.nix", "nix", "\u{f313}"),
 ];
 
+/// Nerd Fonts draws neither brand, so `claude` and `codex` are private-use
+/// glyphs patched into the system font by `system/modules/desktop/fonts`.
 const AGENT_ICONS: &[(&str, &str)] = &[
-    ("claude", ICON_AGENT),
-    ("codex", "\u{f121}"),
+    ("claude", "\u{e9fb}"),
+    ("codex", "\u{e9fa}"),
     ("opencode", "\u{f489}"),
     ("pi", "\u{3c0}"),
 ];
@@ -1448,8 +1480,8 @@ mod tests {
     #[test]
     fn agent_icons_fall_back_and_bow_to_overrides() {
         let cfg = Config::default();
-        assert_eq!(cfg.agent_icon("Claude Sonnet"), ICON_AGENT);
-        assert_eq!(cfg.agent_icon("codex"), "\u{f121}");
+        assert_eq!(cfg.agent_icon("Claude Sonnet"), "\u{e9fb}");
+        assert_eq!(cfg.agent_icon("codex"), "\u{e9fa}");
         assert_eq!(cfg.agent_icon("aider"), ICON_AGENT);
 
         let mut cfg = Config::default();
@@ -1458,7 +1490,7 @@ mod tests {
         assert_eq!(cfg.agent_icon("codex --sandbox"), "\u{f0e7}");
         assert_eq!(cfg.agent_icon("aider"), "\u{f0e7}");
         cfg.set("icon.codex", "");
-        assert_eq!(cfg.agent_icon("codex"), "\u{f121}");
+        assert_eq!(cfg.agent_icon("codex"), "\u{e9fa}");
     }
 
     #[test]
@@ -1484,11 +1516,11 @@ mod tests {
         // the marker is looked for at the root, not beside the pane
         std::fs::write(dir.join("repo/Cargo.toml"), "").unwrap();
         assert_eq!(cfg.dir_icon(nested), "\u{e7a8}");
-        // table order decides, not the filesystem
+        // table order decides, not the filesystem: the language outranks the flake
         std::fs::write(dir.join("repo/flake.nix"), "").unwrap();
-        assert_eq!(cfg.dir_icon(nested), "\u{f313}");
-        cfg.set("icon.nix", "N");
-        assert_eq!(cfg.dir_icon(nested), "N");
+        assert_eq!(cfg.dir_icon(nested), "\u{e7a8}");
+        cfg.set("icon.rust", "R");
+        assert_eq!(cfg.dir_icon(nested), "R");
 
         let plain = dir.join("plain");
         std::fs::create_dir_all(&plain).unwrap();
