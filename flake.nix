@@ -28,6 +28,7 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    preservation.url = "github:nix-community/preservation";
 
     battery-notifier = {
       url = "github:luisnquin/battery-notifier";
@@ -193,6 +194,7 @@
     nixosModules = [
       inputs.flake-programs-sqlite.nixosModules.programs-sqlite
       inputs.disko.nixosModules.default
+      inputs.preservation.nixosModules.preservation
       inputs.black-terminal.nixosModules.default
       inputs.home-manager.nixosModules.default
       inputs.sops-nix.nixosModules.sops

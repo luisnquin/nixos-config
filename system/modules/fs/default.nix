@@ -2,6 +2,7 @@
   imports = [
     ./ephemeral.nix
     ./incron.nix
+    ./persistence.nix
     ./utils.nix
   ];
 
