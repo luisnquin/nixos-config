@@ -496,20 +496,25 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         .iter()
         .map(|lane| converge(project, &site, lane, &stamps, tagged));
 
-    // every lane's complaint and not just the first: they ran together, and
-    // reporting one of two failures would leave the other looking like it worked
-    let failures: Vec<String> = futures_util::future::join_all(climbing)
-        .await
+    all_of(futures_util::future::join_all(climbing).await)
+}
+
+/// One result out of work that ran together, carrying every complaint.
+///
+/// Not the first error and out: the whole point of running the devices at once
+/// is that a run reports on all of them, and stopping at the first would leave
+/// the rest looking like they worked.
+fn all_of(outcomes: Vec<Result<()>>) -> Result<()> {
+    let failures: Vec<String> = outcomes
         .into_iter()
         .filter_map(|outcome| outcome.err())
         .map(|err| format!("{err:#}"))
         .collect();
 
-    if !failures.is_empty() {
-        bail!("{}", failures.join("\n"));
+    match failures.is_empty() {
+        true => Ok(()),
+        false => bail!("{}", failures.join("\n")),
     }
-
-    Ok(())
 }
 
 /// A device, what it was declared to be, and where it currently is.
@@ -543,18 +548,24 @@ async fn converge(
     stamps: &Mutex<Stamps>,
     tagged: bool,
 ) -> Result<()> {
+    let mut outcomes = Vec::new();
+
     for (name, spec, view) in lane.iter().copied() {
         // only once more than one lane is running: a single build streaming to
         // a terminal it has to itself reads better without a name in front of
         // every line of it
         let tag = tagged.then(|| format!("{name}: "));
 
-        raise(project, site, name, spec, view, stamps, tag.as_deref())
-            .await
-            .with_context(|| format!("bringing up {name}"))?;
+        // the next device is still tried: they share a build, not a fate, and
+        // an app that would not start on one says nothing about the other
+        outcomes.push(
+            raise(project, site, name, spec, view, stamps, tag.as_deref())
+                .await
+                .with_context(|| format!("bringing up {name}")),
+        );
     }
 
-    Ok(())
+    all_of(outcomes)
 }
 
 /// The transport, which is the one thing a device needs that is written down.
@@ -799,11 +810,16 @@ pub async fn status(
     let views = survey(reg).await;
     reg.save()?;
 
-    let mut devices = Vec::new();
-
-    for &(name, spec) in &declared {
-        devices.push(row(project, &site, &views, &stamps, name, spec).await);
-    }
+    // each row ends in the same fingerprint over the whole tree that a build
+    // measures itself against, and no two of them read anything the others
+    // write. Asked one at a time this is the slower half of the pair a test
+    // script runs before every e2e round.
+    let devices = futures_util::future::join_all(
+        declared
+            .iter()
+            .map(|&(name, spec)| row(project, &site, &views, &stamps, name, spec)),
+    )
+    .await;
 
     Ok(Report {
         project: project.name(),
@@ -1155,6 +1171,30 @@ mod tests {
         assert_eq!(bound[3], "android", "what a build command is spelled with");
         assert_eq!(bound[4], "emu", "and what the survey calls the same device");
         assert_eq!(bound[5], "pixel");
+    }
+
+    /// The bug this closes: a lane stopped at its first failure, so a run that
+    /// broke two devices complained about one and left the other looking like
+    /// it had converged.
+    #[test]
+    fn work_that_ran_together_reports_every_failure() {
+        let outcomes = vec![
+            Err::<(), _>(anyhow!("no space left")).context("bringing up pixel_7-api36"),
+            Ok(()),
+            Err::<(), _>(anyhow!("the app would not start")).context("bringing up iPhone 17"),
+        ];
+
+        let complaint = all_of(outcomes).unwrap_err().to_string();
+
+        assert!(
+            complaint.contains("pixel_7-api36: no space left"),
+            "the context a failure was wrapped in belongs in the report: {complaint}"
+        );
+        assert!(
+            complaint.contains("iPhone 17: the app would not start"),
+            "the second failure is not hidden by the first: {complaint}"
+        );
+        assert!(all_of(vec![Ok(()), Ok(())]).is_ok());
     }
 
     /// The two halves of what makes a run concurrent: devices that would run
