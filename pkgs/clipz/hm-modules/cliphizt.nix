@@ -122,6 +122,11 @@ in {
         );
         Restart = "on-failure";
         KillSignal = "SIGINT";
+        NoNewPrivileges = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        RestrictRealtime = true;
+        SystemCallArchitectures = "native";
       };
 
       Install.WantedBy = ["graphical-session.target"];

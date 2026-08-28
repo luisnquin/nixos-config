@@ -229,6 +229,11 @@ in {
         Environment = ["RUST_LOG=${cfg.logLevel}"];
         Restart = "on-failure";
         RestartSec = 1;
+        NoNewPrivileges = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        RestrictRealtime = true;
+        SystemCallArchitectures = "native";
       };
       Install.WantedBy = ["default.target"];
     };

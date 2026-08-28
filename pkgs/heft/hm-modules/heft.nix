@@ -51,6 +51,11 @@ in {
         # a census must never compete with interactive work
         Nice = 19;
         IOSchedulingClass = "idle";
+        NoNewPrivileges = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        RestrictRealtime = true;
+        SystemCallArchitectures = "native";
       };
     };
 
@@ -73,6 +78,11 @@ in {
         ExecStart = scan "--quiet --deep";
         Nice = 19;
         IOSchedulingClass = "idle";
+        NoNewPrivileges = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        RestrictRealtime = true;
+        SystemCallArchitectures = "native";
       };
     };
 
