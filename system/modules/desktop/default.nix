@@ -25,6 +25,16 @@
     journalUser = "greeter";
   };
 
+  systemd.services.numlock-on-vt = {
+    wantedBy = ["multi-user.target"];
+    serviceConfig = {
+      Type = "oneshot";
+      StandardInput = "tty";
+      TTYPath = "/dev/tty1";
+      ExecStart = "${pkgs.kbd}/bin/setleds -D +num";
+    };
+  };
+
   services = {
     # graphical-desktop.nix turns speechd on by mkDefault for any desktop. no
     # screen reader here, and its module probes leave unreaped children behind.
