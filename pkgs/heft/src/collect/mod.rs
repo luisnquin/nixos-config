@@ -34,7 +34,9 @@ impl Default for Config {
             cold_days: 90,
             stale_days: 180,
             newcomer_window_days: 1,
-            filesystem: "/".into(),
+            // via the bind mount this reaches the disk that actually holds the
+            // store and home, even when / itself is a tmpfs
+            filesystem: "/nix".into(),
         }
     }
 }
