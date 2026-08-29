@@ -37,3 +37,7 @@ _opam/
 **/.vscode/
 
 .codegraph/
+
+/impermanence/
+/preservation/
+/xddxdd-nixos-config/
