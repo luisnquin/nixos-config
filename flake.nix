@@ -29,6 +29,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     preservation.url = "github:nix-community/preservation";
+    lanzaboote = {
+      url = "github:nix-community/lanzaboote";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+      };
+    };
 
     battery-notifier = {
       url = "github:luisnquin/battery-notifier";
@@ -195,6 +202,7 @@
       inputs.flake-programs-sqlite.nixosModules.programs-sqlite
       inputs.disko.nixosModules.default
       inputs.preservation.nixosModules.preservation
+      inputs.lanzaboote.nixosModules.lanzaboote
       inputs.black-terminal.nixosModules.default
       inputs.home-manager.nixosModules.default
       inputs.sops-nix.nixosModules.sops

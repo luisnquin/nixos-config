@@ -44,6 +44,11 @@
           mode = "0700";
         }
         {
+          # secure boot signing keys; without them the next rebuild cannot sign
+          directory = "/var/lib/sbctl";
+          mode = "0700";
+        }
+        {
           directory = "/var/lib/docker";
           mode = "0710";
         }

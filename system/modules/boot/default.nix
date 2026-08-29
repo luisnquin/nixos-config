@@ -1,6 +1,6 @@
 {
   imports = [
     ./loader.nix
-    ./grub.nix
+    ./lanzaboote.nix
   ];
 }
