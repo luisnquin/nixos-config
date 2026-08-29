@@ -6,8 +6,11 @@
   environment.systemPackages = [pkgs.sbctl];
 
   # lanzaboote installs its own copy of systemd-boot; the stock installer
-  # would race it for the ESP
-  boot.loader.systemd-boot.enable = lib.mkForce false;
+  # would race it for the ESP. consoleMode still flows into its loader.conf
+  boot.loader.systemd-boot = {
+    enable = lib.mkForce false;
+    consoleMode = "max";
+  };
 
   boot.lanzaboote = {
     enable = true;
