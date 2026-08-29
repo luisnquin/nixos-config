@@ -52,7 +52,12 @@
     };
   };
 
-  systemd.tmpfiles.rules = ["d /persist/tmp/nix-builds 0755 root root 7d"];
+  # nix refuses a build-dir with a world-writable ancestor, and /persist/tmp
+  # is the old root's 1777 /tmp
+  systemd.tmpfiles.rules = [
+    "d /persist/tmp 0755 root root -"
+    "d /persist/tmp/nix-builds 0755 root root 7d"
+  ];
 
   programs.command-not-found = {
     enable = true;
