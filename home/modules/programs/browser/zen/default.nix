@@ -33,6 +33,10 @@
         # marionette sets this to true and only clears it on a clean shutdown;
         # left on, gecko fakes window focus and dead keys stop composing (á, ñ)
         "focusmanager.testmode" = false;
+
+        # kills the "wants to access other apps and services" (WebMIDI)
+        # prompt that corpo friends abuse for fingerprinting
+        "dom.webmidi.enabled" = false;
       };
 
       presets.betterfox.enable = true;
