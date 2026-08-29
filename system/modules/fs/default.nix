@@ -8,7 +8,11 @@
 
   boot = {
     supportedFilesystems = ["ntfs"];
-    tmp.cleanOnBoot = true;
+    tmp = {
+      # otherwise /tmp shares the 8G tmpfs root and a large build ENOSPCs /
+      useTmpfs = true;
+      tmpfsSize = "8G";
+    };
   };
 
   services = {

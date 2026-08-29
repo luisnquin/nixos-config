@@ -39,6 +39,8 @@
       min-free = 10000000000; # 10GB
       # Number of seconds between checking free disk space.
       min-free-check-interval = 30;
+      # large builds scratch on disk instead of the tmpfs /tmp
+      build-dir = "/persist/tmp/nix-builds";
       # https://nix.dev/recipes/faq#what-to-do-if-a-binary-cache-is-down-or-unreachable
 
       trusted-substituters = [
@@ -49,6 +51,8 @@
       ];
     };
   };
+
+  systemd.tmpfiles.rules = ["d /persist/tmp/nix-builds 0755 root root 7d"];
 
   programs.command-not-found = {
     enable = true;
