@@ -38,7 +38,6 @@ in {
         "claude-opus-*"
         "claude-sonnet-*"
         "qwen*"
-        "gemma*"
       ];
 
       compaction = {
@@ -69,10 +68,6 @@ in {
           {
             id = "qwen2.5-coder:7b";
             name = "Qwen 2.5 - Coder";
-          }
-          {
-            id = "gemma4:e4b";
-            name = "Gemma 4";
           }
         ];
       };

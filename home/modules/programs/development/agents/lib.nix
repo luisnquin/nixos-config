@@ -99,31 +99,6 @@
       );
     };
 
-    translateAntigravityRule = rule: let
-      match = builtins.match "([A-Za-z_][A-Za-z0-9_]*)\\((.*)\\)" rule;
-    in
-      if match != null
-      then let
-        tool = builtins.elemAt match 0;
-        args = builtins.elemAt match 1;
-        cleanArgs = lib.removeSuffix ":*" args;
-      in
-        if tool == "Bash"
-        then "command(${cleanArgs})"
-        else if lib.hasPrefix "mcp__" tool
-        then "mcp(${lib.removePrefix "mcp__" tool})"
-        else if tool == "WebFetch"
-        then
-          if args == "*"
-          then "read_url(*)"
-          else "read_url(${args})"
-        else if args == "*" || args == ""
-        then lib.toLower tool
-        else "${lib.toLower tool}(${cleanArgs})"
-      else if lib.hasPrefix "mcp__" rule
-      then "mcp(*)"
-      else lib.toLower rule;
-
     mkAgentPermissions = target: extra: let
       extraAllow = extra.allow or [];
       extraAsk = extra.ask or [];
@@ -148,15 +123,6 @@
           else "default";
 
         # disableBypassPermissionsMode = "disable";
-      }
-      else if target == "antigravity"
-      then {
-        allow =
-          map translateAntigravityRule (toolPermissions.allow ++ extraAllow)
-          ++ builtins.map (d: "read_url(${d})") allowedDomains;
-
-        ask = map translateAntigravityRule (toolPermissions.ask ++ extraAsk);
-        deny = map translateAntigravityRule (toolPermissions.deny ++ extraDeny);
       }
       else if target == "opencode"
       then let
