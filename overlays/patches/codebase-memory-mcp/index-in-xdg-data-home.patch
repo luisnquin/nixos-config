@@ -1,0 +1,183 @@
+diff -ruN a/src/cli/cli.h b/src/cli/cli.h
+--- a/src/cli/cli.h
++++ b/src/cli/cli.h
+@@ -356,7 +356,7 @@
+ 
+ /* ── Index management ─────────────────────────────────────────── */
+ 
+-/* List .db files in the cache directory (~/.cache/codebase-memory-mcp/).
++/* List .db files in the cache directory (~/.local/share/codebase-memory-mcp/).
+  * Prints each file path to stdout. Returns count of .db files found. */
+ int cbm_list_indexes(const char *home_dir);
+ 
+diff -ruN a/src/cli/hook_augment.c b/src/cli/hook_augment.c
+--- a/src/cli/hook_augment.c
++++ b/src/cli/hook_augment.c
+@@ -20,6 +20,7 @@
+ #include "foundation/compat_fs.h"
+ #include "foundation/constants.h"
+ #include "foundation/mem.h"
++#include "foundation/platform.h"
+ #include "mcp/mcp.h"
+ #include "pipeline/pipeline.h"
+ #include "yyjson/yyjson.h"
+@@ -56,8 +57,9 @@
+  *
+  * Observability (#858): a fired deadline is otherwise indistinguishable from
+  * "no matches", so the handler first write()s a pre-formatted breadcrumb to
+- * ~/.cache/codebase-memory-mcp/logs/hook-augment-timeouts.log (fd and message
+- * prepared at arm time — only async-signal-safe write/_exit in the handler). */
++ * ~/.local/share/codebase-memory-mcp/logs/hook-augment-timeouts.log (fd and
++ * message prepared at arm time — only async-signal-safe write/_exit in the
++ * handler). */
+ #ifndef _WIN32
+ #define HA_DEADLINE_DEFAULT_MS 2000 /* in-process budget; see ha_deadline_ms()  */
+ #define HA_DEADLINE_MIN_MS 50
+@@ -103,12 +105,12 @@
+     if (override && override[0]) {
+         snprintf(path, sizeof(path), "%s", override);
+     } else {
+-        const char *home = getenv("HOME");
+-        if (!home || !home[0]) {
++        const char *data_dir = cbm_app_data_dir();
++        if (!data_dir || !data_dir[0]) {
+             return;
+         }
+         char dir[CBM_SZ_1K];
+-        snprintf(dir, sizeof(dir), "%s/.cache/codebase-memory-mcp/logs", home);
++        snprintf(dir, sizeof(dir), "%s/codebase-memory-mcp/logs", data_dir);
+         cbm_mkdir_p(dir, 0755);
+         snprintf(path, sizeof(path), "%s/hook-augment-timeouts.log", dir);
+     }
+diff -ruN a/src/daemon/application.c b/src/daemon/application.c
+--- a/src/daemon/application.c
++++ b/src/daemon/application.c
+@@ -587,14 +587,11 @@
+         cbm_normalize_path_sep(out);
+         return true;
+     }
+-    char home[APPLICATION_PATH_CAP] = {0};
+-    if (!cbm_safe_getenv("HOME", home, sizeof(home), NULL) || !home[0]) {
+-        (void)cbm_safe_getenv("USERPROFILE", home, sizeof(home), NULL);
+-    }
+-    if (!home[0]) {
++    const char *data_dir = cbm_app_data_dir();
++    if (!data_dir || !data_dir[0]) {
+         return false;
+     }
+-    int written = snprintf(out, APPLICATION_PATH_CAP, "%s/.cache/codebase-memory-mcp", home);
++    int written = snprintf(out, APPLICATION_PATH_CAP, "%s/codebase-memory-mcp", data_dir);
+     if (written <= 0 || written >= APPLICATION_PATH_CAP) {
+         return false;
+     }
+diff -ruN a/src/foundation/platform.c b/src/foundation/platform.c
+--- a/src/foundation/platform.c
++++ b/src/foundation/platform.c
+@@ -512,6 +512,26 @@
+ #endif
+ }
+ 
++const char *cbm_app_data_dir(void) {
++#ifdef _WIN32
++    return cbm_app_local_dir();
++#else
++    static CBM_TLS char buf[CBM_SZ_1K];
++    char tmp[CBM_SZ_256] = "";
++    cbm_safe_getenv("XDG_DATA_HOME", tmp, sizeof(tmp), NULL);
++    if (tmp[0]) {
++        snprintf(buf, sizeof(buf), "%s", tmp);
++        return buf;
++    }
++    const char *home = cbm_get_home_dir();
++    if (home) {
++        snprintf(buf, sizeof(buf), "%s/.local/share", home);
++        return buf;
++    }
++    return NULL;
++#endif /* _WIN32 */
++}
++
+ /* ── Cache directory ────────────────────────── */
+ 
+ const char *cbm_resolve_cache_dir(void) {
+@@ -528,11 +548,11 @@
+         cbm_normalize_path_sep(buf);
+         return buf;
+     }
+-    const char *home = cbm_get_home_dir();
+-    if (!home) {
++    const char *data_dir = cbm_app_data_dir();
++    if (!data_dir) {
+         return NULL;
+     }
+-    int written = snprintf(buf, sizeof(buf), "%s/.cache/codebase-memory-mcp", home);
++    int written = snprintf(buf, sizeof(buf), "%s/codebase-memory-mcp", data_dir);
+     if (written <= 0 || (size_t)written >= sizeof(buf)) {
+         buf[0] = '\0';
+         return NULL;
+diff -ruN a/src/foundation/platform.h b/src/foundation/platform.h
+--- a/src/foundation/platform.h
++++ b/src/foundation/platform.h
+@@ -139,10 +139,16 @@
+  * macOS/Linux: same as cbm_app_config_dir(). */
+ const char *cbm_app_local_dir(void);
+ 
++/* Cross-platform app data directory (static buffer, not thread-safe).
++ * Windows: same as cbm_app_local_dir()
++ * macOS/Linux: $XDG_DATA_HOME or ~/.local/share */
++const char *cbm_app_data_dir(void);
++
+ /* ── Cache directory ────────────────────────────────────────────── */
+ 
+ /* Resolve the database cache directory. All project indexes are stored here.
+- * Priority: CBM_CACHE_DIR env var > ~/.cache/codebase-memory-mcp (default).
++ * Priority: CBM_CACHE_DIR env var > $XDG_DATA_HOME/codebase-memory-mcp
++ * > ~/.local/share/codebase-memory-mcp (default).
+  * Returns static buffer or NULL if home is unavailable. */
+ const char *cbm_resolve_cache_dir(void);
+ 
+diff -ruN a/src/mcp/index_supervisor.c b/src/mcp/index_supervisor.c
+--- a/src/mcp/index_supervisor.c
++++ b/src/mcp/index_supervisor.c
+@@ -501,14 +501,11 @@
+         cbm_normalize_path_sep(out);
+         return true;
+     }
+-    char home[INDEX_WORKER_PATH_CAP] = {0};
+-    if (!cbm_safe_getenv("HOME", home, sizeof(home), NULL) || !home[0]) {
+-        (void)cbm_safe_getenv("USERPROFILE", home, sizeof(home), NULL);
+-    }
+-    if (!home[0]) {
++    const char *data_dir = cbm_app_data_dir();
++    if (!data_dir || !data_dir[0]) {
+         return false;
+     }
+-    int written = snprintf(out, INDEX_WORKER_PATH_CAP, "%s/.cache/codebase-memory-mcp", home);
++    int written = snprintf(out, INDEX_WORKER_PATH_CAP, "%s/codebase-memory-mcp", data_dir);
+     if (written <= 0 || written >= INDEX_WORKER_PATH_CAP) {
+         return false;
+     }
+diff -ruN a/src/ui/config.c b/src/ui/config.c
+--- a/src/ui/config.c
++++ b/src/ui/config.c
+@@ -1,7 +1,7 @@
+ /*
+  * config.c — Persistent UI configuration (JSON via yyjson).
+  *
+- * Config file: ~/.cache/codebase-memory-mcp/config.json
++ * Config file: ~/.local/share/codebase-memory-mcp/config.json
+  * Format: {"ui_enabled": false, "ui_port": 9749}
+  */
+ #include "foundation/constants.h"
+diff -ruN a/src/ui/config.h b/src/ui/config.h
+--- a/src/ui/config.h
++++ b/src/ui/config.h
+@@ -1,7 +1,7 @@
+ /*
+  * config.h — Persistent UI configuration.
+  *
+- * Stores ui_enabled and ui_port in ~/.cache/codebase-memory-mcp/config.json.
++ * Stores ui_enabled and ui_port in ~/.local/share/codebase-memory-mcp/config.json.
+  * Thread-safe: load/save are independent operations on the filesystem.
+  */
+ #ifndef CBM_UI_CONFIG_H

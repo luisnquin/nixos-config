@@ -120,6 +120,7 @@
       };
       patches = [
         ./patches/codebase-memory-mcp/remove-install-update.patch
+        ./patches/codebase-memory-mcp/index-in-xdg-data-home.patch
       ];
       # embed-frontend.sh moved to `#!/usr/bin/env bash`, so nixpkgs' hardcoded
       # /bin/bash --replace-fail has nothing left to hit; patchShebangs resolves
