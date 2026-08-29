@@ -12,18 +12,15 @@
 No GUI or "manual steps" are required so just get the minimal ISO (if possible).
 
 ```bash
-# Clone the configuration (or just grab the disko-config.nix file)
-$ git clone https://github.com/luisnquin/nixos-config.git
-
-# Partition and format disks with disko
-$ sudo nix --experimental-features "nix-command flakes" run \
-    github:nix-community/disko -- --mode disko nixos-config/system/hosts/nyx/disko-config.nix
-
-# Install NixOS using the configuration flake
-$ sudo nixos-install --root /mnt --flake github:luisnquin/nixos-config#nyx
+# Partitions and formats with disko, provisions the secure boot signing
+# keys and installs the flake
+$ nix --experimental-features "nix-command flakes" run github:luisnquin/nixos-config#setup
 ```
 
-After that just reboot and continue the setup with home manager.
+After that just reboot and continue the setup with home manager. To keep the
+firmware's secure boot enrollment, restore `/var/lib/sbctl` from backup before
+running the script; with fresh keys, re-enroll once after first boot: firmware →
+delete PK (Setup Mode), `sbctl enroll-keys --microsoft`, enable secure boot.
 
 ## How does it look like?
 
