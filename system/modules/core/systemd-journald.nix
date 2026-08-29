@@ -29,7 +29,7 @@
   };
 
   services.journald.extraConfig = ''
-    Storage=volatile
-    RuntimeMaxUse=100M
+    Storage=persistent
+    SystemMaxUse=500M
   '';
 }
