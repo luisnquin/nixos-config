@@ -34,9 +34,14 @@
         # left on, gecko fakes window focus and dead keys stop composing (á, ñ)
         "focusmanager.testmode" = false;
 
-        # kills the "wants to access other apps and services" (WebMIDI)
-        # prompt that corpo friends abuse for fingerprinting
         "dom.webmidi.enabled" = false;
+
+        # "<site> wants to access other apps and services on this device" is the
+        # local network access prompt (loopback-network/local-network), not WebMIDI;
+        # shops like aliexpress port-scan 127.0.0.1 to fingerprint. 2 = BLOCK, and
+        # PermissionUI cancels the request instead of drawing a doorhanger.
+        "permissions.default.loopback-network" = 2;
+        "permissions.default.local-network" = 2;
       };
 
       presets.betterfox.enable = true;
