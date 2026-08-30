@@ -1,0 +1,233 @@
+/* GTK paints a themed gradient over any button background, so every button in
+   the panel has to have that image cleared or the fill reads as a light pill. */
+.hark-box button {
+  background-image: none;
+  box-shadow: none;
+  text-shadow: none;
+  outline: none;
+  min-height: 0;
+  min-width: 0;
+}
+
+.hark-box {
+  background-color: rgba(29, 16, 58, 0.98);
+  border: 1px solid rgba(181, 232, 224, 0.14);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.hark-header {
+  border-bottom: 1px solid rgba(181, 232, 224, 0.10);
+  padding-bottom: 10px;
+}
+
+.hark-mark {
+  color: #b5e8e0;
+  font-size: 18pt;
+}
+
+.hark-mark.alert {
+  color: #f28fad;
+}
+
+.hark-title {
+  color: #ffffff;
+  font-size: 12pt;
+}
+
+.hark-meta,
+.hark-group-preview,
+.hark-entry-body,
+.hark-entry-app,
+.hark-void-text {
+  color: rgba(205, 214, 244, 0.48);
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.hark-scroll {
+  outline: none;
+}
+
+/* Header tools */
+
+.hark-tool {
+  background-color: rgba(205, 214, 244, 0.045);
+  border: 1px solid rgba(205, 214, 244, 0.08);
+  border-radius: 6px;
+  padding: 3px 7px;
+  color: rgba(205, 214, 244, 0.65);
+}
+
+.hark-tool:hover {
+  background-color: rgba(181, 232, 224, 0.10);
+  border-color: rgba(181, 232, 224, 0.20);
+  color: #b5e8e0;
+}
+
+.hark-tool.on {
+  background-color: rgba(232, 206, 245, 0.14);
+  border-color: rgba(232, 206, 245, 0.30);
+  color: #e8cef5;
+}
+
+.hark-tool.danger:hover {
+  background-color: rgba(242, 143, 173, 0.12);
+  border-color: rgba(242, 143, 173, 0.28);
+  color: #f28fad;
+}
+
+.hark-tool.small {
+  padding: 1px 5px;
+  font-size: 8pt;
+}
+
+/* Groups */
+
+.hark-group-head {
+  border-radius: 6px;
+}
+
+.hark-group-toggle {
+  background-color: rgba(205, 214, 244, 0.05);
+  border: 1px solid rgba(205, 214, 244, 0.07);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.hark-group-toggle:hover {
+  background-color: rgba(181, 232, 224, 0.11);
+  border-color: rgba(181, 232, 224, 0.20);
+}
+
+.hark-chevron {
+  color: rgba(205, 214, 244, 0.60);
+  font-size: 9pt;
+}
+
+.hark-group-icon {
+  color: #b5e8e0;
+  font-size: 11pt;
+}
+
+.hark-group-icon.alert {
+  color: #f28fad;
+}
+
+.hark-group-label {
+  color: #e4e8f7;
+}
+
+.hark-group-when {
+  color: rgba(205, 214, 244, 0.40);
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.hark-badge {
+  background-color: rgba(205, 214, 244, 0.10);
+  border-radius: 8px;
+  padding: 0 6px;
+  font-size: 8pt;
+  color: rgba(205, 214, 244, 0.65);
+}
+
+.hark-badge.unread {
+  background-color: rgba(181, 232, 224, 0.20);
+  color: #b5e8e0;
+}
+
+.hark-group-preview {
+  padding-left: 26px;
+}
+
+/* Entries */
+
+.hark-entry {
+  background-color: rgba(205, 214, 244, 0.035);
+  border: 1px solid rgba(205, 214, 244, 0.07);
+  border-left: 3px solid rgba(205, 214, 244, 0.12);
+  border-radius: 6px;
+  margin-left: 20px;
+  padding: 6px 9px;
+}
+
+/* Read and dismissed is the resting state; the accents below are what stands
+   out against it. */
+.hark-entry.unread {
+  border-left-color: #b5e8e0;
+}
+
+.hark-entry.live {
+  background-color: rgba(232, 206, 245, 0.07);
+}
+
+.hark-entry.critical,
+.hark-entry.high {
+  border-left-color: #f28fad;
+}
+
+.hark-entry.low {
+  border-left-color: rgba(205, 214, 244, 0.10);
+}
+
+.hark-entry-summary {
+  color: #cdd6f4;
+  font-size: 9pt;
+}
+
+.hark-entry-when {
+  color: rgba(205, 214, 244, 0.40);
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.hark-entry-body.open {
+  color: rgba(205, 214, 244, 0.62);
+}
+
+.hark-entry-foot {
+  padding-top: 2px;
+}
+
+.hark-link {
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0 5px;
+  color: rgba(181, 232, 224, 0.60);
+  font-size: 8pt;
+  font-weight: normal;
+}
+
+.hark-link:hover {
+  color: #b5e8e0;
+}
+
+.hark-link.action {
+  color: #e8cef5;
+}
+
+.hark-progress trough {
+  background-color: rgba(205, 214, 244, 0.07);
+  border-radius: 3px;
+  min-height: 4px;
+}
+
+.hark-progress progress {
+  background-color: #b5e8e0;
+  border-radius: 3px;
+  min-height: 4px;
+}
+
+/* Empty state */
+
+.hark-void {
+  padding: 90px 0;
+}
+
+.hark-void-mark {
+  color: rgba(205, 214, 244, 0.20);
+  font-size: 30pt;
+}

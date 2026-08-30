@@ -6,6 +6,7 @@ pkgs:
   cliphizt = pkgs.callPackage ./clipz/cliphizt {};
   cliplenz = pkgs.callPackage ./clipz/cliplenz {};
   ee-workbench = pkgs.callPackage ./ee-workbench {};
+  hark = pkgs.callPackage ./hark {};
   heft = pkgs.callPackage ./heft {};
   herdr-autoname = pkgs.callPackage ./herdr-autoname {};
   herdr-recall = pkgs.callPackage ./herdr-recall {};

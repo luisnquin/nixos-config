@@ -1,0 +1,15 @@
+[package]
+name = "hark"
+version = "0.1.0"
+edition = "2021"
+description = "notification centre over mako's history"
+license = "MIT"
+
+[dependencies]
+regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-case", "unicode-perl"] }
+libc = "0.2"
+serde_json = "1"
+
+[profile.release]
+lto = true
+strip = true

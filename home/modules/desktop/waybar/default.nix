@@ -38,6 +38,22 @@
 
       ewwToggleHeft = ewwToggle "heft";
 
+      # The centre marks itself read on the way out rather than on the way in,
+      # so the accents that say "this is new" survive being looked at.
+      notificationsToggle = pkgs.writeShellApplication {
+        name = "waybar-notifications";
+        runtimeInputs = [config.programs.eww.package pkgs.hark];
+        text = ''
+          if eww active-windows 2>/dev/null | grep -q "^notifications"; then
+            eww close notifications
+            hark seen
+            exit 0
+          fi
+          eww close-all 2>/dev/null || true
+          eww open notifications
+        '';
+      };
+
       # No jq here: `heft waybar` is itself a cache read that already emits the
       # bar's JSON, and degrades to a placeholder before the first scan.
       heftWaybar =
@@ -68,6 +84,7 @@
         ];
 
         modules-right = [
+          "custom/notifications"
           "custom/heft"
           "custom/tailscale"
           "custom/ssh"
@@ -100,6 +117,19 @@
         "custom/launcher" = {
           "format" = " ";
           "tooltip" = false;
+        };
+
+        "custom/notifications" = {
+          # No interval: hark streams a fresh line every time mako's D-Bus
+          # property is invalidated, so the badge never lags a poll behind.
+          exec = "${lib.getExe pkgs.hark} waybar --watch";
+          return-type = "json";
+          escape = false;
+          restart-interval = 5;
+          tooltip = true;
+          on-click = lib.getExe notificationsToggle;
+          on-click-right = "${lib.getExe pkgs.hark} dnd toggle";
+          on-click-middle = "${lib.getExe pkgs.hark} clear";
         };
 
         "custom/ssh" = {

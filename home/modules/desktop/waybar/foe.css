@@ -47,6 +47,7 @@ window > box {
 #tray,
 #clock,
 #custom-heft,
+#custom-notifications,
 #custom-tailscale,
 #custom-ssh,
 #cpu,
@@ -147,6 +148,28 @@ window > box {
 /* Steady colour, no blink: the disk sits near its limit for weeks. */
 #custom-heft.cramped {
     color: #f28fad;
+}
+
+/* Notification centre */
+
+#custom-notifications {
+    color: rgba(181, 232, 224, 0.55);
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+#custom-notifications.unread {
+    color: #b5e8e0;
+}
+
+/* Steady colour, no blink: an unread critical stays unread until it is read. */
+#custom-notifications.alert {
+    color: #f28fad;
+}
+
+#custom-notifications.dnd,
+#custom-notifications.down {
+    color: rgba(156, 152, 148, 0.70);
 }
 
 /* Tailscale */
@@ -283,6 +306,7 @@ window > box {
 #custom-launcher:hover,
 #tray:hover,
 #custom-heft:hover,
+#custom-notifications:hover,
 #custom-tailscale:hover,
 #battery:hover,
 #network:hover,

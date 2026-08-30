@@ -22,7 +22,7 @@
       max-icon-size = 25;
       icons = true;
       sort = "-time";
-      max-history = 200;
+      max-history = 500;
 
       "urgency=low" = {
         border-color = "#444152";
@@ -35,6 +35,12 @@
       "urgency=high" = {
         border-color = "#ff5555";
         default-timeout = 0;
+      };
+
+      # hark drives this through `makoctl mode -t do-not-disturb`; the centre
+      # keeps collecting while the popups stay off screen.
+      "mode=do-not-disturb" = {
+        invisible = 1;
       };
 
       "category=mpd" = {
