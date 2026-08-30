@@ -409,6 +409,59 @@ fn space_eligible(label: &str, last_set: Option<&str>) -> bool {
     last_set.is_none() || last_set == Some(label)
 }
 
+/// Spaces cut from the same repository all resolve to one name, which leaves the
+/// switcher listing the same word four times. Twins take a number in the order
+/// herdr lists them, the first keeping the bare name: the number appears only
+/// where the ambiguity does, and stays put when a twin is renamed away.
+fn number_twins(bases: Vec<(String, String)>, max_len: usize) -> Vec<(String, String)> {
+    let mut twins: HashMap<&str, usize> = HashMap::new();
+    for (_, base) in &bases {
+        *twins.entry(base.as_str()).or_default() += 1;
+    }
+    let alone: HashSet<String> = twins
+        .into_iter()
+        .filter(|(_, count)| *count < 2)
+        .map(|(base, _)| base.to_owned())
+        .collect();
+
+    let mut seen: HashMap<String, usize> = HashMap::new();
+    bases
+        .into_iter()
+        .map(|(ws_id, base)| {
+            if alone.contains(&base) {
+                return (ws_id, base);
+            }
+            let index = seen.entry(base.clone()).or_default();
+            *index += 1;
+            let name = match *index {
+                1 => base,
+                index => numbered(&base, index, max_len),
+            };
+            (ws_id, name)
+        })
+        .collect()
+}
+
+/// The number has to fit inside the same budget as the name it qualifies.
+fn numbered(base: &str, index: usize, max_len: usize) -> String {
+    let suffix = format!(" {index}");
+    let room = max_len.saturating_sub(suffix.chars().count());
+    let head: String = base.chars().take(room).collect();
+    format!("{}{suffix}", head.trim_end())
+}
+
+/// Whether a label is a name wearing its twin number, so the cheap paths can tell
+/// a stale name from one that is merely qualified.
+fn is_variant_of(label: &str, base: &str) -> bool {
+    if label == base {
+        return true;
+    }
+    label
+        .strip_prefix(base)
+        .and_then(|rest| rest.strip_prefix(' '))
+        .is_some_and(|index| !index.is_empty() && index.chars().all(|c| c.is_ascii_digit()))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Action {
     Skip,
@@ -644,7 +697,8 @@ impl Namer {
                     self.spaces.clear(&ws_id);
                     self.spaces.clear_off(&ws_id);
                 }
-                return;
+                // Numbers are positions among twins, so the survivors move up.
+                return self.sweep_spaces();
             }
             "workspace.renamed" => return self.forget_space_if_user_renamed(),
             // No return: the tab still needs a name for whatever is left.
@@ -775,20 +829,106 @@ impl Namer {
             };
             live.insert(Store::key(ws_id));
             icons_live.insert(Store::key(ws_id));
-            let pane = str_at(ws, &["active_tab_id"]).and_then(|tab_id| space_pane(panes, tab_id));
-            if let Some(cwd) = pane.and_then(space_cwd) {
+            let cwd = str_at(ws, &["active_tab_id"])
+                .and_then(|tab_id| space_pane(panes, tab_id))
+                .and_then(space_cwd);
+            if let Some(cwd) = cwd {
                 self.report_space_icon(ws_id, cwd);
             }
-            if self.cfg.space == SpaceName::Off || self.spaces.is_off(ws_id) {
-                continue;
-            }
-            let Some(name) = pane.and_then(|pane| self.name_for_space(pane)) else {
-                continue;
-            };
-            self.apply_space_known(ws_id, str_at(ws, &["label"]).unwrap_or(""), &name);
         }
+        self.name_spaces(panes, workspaces);
         self.spaces.gc(&live);
         self.icons.gc(&icons_live);
+    }
+
+    /// Re-number the spaces on their own, for the events that change who is a
+    /// twin of whom without touching a single tab.
+    fn sweep_spaces(&self) {
+        let (Some(panes), Some(workspaces)) =
+            (herdr(&["pane", "list"]), herdr(&["workspace", "list"]))
+        else {
+            return;
+        };
+        let empty = Vec::new();
+        self.name_spaces(
+            array(&panes, &["result", "panes"]).unwrap_or(&empty),
+            array(&workspaces, &["result", "workspaces"]).unwrap_or(&empty),
+        );
+    }
+
+    /// A twin number is only knowable from the whole list, so every space is
+    /// named in one pass rather than each on its own.
+    fn name_spaces(&self, panes: &[JsonValue], workspaces: &[JsonValue]) {
+        for (ws_id, name) in number_twins(self.space_bases(panes, workspaces, None), self.cfg.max_len)
+        {
+            let label = workspaces
+                .iter()
+                .find(|ws| str_at(ws, &["workspace_id"]) == Some(ws_id.as_str()))
+                .and_then(|ws| str_at(ws, &["label"]))
+                .unwrap_or("");
+            self.apply_space_known(&ws_id, label, &name);
+        }
+    }
+
+    /// The name every auto-named space would carry before twins are numbered.
+    /// `known` substitutes a name already computed elsewhere, so the caller that
+    /// has one does not pay for it twice.
+    fn space_bases(
+        &self,
+        panes: &[JsonValue],
+        workspaces: &[JsonValue],
+        known: Option<(&str, &str)>,
+    ) -> Vec<(String, String)> {
+        if self.cfg.space == SpaceName::Off {
+            return Vec::new();
+        }
+        workspaces
+            .iter()
+            .filter_map(|ws| {
+                let ws_id = str_at(ws, &["workspace_id"])?;
+                if self.spaces.is_off(ws_id) {
+                    return None;
+                }
+                if let Some((known_id, name)) = known {
+                    if known_id == ws_id {
+                        return Some((ws_id.to_owned(), name.to_owned()));
+                    }
+                }
+                let pane =
+                    str_at(ws, &["active_tab_id"]).and_then(|tab_id| space_pane(panes, tab_id))?;
+                Some((ws_id.to_owned(), self.name_for_space(pane)?))
+            })
+            .collect()
+    }
+
+    /// The number `base` earns once the rest of the session is taken into
+    /// account. Only worth asking when the base itself changed.
+    fn qualify(&self, ws_id: &str, base: &str) -> String {
+        let (Some(panes), Some(workspaces)) =
+            (herdr(&["pane", "list"]), herdr(&["workspace", "list"]))
+        else {
+            return base.to_owned();
+        };
+        let empty = Vec::new();
+        let bases = self.space_bases(
+            array(&panes, &["result", "panes"]).unwrap_or(&empty),
+            array(&workspaces, &["result", "workspaces"]).unwrap_or(&empty),
+            Some((ws_id, base)),
+        );
+        number_twins(bases, self.cfg.max_len)
+            .into_iter()
+            .find(|(id, _)| id == ws_id)
+            .map(|(_, name)| name)
+            .unwrap_or_else(|| base.to_owned())
+    }
+
+    /// A name already carrying the right number is left alone, which keeps the
+    /// steady state off the twin lookup entirely.
+    fn settled(&self, ws_id: &str, base: &str) -> String {
+        match self.spaces.get(ws_id) {
+            Some(stored) if is_variant_of(&stored, base) => stored,
+            _ => self.qualify(ws_id, base),
+        }
     }
 
     fn active_pane_in(&self, tab_id: &str) -> Option<JsonValue> {
@@ -867,7 +1007,8 @@ impl Namer {
     }
 
     fn space_name(&self, ws_id: &str, hint: Option<&JsonValue>) -> Option<String> {
-        self.name_for_space(&self.space_pane_for(ws_id, hint)?)
+        let base = self.name_for_space(&self.space_pane_for(ws_id, hint)?)?;
+        Some(self.qualify(ws_id, &base))
     }
 
     fn rename_space(&self, ws_id: &str, hint: Option<&JsonValue>) {
@@ -881,9 +1022,10 @@ impl Namer {
         if let Some(cwd) = space_cwd(&pane) {
             self.report_space_icon(ws_id, cwd);
         }
-        let Some(name) = naming.then(|| self.name_for_space(&pane)).flatten() else {
+        let Some(base) = naming.then(|| self.name_for_space(&pane)).flatten() else {
             return;
         };
+        let name = self.settled(ws_id, &base);
         self.apply_space(ws_id, &name);
     }
 
@@ -898,11 +1040,13 @@ impl Namer {
             return;
         };
         let naming = self.cfg.space != SpaceName::Off && !self.spaces.is_off(&ws_id);
-        let name = naming.then(|| self.name_from_cwd(cwd)).flatten();
+        let base = naming.then(|| self.name_from_cwd(cwd)).flatten();
         let icon = self.cfg.icons.then(|| self.cfg.dir_icon(cwd));
+        // A stored name that is only this one wearing a twin number is not stale,
+        // which is what keeps the shell hook off the session-wide lookup.
         let stale_name = matches!(
-            &name,
-            Some(name) if self.spaces.get(&ws_id).as_deref() != Some(name.as_str())
+            &base,
+            Some(base) if !self.spaces.get(&ws_id).is_some_and(|stored| is_variant_of(&stored, base))
         );
         let stale_icon = matches!(
             &icon,
@@ -920,9 +1064,10 @@ impl Namer {
         if let Some(icon) = icon {
             self.report_icon("workspace", &ws_id, &icon);
         }
-        let Some(name) = name.filter(|_| stale_name) else {
+        let Some(base) = base.filter(|_| stale_name) else {
             return;
         };
+        let name = self.qualify(&ws_id, &base);
         let label = str_at(&ws, &["result", "workspace", "label"]).unwrap_or("");
         self.apply_space_known(&ws_id, label, &name);
     }
@@ -1393,6 +1538,59 @@ mod tests {
         assert_eq!(repo_root(worktree.to_str().unwrap()), Some(worktree));
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn twins_are_numbered_from_the_second_one_on() {
+        let bases = |pairs: &[(&str, &str)]| {
+            pairs
+                .iter()
+                .map(|(id, base)| ((*id).to_owned(), (*base).to_owned()))
+                .collect::<Vec<_>>()
+        };
+        let names = |out: Vec<(String, String)>| {
+            out.into_iter().map(|(_, name)| name).collect::<Vec<_>>()
+        };
+
+        // a name nobody shares never grows a number
+        assert_eq!(
+            names(number_twins(
+                bases(&[("a", "dotfiles"), ("b", "nao")]),
+                DEFAULT_MAX_LEN
+            )),
+            ["dotfiles", "nao"]
+        );
+        // twins are numbered in list order, and each name counts on its own
+        assert_eq!(
+            names(number_twins(
+                bases(&[
+                    ("a", "dotfiles"),
+                    ("b", "nao"),
+                    ("c", "dotfiles"),
+                    ("d", "dotfiles"),
+                ]),
+                DEFAULT_MAX_LEN
+            )),
+            ["dotfiles", "nao", "dotfiles 2", "dotfiles 3"]
+        );
+        // the number lives inside the length budget, not past it
+        assert_eq!(
+            names(number_twins(
+                bases(&[("a", "abcdef"), ("b", "abcdef")]),
+                6
+            )),
+            ["abcdef", "abcd 2"]
+        );
+    }
+
+    #[test]
+    fn a_numbered_name_still_reads_as_its_own_base() {
+        assert!(is_variant_of("dotfiles", "dotfiles"));
+        assert!(is_variant_of("dotfiles 12", "dotfiles"));
+        // a number is not a licence to match a different name
+        assert!(!is_variant_of("dotfiles 2", "nao"));
+        assert!(!is_variant_of("dotfiles beta", "dotfiles"));
+        assert!(!is_variant_of("dotfiles ", "dotfiles"));
     }
 
     #[test]
