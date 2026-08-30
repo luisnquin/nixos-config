@@ -8,12 +8,20 @@
 
   boot = {
     supportedFilesystems = ["ntfs"];
-    tmp = {
-      # otherwise /tmp shares the 8G tmpfs root and a large build ENOSPCs /
-      useTmpfs = true;
-      tmpfsSize = "8G";
-    };
+    # /tmp is a bind onto the nvme below, so it survives a reboot on its own
+    tmp.cleanOnBoot = true;
   };
+
+  fileSystems."/tmp" = {
+    device = "/persist/tmpdir";
+    fsType = "none";
+    options = ["bind"];
+    depends = ["/persist"];
+  };
+
+  # /tmp needs 1777, which nix rejects as a build-dir ancestor, so this cannot
+  # live under the /persist/tmp that holds nix-builds
+  systemd.tmpfiles.rules = ["d /persist/tmpdir 1777 root root -"];
 
   services = {
     udisks2.enable = true;
