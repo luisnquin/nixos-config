@@ -43,7 +43,35 @@
       '';
     });
   })
-  (_final: prev: rec {
+  (_final: prev: let
+    # Ahead of llm-agents.nix, which still ships 2.1.252. Drop once it catches up.
+    claudeCodeVersion = "2.1.257";
+    claudeCodePlatforms = {
+      x86_64-linux = {
+        token = "linux-x64";
+        hash = "sha256-mmS9qdhyKh+gW++aWWHQfgMxuZWX7ani9qcy86D/fwU=";
+      };
+      aarch64-linux = {
+        token = "linux-arm64";
+        hash = "sha256-IvfUjxcZOVLDwtC4vy8x2yzQj9X7CaN0+jIUlrcR0Bc=";
+      };
+      aarch64-darwin = {
+        token = "darwin-arm64";
+        hash = "sha256-ZFkNfZ2cGJ0z+z36WMVAjq8qEP5Va9hBVdle+qtGtg4=";
+      };
+    };
+
+    claude-code = prev.llm-agents.claude-code.overrideAttrs (_old: let
+      platform = claudeCodePlatforms.${prev.stdenv.hostPlatform.system};
+    in {
+      version = claudeCodeVersion;
+
+      src = prev.fetchurl {
+        url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/${claudeCodeVersion}/${platform.token}/claude";
+        inherit (platform) hash;
+      };
+    });
+  in rec {
     codex = prev.llm-agents.codex.overrideAttrs (old: let
       devServerInstruction = "When building a site or app that needs a dev server to run properly, you start the local dev server after implementation and give the user the URL so they can try it. If there's already a server on that port, you use another one. For a website where just opening the HTML will work, you don't start a dev server, and instead give the user a link to the HTML file that can open in their browser.\\n\\n";
     in {
@@ -75,7 +103,7 @@
         '';
     });
 
-    llm-agents = prev.llm-agents // {inherit codex;};
+    llm-agents = prev.llm-agents // {inherit codex claude-code;};
   })
   (_final: prev: {
     mako = prev.mako.overrideAttrs (old: {
