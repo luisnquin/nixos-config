@@ -8,6 +8,11 @@ use anyhow::{bail, Result};
 
 use crate::ssh::Where;
 
+/// How long an emulator is given to leave adb after being asked to exit. Long
+/// enough for one that is writing its snapshot out, short enough that a wedged
+/// process is reported rather than waited on.
+const EXIT: Duration = Duration::from_secs(60);
+
 /// `emulator` ships inside the SDK rather than in any system path, and a
 /// non-interactive ssh reads no login profile, so the login shell is asked for
 /// its own PATH the way host probing is, then the usual SDK roots are tried.
@@ -116,5 +121,34 @@ exec adb -s "$1" emu kill"#;
         );
     }
 
-    Ok(())
+    gone(at, serial).await
+}
+
+/// Blocks until `serial` has left the host's adb, which is a later moment than
+/// the one `emu kill` returns at: the console accepts the word and the process
+/// takes seconds more to go, holding the AVD's lock for all of them. Returning
+/// before that makes `down` a lie to whatever runs next — the AVD cannot be
+/// started again while the instance that owns it is still exiting.
+async fn gone(at: &Where, serial: &str) -> Result<()> {
+    const LISTED: &str = r#"PATH="$($SHELL -l -c 'printf %s "$PATH"' 2>/dev/null):$PATH"
+adb devices 2>/dev/null | awk -v want="$1" '$1 == want { print "listed" }'"#;
+
+    let began = std::time::Instant::now();
+
+    while began.elapsed() < EXIT {
+        if !at
+            .text(LISTED, &[serial], Duration::from_secs(25))
+            .await
+            .contains("listed")
+        {
+            return Ok(());
+        }
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    bail!(
+        "{serial} was still listed {}s after being asked to exit",
+        EXIT.as_secs()
+    )
 }
