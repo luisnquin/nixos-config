@@ -61,7 +61,11 @@
         + " --warn-free ${toString config.services.heft.warnFreeGiB}"
         + " --critical-free ${toString config.services.heft.criticalFreeGiB}";
 
-      sshWaybar = pkgs.waytools.ssh;
+      sshSoloWaybar = pkgs.waytools.sshSolo;
+
+      sshInWaybar = pkgs.waytools.sshIn;
+
+      sshOutWaybar = pkgs.waytools.sshOut;
 
       tailscaleWaybar = pkgs.waytools.tailscale;
 
@@ -87,11 +91,24 @@
           "custom/notifications"
           "custom/heft"
           "custom/tailscale"
-          "custom/ssh"
+          "group/ssh"
           "group/sysmon"
           "network"
           "custom/battery"
         ];
+
+        # The monogram sits beside the sessions, not inside each row: repeating
+        # it per row is what broke the alignment against group/sysmon. Exactly
+        # one of ssh-solo and ssh-sessions carries text at any time.
+        "group/ssh" = {
+          orientation = "horizontal";
+          modules = ["custom/ssh-icon" "custom/ssh-solo" "group/ssh-sessions"];
+        };
+
+        "group/ssh-sessions" = {
+          orientation = "vertical";
+          modules = ["custom/ssh-in" "custom/ssh-out"];
+        };
 
         "group/sysmon" = {
           orientation = "vertical";
@@ -132,8 +149,31 @@
           on-click-middle = "${lib.getExe pkgs.hark} clear";
         };
 
-        "custom/ssh" = {
-          exec = "${lib.getExe sshWaybar}";
+        "custom/ssh-icon" = {
+          format = "󰣀";
+          tooltip = false;
+        };
+
+        "custom/ssh-solo" = {
+          exec = "${lib.getExe sshSoloWaybar}";
+          return-type = "json";
+          escape = false;
+          interval = 2;
+          tooltip = true;
+          hide-empty-text = true;
+        };
+
+        "custom/ssh-in" = {
+          exec = "${lib.getExe sshInWaybar}";
+          return-type = "json";
+          escape = false;
+          interval = 2;
+          tooltip = true;
+          hide-empty-text = true;
+        };
+
+        "custom/ssh-out" = {
+          exec = "${lib.getExe sshOutWaybar}";
           return-type = "json";
           escape = false;
           interval = 2;

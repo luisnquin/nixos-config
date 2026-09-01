@@ -22,12 +22,14 @@ fn main() -> ExitCode {
 
     let command = match invoked_as {
         "waybar-battery" => "battery".to_owned(),
-        "waybar-ssh" => "ssh".to_owned(),
+        "waybar-ssh-solo" => "ssh-solo".to_owned(),
+        "waybar-ssh-in" => "ssh-in".to_owned(),
+        "waybar-ssh-out" => "ssh-out".to_owned(),
         "waybar-tailscale" => "tailscale".to_owned(),
         _ => match args.next() {
             Some(command) => command,
             None => {
-                eprintln!("usage: waytools <battery|ssh|tailscale>");
+                eprintln!("usage: waytools <battery|ssh-solo|ssh-in|ssh-out|tailscale>");
                 return ExitCode::FAILURE;
             }
         },
@@ -35,8 +37,16 @@ fn main() -> ExitCode {
 
     match command.as_str() {
         "battery" => battery(args),
-        "ssh" => {
-            ssh();
+        "ssh-solo" => {
+            ssh_solo();
+            ExitCode::SUCCESS
+        }
+        "ssh-in" => {
+            ssh_in();
+            ExitCode::SUCCESS
+        }
+        "ssh-out" => {
+            ssh_out();
             ExitCode::SUCCESS
         }
         "tailscale" => tailscale(args),
@@ -133,32 +143,65 @@ fn battery_class(capacity: u8, warning: u8, critical: u8) -> &'static str {
     }
 }
 
-fn ssh() {
+// Three modules cover two layouts. A single direction is a sibling of the
+// stacked column rather than its lone survivor: GTK packs an only child at the
+// top of a vertical box, so it would never sit on the bar's centre line.
+// Whichever layout is not in use prints nothing and hide-empty-text drops it.
+fn ssh_solo() {
     let inbound = inbound_sessions();
     let outbound = outbound_sessions();
-
-    if inbound == 0 && outbound == 0 {
-        print_json(json!({"text": "", "tooltip": ""}));
+    if inbound > 0 && outbound > 0 {
+        print_json(json!({"text": ""}));
         return;
     }
 
-    let mut text = "<span color=\"#cba6f7\" size=\"15pt\">󰣀</span>".to_owned();
-    let mut tooltip = Vec::new();
-
-    if inbound > 0 {
-        text.push_str(&format!(
-            " <span color=\"#b5e8e0\">\u{e9fd} {inbound}</span>"
-        ));
-        tooltip.push(format!("SSH inbound: {inbound}"));
-    }
     if outbound > 0 {
-        text.push_str(&format!(
-            " <span color=\"#d8b4fe\">\u{e9fc} {outbound}</span>"
-        ));
-        tooltip.push(format!("SSH outbound: {outbound}"));
+        print_json(json!({
+            "text": outbound_text(outbound),
+            "tooltip": format!("SSH outbound: {outbound}"),
+        }));
+        return;
     }
 
-    print_json(json!({"text": text, "tooltip": tooltip.join(" · ")}));
+    print_json(json!({
+        "text": inbound_text(inbound),
+        "tooltip": format!("SSH inbound: {inbound}"),
+    }));
+}
+
+fn ssh_in() {
+    let inbound = inbound_sessions();
+    if inbound == 0 || outbound_sessions() == 0 {
+        print_json(json!({"text": ""}));
+        return;
+    }
+
+    print_json(json!({
+        "text": inbound_text(inbound),
+        "tooltip": format!("SSH inbound: {inbound}"),
+    }));
+}
+
+fn ssh_out() {
+    let outbound = outbound_sessions();
+    if outbound == 0 || inbound_sessions() == 0 {
+        print_json(json!({"text": ""}));
+        return;
+    }
+
+    print_json(json!({
+        "text": outbound_text(outbound),
+        "tooltip": format!("SSH outbound: {outbound}"),
+    }));
+}
+
+fn inbound_text(inbound: usize) -> String {
+    let color = if inbound > 0 { "#b5e8e0" } else { "#6c7086" };
+    format!("<span color=\"{color}\">\u{e9fd} {inbound}</span>")
+}
+
+fn outbound_text(outbound: usize) -> String {
+    format!("<span color=\"#d8b4fe\">\u{e9fc} {outbound}</span>")
 }
 
 fn inbound_sessions() -> usize {

@@ -44,7 +44,9 @@ in
       (old.passthru or {})
       // {
         battery = mkTool "waybar-battery";
-        ssh = mkTool "waybar-ssh";
+        sshSolo = mkTool "waybar-ssh-solo";
+        sshIn = mkTool "waybar-ssh-in";
+        sshOut = mkTool "waybar-ssh-out";
         tailscale = mkTool "waybar-tailscale";
       };
   })
