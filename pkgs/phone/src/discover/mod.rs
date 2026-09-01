@@ -366,6 +366,17 @@ async fn resolve_attached(
     let key = scoped(server, &dev.serial);
 
     if dev.state != "device" {
+        // An emulator on its way out keeps an `offline` row for a few seconds
+        // after `emu kill`, and reading that as a device that is up is what
+        // leaves a `down` followed straight away by an `up` with nothing to
+        // start: the row claims the AVD, so the listing that would have called
+        // it bootable never gets a say, and the run goes looking for a
+        // transport to an emulator that no longer exists. Dropping it here
+        // hands the answer to that listing, which says `off`.
+        if dev.platform() == Platform::Emulator && !dev.is_authorizing() {
+            return None;
+        }
+
         // an unauthorized transport answers no shell command, so read no identity
         let mut device = reg
             .by_alias(&key)

@@ -69,6 +69,16 @@ impl Attached {
         self.serial.contains(':')
     }
 
+    /// Whether the state adb reports is one the device is still on its way out
+    /// of, rather than one it is stuck in. The two read alike — neither answers
+    /// a shell command — and mean opposite things: a handset waiting on its RSA
+    /// prompt is up and will be usable the moment somebody taps it, while
+    /// `offline` is a transport whose far end is already gone, which is what an
+    /// emulator leaves behind for a few seconds after `emu kill`.
+    pub fn is_authorizing(&self) -> bool {
+        matches!(self.state.as_str(), "unauthorized" | "authorizing")
+    }
+
     pub fn platform(&self) -> Platform {
         if self
             .serial
@@ -512,6 +522,22 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
                 logical: 3,
             })
         );
+    }
+
+    /// The failure this closes: `emu kill` returns before the process is gone
+    /// and adb keeps the row in `offline` for the seconds in between, so an
+    /// `up` in that window read a dying emulator as one that was already up,
+    /// never started the AVD, and went looking for a transport to it instead.
+    #[test]
+    fn a_dying_emulator_is_not_a_device_waiting_to_be_authorized() {
+        let listed = parse_devices(
+            "List of devices attached\n\
+             emulator-5554\toffline\n\
+             39121FDJH003VB\tunauthorized\n",
+        );
+
+        assert!(!listed[0].is_authorizing(), "offline is on its way out");
+        assert!(listed[1].is_authorizing(), "an RSA prompt is answerable");
     }
 
     /// The failure this actually produced: a broken pipe became the emulator's
