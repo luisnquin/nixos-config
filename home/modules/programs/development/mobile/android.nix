@@ -39,10 +39,10 @@ in {
 
       ".gradle/gradle.properties" = {
         text = ''
-          org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.jvmargs=-Xmx14g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
           org.gradle.parallel=true
           org.gradle.configureondemand=true
-          org.gradle.daemon=false
+          org.gradle.daemon=true
         '';
         force = true;
       };
