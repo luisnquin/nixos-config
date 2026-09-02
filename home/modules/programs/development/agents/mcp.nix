@@ -65,6 +65,8 @@ in {
     servers = {
       context7.url = "https://mcp.context7.com/mcp";
 
+      appllama.url = "https://mcp.appllama.io/mcp";
+
       linear.url = "https://mcp.linear.app/mcp";
     };
   };

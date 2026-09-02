@@ -113,6 +113,20 @@ in {
         })
 
       (mkSkill {
+        src = pkgs.fetchFromGitHub {
+          owner = "appllama";
+          repo = "appllama-skills";
+          rev = "629818a094844bd383cbcc336e6bc1d953fc193f";
+          hash = "sha256-ReIOat5GneC98msi6KVAjdhGVTrF0lewrDHcPDfqdRA=";
+        };
+      } {
+        plugins = [
+          "appllama-app-design-skill"
+          "appllama-usage"
+        ];
+      })
+
+      (mkSkill {
           src = pkgs.fetchFromGitHub {
             owner = "lkshrk";
             repo = "linear-ai";
