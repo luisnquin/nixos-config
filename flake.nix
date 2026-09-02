@@ -33,7 +33,7 @@
       url = "github:nix-community/lanzaboote";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        rust-overlay.follows = "herdr/rust-overlay";
+        rust-overlay.follows = "rust-overlay";
       };
     };
 
@@ -77,9 +77,16 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     herdr = {
       url = "github:ogulcancelik/herdr";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        rust-overlay.follows = "rust-overlay";
+      };
     };
     bun2nix = {
       url = "github:nix-community/bun2nix";
