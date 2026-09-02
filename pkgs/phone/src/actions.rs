@@ -411,6 +411,7 @@ pub async fn logs_command(
 #[derive(Clone, Copy, Debug)]
 pub enum Reverse {
     Open { device: u16, host: u16 },
+    Close { device: u16 },
     List,
     Clear,
 }
@@ -446,6 +447,7 @@ pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<
         Reverse::Open { device, host } => {
             vec![format!("tcp:{device}"), format!("tcp:{host}")]
         }
+        Reverse::Close { device } => vec!["--remove".to_string(), format!("tcp:{device}")],
         Reverse::List => vec!["--list".to_string()],
         Reverse::Clear => vec!["--remove-all".to_string()],
     };
@@ -478,6 +480,7 @@ pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<
             listed if listed.is_empty() => format!("{} has no reverse forwards", device.label),
             listed => listed.join("\n"),
         },
+        Reverse::Close { device: d } => format!("{}:{d} no longer reaches anything", device.label),
         Reverse::Clear => format!("removed every reverse forward on {}", device.label),
     })
 }

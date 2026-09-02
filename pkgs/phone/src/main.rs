@@ -8,6 +8,7 @@ mod connect;
 mod discover;
 mod hosts;
 mod ios;
+mod lease;
 mod model;
 mod picker;
 mod project;
@@ -110,6 +111,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Up {
             profile,
             rebuild,
+            take,
             timeout,
             manifest,
         }) => {
@@ -126,6 +128,10 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 argv.push("--rebuild".to_string());
             }
 
+            if take {
+                argv.push("--take".to_string());
+            }
+
             argv.extend(["--timeout".to_string(), format!("{}s", timeout.as_secs())]);
 
             if up::relay(&project, &argv).await?.is_some() {
@@ -135,6 +141,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             let opts = up::Opts {
                 profile,
                 rebuild,
+                take,
                 timeout,
                 relayed,
             };

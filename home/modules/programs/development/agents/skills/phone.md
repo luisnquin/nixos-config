@@ -35,6 +35,13 @@ hand which half of the setup survived. `phone status` answers the same question
 without changing anything and exits non-zero when something has drifted, which
 is what a test script gates on.
 
+A device belongs to the project that last brought it up, until that project's
+`phone down`. `phone up` in another project that declares the same device is
+refused and names the holder, because the second launch would put its app in
+front of the first's and every snapshot taken from then on would describe the
+wrong screen. Do not reach for `--take` to get past that: it is the other
+agent's session. Declare a different device, or ask before taking one.
+
 Nothing below is wrong in such a project, it is just the long way round.
 
 ## Device states

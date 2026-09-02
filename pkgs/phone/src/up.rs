@@ -26,6 +26,7 @@ use tokio::sync::Mutex;
 
 use crate::connect;
 use crate::discover::survey;
+use crate::lease::{self, Holder, Leases};
 use crate::model::{Platform, Reach, View};
 use crate::project::{Build, Level, Project, Spec, Task};
 use crate::registry::Registry;
@@ -46,6 +47,8 @@ pub struct Opts {
     pub profile: Option<String>,
     /// Run the build steps whatever the stamps say.
     pub rebuild: bool,
+    /// Take a device another project holds.
+    pub take: bool,
     pub timeout: Duration,
     /// Whether this run arrived from another machine. Only the line naming the
     /// project depends on it: the sender printed that one already, and it knows
@@ -63,6 +66,10 @@ pub struct Row {
     pub have: String,
     /// Why it is not there yet, or what it is doing while it is.
     pub note: String,
+    /// The project driving it, when that is not this one. Drift in its own
+    /// right: a device that is prepared and somebody else's is not usable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held: Option<String>,
 }
 
 /// Deserialised as well as written: a `status` handed to the host that owns the
@@ -80,6 +87,12 @@ pub struct Report {
     pub strays: Vec<String>,
 }
 
+impl Row {
+    fn in_place(&self) -> bool {
+        self.want == self.have && self.held.is_none()
+    }
+}
+
 impl Report {
     /// Whether everything declared is where it was declared to be. `status`
     /// exits on this, so a script can gate on one command.
@@ -87,7 +100,7 @@ impl Report {
         self.steps
             .iter()
             .chain(&self.devices)
-            .all(|row| row.want == row.have)
+            .all(Row::in_place)
     }
 }
 
@@ -574,6 +587,8 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         .filter(|(_, spec, view)| spec.state >= Level::Booted && reached(view).is_none())
         .collect();
 
+    let booted: Vec<String> = cold.iter().map(|(name, _, _)| name.to_string()).collect();
+
     if !cold.is_empty() {
         let (rep, drain) = crate::reporter();
 
@@ -614,6 +629,8 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         *view = attach(reg, name, spec, view.clone()).await?;
     }
 
+    claim(project, &site, &wanted, &booted, opts.take).await?;
+
     let lanes = lanes(&wanted);
     let tagged = lanes.len() > 1;
 
@@ -644,6 +661,105 @@ fn all_of(outcomes: Vec<Result<()>>) -> Result<()> {
 
 /// A device, what it was declared to be, and where it currently is.
 type Climb<'a> = (&'a str, &'a Spec, View);
+
+/// Puts this project's name on every device the run is about to converge, and
+/// refuses the ones another project holds.
+///
+/// Before the builds rather than after: a build is minutes, and a device that
+/// turns out to be somebody else's should cost a line rather than a build.
+/// Every refusal is reported and not just the first, since the fix for each is
+/// the same and the reader wants the list once. Nothing is written when any
+/// device is refused, so a refused run leaves no trace.
+///
+/// A device this run booted is nobody's whatever the file says: the session
+/// that held it did not survive the shutdown.
+async fn claim(
+    project: &Project,
+    site: &Site,
+    wanted: &[Climb<'_>],
+    booted: &[String],
+    take: bool,
+) -> Result<()> {
+    let mine = Holder::of(&site.key, &project.name());
+    let mut hosts: Vec<(Where, Leases)> = Vec::new();
+    let mut refused = Vec::new();
+
+    for (name, _, view) in wanted {
+        let at = actions::where_of(&view.device);
+
+        let leases = match hosts.iter().position(|(known, _)| *known == at) {
+            Some(i) => &mut hosts[i].1,
+            None => {
+                hosts.push((at.clone(), Leases::open(&at).await?));
+                &mut hosts.last_mut().expect("just pushed").1
+            }
+        };
+
+        let fresh = booted.iter().any(|b| b == name);
+
+        if let Some(holder) = leases
+            .other(lease::key(&view.device), &site.key)
+            .filter(|_| !fresh)
+        {
+            match take {
+                true => eprintln!("phone: {name} taken from {}", holder.label()),
+                false => {
+                    refused.push(format!(
+                        "{name} is held by {}; `phone down` there releases it, `phone up --take` takes it",
+                        holder.label()
+                    ));
+
+                    continue;
+                }
+            }
+        }
+
+        leases.take(lease::key(&view.device), mine.clone());
+    }
+
+    if !refused.is_empty() {
+        bail!("{}", refused.join("\n"));
+    }
+
+    for (_, leases) in &hosts {
+        leases.save().await?;
+    }
+
+    Ok(())
+}
+
+/// Who holds a running device, if that is not this project. Read-only, for
+/// `status`; a host that cannot be asked reads as nobody, since the device row
+/// has its own way of saying the host is unreachable.
+async fn held_by(site: &Site, view: &View) -> Option<Holder> {
+    reached(view)?;
+
+    Leases::open(&actions::where_of(&view.device))
+        .await
+        .ok()?
+        .other(lease::key(&view.device), &site.key)
+        .cloned()
+}
+
+/// Drops this project's hold on a device, unless another project's session is
+/// running on it, in which case that holder is returned and nothing is touched.
+async fn released(site: &Site, view: &View) -> Result<Option<Holder>> {
+    let at = actions::where_of(&view.device);
+    let mut leases = Leases::open(&at).await?;
+
+    if let Some(holder) = leases
+        .other(lease::key(&view.device), &site.key)
+        .filter(|_| actions::running(&view.reach))
+    {
+        return Ok(Some(holder.clone()));
+    }
+
+    if leases.release(lease::key(&view.device)).is_some() {
+        leases.save().await?;
+    }
+
+    Ok(None)
+}
 
 /// The devices grouped by the build they share.
 ///
@@ -908,6 +1024,7 @@ pub async fn status(
                 true => "stale".to_string(),
                 false => "current".to_string(),
             },
+            held: None,
             note: match (stale, task.stale.is_some()) {
                 (true, false) => "declares no freshness check, so it always runs".to_string(),
                 (true, true) => task.run.clone(),
@@ -927,6 +1044,7 @@ pub async fn status(
                 true => "up".to_string(),
                 false => "down".to_string(),
             },
+            held: None,
             // the port alone: whoever computed this report is on the machine
             // holding the bundler, so naming it "this machine" here would name
             // the wrong one to a client reading the report from elsewhere. The
@@ -977,6 +1095,7 @@ async fn row(
                 want: want.as_str().to_string(),
                 have: "unknown".to_string(),
                 note: e.to_string(),
+                held: None,
             }
         }
     };
@@ -1007,12 +1126,24 @@ async fn row(
         note = below(want);
     }
 
+    // whatever rung it is on: a device that is prepared for this project and
+    // being driven by another is the one case the rest of the row cannot see
+    let held = held_by(site, view).await.map(|holder| holder.label());
+
+    if let Some(holder) = &held {
+        note = match note.is_empty() {
+            true => format!("held by {holder}"),
+            false => format!("held by {holder}; {note}"),
+        };
+    }
+
     Row {
         name: name.to_string(),
         platform: Some(view.device.platform.as_str().to_string()),
         want: want.as_str().to_string(),
         have: shown(have),
         note,
+        held,
     }
 }
 
@@ -1071,7 +1202,8 @@ async fn current(project: &Project, site: &Site, stamps: &Stamps, view: &View) -
 /// not turn it on, and turning off the phone somebody is holding to make a
 /// teardown symmetrical is not a trade worth making.
 pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
-    let at = Where::of(project.host());
+    let (site, _) = Site::of(Where::of(project.host()), project.dir()).await?;
+    let at = &site.at;
     let declared = project.every_device();
 
     if let Some(bundler) = &project.manifest.bundler {
@@ -1092,10 +1224,18 @@ pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
     let views = survey(reg).await;
     reg.save()?;
 
-    for (name, _) in declared {
+    for (name, spec) in declared {
         let Ok(view) = pick(&views, name) else {
             continue;
         };
+
+        // somebody else's session is on it, so neither its forwards nor its
+        // power are this project's to touch
+        if let Some(holder) = released(&site, view).await? {
+            eprintln!("phone: {name} is held by {}, so it is left alone", holder.label());
+
+            continue;
+        }
 
         if !actions::running(&view.reach) {
             eprintln!("phone: {name} is already off");
@@ -1109,9 +1249,14 @@ pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
             continue;
         }
 
-        // before the device goes, while there is still a transport to ask over
+        // before the device goes, while there is still a transport to ask over;
+        // and only the ports this manifest opened, since another project's
+        // `--take` may have left its own on the same device
         if view.device.platform.is_adb() {
-            let _ = actions::reverse(&view.server, &view.device, actions::Reverse::Clear).await;
+            for port in &spec.reverse {
+                let what = actions::Reverse::Close { device: *port };
+                let _ = actions::reverse(&view.server, &view.device, what).await;
+            }
         }
 
         match actions::stop(&view.device, &view.reach).await {
@@ -1178,7 +1323,7 @@ fn write(report: &Report, out: &mut impl std::io::Write) -> std::io::Result<()> 
     let have = width(|r| &r.have).max(4);
 
     for row in rows {
-        let mark = match row.want == row.have {
+        let mark = match row.in_place() {
             true => " ",
             false => "!",
         };
@@ -1535,6 +1680,7 @@ mod tests {
             want: want.to_string(),
             have: have.to_string(),
             note: String::new(),
+            held: None,
         }
     }
 

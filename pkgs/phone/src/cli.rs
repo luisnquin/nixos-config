@@ -101,6 +101,7 @@ pub enum Command {
   phone up
   phone up --profile e2e
   phone up --rebuild
+  phone up --take
   phone up --timeout 5m
 
 Reads the nearest phone.toml, works out what is missing, and does only that:
@@ -126,6 +127,14 @@ already did.
 every declared device is converged, which is what makes `phone down` the exact
 inverse of `phone up`.
 
+A device is held by the project that last brought it up, until that project's
+`phone down`. An `up` from another project on the same device is refused and
+names the holder: a second launch would put its app in front of the first's, and
+every snapshot the first agent took from then on would describe the wrong screen
+without anything saying so. `--take` overrides it. A device that had to be booted
+is nobody's whatever was written down, since the session holding it did not
+survive the shutdown.
+
 Devices on different platforms converge at once rather than in turn, so an iPhone
 does not wait out an android build. Two devices that would run the same build take
 turns, since they would run it in the same directory. While more than one is going
@@ -138,6 +147,10 @@ each line of output says which device it came from."#)]
         /// Run the build steps whatever the freshness checks say
         #[arg(long)]
         rebuild: bool,
+
+        /// Take a device another project holds
+        #[arg(long)]
+        take: bool,
 
         /// Give up on a device that is still not usable by then
         #[arg(long, default_value = "180s", value_parser = parse_duration)]
