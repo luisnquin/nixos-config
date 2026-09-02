@@ -29,6 +29,10 @@
     wantedBy = ["multi-user.target"];
     serviceConfig = {
       Type = "oneshot";
+      # stays active after boot so a switch does not re-run setleds against a
+      # tty1 the compositor already owns, where it blocks with no timeout
+      RemainAfterExit = true;
+      TimeoutStartSec = "10s";
       StandardInput = "tty";
       TTYPath = "/dev/tty1";
       ExecStart = "${pkgs.kbd}/bin/setleds -D +num";
