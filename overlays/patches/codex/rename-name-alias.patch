@@ -1,0 +1,24 @@
+diff --git a/tui/src/slash_command.rs b/tui/src/slash_command.rs
+--- a/tui/src/slash_command.rs
++++ b/tui/src/slash_command.rs
+@@ -29,6 +29,7 @@
+     Import,
+     Hooks,
+     Review,
++    #[strum(to_string = "rename", serialize = "name")]
+     Rename,
+     New,
+     Archive,
+@@ -306,6 +307,12 @@
+     }
+ 
+     #[test]
++    fn name_alias_parses_to_rename_command() {
++        assert_eq!(SlashCommand::Rename.command(), "rename");
++        assert_eq!(SlashCommand::from_str("name"), Ok(SlashCommand::Rename));
++    }
++
++    #[test]
+     fn certain_commands_are_available_during_task() {
+         assert!(SlashCommand::Goal.available_during_task());
+         assert!(SlashCommand::Ide.available_during_task());

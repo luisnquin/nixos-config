@@ -93,6 +93,8 @@
           ./patches/codex/status-line-short-cwd.patch
           ./patches/codex/status-line-effective-reasoning.patch
           ./patches/codex/unload-unsubscribed-threads.patch
+          ./patches/codex/rename-name-alias.patch
+          ./patches/codex/thread-title-on-composer-rail.patch
         ];
 
       postPatch =

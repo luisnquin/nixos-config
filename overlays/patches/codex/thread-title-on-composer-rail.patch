@@ -1,0 +1,188 @@
+diff --git a/tui/src/bottom_pane/chat_composer/footer_state.rs b/tui/src/bottom_pane/chat_composer/footer_state.rs
+--- a/tui/src/bottom_pane/chat_composer/footer_state.rs
++++ b/tui/src/bottom_pane/chat_composer/footer_state.rs
+@@ -30,6 +30,7 @@
+     pub(super) status_line_hyperlink_url: Option<String>,
+     pub(super) status_line_enabled: bool,
+     pub(super) side_conversation_context_label: Option<String>,
++    pub(super) thread_title_label: Option<String>,
+     pub(super) active_agent_label: Option<String>,
+     pub(super) external_editor_key: Option<ShortcutHint>,
+     pub(super) show_transcript_key: Option<ShortcutHint>,
+diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_composer.rs
+--- a/tui/src/bottom_pane/chat_composer.rs
++++ b/tui/src/bottom_pane/chat_composer.rs
+@@ -334,6 +334,8 @@
+ use std::time::Instant;
+ 
+ use ratatui::style::Color;
++use unicode_width::UnicodeWidthChar;
++use unicode_width::UnicodeWidthStr;
+ 
+ /// If the pasted content exceeds this number of characters, replace it with a
+ /// placeholder in the UI.
+@@ -563,7 +565,15 @@
+ 
+ const FOOTER_SPACING_HEIGHT: u16 = 0;
+ 
+-fn render_custom_input_bar(area: Rect, buf: &mut Buffer) {
++/// Rail cells kept to the right of the thread name so it reads as part of the
++/// rule instead of as text butted against the terminal edge.
++const RAIL_LABEL_RIGHT_INSET: u16 = 2;
++
++/// Rail cells that must survive to the left of the thread name; below this the
++/// rule stops looking like a rule and the name is dropped instead.
++const RAIL_LABEL_MIN_LEAD: u16 = 8;
++
++fn render_custom_input_bar(area: Rect, buf: &mut Buffer, thread_title: Option<&str>) {
+     if area.width == 0 || area.height == 0 {
+         return;
+     }
+@@ -576,6 +586,66 @@
+         let bottom_y = area.y.saturating_add(area.height.saturating_sub(1));
+         buf.set_string(area.x, bottom_y, &rail, rail_style);
+     }
++
++    if let Some(thread_title) = thread_title {
++        render_rail_thread_title(area, buf, thread_title);
++    }
++}
++
++/// Overlays the thread name onto the right end of the top rail, so the rule and
++/// the name share one row rather than the name taking a status-line slot.
++fn render_rail_thread_title(area: Rect, buf: &mut Buffer, title: &str) {
++    let title = title.trim();
++    if title.is_empty() {
++        return;
++    }
++
++    // The drawn cell is " <title> ", so the rail has to fit the two padding
++    // columns and the inset on top of whatever the title itself needs.
++    let reserved = RAIL_LABEL_RIGHT_INSET
++        .saturating_add(RAIL_LABEL_MIN_LEAD)
++        .saturating_add(2);
++    let Some(budget) = area.width.checked_sub(reserved).filter(|w| *w > 0) else {
++        return;
++    };
++
++    let padded = format!(" {} ", truncate_to_width(title, budget));
++    let padded_width = UnicodeWidthStr::width(padded.as_str()) as u16;
++    let Some(offset) = area
++        .width
++        .checked_sub(padded_width.saturating_add(RAIL_LABEL_RIGHT_INSET))
++    else {
++        return;
++    };
++
++    buf.set_string(
++        area.x.saturating_add(offset),
++        area.y,
++        &padded,
++        Style::default().fg(Color::DarkGray),
++    );
++}
++
++/// Clips `text` to `budget` display columns, ending in an ellipsis when cut.
++fn truncate_to_width(text: &str, budget: u16) -> String {
++    let budget = budget as usize;
++    if UnicodeWidthStr::width(text) <= budget {
++        return text.to_string();
++    }
++
++    let keep = budget.saturating_sub(1);
++    let mut out = String::new();
++    let mut width = 0usize;
++    for ch in text.chars() {
++        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
++        if width + ch_width > keep {
++            break;
++        }
++        out.push(ch);
++        width += ch_width;
++    }
++    out.push('…');
++    out
+ }
+ 
+ impl ChatComposer {
+@@ -659,6 +729,7 @@
+                 status_line_hyperlink_url: None,
+                 status_line_enabled: false,
+                 side_conversation_context_label: None,
++                thread_title_label: None,
+                 active_agent_label: None,
+                 external_editor_key: default_keymap
+                     .primary_hint(KeymapContext::Global, "open_external_editor"),
+@@ -4407,6 +4478,14 @@
+         true
+     }
+ 
++    pub(crate) fn set_thread_title_label(&mut self, label: Option<String>) -> bool {
++        if self.footer.thread_title_label == label {
++            return false;
++        }
++        self.footer.thread_title_label = label;
++        true
++    }
++
+     /// Replaces the contextual footer label for the currently viewed agent.
+     ///
+     /// Returning `false` means the value was unchanged, so callers can skip redraw work. This
+@@ -4872,7 +4951,11 @@
+             }
+         }
+         let style = user_message_style();
+-        render_custom_input_bar(composer_rect, buf);
++        render_custom_input_bar(
++            composer_rect,
++            buf,
++            self.footer.thread_title_label.as_deref(),
++        );
+         if !remote_images_rect.is_empty() {
+             Paragraph::new(self.attachments.remote_image_lines())
+                 .style(style)
+diff --git a/tui/src/bottom_pane/mod.rs b/tui/src/bottom_pane/mod.rs
+--- a/tui/src/bottom_pane/mod.rs
++++ b/tui/src/bottom_pane/mod.rs
+@@ -1899,6 +1899,12 @@
+             self.request_redraw();
+         }
+     }
++
++    pub(crate) fn set_thread_title_label(&mut self, label: Option<String>) {
++        if self.composer.set_thread_title_label(label) {
++            self.request_redraw();
++        }
++    }
+ }
+ 
+ struct ChatComposerRightReserveRenderable<'a> {
+diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
+--- a/tui/src/chatwidget/status_surfaces.rs
++++ b/tui/src/chatwidget/status_surfaces.rs
+@@ -318,10 +318,25 @@
+         self.warn_invalid_status_line_items_once(&selections.invalid_status_line_items);
+         self.warn_invalid_terminal_title_items_once(&selections.invalid_terminal_title_items);
+         self.sync_status_surface_shared_state(&selections);
++        self.refresh_thread_title_label();
+         self.refresh_status_line_from_selections(&selections);
+         self.refresh_terminal_title_from_selections(&selections);
+     }
+ 
++    /// Publishes the thread name onto the composer's rail.
++    ///
++    /// Unlike [`StatusLineItem::ThreadTitle`] this never falls back to the
++    /// thread UUID: an unnamed thread draws a plain rule.
++    fn refresh_thread_title_label(&mut self) {
++        let label = self
++            .thread_name
++            .as_deref()
++            .map(str::trim)
++            .filter(|name| !name.is_empty())
++            .map(str::to_string);
++        self.bottom_pane.set_thread_title_label(label);
++    }
++
+     /// Recomputes and emits the terminal title from config and runtime state.
+     pub(crate) fn refresh_terminal_title(&mut self) {
+         let selections = self.status_surface_selections();
