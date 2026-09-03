@@ -353,29 +353,6 @@
         "type": "github"
       }
     },
-    "herdr": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "rust-overlay": [
-          "rust-overlay"
-        ]
-      },
-      "locked": {
-        "lastModified": 1788193603,
-        "narHash": "sha256-U81kTzaI7gCr/nCI4QQHbNP5OERqanrJf+ZGxcE2ioM=",
-        "owner": "ogulcancelik",
-        "repo": "herdr",
-        "rev": "d2cb0961663582a5069b1528edb93a9a8b23e1bc",
-        "type": "github"
-      },
-      "original": {
-        "owner": "ogulcancelik",
-        "repo": "herdr",
-        "type": "github"
-      }
-    },
     "hermes-agent": {
       "inputs": {
         "flake-parts": [
@@ -1240,7 +1217,6 @@
         "flake-programs-sqlite": "flake-programs-sqlite",
         "flake-utils": "flake-utils",
         "ghostty": "ghostty",
-        "herdr": "herdr",
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
         "hyprdysmorphic": "hyprdysmorphic",

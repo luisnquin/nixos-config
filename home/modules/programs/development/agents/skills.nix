@@ -83,7 +83,7 @@ in {
           "e2e-testing-patterns"
         ];
       })
-      (mkSkill {src = inputs.herdr;} {
+      (mkSkill {src = pkgs.llm-agents.herdr.src;} {
         plugins = ["herdr"];
       })
       (mkSkill {

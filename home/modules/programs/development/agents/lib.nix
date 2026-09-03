@@ -201,7 +201,7 @@
         nativeBuildInputs = [pkgs.makeWrapper];
       } ''
         install -Dm755 \
-          ${inputs.herdr}/src/integration/assets/${agent}/herdr-agent-state.sh \
+          ${pkgs.llm-agents.herdr.src}/src/integration/assets/${agent}/herdr-agent-state.sh \
           $out/libexec/herdr-agent-state
         makeWrapper $out/libexec/herdr-agent-state $out/bin/herdr-agent-state \
           --prefix PATH : ${lib.makeBinPath [pkgs.python3]}

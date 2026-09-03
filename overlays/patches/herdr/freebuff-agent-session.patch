@@ -1,8 +1,6 @@
-diff --git a/src/agent_resume.rs b/src/agent_resume.rs
-index cd1ae7b..b37f107 100644
 --- a/src/agent_resume.rs
 +++ b/src/agent_resume.rs
-@@ -140,6 +140,16 @@ pub fn plan(source: &str, agent: &str, session_ref: &AgentSessionRef) -> Option<
+@@ -140,6 +140,16 @@
          ("herdr:droid", "droid", AgentSessionRefKind::Id) => {
              vec!["droid".into(), "--resume".into(), session_ref.value.clone()]
          }
@@ -19,7 +17,7 @@ index cd1ae7b..b37f107 100644
          ("herdr:kimi", "kimi", AgentSessionRefKind::Id) => {
              vec!["kimi".into(), "--session".into(), session_ref.value.clone()]
          }
-@@ -232,6 +242,7 @@ pub(crate) fn is_official_agent_source(source: &str, agent: &str) -> bool {
+@@ -232,6 +242,7 @@
              | ("herdr:copilot", "copilot")
              | ("herdr:devin", "devin")
              | ("herdr:droid", "droid")
@@ -27,12 +25,10 @@ index cd1ae7b..b37f107 100644
              | ("herdr:kimi", "kimi")
              | ("herdr:omp", "omp")
              | ("herdr:mastracode", "mastracode")
-@@ -336,6 +347,16 @@ mod tests {
-             .argv,
-             vec!["droid", "--resume", "droid-session"]
+@@ -338,6 +349,16 @@
          );
-+        assert_eq!(
-+            plan(
+         assert_eq!(
+             plan(
 +                "herdr:freebuff",
 +                "freebuff",
 +                &AgentSessionRef::id("2026-08-27T18-50-27.123Z").unwrap()
@@ -41,36 +37,31 @@ index cd1ae7b..b37f107 100644
 +            .argv,
 +            vec!["freebuff", "--continue", "2026-08-27T18-50-27.123Z"]
 +        );
-         assert_eq!(
-             plan(
++        assert_eq!(
++            plan(
                  "herdr:kimi",
-diff --git a/src/config/sound.rs b/src/config/sound.rs
-index 2215c83..7f15238 100644
+                 "kimi",
+                 &AgentSessionRef::id("kimi-session").unwrap()
 --- a/src/config/sound.rs
 +++ b/src/config/sound.rs
-@@ -144,6 +144,7 @@ impl AgentSoundOverrides {
+@@ -142,6 +142,7 @@
+             Some(Agent::Qodercli) => self.qodercli,
              Some(Agent::Qwen) => self.qwen,
              Some(Agent::Maki) => self.maki,
-             Some(Agent::Muse) => self.muse,
 +            Some(Agent::Freebuff) => AgentSoundSetting::Default,
              None => AgentSoundSetting::Default,
          }
      }
-diff --git a/src/detect/manifest.rs b/src/detect/manifest.rs
-index 4ef77d2..2beb594 100644
 --- a/src/detect/manifest.rs
 +++ b/src/detect/manifest.rs
-@@ -258,6 +258,7 @@ const BUNDLED_MANIFESTS: &[(&str, &str)] = &[
+@@ -257,6 +257,7 @@
      ("qodercli", include_str!("manifests/qodercli.toml")),
      ("qwen", include_str!("manifests/qwen.toml")),
      ("copilot", include_str!("manifests/github-copilot.toml")),
 +    ("freebuff", include_str!("manifests/freebuff.toml")),
  ];
- 
+
  static MANIFEST_CACHE: OnceLock<RwLock<ManifestCache>> = OnceLock::new();
-diff --git a/src/detect/manifests/freebuff.toml b/src/detect/manifests/freebuff.toml
-new file mode 100644
-index 0000000..e3886b9
 --- /dev/null
 +++ b/src/detect/manifests/freebuff.toml
 @@ -0,0 +1,71 @@
@@ -145,68 +136,66 @@ index 0000000..e3886b9
 +  { contains = ["enter a coding task"] },
 +  { contains = ["ctrl-c to cancel queued messages"] },
 +]
-diff --git a/src/detect/mod.rs b/src/detect/mod.rs
-index 0f956ee..d6c17c9 100644
 --- a/src/detect/mod.rs
 +++ b/src/detect/mod.rs
-@@ -64,10 +64,11 @@ pub enum Agent {
+@@ -63,10 +63,11 @@
+     Qodercli,
      Qwen,
      Maki,
-     Muse,
 +    Freebuff,
  }
- 
+
  impl Agent {
--    pub const ALL: [Self; 23] = [
-+    pub const ALL: [Self; 24] = [
+-    pub const ALL: [Self; 22] = [
++    pub const ALL: [Self; 23] = [
          Self::Pi,
          Self::Claude,
          Self::Codex,
-@@ -91,9 +92,10 @@ impl Agent {
+@@ -89,9 +90,10 @@
+         Self::Qodercli,
          Self::Qwen,
          Self::Maki,
-         Self::Muse,
 +        Self::Freebuff,
      ];
- 
--    pub const SCREEN_MANIFEST_AGENTS: [Self; 21] = [
-+    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
+
+-    pub const SCREEN_MANIFEST_AGENTS: [Self; 20] = [
++    pub const SCREEN_MANIFEST_AGENTS: [Self; 21] = [
          Self::Pi,
          Self::Claude,
          Self::Codex,
-@@ -115,6 +117,7 @@ impl Agent {
+@@ -112,6 +114,7 @@
+         Self::Qodercli,
          Self::Qwen,
          Self::Maki,
-         Self::Muse,
 +        Self::Freebuff,
      ];
  }
- 
-@@ -143,6 +146,7 @@ pub fn agent_label(agent: Agent) -> &'static str {
+
+@@ -139,6 +142,7 @@
+         Agent::Qodercli => "qodercli",
          Agent::Qwen => "qwen",
          Agent::Maki => "maki",
-         Agent::Muse => "muse",
 +        Agent::Freebuff => "freebuff",
      }
  }
- 
-@@ -177,6 +181,7 @@ pub fn interactive_agent_executable(agent: Agent) -> &'static str {
+
+@@ -172,6 +176,7 @@
+         Agent::Qodercli => "qodercli",
          Agent::Qwen => "qwen",
          Agent::Maki => "maki",
-         Agent::Muse => "muse",
 +        Agent::Freebuff => "freebuff",
      }
  }
- 
-@@ -216,6 +221,7 @@ fn lookup_agent(name: &str) -> Option<Agent> {
+
+@@ -209,6 +214,7 @@
+         "qodercli" | "qoderclicn" | "qoder" | "qodercn" => Some(Agent::Qodercli),
          "qwen" | "qwen-code" | "qwen code" => Some(Agent::Qwen),
          "maki" => Some(Agent::Maki),
-         "muse" | "muse-code" | "muse-cli" => Some(Agent::Muse),
 +        "freebuff" | "codebuff" => Some(Agent::Freebuff),
-         _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
          _ => None,
      }
-@@ -328,7 +334,10 @@ pub(crate) fn full_lifecycle_hook_authority(source: &str, agent_label: &str) ->
+ }
+@@ -307,7 +313,10 @@
  pub(crate) fn session_identity_only_integration(source: &str, agent_label: &str) -> bool {
      matches!(
          (source, agent_label),
@@ -217,12 +206,10 @@ index 0f956ee..d6c17c9 100644
 +            | ("herdr:freebuff", "freebuff")
      )
  }
- 
-diff --git a/src/terminal/state.rs b/src/terminal/state.rs
-index 5c659eb..608ff7d 100644
+
 --- a/src/terminal/state.rs
 +++ b/src/terminal/state.rs
-@@ -1327,6 +1327,7 @@ impl TerminalState {
+@@ -1327,6 +1327,7 @@
                  Some("startup" | "clear" | "resume" | "compact")
              ) | ("herdr:mastracode", "mastracode", Some("startup"))
                  | ("herdr:hermes", "hermes", Some("startup" | "new" | "resume"))

@@ -237,7 +237,7 @@
     # resume argv, which upstream hardcodes with no room for extra flags. It
     # only rides along because the patch above leaves the command staged: the
     # flag is on screen, unsubmitted, until it is read and accepted.
-    herdr = prev.herdr.overrideAttrs (old: {
+    herdr = prev.llm-agents.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
         ++ [
