@@ -4,7 +4,13 @@
   pkgs,
   lib,
   ...
-}: {
+}: let
+  hotlineGate = pkgs.writeShellApplication {
+    name = "hotline-gate";
+    runtimeInputs = [pkgs.jq];
+    text = builtins.readFile ./hotline-gate.sh;
+  };
+in {
   users = {
     defaultUserShell = pkgs.zsh;
 
@@ -27,7 +33,8 @@
         openssh.authorizedKeys.keys = [
           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMNOYm8dmSXKjgaBQDWCnSvcsGyiJILX3Vwejmkm150+"
           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKpV17zqf4dGsuaddSslVpHV5APCsEQSXPAnuBSZk5zY"
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILPidNFv02W5+F9mlSjIkMLKBef9qVxK+yHoOI/qQ23i"
+          ''command="${lib.getExe hotlineGate}",restrict,port-forwarding,permitopen="127.0.0.1:5900" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGYReItEQonEGJA7IoQggok/7NWwERWw/QZ+in8rqkur hotline-emulator''
+          ''command="${lib.getExe hotlineGate}",restrict,port-forwarding,permitopen="127.0.0.1:5900" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILPidNFv02W5+F9mlSjIkMLKBef9qVxK+yHoOI/qQ23i hotline''
         ];
       };
 
