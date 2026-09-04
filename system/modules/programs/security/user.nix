@@ -7,7 +7,7 @@
 }: let
   hotlineGate = pkgs.writeShellApplication {
     name = "hotline-gate";
-    runtimeInputs = [pkgs.jq];
+    runtimeInputs = [pkgs.jq pkgs.wl-clipboard pkgs.xclip];
     text = builtins.readFile ./hotline-gate.sh;
   };
 in {

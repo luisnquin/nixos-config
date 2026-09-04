@@ -2,9 +2,42 @@
 
 export HERDR_SESSION=hub
 
+# An ssh login starts with none of the desktop's environment, and neither
+# does an exec channel: the sockets are found under the runtime directory and
+# /tmp when nothing names them.
+clip_env() {
+  runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+  wayland="${WAYLAND_DISPLAY:-}"
+  if [ -z "$wayland" ]; then
+    for s in "$runtime"/wayland-*; do
+      case $s in *.lock) continue ;; esac
+      [ -S "$s" ] && wayland=${s##*/} && break
+    done
+  fi
+  display="${DISPLAY:-}"
+  if [ -z "$display" ]; then
+    for s in /tmp/.X11-unix/X*; do
+      [ -S "$s" ] && display=":${s##*/X}" && break
+    done
+  fi
+}
+
 # A pty and no command is the phone's SHELL tab: the login shell, as sshd
-# would start it without the forced command. Everything else stays gated.
+# would start it without the forced command, plus the display this desktop
+# is on. An agent started in it reads the clipboard the phone writes to; with
+# no WAYLAND_DISPLAY arboard falls to X11 and dies on a socket it cannot
+# reach. One display, not both: Claude Code asks xclip before wl-paste, and
+# on a Wayland desktop the X11 side is Xwayland's bridge, which answers for
+# the selection only while an X11 window has focus. Everything else stays
+# gated.
 if [ -z "${SSH_ORIGINAL_COMMAND:-}" ] && [ -t 0 ]; then
+  clip_env
+  export XDG_RUNTIME_DIR="$runtime"
+  if [ -n "$wayland" ]; then
+    export WAYLAND_DISPLAY="$wayland"
+  elif [ -n "$display" ]; then
+    export DISPLAY="$display"
+  fi
   exec "${SHELL:-/bin/sh}" -l
 fi
 
@@ -12,6 +45,60 @@ read -ra argv <<< "${SSH_ORIGINAL_COMMAND:-agent list}"
 if [ "${argv[0]:-}" = herdr ]; then
   argv=("${argv[@]:1}")
 fi
+
+# CLIPS: a picture the phone lands under /tmp/hotline and puts on this
+# desktop's clipboard, so an agent under the SHELL tab takes it on Ctrl+V.
+# The verbs mirror the `sh -c` scripts the app runs on a host with no gate,
+# and `probe` prints in the same shape, so the app parses both alike.
+clip_dir=/tmp/hotline
+clip_name_ok() { [[ $1 =~ ^[A-Za-z0-9_-]+\.png$ ]]; }
+if [ "${argv[0]:-}" = clip ]; then
+  name=${argv[2]:-}
+  case ${argv[1]:-} in
+    probe)
+      clip_env
+      printf 'os=%s\n' "$(uname -s)"
+      printf 'runtime=%s\nwayland=%s\ndisplay=%s\nxauthority=%s\n' \
+        "$runtime" "$wayland" "$display" "${XAUTHORITY:-}"
+      for t in wl-copy wl-paste xclip osascript timeout; do
+        command -v "$t" >/dev/null 2>&1 && printf 'has=%s\n' "$t"
+      done
+      # 124 is the timeout killing a watch that was running, which only a
+      # compositor with data-control lets it do; anything else is the refusal.
+      if [ -n "$wayland" ] && command -v wl-paste >/dev/null 2>&1; then
+        watch=0
+        error=$(XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY="$wayland" timeout 1 wl-paste --watch true 2>&1 >/dev/null) || watch=$?
+        printf 'watch=%s\nwatcherror=%s\n' "$watch" "$error"
+      fi
+      ;;
+    put)
+      clip_name_ok "$name" || { echo "denied: clip name" >&2; exit 2; }
+      mkdir -p "$clip_dir"
+      head -c 33554432 > "$clip_dir/$name"
+      ;;
+    copy)
+      clip_name_ok "$name" || { echo "denied: clip name" >&2; exit 2; }
+      [ -f "$clip_dir/$name" ] || { echo "clip: no $name" >&2; exit 1; }
+      clip_env
+      # The tool forks to go on serving the selection, so nothing of the
+      # channel may stay in its hands: both outputs are dropped here.
+      if [ -n "$wayland" ]; then
+        XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY="$wayland" wl-copy --type image/png < "$clip_dir/$name" >/dev/null 2>&1
+      elif [ -n "$display" ]; then
+        DISPLAY="$display" xclip -selection clipboard -t image/png -i "$clip_dir/$name" >/dev/null 2>&1
+      else
+        echo "clip: no display server" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      echo "denied: clip ${argv[1]:-}" >&2
+      exit 2
+      ;;
+  esac
+  exit 0
+fi
+
 if [ "${argv[0]:-}" != agent ]; then
   echo "denied: ${SSH_ORIGINAL_COMMAND:-}" >&2
   exit 2
