@@ -2,6 +2,12 @@
 
 export HERDR_SESSION=hub
 
+# A pty and no command is the phone's SHELL tab: the login shell, as sshd
+# would start it without the forced command. Everything else stays gated.
+if [ -z "${SSH_ORIGINAL_COMMAND:-}" ] && [ -t 0 ]; then
+  exec "${SHELL:-/bin/sh}" -l
+fi
+
 read -ra argv <<< "${SSH_ORIGINAL_COMMAND:-agent list}"
 if [ "${argv[0]:-}" = herdr ]; then
   argv=("${argv[@]:1}")
