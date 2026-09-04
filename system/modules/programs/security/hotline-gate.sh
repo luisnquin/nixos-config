@@ -75,13 +75,25 @@ case $verb in
     fi
     pane=$(printf '%s' "$created" | jq -r '.result.root_pane.pane_id')
     [[ $pane =~ ^[A-Za-z0-9]+:[A-Za-z0-9]+$ ]] || { echo "spawn: no pane in $created" >&2; exit 1; }
+    # An agent name is lowercase, starts with a letter and is unique in the
+    # session, none of which a directory basename owes it: `.dotfiles` is
+    # refused outright and the second send from a path collides with the first.
+    name=${label,,}
+    name=${name//[^a-z0-9_-]/-}
+    name=${name#"${name%%[a-z]*}"}
+    [ -n "$name" ] || name=agent
+    name=${name:0:24}-${pane%%:*}
+    name=${name,,}
     case $kind in
-      claude) flags=(--dangerously-skip-permissions) ;;
+      # The bypass disclaimer is a startup screen no unattended agent gets past.
+      # `--settings` is a settings source of its own, so accepting it holds for
+      # this run alone and nothing on disk is flipped.
+      claude) flags=(--settings '{"skipDangerousModePermissionPrompt":true}' --dangerously-skip-permissions) ;;
       codex) flags=(--yolo) ;;
     esac
     # A workspace whose agent never came up is closed again: the phone gets
     # the exit code, not a stray empty space in the hub.
-    if ! herdr agent start "$label" --kind "$kind" --pane "$pane" -- "${flags[@]}" >/dev/null \
+    if ! herdr agent start "$name" --kind "$kind" --pane "$pane" -- "${flags[@]}" >/dev/null \
       || ! herdr agent prompt "$pane" "$text" >/dev/null; then
       herdr workspace close "${pane%%:*}" >/dev/null 2>&1 || true
       exit 1
