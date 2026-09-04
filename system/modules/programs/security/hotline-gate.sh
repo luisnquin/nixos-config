@@ -29,6 +29,31 @@ case $verb in
   list)
     exec herdr agent list
     ;;
+  paths)
+    # Every git checkout the phone may send to, so a path is picked from a list
+    # instead of typed from memory on a phone keyboard. `~` because the home
+    # that matters is this host's, and the app stores what it is shown.
+    roots=()
+    for root in "$HOME/Projects" "$HOME/.dotfiles" "$HOME/src"; do
+      if [ -d "$root" ]; then roots+=("$root"); fi
+    done
+    # `.git` is a directory in a plain clone and a *file* in a submodule or a
+    # worktree, so matching on the type drops every submodule a superproject
+    # holds. Pruning is what keeps the walk out of the object stores.
+    printf '%s\n' "${roots[@]}" | xargs -r -I{} find {} -mindepth 1 -maxdepth 6 -name .git -prune -printf '%h\n' 2>/dev/null \
+      | sed "s|^$HOME|~|" | sort -u | head -300 \
+      | jq -R -s -c 'split("\n") | map(select(length > 0))'
+    ;;
+  models)
+    # What the phone may pick from, asked of the machine the agents run on:
+    # codex enumerates its own bundled slugs, and claude has no equivalent verb,
+    # so it gets the three aliases that always resolve to the current model.
+    case ${argv[2]:-} in
+      codex) codex debug models --bundled | jq -c '[.models[].slug]' ;;
+      claude) printf '["opus","sonnet","fable"]\n' ;;
+      *) echo "denied: kind" >&2; exit 2 ;;
+    esac
+    ;;
   watch)
     last=
     while :; do
@@ -62,8 +87,12 @@ case $verb in
     ;;
   spawn)
     kind=${argv[2]:-}
-    dir="${argv[*]:3}"
+    model=${argv[3]:-}
+    dir="${argv[*]:4}"
     [[ $kind =~ ^(claude|codex)$ ]] || { echo "denied: kind" >&2; exit 2; }
+    # `-` is the agent's own default. Anything else reaches the agent's argv, so
+    # it is matched whole and may not open with a dash.
+    [[ $model == - || $model =~ ^[a-z0-9][a-z0-9._:-]{0,63}$ ]] || { echo "denied: model" >&2; exit 2; }
     dir=${dir/#\~/$HOME}
     { [ -n "$dir" ] && [ -d "$dir" ]; } || { echo "denied: dir" >&2; exit 2; }
     text=$(cat)
@@ -91,6 +120,7 @@ case $verb in
       claude) flags=(--settings '{"skipDangerousModePermissionPrompt":true}' --dangerously-skip-permissions) ;;
       codex) flags=(--yolo) ;;
     esac
+    [ "$model" = - ] || flags+=(--model "$model")
     # A workspace whose agent never came up is closed again: the phone gets
     # the exit code, not a stray empty space in the hub.
     if ! herdr agent start "$name" --kind "$kind" --pane "$pane" -- "${flags[@]}" >/dev/null \
