@@ -4,7 +4,7 @@
   ...
 }: {
   xdg.configFile."wayvnc/config".text = ''
-    address=0.0.0.0
+    address=127.0.0.1
     port=5900
   '';
 
