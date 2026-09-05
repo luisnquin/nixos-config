@@ -1,5 +1,15 @@
 #!/usr/bin/env zsh
 
+if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+  for hotline_socket in "$XDG_RUNTIME_DIR"/wayland-*(N); do
+    [[ $hotline_socket == *.lock || ! -S $hotline_socket ]] && continue
+    export WAYLAND_DISPLAY=${hotline_socket:t}
+    break
+  done
+  unset hotline_socket
+fi
+
 rgf() {
   emulate -L zsh
 
