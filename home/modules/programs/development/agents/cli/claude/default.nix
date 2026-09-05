@@ -69,6 +69,7 @@ in {
       ];
 
       includeCoAuthoredBy = false;
+      skipDangerousModePermissionPrompt = true;
 
       statusLine = {
         "type" = "command";
