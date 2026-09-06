@@ -105,7 +105,26 @@
         '';
     });
 
-    llm-agents = prev.llm-agents // {inherit codex claude-code;};
+    # A single layout truncates on a phone-sized terminal. The patch teaches
+    # settings.json a `widthProfiles` list, picked against the detected width.
+    ccstatusline = prev.llm-agents.ccstatusline.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/ccstatusline/responsive-width-profiles.patch
+        ];
+
+      # Upstream installs the bundle straight out of $src, which would step
+      # over the patched copy in the build directory.
+      installPhase = ''
+        runHook preInstall
+        install -Dm755 dist/ccstatusline.js $out/bin/ccstatusline
+        patchShebangs $out/bin/ccstatusline
+        runHook postInstall
+      '';
+    });
+
+    llm-agents = prev.llm-agents // {inherit codex claude-code ccstatusline;};
   })
   (_final: prev: {
     mako = prev.mako.overrideAttrs (old: {

@@ -1,0 +1,46 @@
+diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
+--- a/dist/ccstatusline.js
++++ b/dist/ccstatusline.js
+@@ -71886,6 +71886,7 @@
+     }
+     return {
+       ...result2.data,
++      widthProfiles: rawData.widthProfiles,
+       lines: upgradeLegacyWidgetTypes(result2.data.lines)
+     };
+   } catch (error51) {
+@@ -81837,8 +81838,24 @@
+     execFileSync7("chcp.com", ["65001"], { stdio: "ignore", windowsHide: true });
+   } catch {}
+ }
++function applyWidthProfile(settings, terminalWidth) {
++  const profiles = settings.widthProfiles;
++  if (!Array.isArray(profiles) || profiles.length === 0 || !terminalWidth) {
++    return settings;
++  }
++  const profile = profiles.find((candidate) => typeof candidate?.maxWidth !== "number" || terminalWidth <= candidate.maxWidth);
++  if (!profile) {
++    return settings;
++  }
++  return {
++    ...settings,
++    ...Array.isArray(profile.lines) ? { lines: upgradeLegacyWidgetTypes(profile.lines) } : {},
++    ...typeof profile.flexMode === "string" ? { flexMode: profile.flexMode } : {}
++  };
++}
+ async function renderMultipleLines(data) {
+-  const settings = await loadSettings();
++  const detectedTerminalWidth = getTerminalWidth();
++  const settings = applyWidthProfile(await loadSettings(), detectedTerminalWidth);
+   const configError = getConfigLoadError();
+   source_default.level = settings.colorLevel;
+   updateColorMap();
+@@ -81893,7 +81910,7 @@
+     transcriptThinkingEffort: needsTranscriptThinkingEffort ? transcriptAnalysis?.thinkingEffort ?? null : undefined,
+     skillsMetrics,
+     compactionData,
+-    terminalWidth: getTerminalWidth(),
++    terminalWidth: detectedTerminalWidth,
+     isPreview: false,
+     minimalist: settings.minimalistMode,
+     gitCacheTtlSeconds: settings.gitCacheTtlSeconds,
