@@ -130,8 +130,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "lkshrk";
             repo = "linear-ai";
-            rev = "1c238ce8ed817cf578ea63b9031bbaddd8455717";
-            sha256 = "sha256-jsh2sguJ3REPi89IfMqpRYnXloVWyOje5jcs9T/+IUA=";
+            rev = "5b94f09eff649ad9125a1d4a57a815fa9fab536d";
+            sha256 = "sha256-1cYAVowFj6zVbBctqdNmVWeeOQ9Vr9iH0cQnOdWF5+U=";
             rootDir = "skills";
           };
         } {
