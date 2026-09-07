@@ -116,8 +116,8 @@ in {
         src = pkgs.fetchFromGitHub {
           owner = "appllama";
           repo = "appllama-skills";
-          rev = "629818a094844bd383cbcc336e6bc1d953fc193f";
-          hash = "sha256-ReIOat5GneC98msi6KVAjdhGVTrF0lewrDHcPDfqdRA=";
+          rev = "dd5caaec3d5d50ad7fc0324da238119c6b7c3707";
+          hash = "sha256-NWwBXwN5oX37rg/IdgVW85YySmkDjoNMu1f3ojMyKFs=";
         };
       } {
         plugins = [
