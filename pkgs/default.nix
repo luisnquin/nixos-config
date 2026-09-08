@@ -12,6 +12,7 @@ pkgs:
   herdr-recall = pkgs.callPackage ./herdr-recall {};
   mcp-gateway = pkgs.callPackage ./mcp-gateway {};
   phone = pkgs.callPackage ./phone {};
+  pinentry-gate = pkgs.callPackage ./pinentry-gate {};
   setup = pkgs.callPackage ./setup {};
   waytools = pkgs.callPackage ./waytools {};
   ttygate = pkgs.callPackage ./ttygate {};
