@@ -1,11 +1,12 @@
 diff --git a/tui/src/startup_orchestration.rs b/tui/src/startup_orchestration.rs
 --- a/tui/src/startup_orchestration.rs
 +++ b/tui/src/startup_orchestration.rs
-@@ -14,5 +14,8 @@ pub(super) async fn run_main_inner(
-     let strict_config = cli.strict_config;
+@@ -24,7 +24,9 @@
+             ));
+         }
+     }
 -    let (sandbox_mode, approval_policy) = if cli.dangerously_bypass_approvals_and_sandbox {
-+    let default_yolo =
-+        cli.sandbox_mode.is_none() && cli.approval_policy.is_none();
++    let default_yolo = cli.sandbox_mode.is_none() && cli.approval_policy.is_none();
 +    let yolo = cli.dangerously_bypass_approvals_and_sandbox || default_yolo;
 +    let (sandbox_mode, approval_policy) = if yolo {
          (
