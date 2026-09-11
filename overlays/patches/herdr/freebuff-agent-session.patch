@@ -44,10 +44,10 @@
                  &AgentSessionRef::id("kimi-session").unwrap()
 --- a/src/config/sound.rs
 +++ b/src/config/sound.rs
-@@ -142,6 +142,7 @@
-             Some(Agent::Qodercli) => self.qodercli,
+@@ -144,6 +144,7 @@
              Some(Agent::Qwen) => self.qwen,
              Some(Agent::Maki) => self.maki,
+             Some(Agent::Muse) => self.muse,
 +            Some(Agent::Freebuff) => AgentSoundSetting::Default,
              None => AgentSoundSetting::Default,
          }
@@ -138,64 +138,64 @@
 +]
 --- a/src/detect/mod.rs
 +++ b/src/detect/mod.rs
-@@ -63,10 +63,11 @@
-     Qodercli,
+@@ -64,10 +64,11 @@
      Qwen,
      Maki,
+     Muse,
 +    Freebuff,
  }
-
+ 
  impl Agent {
--    pub const ALL: [Self; 22] = [
-+    pub const ALL: [Self; 23] = [
+-    pub const ALL: [Self; 23] = [
++    pub const ALL: [Self; 24] = [
          Self::Pi,
          Self::Claude,
          Self::Codex,
-@@ -89,9 +90,10 @@
-         Self::Qodercli,
+@@ -91,9 +92,10 @@
          Self::Qwen,
          Self::Maki,
+         Self::Muse,
 +        Self::Freebuff,
      ];
-
--    pub const SCREEN_MANIFEST_AGENTS: [Self; 20] = [
-+    pub const SCREEN_MANIFEST_AGENTS: [Self; 21] = [
+ 
+-    pub const SCREEN_MANIFEST_AGENTS: [Self; 21] = [
++    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
          Self::Pi,
          Self::Claude,
          Self::Codex,
-@@ -112,6 +114,7 @@
-         Self::Qodercli,
+@@ -115,6 +117,7 @@
          Self::Qwen,
          Self::Maki,
+         Self::Muse,
 +        Self::Freebuff,
      ];
  }
-
-@@ -139,6 +142,7 @@
-         Agent::Qodercli => "qodercli",
+ 
+@@ -143,6 +146,7 @@
          Agent::Qwen => "qwen",
          Agent::Maki => "maki",
+         Agent::Muse => "muse",
 +        Agent::Freebuff => "freebuff",
      }
  }
-
-@@ -172,6 +176,7 @@
-         Agent::Qodercli => "qodercli",
+ 
+@@ -177,6 +181,7 @@
          Agent::Qwen => "qwen",
          Agent::Maki => "maki",
+         Agent::Muse => "muse",
 +        Agent::Freebuff => "freebuff",
      }
  }
-
-@@ -209,6 +214,7 @@
-         "qodercli" | "qoderclicn" | "qoder" | "qodercn" => Some(Agent::Qodercli),
+ 
+@@ -216,6 +221,7 @@
          "qwen" | "qwen-code" | "qwen code" => Some(Agent::Qwen),
          "maki" => Some(Agent::Maki),
+         "muse" | "muse-code" | "muse-cli" => Some(Agent::Muse),
 +        "freebuff" | "codebuff" => Some(Agent::Freebuff),
+         _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
          _ => None,
      }
- }
-@@ -307,7 +313,10 @@
+@@ -328,7 +334,10 @@
  pub(crate) fn session_identity_only_integration(source: &str, agent_label: &str) -> bool {
      matches!(
          (source, agent_label),
@@ -206,7 +206,7 @@
 +            | ("herdr:freebuff", "freebuff")
      )
  }
-
+ 
 --- a/src/terminal/state.rs
 +++ b/src/terminal/state.rs
 @@ -1327,6 +1327,7 @@

@@ -1,18 +1,16 @@
---- a/src/ui.rs
-+++ b/src/ui.rs
-@@ -79,7 +79,8 @@
-         agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect, agent_panel_entries,
-         agent_panel_scroll_for_target, agent_panel_scroll_metrics, agent_panel_scrollbar_rect,
-         agent_panel_toggle_rect, all_agent_panel_entries, collapsed_sidebar_sections,
--        collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
-+        collapsed_sidebar_toggle_hit_rect, collapsed_sidebar_toggle_rect,
-+        compute_workspace_card_areas, expanded_sidebar_sections, expanded_sidebar_toggle_hit_rect,
-         expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
-         workspace_drop_slots, workspace_group_chevron_rect, workspace_list_entries,
-         workspace_list_entries_expanded, workspace_list_rect, workspace_list_scroll_metrics,
---- a/src/ui/sidebar.rs
-+++ b/src/ui/sidebar.rs
-@@ -1561,6 +1561,47 @@
+--- a/src/client/shell/state.rs
++++ b/src/client/shell/state.rs
+@@ -159,6 +159,7 @@
+     pub(super) sidebar_divider: Rect,
+     pub(super) sidebar_section_divider: Rect,
+     pub(super) sidebar_toggle: Rect,
++    pub(super) sidebar_toggle_hit: Rect,
+     pub(super) new_workspace: Rect,
+     pub(super) new_tab: Rect,
+     pub(super) tab_scroll_left: Rect,
+--- a/src/client/shell/sidebar.rs
++++ b/src/client/shell/sidebar.rs
+@@ -24,6 +24,45 @@
      )
  }
  
@@ -23,7 +21,7 @@
 +const SIDEBAR_TOGGLE_HIT_HEIGHT: u16 = 2;
 +
 +fn toggle_hit_rect(area: Rect, icon: Rect, width: u16) -> Rect {
-+    if icon == Rect::default() {
++    if icon.is_empty() {
 +        return Rect::default();
 +    }
 +    let height = SIDEBAR_TOGGLE_HIT_HEIGHT.min(area.height);
@@ -33,44 +31,75 @@
 +    Rect::new(x, y, right.saturating_sub(x), height)
 +}
 +
-+pub(crate) fn collapsed_sidebar_toggle_hit_rect(area: Rect) -> Rect {
-+    // The collapsed strip is four columns wide, so the icon takes the whole
-+    // content row rather than the eight columns it cannot have.
-+    let icon = collapsed_sidebar_toggle_rect(area);
-+    let content_w = area.width.saturating_sub(1);
-+    let right_pad = content_w.saturating_sub(icon.x.saturating_sub(area.x) + icon.width);
++/// The collapsed strip is a few columns wide, so the press area takes the whole
++/// content row rather than the eight columns it cannot have.
++pub(in crate::client::shell) fn collapsed_sidebar_toggle_hit_rect(area: Rect, icon: Rect) -> Rect {
++    if icon.is_empty() {
++        return Rect::default();
++    }
++    let content_width = area.width.saturating_sub(1);
++    let content_right = area.x + content_width;
 +    toggle_hit_rect(
 +        area,
 +        Rect {
-+            width: icon.width + right_pad,
++            width: content_right.saturating_sub(icon.x),
 +            ..icon
 +        },
-+        content_w,
++        content_width,
 +    )
 +}
 +
-+pub(crate) fn expanded_sidebar_toggle_hit_rect(area: Rect) -> Rect {
-+    toggle_hit_rect(
-+        area,
-+        expanded_sidebar_toggle_rect(area),
-+        SIDEBAR_TOGGLE_HIT_WIDTH,
-+    )
++pub(in crate::client::shell) fn expanded_sidebar_toggle_hit_rect(area: Rect, icon: Rect) -> Rect {
++    toggle_hit_rect(area, icon, SIDEBAR_TOGGLE_HIT_WIDTH)
 +}
 +
- fn render_sidebar_toggle(
-     app: &AppState,
-     frame: &mut Frame,
---- a/src/app/input/sidebar.rs
-+++ b/src/app/input/sidebar.rs
-@@ -253,9 +253,9 @@
- 
-     pub(super) fn on_sidebar_toggle(&self, col: u16, row: u16) -> bool {
-         let rect = if self.sidebar_collapsed {
--            crate::ui::collapsed_sidebar_toggle_rect(self.view.sidebar_rect)
-+            crate::ui::collapsed_sidebar_toggle_hit_rect(self.view.sidebar_rect)
-         } else {
--            crate::ui::expanded_sidebar_toggle_rect(self.view.sidebar_rect)
-+            crate::ui::expanded_sidebar_toggle_hit_rect(self.view.sidebar_rect)
-         };
-         rect.width > 0
-             && col >= rect.x
+ pub(crate) fn render_collapsed_sidebar(
+     buffer: &mut Buffer,
+     area: Rect,
+@@ -164,6 +203,7 @@
+             1,
+         )
+     };
++    hits.sidebar_toggle_hit = collapsed_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
+     put_text(
+         buffer,
+         hits.sidebar_toggle.x,
+@@ -435,6 +475,7 @@
+         u16::from(area.width > 1),
+         u16::from(area.height > 0),
+     );
++    hits.sidebar_toggle_hit = expanded_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
+     put_text(
+         buffer,
+         hits.sidebar_toggle.x,
+--- a/src/client/shell/endpoint_sidebar.rs
++++ b/src/client/shell/endpoint_sidebar.rs
+@@ -138,6 +138,8 @@
+             1,
+         )
+     };
++    hits.sidebar_toggle_hit =
++        super::sidebar::collapsed_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
+     put_text(
+         buffer,
+         hits.sidebar_toggle.x,
+@@ -389,6 +391,8 @@
+         u16::from(area.width > 1),
+         u16::from(area.height > 0),
+     );
++    hits.sidebar_toggle_hit =
++        super::sidebar::expanded_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
+     put_text(
+         buffer,
+         hits.sidebar_toggle.x,
+--- a/src/client/shell/mouse.rs
++++ b/src/client/shell/mouse.rs
+@@ -1963,7 +1963,7 @@
+                     outcome.repaint = true;
+                     return;
+                 }
+-                if super::contains(self.hits.sidebar_toggle, point) {
++                if super::contains(self.hits.sidebar_toggle_hit, point) {
+                     self.sidebar_collapsed = !self.sidebar_collapsed;
+                     self.sidebar_collapsed_manual = true;
+                     self.invalidate_pane_surface();
