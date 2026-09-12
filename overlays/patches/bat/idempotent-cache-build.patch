@@ -1,0 +1,65 @@
+diff --git a/src/assets/build_assets.rs b/src/assets/build_assets.rs
+--- a/src/assets/build_assets.rs
++++ b/src/assets/build_assets.rs
+@@ -54,5 +53,0 @@
+-    } else {
+-        println!(
+-            "No themes were found in '{}', using the default set",
+-            theme_dir.to_string_lossy()
+-        );
+@@ -80,5 +74,0 @@
+-    } else {
+-        println!(
+-            "No syntaxes were found in '{}', using the default set.",
+-            syntax_dir.to_string_lossy()
+-        );
+@@ -108 +98 @@
+-    asset_to_cache(
++    let themes_changed = asset_to_cache(
+@@ -114 +104 @@
+-    asset_to_cache(
++    let syntaxes_changed = asset_to_cache(
+@@ -121 +111 @@
+-    if let Some(acknowledgements) = acknowledgements {
++    let acknowledgements_changed = if let Some(acknowledgements) = acknowledgements {
+@@ -127,2 +117,4 @@
+-        )?;
+-    }
++        )?
++    } else {
++        false
++    };
+@@ -130,6 +122,14 @@
+-    print!(
+-        "Writing metadata to folder {} ... ",
+-        target_dir.to_string_lossy()
+-    );
+-    crate::assets_metadata::AssetsMetadata::new(current_version).save_to_folder(target_dir)?;
+-    println!("okay");
++    let metadata_changed =
++        match crate::assets_metadata::AssetsMetadata::load_from_folder(target_dir) {
++            Ok(Some(metadata)) => !metadata.is_compatible_with(current_version),
++            _ => true,
++        };
++
++    if themes_changed || syntaxes_changed || acknowledgements_changed || metadata_changed {
++        print!(
++            "Writing metadata to folder {} ... ",
++            target_dir.to_string_lossy()
++        );
++        crate::assets_metadata::AssetsMetadata::new(current_version).save_to_folder(target_dir)?;
++        println!("okay");
++    }
+@@ -163,2 +163 @@
+-) -> Result<()> {
+-    print!("Writing {description} to {} ... ", path.to_string_lossy());
++) -> Result<bool> {
+@@ -165,0 +165,5 @@
++    if std::fs::read(path).is_ok_and(|cached| cached == contents) {
++        return Ok(false);
++    }
++
++    print!("Writing {description} to {} ... ", path.to_string_lossy());
+@@ -169 +173 @@
+-    Ok(())
++    Ok(true)
