@@ -19,7 +19,7 @@ in {
     context = ''
       ${kit.memories}
 
-      ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/codex/rtk-awareness.md"}
+      ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-high.md"}
     '';
 
     settings = {
