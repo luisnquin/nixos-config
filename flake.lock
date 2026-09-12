@@ -862,6 +862,26 @@
         "type": "github"
       }
     },
+    "identity": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789241882,
+        "narHash": "sha256-tp3ByTSlgPpqUWLj12LXeQxwZRX2dUA/U1GGs3GYwWI=",
+        "owner": "luisnquin",
+        "repo": "luisnquin",
+        "rev": "19cec0d63e443529e368ccf00f17db293f4df7d6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "luisnquin",
+        "repo": "luisnquin",
+        "type": "github"
+      }
+    },
     "lanzaboote": {
       "inputs": {
         "crane": "crane",
@@ -1220,6 +1240,7 @@
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
         "hyprdysmorphic": "hyprdysmorphic",
+        "identity": "identity",
         "lanzaboote": "lanzaboote",
         "llm-agents": "llm-agents",
         "nao": "nao",

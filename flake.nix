@@ -46,6 +46,10 @@
     };
 
     black-terminal.url = "github:luisnquin/black-terminal";
+    identity = {
+      url = "github:luisnquin/luisnquin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     hyprdysmorphic = {
       url = "github:0xc000022070/hyprdysmorphic";
       inputs = {

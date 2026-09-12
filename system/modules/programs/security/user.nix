@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   user,
   pkgs,
   lib,
@@ -24,13 +25,7 @@
           "wheel"
         ];
 
-        openssh.authorizedKeys.keys = [
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMNOYm8dmSXKjgaBQDWCnSvcsGyiJILX3Vwejmkm150+"
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKpV17zqf4dGsuaddSslVpHV5APCsEQSXPAnuBSZk5zY"
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOy0naPj/yYMQtfKt/geDwWyS16IujRV3UbC4P2xQalE"
-          # spectacle-mvp emulator on rose, key generated in-app
-          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ3S+kasCN9Y1Eb9S3bOPaLMYx+yfQ/2b/DoPZUlJjav spectacle-emu"
-        ];
+        openssh.authorizedKeys.keys = inputs.identity.lib.ssh.authorizedKeys.nyx;
       };
 
       nginx = lib.mkForce {
