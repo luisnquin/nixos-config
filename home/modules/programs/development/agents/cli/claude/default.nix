@@ -60,6 +60,7 @@ in {
       env = {
         "CLAUDE_CODE_AUTO_COMPACT_WINDOW" = "200000";
         "CLAUDE_CODE_ENABLE_TELEMETRY" = "0";
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" = "1";
         "DISABLE_AUTOUPDATER" = "1";
         "PINENTRY_USER_DATA" = "gui";
       };
