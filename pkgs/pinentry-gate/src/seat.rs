@@ -43,7 +43,9 @@ pub fn active_session_kind(user: &str) -> Kind {
 
 /// The compositor's socket name, from the runtime dir rather than from the
 /// environment: gpg-agent's is the user manager's, which the session may not
-/// have updated.
+/// have updated. Only a socket libwayland locked beside itself counts: other
+/// daemons park their own `wayland-*` sockets in the same directory, and a
+/// terminal told to speak wayland at one of those kills it.
 pub fn wayland_display(runtime: &Path) -> Option<String> {
     let mut sockets: Vec<(std::time::SystemTime, String)> = std::fs::read_dir(runtime)
         .ok()?
@@ -51,7 +53,7 @@ pub fn wayland_display(runtime: &Path) -> Option<String> {
         .filter(|entry| {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            name.starts_with("wayland-") && !name.ends_with(".lock")
+            name.starts_with("wayland-") && !name.ends_with(".lock") && runtime.join(format!("{name}.lock")).is_file()
         })
         .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_socket()))
         .filter_map(|entry| {
@@ -64,4 +66,22 @@ pub fn wayland_display(runtime: &Path) -> Option<String> {
     }
     sockets.sort();
     sockets.pop().map(|(_, name)| name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::net::UnixListener;
+
+    #[test]
+    fn a_daemons_own_socket_is_not_the_display() {
+        let dir = std::env::temp_dir().join(format!("pinentry-gate-seat-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let _compositor = UnixListener::bind(dir.join("wayland-1")).unwrap();
+        std::fs::write(dir.join("wayland-1.lock"), "").unwrap();
+        let _wallpaper = UnixListener::bind(dir.join("wayland-1-awww-daemon.sock")).unwrap();
+        assert_eq!(wayland_display(&dir), Some("wayland-1".to_string()));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
