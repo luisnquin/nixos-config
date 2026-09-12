@@ -50,10 +50,6 @@ pub struct Opts {
     /// Take a device another project holds.
     pub take: bool,
     pub timeout: Duration,
-    /// Whether this run arrived from another machine. Only the line naming the
-    /// project depends on it: the sender printed that one already, and it knows
-    /// the host's name, which this side no longer does.
-    pub relayed: bool,
 }
 
 /// What one declared device wants and what it has, as `status` prints it and
@@ -72,9 +68,8 @@ pub struct Row {
     pub held: Option<String>,
 }
 
-/// Deserialised as well as written: a `status` handed to the host that owns the
-/// project comes back as this, so the printing and the exit code stay on the
-/// machine the command was typed on.
+/// One `status` of a whole project: its steps, its devices and the strays
+/// beside them.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Report {
     pub project: String,
@@ -416,97 +411,6 @@ pids=$(lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null)
 kill $pids 2>/dev/null
 exit 0"#;
 
-/// Hands a whole verb to the machine the manifest names.
-///
-/// `"$@"` and nothing else: every word comes over as an argument rather than as
-/// text spliced into a script, so a profile name is a profile name whatever it
-/// contains.
-const RELAY: &str = r#"exec phone "$@""#;
-
-/// Where to hand this run, and the manifest to hand over with it.
-///
-/// The text goes rather than a path to it, so an edit that has not been
-/// committed, pushed or synced to that machine still takes effect — the point
-/// of a manifest is to be the declaration, and a stale copy on the far side
-/// would quietly not be one.
-///
-/// `None` means there is nothing to hand over: the project is on this machine.
-/// A run that arrived here already delegated reads as that too, since the
-/// sender dropped the host on the way out, which is what stops a command
-/// bouncing back to the machine it came from.
-fn sending(project: &Project) -> Result<Option<(Where, String)>> {
-    let Some(host) = project.host() else {
-        return Ok(None);
-    };
-
-    let file = project.root.join(crate::project::FILE);
-    let text = std::fs::read_to_string(&file)
-        .with_context(|| format!("reading {}", file.display()))?;
-
-    Ok(Some((Where::On(host.to_string()), text)))
-}
-
-/// The verb, run on the host, with its output arriving here as it happens.
-///
-/// The alternative is what this did before: drive that machine's devices from
-/// this one, a round trip per question, with the registry on the wrong side of
-/// the link and the survey unable to see a simulator sitting right next to the
-/// tree. `Ok(None)` when the project is here and there is nobody to hand it to.
-pub async fn relay(project: &Project, argv: &[String]) -> Result<Option<()>> {
-    let Some((at, text)) = sending(project)? else {
-        return Ok(None);
-    };
-
-    eprintln!("phone: {} on {}", project.name(), at.label());
-
-    let mut args: Vec<&str> = vec![&argv[0], "--manifest", &text];
-
-    args.extend(argv[1..].iter().map(String::as_str));
-
-    match at.stream(RELAY, &args, None).await? {
-        Status::Code(0) => Ok(Some(())),
-        other => Err(failed(
-            &format!("{} on {}", argv[0], at.label()),
-            &other,
-            "",
-        )),
-    }
-}
-
-/// The same handover for `status`, which wants the report back rather than the
-/// rendering of it: the exit code and `--json` belong to the machine the
-/// command was typed on, so the far side is asked for the data and nothing else.
-pub async fn relay_status(project: &Project, profile: Option<&str>) -> Result<Option<Report>> {
-    let Some((at, text)) = sending(project)? else {
-        return Ok(None);
-    };
-
-    let mut args: Vec<&str> = vec!["status", "--json", "--manifest", &text];
-
-    if let Some(profile) = profile {
-        args.extend(["--profile", profile]);
-    }
-
-    // `status` exits 2 for drift, which is an answer and not a failure, so the
-    // report is read first and the status only consulted when there is none
-    let ran = at
-        .exec(RELAY, &args, Duration::from_secs(180))
-        .await
-        .with_context(|| format!("asking {} for its status", at.label()))?;
-
-    match serde_json::from_slice::<Report>(&ran.stdout) {
-        // stamped here rather than there: the manifest arrives on that side
-        // with its host stripped, so the machine that answered cannot say its
-        // own name. This one asked for it and knows which name it used.
-        Ok(mut report) => {
-            report.host = at.host().map(str::to_string);
-
-            Ok(Some(report))
-        }
-        Err(_) => Err(failed("status", &ran.status, &ran.said)),
-    }
-}
-
 /// Brings the project's steps and devices to what the manifest declares.
 pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()> {
     let (site, ledger) = Site::of(Where::of(project.host()), project.dir()).await?;
@@ -527,13 +431,11 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         ledger.save().await?;
     }
 
-    if !opts.relayed {
-        eprintln!(
-            "phone: {} on {}",
-            project.name(),
-            Where::of(project.host()).label()
-        );
-    }
+    eprintln!(
+        "phone: {} on {}",
+        project.name(),
+        Where::of(project.host()).label()
+    );
 
     // the tree first: a build against half-installed dependencies fails in a
     // way that reads as a broken project rather than as a missing step
@@ -1786,45 +1688,5 @@ mod tests {
 
         assert_eq!(project.devices(Some("android")).unwrap().len(), 1);
         assert!(strays(&views, &project).is_empty());
-    }
-
-    /// The manifest travels as text, so what takes effect is what this machine
-    /// reads now — not whatever copy the host happens to have, which for an
-    /// uncommitted edit is a different declaration entirely.
-    #[test]
-    fn a_project_on_a_host_is_handed_over_with_the_manifest_as_it_reads_here() {
-        let dir = std::env::temp_dir().join(format!("phone-send-{}", std::process::id()));
-
-        std::fs::create_dir_all(&dir).unwrap();
-
-        let file = dir.join(crate::project::FILE);
-        let text = "host = \"rose\"\ndir = \"/w\"\n[devices.pixel]\n";
-
-        std::fs::write(&file, text).unwrap();
-
-        let project = Project::load(&file).unwrap();
-        let (at, sent) = sending(&project).unwrap().expect("a host to hand it to");
-
-        assert_eq!(at, Where::On("rose".to_string()));
-        assert_eq!(sent, text);
-
-        // and the same project once the host has been consumed: there is nobody
-        // left to hand it to, which is what stops the run bouncing
-        assert!(sending(&Project::sent(&sent).unwrap()).unwrap().is_none());
-
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    /// Nothing to hand over when the work is already here. Worth pinning: the
-    /// whole delegation hangs off this returning `None`, and a bug that made it
-    /// return a `Where::Here` would run every project through an extra process.
-    #[test]
-    fn a_project_on_this_machine_is_not_handed_anywhere() {
-        let project = Project {
-            root: std::path::PathBuf::from("/tmp/here"),
-            manifest: Project::parse("[devices.pixel]\n").unwrap(),
-        };
-
-        assert!(sending(&project).unwrap().is_none());
     }
 }

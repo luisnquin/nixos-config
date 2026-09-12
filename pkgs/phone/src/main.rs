@@ -113,48 +113,21 @@ async fn dispatch(cli: Cli) -> Result<()> {
             rebuild,
             take,
             timeout,
-            manifest,
         }) => {
-            let relayed = manifest.is_some();
-            let project = declared(manifest)?;
-
-            let mut argv = vec!["up".to_string()];
-
-            if let Some(profile) = &profile {
-                argv.extend(["--profile".to_string(), profile.clone()]);
-            }
-
-            if rebuild {
-                argv.push("--rebuild".to_string());
-            }
-
-            if take {
-                argv.push("--take".to_string());
-            }
-
-            argv.extend(["--timeout".to_string(), format!("{}s", timeout.as_secs())]);
-
-            if up::relay(&project, &argv).await?.is_some() {
-                return Ok(());
-            }
+            let project = declared()?;
 
             let opts = up::Opts {
                 profile,
                 rebuild,
                 take,
                 timeout,
-                relayed,
             };
 
             up::up(&mut reg, &project, &opts).await
         }
 
-        Some(Command::Down { manifest }) => {
-            let project = declared(manifest)?;
-
-            if up::relay(&project, &["down".to_string()]).await?.is_some() {
-                return Ok(());
-            }
+        Some(Command::Down) => {
+            let project = declared()?;
 
             up::down(&mut reg, &project).await
         }
@@ -162,14 +135,9 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Status {
             profile,
             json,
-            manifest,
         }) => {
-            let project = declared(manifest)?;
-
-            let report = match up::relay_status(&project, profile.as_deref()).await? {
-                Some(report) => report,
-                None => up::status(&mut reg, &project, profile.as_deref()).await?,
-            };
+            let project = declared()?;
+            let report = up::status(&mut reg, &project, profile.as_deref()).await?;
 
             match json {
                 true => println!("{}", serde_json::to_string_pretty(&report)?),
@@ -532,11 +500,7 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
 /// The manifest the project verbs act on. Not finding one is the mistake that
 /// actually gets made — the command was typed outside the checkout — so the
 /// error says what was looked for and where, not that a file is missing.
-fn declared(sent: Option<String>) -> Result<Project> {
-    if let Some(text) = sent {
-        return Project::sent(&text);
-    }
-
+fn declared() -> Result<Project> {
     let here = std::env::current_dir()?;
 
     Project::here()?.ok_or_else(|| {
