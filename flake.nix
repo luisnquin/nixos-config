@@ -171,6 +171,9 @@
           import ./overlays/inputs.nix {
             inherit inputs system;
           }
+          ++ [
+            (final: _prev: import ./pkgs final)
+          ]
           ++ import ./overlays/nixpkgs.nix {
             inherit inputs system;
             inherit (metadata) host;
