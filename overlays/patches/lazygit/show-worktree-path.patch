@@ -1,0 +1,113 @@
+diff --git a/pkg/gui/main_panels.go b/pkg/gui/main_panels.go
+index 03b7469..da6ad1c 100644
+--- a/pkg/gui/main_panels.go
++++ b/pkg/gui/main_panels.go
+@@ -3,6 +3,7 @@ package gui
+ import (
+ 	"github.com/jesseduffield/lazygit/pkg/gocui"
+ 	"github.com/jesseduffield/lazygit/pkg/gui/types"
++	"github.com/jesseduffield/lazygit/pkg/utils"
+ )
+ 
+ func (gui *Gui) runTaskForView(view *gocui.View, task types.UpdateTask) error {
+@@ -62,7 +63,11 @@ func (gui *Gui) RefreshMainView(opts *types.ViewUpdateOpts, context types.Contex
+ 		view.Title = opts.Title
+ 	}
+ 
+-	view.Subtitle = opts.SubTitle
++	subtitle := opts.SubTitle
++	if subtitle == "" && view == gui.Views.Main {
++		subtitle = gui.worktreePathSubtitle()
++	}
++	view.Subtitle = subtitle
+ 
+ 	if err := gui.runTaskForView(view, opts.Task); err != nil {
+ 		gui.c.Log.Error(err)
+@@ -135,3 +140,16 @@ func (gui *Gui) refreshMainViews(opts types.RefreshMainOpts) {
+ func (gui *Gui) splitMainPanel(splitMainPanel bool) {
+ 	gui.State.SplitMainPanel = splitMainPanel
+ }
++
++// worktreePathSubtitle is the path of the worktree lazygit is open on, shown in
++// the main panel's top right corner whenever that panel has no subtitle of its
++// own. The status panel only ever shows the repo name, which is the same for
++// every worktree of a repo and for identically named clones, so this is what
++// tells two lazygit instances apart.
++func (gui *Gui) worktreePathSubtitle() string {
++	if gui.git == nil {
++		return ""
++	}
++
++	return utils.ContractTilde(gui.git.RepoPaths.WorktreePath())
++}
+diff --git a/pkg/utils/utils.go b/pkg/utils/utils.go
+index 0494bb0..9083138 100644
+--- a/pkg/utils/utils.go
++++ b/pkg/utils/utils.go
+@@ -120,3 +120,31 @@ func ExpandTilde(path string) string {
+ 	}
+ 	return filepath.Join(home, path[2:])
+ }
++
++// ContractTilde is the inverse of ExpandTilde: a path inside the current user's
++// home directory is shortened to "~/foo", and the home directory itself to "~".
++// Any other path, and any path if the home directory can't be determined, is
++// left untouched. Only for display: git is given the real path.
++func ContractTilde(path string) string {
++	home, err := os.UserHomeDir()
++	if err != nil {
++		return path
++	}
++
++	// $HOME is whatever the environment says it is, trailing separator and all,
++	// while the paths we're shortening come from git and are already clean.
++	home = filepath.Clean(home)
++	if home == "." || home == string(filepath.Separator) {
++		return path
++	}
++
++	if path == home {
++		return "~"
++	}
++
++	prefix := home + string(filepath.Separator)
++	if !strings.HasPrefix(path, prefix) {
++		return path
++	}
++	return "~" + string(filepath.Separator) + path[len(prefix):]
++}
+diff --git a/pkg/utils/utils_test.go b/pkg/utils/utils_test.go
+index 8304e7b..3a5406d 100644
+--- a/pkg/utils/utils_test.go
++++ b/pkg/utils/utils_test.go
+@@ -125,3 +125,30 @@ func TestExpandTilde(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestContractTilde(t *testing.T) {
++	home, err := os.UserHomeDir()
++	assert.NoError(t, err)
++	home = filepath.Clean(home)
++
++	sep := string(filepath.Separator)
++
++	scenarios := []struct {
++		name     string
++		path     string
++		expected string
++	}{
++		{"home itself", home, "~"},
++		{"path inside home", filepath.Join(home, "worktrees"), "~" + sep + "worktrees"},
++		{"path outside home is untouched", filepath.Join(sep+"tmp", "worktrees"), filepath.Join(sep+"tmp", "worktrees")},
++		{"path only sharing a prefix with home is untouched", home + "x", home + "x"},
++		{"relative path is untouched", filepath.Join("relative", "path"), filepath.Join("relative", "path")},
++		{"empty string is untouched", "", ""},
++	}
++
++	for _, s := range scenarios {
++		t.Run(s.name, func(t *testing.T) {
++			assert.Equal(t, s.expected, ContractTilde(s.path))
++		})
++	}
++}
