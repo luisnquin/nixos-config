@@ -21,8 +21,10 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::model::{self, Device, Unix};
+use crate::model::{self, Device, Unix, View};
+use crate::project::Project;
 use crate::ssh::Where;
+use crate::{actions, up};
 
 const TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -167,6 +169,88 @@ impl Leases {
     }
 }
 
+
+/// Where a project's tree is, as the host owning it spells it: the name `up`
+/// filed its hold under, so a verb typed in the same checkout finds its own
+/// hold rather than somebody else's. The same script `up` runs, so the two
+/// cannot drift apart on a symlink or a tilde.
+pub async fn tree(project: &Project) -> Result<String> {
+    let at = Where::of(project.host());
+    let dir = project.dir();
+    let ran = at
+        .exec(&up::scripted("pwd -P"), &up::args(&dir, None), TIMEOUT)
+        .await
+        .with_context(|| format!("locating {dir} on {}", at.label()))?;
+
+    if !ran.ok() {
+        anyhow::bail!("locating {dir} on {}: {}", at.label(), ran.said);
+    }
+
+    Ok(ran.text().trim().to_string())
+}
+
+/// Refuses a running device that another project holds.
+///
+/// `claim` guards `up`; this guards everything after it. A hold only `up`
+/// honoured would stop a second project's launch and let a second agent's
+/// `tap` straight through, and the tap is the invasion: from then on the
+/// holder's snapshots describe a screen somebody else is driving.
+///
+/// A project of one's own is needed to be let in, not to be refused: a verb
+/// typed outside any checkout is nobody, and nobody is not the holder.
+pub async fn check(view: &View) -> Result<()> {
+    if !actions::running(&view.reach) {
+        return Ok(());
+    }
+
+    let leases = Leases::open(&actions::where_of(&view.device)).await?;
+
+    let Some(holder) = leases.holder(key(&view.device)) else {
+        return Ok(());
+    };
+
+    if let Some(project) = Project::here().ok().flatten() {
+        if tree(&project).await? == holder.tree {
+            return Ok(());
+        }
+    }
+
+    anyhow::bail!("{}", refusal(&view.device.label, holder))
+}
+
+/// What a refused agent reads. It has to say whose the device is, why the
+/// refusal is not a bug to route around, and the two ways past it — with the
+/// one that walks over the other session named last and as a question to ask.
+pub fn refusal(label: &str, holder: &Holder) -> String {
+    format!(
+        "{label} is held by {}: another agent's session is on it, and driving it from here would put your screens in front of theirs\n\
+         pick a device nobody holds (`phone device list`), or have that agent release it with `phone down` in {}\n\
+         `phone up --take` there overrides the hold; ask before using it",
+        holder.label(),
+        holder.tree
+    )
+}
+
+/// Drops whatever hold a device this process just booted carried: the session
+/// that held it did not survive the shutdown, and a hold with no session behind
+/// it would refuse everyone until somebody found the right checkout to run
+/// `phone down` in.
+pub async fn forget(view: &View) -> Result<()> {
+    let mut leases = Leases::open(&actions::where_of(&view.device)).await?;
+
+    if let Some(had) = leases.release(key(&view.device)) {
+        eprintln!(
+            "phone: {} was held by {}; that session did not survive the shutdown, so the hold is dropped",
+            view.device.label,
+            had.label()
+        );
+
+        leases.save().await?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,6 +307,15 @@ mod tests {
             Some("alpha")
         );
         assert!(leases.other("emu:2", "/b").is_none());
+    }
+
+    #[test]
+    fn a_refusal_names_the_holder_and_where_to_release_it() {
+        let said = refusal("Pixel 9", &Holder::of("/home/x/hotline", "hotline"));
+
+        assert!(said.starts_with("Pixel 9 is held by hotline ("));
+        assert!(said.contains("`phone down` in /home/x/hotline"));
+        assert!(said.ends_with("ask before using it"));
     }
 
     #[test]

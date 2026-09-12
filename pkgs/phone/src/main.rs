@@ -310,6 +310,9 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 DeviceAction::Shutdown { target } => {
                     let view = resolve(&mut reg, want(target).as_deref(), true).await?;
 
+                    // turning off the device somebody else is holding ends their session
+                    lease::check(&view).await?;
+
                     eprintln!("phone: {}", actions::stop(&view.device, &view.reach).await?);
 
                     Ok(())
@@ -1112,6 +1115,8 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 
     eprintln!("phone: {}", res?);
 
+    lease::forget(&view).await?;
+
     let found = survey(reg).await;
     reg.save()?;
 
@@ -1148,6 +1153,8 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
             quoted(label)
         );
     }
+
+    lease::check(&view).await?;
 
     Ok(view)
 }

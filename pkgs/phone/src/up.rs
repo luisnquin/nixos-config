@@ -184,7 +184,7 @@ fn build_key(platform: Platform) -> &'static str {
 /// with a space in it is a path rather than two arguments — and its `~` is
 /// expanded where the tilde means something, which is the host's home and not
 /// this machine's.
-fn scripted(body: &str) -> String {
+pub(crate) fn scripted(body: &str) -> String {
     format!(
         r#"dir=$1
 case "$dir" in "~"|"~/"*) dir="$HOME${{dir#\~}}" ;; esac
@@ -201,7 +201,7 @@ export PHONE_SERIAL="$2" PHONE_ID="$3" PHONE_PLATFORM="$4" PHONE_KIND="$5" PHONE
 /// different things: PHONE_PLATFORM is `android` or `ios`, which is what a build
 /// command is spelled with, and PHONE_KIND keeps the distinction the survey
 /// draws, for a script that only wants `--device` on real hardware.
-fn args<'a>(dir: &'a str, view: Option<&'a View>) -> [&'a str; 6] {
+pub(crate) fn args<'a>(dir: &'a str, view: Option<&'a View>) -> [&'a str; 6] {
     let Some(view) = view else {
         return [dir, "", "", "", "", ""];
     };

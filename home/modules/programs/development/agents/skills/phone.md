@@ -36,11 +36,14 @@ without changing anything and exits non-zero when something has drifted, which
 is what a test script gates on.
 
 A device belongs to the project that last brought it up, until that project's
-`phone down`. `phone up` in another project that declares the same device is
-refused and names the holder, because the second launch would put its app in
-front of the first's and every snapshot taken from then on would describe the
-wrong screen. Do not reach for `--take` to get past that: it is the other
-agent's session. Declare a different device, or ask before taking one.
+`phone down`. Every verb that drives it from another project, or from outside
+any project, is refused and names the holder: `up`, because the second launch
+would put its app in front of the first's; `tap`, `shot`, `app launch` and the
+rest, because every snapshot the holder takes from then on would describe a
+screen somebody else is driving. Do not reach for `--take` to get past that: it
+is the other agent's session. Declare a different device, or ask before taking
+one. `phone device boot` on a device that is off drops whatever hold it carried,
+since the session that held it did not survive the shutdown.
 
 Nothing below is wrong in such a project, it is just the long way round.
 
