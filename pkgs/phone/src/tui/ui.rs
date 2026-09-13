@@ -25,15 +25,21 @@ const KEYS: &[(&str, &str)] = &[
     ("q", "quit"),
 ];
 
+const SIDE_BY_SIDE_MIN_WIDTH: u16 = 100;
+const SIDE_BY_SIDE_MIN_ASPECT: u16 = 3;
+const DEVICE_MIN_WIDTH: u16 = 60;
+const ACTIVITY_WIDTH: u16 = 38;
+const ACTIVITY_HEIGHT: u16 = 5;
+
 pub fn render(frame: &mut Frame, app: &mut App) {
-    let [header, list, log, status, footer] = Layout::vertical([
+    let [header, content, status, footer] = Layout::vertical([
         Constraint::Length(1),
         Constraint::Min(5),
-        Constraint::Length(8),
         Constraint::Length(1),
         Constraint::Length(1),
     ])
     .areas(frame.area());
+    let [list, log] = content_areas(content);
 
     render_header(frame, app, header);
     render_list(frame, app, list);
@@ -47,6 +53,23 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     if matches!(app.mode, Mode::Hosts | Mode::Prompt(Prompt::Host)) {
         render_hosts(frame, app, frame.area());
+    }
+}
+
+fn content_areas(area: Rect) -> [Rect; 2] {
+    if area.width >= SIDE_BY_SIDE_MIN_WIDTH
+        && area.width >= area.height.saturating_mul(SIDE_BY_SIDE_MIN_ASPECT)
+    {
+        let [devices, _, activity] = Layout::horizontal([
+            Constraint::Min(DEVICE_MIN_WIDTH),
+            Constraint::Length(1),
+            Constraint::Length(ACTIVITY_WIDTH),
+        ])
+        .areas(area);
+
+        [devices, activity]
+    } else {
+        Layout::vertical([Constraint::Min(5), Constraint::Length(ACTIVITY_HEIGHT)]).areas(area)
     }
 }
 
@@ -396,5 +419,34 @@ fn fit(s: &str, width: usize) -> String {
         format!("{cut}… ")
     } else {
         format!("{s}{}", " ".repeat(width - count))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wide_short_content_puts_activity_on_the_right() {
+        let [devices, activity] = content_areas(Rect::new(4, 2, 120, 30));
+
+        assert_eq!(devices, Rect::new(4, 2, 81, 30));
+        assert_eq!(activity, Rect::new(86, 2, ACTIVITY_WIDTH, 30));
+    }
+
+    #[test]
+    fn narrow_content_stacks_a_short_activity_pane() {
+        let [devices, activity] = content_areas(Rect::new(4, 2, 90, 30));
+
+        assert_eq!(devices, Rect::new(4, 2, 90, 25));
+        assert_eq!(activity, Rect::new(4, 27, 90, ACTIVITY_HEIGHT));
+    }
+
+    #[test]
+    fn tall_content_stays_stacked() {
+        let [devices, activity] = content_areas(Rect::new(4, 2, 120, 50));
+
+        assert_eq!(devices, Rect::new(4, 2, 120, 45));
+        assert_eq!(activity, Rect::new(4, 47, 120, ACTIVITY_HEIGHT));
     }
 }
