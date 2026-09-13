@@ -107,6 +107,7 @@ in {
 
       features = {
         hooks = true;
+        context_management.experimental_mode = true;
       };
 
       tools = {
