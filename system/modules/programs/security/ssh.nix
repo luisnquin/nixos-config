@@ -13,6 +13,8 @@
     message = "New SSH connection!";
   };
 in {
+  programs.mosh.enable = true;
+
   programs.ssh.extraConfig = ''
     Host rose
       User luisnquin
