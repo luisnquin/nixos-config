@@ -64,8 +64,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "cursor";
             repo = "plugins";
-            rev = "fd878692de15a3069c21c8f429eb0b9f2fe178fa";
-            hash = "sha256-geVSGwsuGiskuqNr4nOIkFNwwyeC7uxg3SCjVpkd+QQ=";
+            rev = "5bf2b1544db739998121a306340631963c2ff3de";
+            hash = "sha256-+6DzILL46FWQYrPpVkPzKF2AUPasRKQB8OrLogv9Bec=";
           };
         } {
           plugins = [
