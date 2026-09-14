@@ -106,7 +106,7 @@ in {
         };
 
         debug = {
-          disable_logs = false;
+          disable_logs = true;
         };
 
         animations = {
@@ -137,6 +137,7 @@ in {
           disable_hyprland_logo = true;
           focus_on_activate = false;
           initial_workspace_tracking = 0;
+          middle_click_paste = false;
         };
 
         dwindle = {
@@ -305,7 +306,6 @@ in {
         (allowExe (lib.getExe pkgs.hyprpicker) "screencopy")
         (allowExe (lib.getExe pkgs.grim) "screencopy")
         (allowPathRegex "/nix/store/[^/]+-zen[^/]*/bin/(zen|zen-beta|zen-twilight)" "screencopy")
-        (allowExe (lib.getExe pkgs.brave) "screencopy")
         (allowExe (lib.getExe pkgs.obs-studio) "screencopy")
         (allowExe (lib.getExe pkgs.wayvnc) "screencopy")
         (allowExe (lib.getExe pkgs.wayvnc) "cursorpos")
