@@ -21,6 +21,8 @@ in {
         args = [
           "."
           "/tmp"
+          "${config.home.homeDirectory}/.agents/skills"
+          "${config.home.homeDirectory}/.claude/skills"
         ];
         scope = "workspace";
       }
