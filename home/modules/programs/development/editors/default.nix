@@ -3,7 +3,7 @@
     ./vscode-like
     ./nano
     ./orca
-    ./spice-edit.nix
+    ./px0.nix
     ./zed.nix
   ];
 }

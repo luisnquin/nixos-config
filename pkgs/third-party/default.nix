@@ -6,6 +6,6 @@ pkgs: {
   herdr-pluck = pkgs.callPackage ./herdr-pluck {};
   herdr-sesh = pkgs.callPackage ./herdr-sesh {};
   linear-tui = pkgs.callPackage ./linear-tui {};
-  spiceedit = pkgs.callPackage ./spiceedit {};
+  px0 = pkgs.callPackage ./px0 {};
   vimix-gtk-themes = pkgs.callPackage ./vimix-gtk-themes {};
 }

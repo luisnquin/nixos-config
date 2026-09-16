@@ -1,0 +1,28 @@
+diff --git a/update.go b/update.go
+index 93136bd..27708ef 100644
+--- a/update.go
++++ b/update.go
+@@ -226,9 +226,9 @@ func downloadVerifiedAsset(client *http.Client, assetURL, checksumURL, assetName
+ // checkDailyUpdate runs in a background goroutine on CLI startup.
+ // It ensures that checking for updates never blocks px0 startup (<1ms).
+ func checkDailyUpdate(currentVersion string) {
+-	if uiQuiet {
+-		return
+-	}
++	// Nix build: the release poll only advertises an upgrade path that a
++	// read-only store binary cannot take.
++	return
+ 
+ 	state, _ := readUpdateState()
+ 	now := time.Now()
+@@ -264,6 +264,10 @@ func printUpdateNotification(latestVer, currentVersion string) {
+ 
+ // runSelfUpdate implements px0 --update.
+ func runSelfUpdate(currentVer string) error {
++	return fmt.Errorf("this px0 is managed by nix; bump the derivation instead")
++}
++
++func runSelfUpdateUpstream(currentVer string) error {
+ 	repo := getRepoName()
+ 	uiStatus("step", fmt.Sprintf("checking for updates from %s...", repo), "", 0, os.Stdout)
+ 

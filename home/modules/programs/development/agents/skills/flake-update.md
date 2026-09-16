@@ -119,7 +119,7 @@ nix eval --impure --expr '
   let f = builtins.getFlake (toString ./.);
       pkgs = import f.inputs.nixpkgs { system = "x86_64-linux"; config = {}; };
   in builtins.map (n: { name = n; upstream = pkgs ? ${n}; })
-     [ "spiceedit" "herdr-sesh" "herdr-pluck" ]'
+     [ "herdr-sesh" "herdr-pluck" ]'
 ```
 
 If upstream has it, compare version and build inputs before switching — a

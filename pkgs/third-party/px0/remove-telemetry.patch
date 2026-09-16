@@ -1,0 +1,537 @@
+diff --git a/main.go b/main.go
+index 51c0bef..eac7356 100644
+--- a/main.go
++++ b/main.go
+@@ -37,7 +37,6 @@ func main() {
+ 		doUpdate     = flag.Bool("update", false, "check for and install latest version of px0")
+ 		noColor      = flag.Bool("no-color", false, "disable colour output")
+ 		quiet        = flag.Bool("quiet", false, "suppress narration")
+-		noTelemetry  = flag.Bool("no-telemetry", false, "disable anonymous usage telemetry")
+ 	)
+ 	flag.Usage = func() {
+ 		fmt.Fprintf(os.Stderr, "px0 %s - a code navigator\n\nusage: px0 [flags] [file or directory]\n\nflags:\n", version)
+@@ -90,8 +89,6 @@ func main() {
+ 
+ 	ix := NewIndex(root)
+ 	lsp := newLSPManager(root, !*noLSP)
+-	tel := NewTelemetryService(*noTelemetry)
+-	defer tel.Close("normal")
+ 
+ 	srv := &http.Server{Handler: NewServer(ix, lsp)}
+ 
+@@ -114,13 +111,6 @@ func main() {
+ 		if names := lsp.Available(); len(names) > 0 {
+ 			uiBullet(fmt.Sprintf("language servers: %s (started on first use)", strings.Join(names, ", ")), os.Stdout)
+ 		}
+-
+-		tel.Track("session_started", map[string]any{
+-			"files_bucket": filesBucket(n),
+-			"index_ms":     ms,
+-			"has_git":      gitAvailable(root),
+-			"has_lsp":      len(lsp.Available()) > 0,
+-		})
+ 	}()
+ 
+ 	// Check for updates asynchronously once a day without delaying startup (<1ms).
+@@ -149,11 +139,9 @@ func main() {
+ 	lsp.Close()
+ 
+ 	if interrupted {
+-		tel.Close("interrupted")
+ 		os.Exit(130)
+ 	}
+ 
+-	tel.Close("normal")
+ 	if err != nil && err != http.ErrServerClosed {
+ 		fatal(err)
+ 	}
+diff --git a/telemetry.go b/telemetry.go
+deleted file mode 100644
+index 119f77b..0000000
+--- a/telemetry.go
++++ /dev/null
+@@ -1,294 +0,0 @@
+-package main
+-
+-import (
+-	"bytes"
+-	"crypto/rand"
+-	"encoding/hex"
+-	"encoding/json"
+-	"fmt"
+-	"net/http"
+-	"os"
+-	"path/filepath"
+-	"runtime"
+-	"strings"
+-	"sync"
+-	"time"
+-)
+-
+-// posthogKey can be injected at compile time:
+-// go build -ldflags="-X main.posthogKey=phc_..."
+-var posthogKey string
+-
+-const (
+-	defaultPostHogHost = "https://us.i.posthog.com"
+-	telemetryQueueSize = 128
+-)
+-
+-type telemetryEvent struct {
+-	Event      string         `json:"event"`
+-	Properties map[string]any `json:"properties"`
+-}
+-
+-type TelemetryService struct {
+-	enabled    bool
+-	apiKey     string
+-	host       string
+-	distinctID string
+-	sessionID  string
+-	startTime  time.Time
+-	queue      chan telemetryEvent
+-	wg         sync.WaitGroup
+-	quit       chan struct{}
+-	client     *http.Client
+-	closeOnce  sync.Once
+-}
+-
+-// isOptedOut checks common opt-out indicators:
+-// - CLI flag --no-telemetry
+-// - Environment variable DO_NOT_TRACK=1
+-// - Environment variable PX0_TELEMETRY=0 / false / off / no
+-func isOptedOut(flagNoTelemetry bool) bool {
+-	if flagNoTelemetry {
+-		return true
+-	}
+-	if os.Getenv("DO_NOT_TRACK") == "1" {
+-		return true
+-	}
+-	v := strings.ToLower(strings.TrimSpace(os.Getenv("PX0_TELEMETRY")))
+-	if v == "0" || v == "false" || v == "off" || v == "no" {
+-		return true
+-	}
+-	return false
+-}
+-
+-// filesBucket maps file count to coarse size tiers to preserve privacy
+-// while enabling meaningful monorepo vs small project analysis.
+-func filesBucket(n int) string {
+-	switch {
+-	case n >= 100000:
+-		return ">100k"
+-	case n >= 50000:
+-		return "50k-100k"
+-	case n >= 10000:
+-		return "10k-50k"
+-	case n >= 2500:
+-		return "2.5k-10k"
+-	case n >= 500:
+-		return "500-2.5k"
+-	case n >= 100:
+-		return "100-500"
+-	default:
+-		return "<100"
+-	}
+-}
+-
+-// getOrGenerateDistinctID retrieves or initializes a persistent anonymous UUID.
+-// Saved to ~/.px0/anonymous_id. If writing fails, an ephemeral ID is returned.
+-func getOrGenerateDistinctID() string {
+-	home, err := os.UserHomeDir()
+-	if err == nil && home != "" {
+-		idPath := filepath.Join(home, ".px0", "anonymous_id")
+-		if data, err := os.ReadFile(idPath); err == nil {
+-			id := strings.TrimSpace(string(data))
+-			if len(id) >= 16 {
+-				return id
+-			}
+-		}
+-	}
+-
+-	b := make([]byte, 16)
+-	if _, err := rand.Read(b); err != nil {
+-		return fmt.Sprintf("px0-%d", time.Now().UnixNano())
+-	}
+-	id := hex.EncodeToString(b)
+-
+-	if home, err := os.UserHomeDir(); err == nil && home != "" {
+-		dir := filepath.Join(home, ".px0")
+-		if err := os.MkdirAll(dir, 0755); err == nil {
+-			_ = os.WriteFile(filepath.Join(dir, "anonymous_id"), []byte(id), 0644)
+-		}
+-	}
+-
+-	return id
+-}
+-
+-// generateUUID returns a cryptographically random RFC 4122 v4 UUID string.
+-func generateUUID() string {
+-	b := make([]byte, 16)
+-	if _, err := rand.Read(b); err != nil {
+-		return fmt.Sprintf("%d", time.Now().UnixNano())
+-	}
+-	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+-	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+-}
+-
+-// NewTelemetryService creates and starts a background telemetry worker.
+-func NewTelemetryService(flagNoTelemetry bool) *TelemetryService {
+-	key := strings.TrimSpace(posthogKey)
+-	if envKey := strings.TrimSpace(os.Getenv("PX0_POSTHOG_KEY")); envKey != "" {
+-		key = envKey
+-	}
+-
+-	host := strings.TrimRight(strings.TrimSpace(os.Getenv("PX0_POSTHOG_HOST")), "/")
+-	if host == "" {
+-		host = defaultPostHogHost
+-	}
+-
+-	enabled := key != "" && !isOptedOut(flagNoTelemetry)
+-
+-	t := &TelemetryService{
+-		enabled:    enabled,
+-		apiKey:     key,
+-		host:       host,
+-		distinctID: getOrGenerateDistinctID(),
+-		sessionID:  generateUUID(),
+-		startTime:  time.Now(),
+-		queue:      make(chan telemetryEvent, telemetryQueueSize),
+-		quit:       make(chan struct{}),
+-		client: &http.Client{
+-			Timeout: 4 * time.Second,
+-		},
+-	}
+-
+-	if enabled {
+-		t.wg.Add(1)
+-		go t.worker()
+-	}
+-
+-	return t
+-}
+-
+-// Track enqueues an event to be dispatched asynchronously.
+-// If telemetry is disabled or queue is full, it drops immediately without blocking.
+-func (t *TelemetryService) Track(event string, props map[string]any) {
+-	if t == nil || !t.enabled {
+-		return
+-	}
+-
+-	if props == nil {
+-		props = make(map[string]any)
+-	}
+-
+-	// Enrich with standard PostHog environment and session properties
+-	props["distinct_id"] = t.distinctID
+-	props["$session_id"] = t.sessionID
+-	props["$lib"] = "px0"
+-	props["$lib_version"] = version
+-	props["$os"] = runtime.GOOS
+-	props["$arch"] = runtime.GOARCH
+-
+-	evt := telemetryEvent{
+-		Event:      event,
+-		Properties: props,
+-	}
+-
+-	select {
+-	case t.queue <- evt:
+-	default:
+-		// Drop if buffer full to preserve zero latency
+-	}
+-}
+-
+-// Close emits session_ended and session_stopped with total active duration.
+-// The stop event is dispatched synchronously so process exit cannot kill it before arrival.
+-func (t *TelemetryService) Close(reason string) {
+-	if t == nil || !t.enabled {
+-		return
+-	}
+-	t.closeOnce.Do(func() {
+-		durationSec := int(time.Since(t.startTime).Seconds())
+-		if durationSec < 0 {
+-			durationSec = 0
+-		}
+-
+-		// Close quit channel and wait for any in-flight background events to drain
+-		close(t.quit)
+-		t.wg.Wait()
+-
+-		// Dispatch session_ended and session_stopped synchronously
+-		props := map[string]any{
+-			"distinct_id":      t.distinctID,
+-			"$session_id":      t.sessionID,
+-			"$lib":             "px0",
+-			"$lib_version":     version,
+-			"$os":              runtime.GOOS,
+-			"$arch":            runtime.GOARCH,
+-			"duration_seconds": durationSec,
+-			"exit_reason":      reason,
+-		}
+-
+-		t.send(telemetryEvent{
+-			Event:      "session_ended",
+-			Properties: props,
+-		})
+-		t.send(telemetryEvent{
+-			Event:      "session_stopped",
+-			Properties: props,
+-		})
+-	})
+-}
+-
+-func (t *TelemetryService) worker() {
+-	defer t.wg.Done()
+-
+-	for {
+-		select {
+-		case <-t.quit:
+-			// Drain remaining events in queue
+-			for {
+-				select {
+-				case evt := <-t.queue:
+-					t.send(evt)
+-				default:
+-					return
+-				}
+-			}
+-		case evt := <-t.queue:
+-			t.send(evt)
+-		}
+-	}
+-}
+-
+-func (t *TelemetryService) send(evt telemetryEvent) {
+-	debug := os.Getenv("PX0_TELEMETRY_DEBUG") == "1"
+-
+-	payload := map[string]any{
+-		"api_key":    t.apiKey,
+-		"event":      evt.Event,
+-		"properties": evt.Properties,
+-		"timestamp":  time.Now().UTC().Format(time.RFC3339Nano),
+-	}
+-
+-	body, err := json.Marshal(payload)
+-	if err != nil {
+-		if debug {
+-			fmt.Fprintf(os.Stderr, "[telemetry] marshal error: %v\n", err)
+-		}
+-		return
+-	}
+-
+-	req, err := http.NewRequest("POST", t.host+"/capture/", bytes.NewReader(body))
+-	if err != nil {
+-		if debug {
+-			fmt.Fprintf(os.Stderr, "[telemetry] request error: %v\n", err)
+-		}
+-		return
+-	}
+-	req.Header.Set("Content-Type", "application/json")
+-	req.Header.Set("User-Agent", "px0/"+version)
+-
+-	resp, err := t.client.Do(req)
+-	if err != nil {
+-		if debug {
+-			fmt.Fprintf(os.Stderr, "[telemetry] send %s failed: %v\n", evt.Event, err)
+-		}
+-		return
+-	}
+-	_ = resp.Body.Close()
+-
+-	if debug {
+-		fmt.Fprintf(os.Stderr, "[telemetry] sent %s -> %s (%s)\n", evt.Event, t.host, resp.Status)
+-	}
+-}
+diff --git a/telemetry_test.go b/telemetry_test.go
+deleted file mode 100644
+index 69adcfc..0000000
+--- a/telemetry_test.go
++++ /dev/null
+@@ -1,184 +0,0 @@
+-package main
+-
+-import (
+-	"encoding/json"
+-	"io"
+-	"net/http"
+-	"net/http/httptest"
+-	"os"
+-	"sync"
+-	"testing"
+-	"time"
+-)
+-
+-func TestIsOptedOut(t *testing.T) {
+-	if !isOptedOut(true) {
+-		t.Fatal("expected isOptedOut(true) to be true")
+-	}
+-
+-	os.Setenv("DO_NOT_TRACK", "1")
+-	if !isOptedOut(false) {
+-		t.Fatal("expected isOptedOut to respect DO_NOT_TRACK=1")
+-	}
+-	os.Unsetenv("DO_NOT_TRACK")
+-
+-	for _, val := range []string{"0", "false", "off", "no"} {
+-		os.Setenv("PX0_TELEMETRY", val)
+-		if !isOptedOut(false) {
+-			t.Fatalf("expected isOptedOut to respect PX0_TELEMETRY=%s", val)
+-		}
+-	}
+-	os.Unsetenv("PX0_TELEMETRY")
+-
+-	if isOptedOut(false) {
+-		t.Fatal("expected isOptedOut to be false when no opt-out is set")
+-	}
+-}
+-
+-func TestFilesBucket(t *testing.T) {
+-	tests := []struct {
+-		files    int
+-		expected string
+-	}{
+-		{0, "<100"},
+-		{99, "<100"},
+-		{100, "100-500"},
+-		{499, "100-500"},
+-		{500, "500-2.5k"},
+-		{2499, "500-2.5k"},
+-		{2500, "2.5k-10k"},
+-		{9999, "2.5k-10k"},
+-		{10000, "10k-50k"},
+-		{49999, "10k-50k"},
+-		{50000, "50k-100k"},
+-		{99999, "50k-100k"},
+-		{100000, ">100k"},
+-		{500000, ">100k"},
+-	}
+-
+-	for _, tt := range tests {
+-		actual := filesBucket(tt.files)
+-		if actual != tt.expected {
+-			t.Errorf("filesBucket(%d) = %q, want %q", tt.files, actual, tt.expected)
+-		}
+-	}
+-}
+-
+-func TestTelemetrySessionLifecycle(t *testing.T) {
+-	var mu sync.Mutex
+-	var received []map[string]any
+-
+-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-		if r.URL.Path != "/capture/" {
+-			http.NotFound(w, r)
+-			return
+-		}
+-		body, err := io.ReadAll(r.Body)
+-		if err != nil {
+-			http.Error(w, err.Error(), 500)
+-			return
+-		}
+-		var payload map[string]any
+-		if err := json.Unmarshal(body, &payload); err != nil {
+-			http.Error(w, err.Error(), 400)
+-			return
+-		}
+-		mu.Lock()
+-		received = append(received, payload)
+-		mu.Unlock()
+-		w.WriteHeader(http.StatusOK)
+-		w.Write([]byte(`{"status":"ok"}`))
+-	}))
+-	defer server.Close()
+-
+-	os.Setenv("PX0_POSTHOG_KEY", "phc_test_key_xyz")
+-	os.Setenv("PX0_POSTHOG_HOST", server.URL)
+-	defer os.Unsetenv("PX0_POSTHOG_KEY")
+-	defer os.Unsetenv("PX0_POSTHOG_HOST")
+-
+-	tel := NewTelemetryService(false)
+-	if !tel.enabled {
+-		t.Fatal("expected telemetry to be enabled with key set")
+-	}
+-
+-	// 1. Session start
+-	tel.Track("session_started", map[string]any{
+-		"files_bucket": "100-1k",
+-		"has_git":      true,
+-		"has_lsp":      false,
+-	})
+-
+-	// Brief pause to ensure duration >= 0
+-	time.Sleep(10 * time.Millisecond)
+-
+-	// 2. Session stop
+-	tel.Close("normal")
+-
+-	mu.Lock()
+-	defer mu.Unlock()
+-
+-	if len(received) != 3 {
+-		t.Fatalf("expected 3 events (session_started, session_ended, session_stopped), got %d", len(received))
+-	}
+-
+-	// Check session_started
+-	evtStart := received[0]
+-	if evtStart["event"] != "session_started" {
+-		t.Errorf("expected event session_started, got %v", evtStart["event"])
+-	}
+-	propsStart := evtStart["properties"].(map[string]any)
+-	if propsStart["files_bucket"] != "100-1k" {
+-		t.Errorf("unexpected files_bucket: %v", propsStart["files_bucket"])
+-	}
+-	if propsStart["distinct_id"] == "" {
+-		t.Error("expected non-empty distinct_id")
+-	}
+-
+-	// Check session_ended
+-	evtEnded := received[1]
+-	if evtEnded["event"] != "session_ended" {
+-		t.Errorf("expected session_ended, got %v", evtEnded["event"])
+-	}
+-	propsEnded := evtEnded["properties"].(map[string]any)
+-	if propsEnded["exit_reason"] != "normal" {
+-		t.Errorf("expected exit_reason=normal, got %v", propsEnded["exit_reason"])
+-	}
+-	if _, ok := propsEnded["duration_seconds"]; !ok {
+-		t.Errorf("expected duration_seconds in session_ended properties")
+-	}
+-
+-	// Check session_stopped
+-	evtStop := received[2]
+-	if evtStop["event"] != "session_stopped" {
+-		t.Errorf("expected session_stopped, got %v", evtStop["event"])
+-	}
+-	propsStop := evtStop["properties"].(map[string]any)
+-	if propsStop["exit_reason"] != "normal" {
+-		t.Errorf("expected exit_reason=normal, got %v", propsStop["exit_reason"])
+-	}
+-	if _, ok := propsStop["duration_seconds"]; !ok {
+-		t.Errorf("expected duration_seconds in session_stopped properties")
+-	}
+-
+-	// Verify PostHog built-in $session_id groups the events together
+-	startSessID, _ := propsStart["$session_id"].(string)
+-	endedSessID, _ := propsEnded["$session_id"].(string)
+-	stopSessID, _ := propsStop["$session_id"].(string)
+-	if startSessID == "" {
+-		t.Error("expected non-empty $session_id")
+-	}
+-	if startSessID != endedSessID || startSessID != stopSessID {
+-		t.Errorf("expected matching $session_id across session events: start=%q ended=%q stop=%q",
+-			startSessID, endedSessID, stopSessID)
+-	}
+-}
+-
+-func TestTelemetryDisabledWithoutKey(t *testing.T) {
+-	os.Unsetenv("PX0_POSTHOG_KEY")
+-	tel := NewTelemetryService(false)
+-	if tel.enabled {
+-		t.Fatal("expected telemetry disabled without key")
+-	}
+-	tel.Track("session_started", nil)
+-	tel.Close("normal")
+-}
