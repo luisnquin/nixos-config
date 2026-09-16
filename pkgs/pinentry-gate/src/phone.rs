@@ -10,8 +10,15 @@ use base64::Engine;
 
 pub const OSC: u32 = 7771;
 
+/// What may hold a marked pty: the ssh session the terminal came in on, or
+/// the Mosh server that terminal left running, which lets go of its ssh
+/// session the moment it is up and outlives every one that follows.
+fn holds_a_pty(comm: &str) -> bool {
+    comm.starts_with("sshd") || comm == "mosh-server"
+}
+
 fn alive(pid: i32) -> bool {
-    std::fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|comm| comm.trim().starts_with("sshd"))
+    std::fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|comm| holds_a_pty(comm.trim()))
 }
 
 fn pts_number(name: &str) -> Option<u32> {
@@ -59,13 +66,17 @@ fn emit(pty: &Path, sequence: &[u8]) -> bool {
     }
 }
 
+/// The OSC, then a bell of its own. A terminal reads the OSC whole, but a
+/// Mosh shell's pty ends at a server that ships a screen and not a byte
+/// stream, and an OSC it does not know never leaves the host; the bell does,
+/// and a phone that hears one asks the runtime directory what is open.
 pub fn request_sequence(request_id: &str, payload_json: &str) -> Vec<u8> {
     let body = base64::engine::general_purpose::STANDARD.encode(payload_json.as_bytes());
-    format!("\x1b]{OSC};pin;{request_id};{body}\x07").into_bytes()
+    format!("\x1b]{OSC};pin;{request_id};{body}\x07\x07").into_bytes()
 }
 
 pub fn done_sequence(request_id: &str) -> Vec<u8> {
-    format!("\x1b]{OSC};done;{request_id}\x07").into_bytes()
+    format!("\x1b]{OSC};done;{request_id}\x07\x07").into_bytes()
 }
 
 pub fn notify(runtime: &Path, request_id: &str, payload_json: &str) -> Vec<PathBuf> {
@@ -110,6 +121,16 @@ mod tests {
     }
 
     #[test]
+    fn an_ssh_session_or_a_mosh_server_holds_a_pty() {
+        assert!(holds_a_pty("sshd"));
+        assert!(holds_a_pty("sshd-session"));
+        assert!(holds_a_pty("mosh-server"));
+        assert!(!holds_a_pty("mosh-client"));
+        assert!(!holds_a_pty("tmux: server"));
+        assert!(!holds_a_pty("zsh"));
+    }
+
+    #[test]
     fn stale_marks_are_pruned() {
         let dir = scratch("stale");
         std::fs::write(dir.join("tty/pts-9999"), "999999").unwrap();
@@ -133,12 +154,13 @@ mod tests {
         let raw = read(master);
         let head = b"\x1b]7771;pin;abcd;";
         assert!(raw.starts_with(head));
-        let body = &raw[head.len()..raw.len() - 1];
+        assert!(raw.ends_with(b"\x07\x07"));
+        let body = &raw[head.len()..raw.len() - 2];
         let decoded = base64::engine::general_purpose::STANDARD.decode(body).unwrap();
         assert_eq!(decoded, br#"{"desc":"hi"}"#);
 
         done(&told, "abcd");
-        assert_eq!(read(master), b"\x1b]7771;done;abcd\x07");
+        assert_eq!(read(master), b"\x1b]7771;done;abcd\x07\x07");
         unsafe {
             libc::close(master);
             libc::close(slave);

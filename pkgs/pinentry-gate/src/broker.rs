@@ -170,24 +170,27 @@ impl Broker {
             .mode(0o600)
             .open(&request_file)
             .and_then(|mut file| file.write_all(payload.as_bytes()));
+        let mut told = Vec::new();
         let answer = if written.is_ok() {
             let mut surfaces = (self.surfaces)(&self.config, &self.runtime);
-            let ptys = (self.notify)(&self.runtime, &id, &payload);
+            told = (self.notify)(&self.runtime, &id, &payload);
             let mut child = next(&mut surfaces, &fifo, &request_file);
-            let answer = if child.is_none() && ptys.is_empty() {
+            let answer = if child.is_none() && told.is_empty() {
                 None
             } else {
-                self.wait(&mut reader, &mut child, &mut surfaces, &fifo, &request_file, ptys.is_empty())
+                self.wait(&mut reader, &mut child, &mut surfaces, &fifo, &request_file, told.is_empty())
             };
             stop(&mut child);
-            (self.done)(&ptys, &id);
             answer
         } else {
             None
         };
+        // Taken down before the phones are told: a phone answers `done` by
+        // asking what is still open, and must not find this one.
         drop(reader);
         let _ = fs::remove_file(&fifo);
         let _ = fs::remove_file(&request_file);
+        (self.done)(&told, &id);
         answer
     }
 
@@ -281,6 +284,32 @@ mod tests {
         let answer = b.ask(&Request { desc: "hello".into(), error: "bad".into(), ..Request::default() }).unwrap();
         assert!(answer.contains("\"desc\":\"hello\""));
         assert!(answer.contains("\"error\":\"bad\""));
+    }
+
+    #[test]
+    fn phones_are_told_done_once_the_request_is_gone() {
+        let runtime = scratch("gone");
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let dir = runtime.clone();
+        let done_dir = dir.clone();
+        let done_seen = seen.clone();
+        let mut b = Broker::with(
+            Config { user: "me".into(), timeout: 5, ..Config::default() },
+            runtime,
+            Box::new(|_, _| vec![shell("printf 'pin\\n' > \"$FIFO\"")]),
+            Box::new(|_, _, _| vec![PathBuf::from("/dev/null")]),
+            Box::new(move |ptys, id| {
+                let left = std::fs::read_dir(&done_dir).map(|d| d.count()).unwrap_or(0);
+                done_seen.lock().unwrap().push((ptys.len(), id.to_string(), left));
+            }),
+        );
+        assert_eq!(b.ask(&Request::default()), Some("pin".into()));
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].0, 1);
+        assert_eq!(seen[0].2, 0);
+        assert_eq!(leftovers(&b), 0);
+        let _ = dir;
     }
 
     #[test]
