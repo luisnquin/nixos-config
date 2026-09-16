@@ -7,7 +7,11 @@ args @ {
 }: let
   inherit (lib.generators) mkLuaInline;
 
-  ghosttyDropCmd = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux";
+  tmuxDrop = import ./drop.nix {inherit pkgs lib;} {
+    name = "ghostty-tmux";
+    class = "ghostty.tmux";
+    command = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux";
+  };
 
   waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''
     pkill waybar 2>/dev/null || true
@@ -19,7 +23,7 @@ args @ {
     hl.exec_cmd("${pkgs.wl-clipboard}/bin/wl-paste --watch ${lib.getExe config.programs.cliphizt.package} store --max-items 200")
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("${waybarRestart}")
-    hl.exec_cmd("[workspace special:hyprdrop silent] ${ghosttyDropCmd}")
+    ${tmuxDrop.startupBody}
   '';
 
   waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
@@ -238,13 +242,7 @@ in {
           match = {title = "^(Emulator)$";};
           float = true;
         }
-        {
-          name = "ghostty-tmux";
-          match = {class = "^ghostty\\.tmux$";};
-          float = true;
-          size = "1280 720";
-          center = true;
-        }
+        tmuxDrop.windowRule
         {
           name = "waybar-nmtui";
           match = {class = "^waybar\\.nmtui$";};
@@ -300,7 +298,7 @@ in {
         sensitivity = -0.5;
       };
 
-      bind = import ./binds.nix (args // {inherit ghosttyDropCmd;});
+      bind = import ./binds.nix (args // {inherit tmuxDrop;});
 
       permission = [
         (allowExe (lib.getExe pkgs.hyprpicker) "screencopy")

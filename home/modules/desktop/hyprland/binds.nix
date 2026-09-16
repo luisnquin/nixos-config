@@ -4,7 +4,7 @@
   pkgs,
   libx,
   lib,
-  ghosttyDropCmd,
+  tmuxDrop,
   ...
 }: let
   inherit (lib.generators) mkLuaInline;
@@ -172,7 +172,7 @@ in
     (b "${mainMod} + SHIFT + M" (dspExec "${lib.getExe pkgs.hyprstfu} -unmute-all"))
     (b "${mainMod} + SHIFT + XF86AudioLowerVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5-"))
     (b "${mainMod} + SHIFT + XF86AudioRaiseVolume" (dspExec "${lib.getExe pkgs.hyprstfu} -volume 5+"))
-    (b "${mainMod} + K" (dspExec "${lib.getExe pkgs.hyprdrop} --solo -i ghostty.tmux \"${ghosttyDropCmd}\""))
+    (b "${mainMod} + K" tmuxDrop.toggle)
 
     (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
     (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
