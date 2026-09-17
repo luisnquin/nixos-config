@@ -1,6 +1,6 @@
 /* GTK paints a themed gradient over any button background, so every button in
-   the panel has to have that image cleared or the fill reads as a light pill. */
-.hark-box button {
+   the shade has to have that image cleared or the fill reads as a light pill. */
+.shade-box button {
   background-image: none;
   box-shadow: none;
   text-shadow: none;
@@ -9,7 +9,7 @@
   min-width: 0;
 }
 
-.hark-box {
+.shade-box {
   background-color: rgba(29, 16, 58, 0.98);
   border: 1px solid rgba(181, 232, 224, 0.14);
   border-radius: 10px;
@@ -17,24 +17,120 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
 }
 
-.hark-header {
-  border-bottom: 1px solid rgba(181, 232, 224, 0.10);
-  padding-bottom: 10px;
+/* A one-pixel column rather than a border on either neighbour: the two sides
+   have different heights and a border would stop with the shorter one. */
+.shade-divider {
+  background-color: rgba(181, 232, 224, 0.10);
+  min-width: 1px;
 }
 
-.hark-mark {
+/* Almanac */
+
+.shade-heading {
+  padding-bottom: 2px;
+}
+
+.shade-weekday {
+  color: rgba(205, 214, 244, 0.55);
+  font-size: 9pt;
+  font-weight: normal;
+}
+
+.shade-full-date {
+  color: #ffffff;
+  font-size: 13pt;
+}
+
+calendar {
+  background-color: transparent;
+  color: #cdd6f4;
+  border-radius: 6px;
+}
+
+calendar.header {
+  background-color: transparent;
+  color: #e8cef5;
+  font-weight: bold;
+  padding: 2px 0 6px 0;
+}
+
+calendar.day-name {
+  background-color: transparent;
   color: #b5e8e0;
-  font-size: 18pt;
+  font-weight: bold;
+  padding: 2px 0;
 }
 
-.hark-mark.alert {
+calendar.day {
+  background-color: transparent;
+  color: #cdd6f4;
+  border-radius: 4px;
+  padding: 1px 3px;
+}
+
+calendar.day:hover {
+  background-color: rgba(181, 232, 224, 0.08);
+}
+
+calendar.other-month {
+  color: rgba(205, 214, 244, 0.28);
+}
+
+calendar.today {
+  color: #f28fad;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+calendar:selected {
+  background-color: #f28fad;
+  color: #1a1826;
+  border-radius: 4px;
+}
+
+calendar button {
+  background-color: transparent;
+  color: #a9b1d6;
+  border: none;
+  box-shadow: none;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 6px;
+}
+
+calendar button:hover {
+  background-color: rgba(181, 232, 224, 0.08);
+  color: #e8cef5;
+}
+
+calendar button label {
+  color: inherit;
+}
+
+/* Footer */
+
+.shade-footer {
+  border-top: 1px solid rgba(181, 232, 224, 0.10);
+  padding-top: 10px;
+}
+
+.shade-clear {
+  background-color: transparent;
+  border: 0;
+  padding: 2px 4px;
+}
+
+.shade-clear label {
+  color: rgba(205, 214, 244, 0.65);
+  font-size: 9pt;
+  font-weight: normal;
+}
+
+.shade-clear:hover label {
   color: #f28fad;
 }
 
-.hark-title {
-  color: #ffffff;
-  font-size: 12pt;
-}
+/* Notification centre */
 
 .hark-meta,
 .hark-group-preview,
@@ -50,8 +146,6 @@
   outline: none;
 }
 
-/* Header tools */
-
 .hark-tool {
   background-color: rgba(205, 214, 244, 0.045);
   border: 1px solid rgba(205, 214, 244, 0.08);
@@ -64,12 +158,6 @@
   background-color: rgba(181, 232, 224, 0.10);
   border-color: rgba(181, 232, 224, 0.20);
   color: #b5e8e0;
-}
-
-.hark-tool.on {
-  background-color: rgba(232, 206, 245, 0.14);
-  border-color: rgba(232, 206, 245, 0.30);
-  color: #e8cef5;
 }
 
 .hark-tool.danger:hover {
@@ -224,7 +312,7 @@
 /* Empty state */
 
 .hark-void {
-  padding: 90px 0;
+  padding: 70px 0;
 }
 
 .hark-void-mark {

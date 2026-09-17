@@ -30,7 +30,6 @@
           ];
 
           modules-right = [
-            "custom/notifications"
             "custom/heft"
             "custom/tailscale"
             "group/ssh"

@@ -35,11 +35,10 @@
   };
 in
   map load [
-    "calendar"
+    "shade"
     "sysmon"
     "battery"
     "network"
     "tailscale"
     "heft"
-    "notifications"
   ]
