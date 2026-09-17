@@ -5,7 +5,7 @@
   rustPlatform,
 }: let
   package = rustPlatform.buildRustPackage {
-    pname = "waytools";
+    pname = "barfeed";
     version = "0.1.0";
 
     src = lib.fileset.toSource {
@@ -27,7 +27,7 @@
     meta = {
       description = "Native status helpers for Waybar";
       license = lib.licenses.mit;
-      mainProgram = "waytools";
+      mainProgram = "barfeed";
     };
   };
 
@@ -36,7 +36,7 @@
       meta.mainProgram = name;
     } ''
       mkdir -p $out/bin
-      ln -s ${package}/bin/waytools $out/bin/${name}
+      ln -s ${package}/bin/barfeed $out/bin/${name}
     '';
 in
   package.overrideAttrs (old: {

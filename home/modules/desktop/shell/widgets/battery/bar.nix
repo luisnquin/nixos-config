@@ -7,7 +7,7 @@
 }: {
   "custom/battery" = {
     exec =
-      "${lib.getExe pkgs.waytools.battery}"
+      "${lib.getExe pkgs.barfeed.battery}"
       + " --warn ${toString config.services.battery-notifier.settings.warn.threshold}"
       + " --critical ${toString config.services.battery-notifier.settings.threat.threshold}";
     return-type = "json";

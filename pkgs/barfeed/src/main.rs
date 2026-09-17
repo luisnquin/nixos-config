@@ -14,11 +14,11 @@ const WHO: &str = "@who@";
 
 fn main() -> ExitCode {
     let mut args = env::args();
-    let executable = args.next().unwrap_or_else(|| "waytools".to_owned());
+    let executable = args.next().unwrap_or_else(|| "barfeed".to_owned());
     let invoked_as = Path::new(&executable)
         .file_name()
         .and_then(|name| name.to_str())
-        .unwrap_or("waytools");
+        .unwrap_or("barfeed");
 
     let command = match invoked_as {
         "waybar-battery" => "battery".to_owned(),
@@ -29,7 +29,7 @@ fn main() -> ExitCode {
         _ => match args.next() {
             Some(command) => command,
             None => {
-                eprintln!("usage: waytools <battery|ssh-solo|ssh-in|ssh-out|tailscale>");
+                eprintln!("usage: barfeed <battery|ssh-solo|ssh-in|ssh-out|tailscale>");
                 return ExitCode::FAILURE;
             }
         },

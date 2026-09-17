@@ -12,13 +12,7 @@
       targets = ["graphical-session.target"];
     };
     style = builtins.readFile ./waybar.css;
-    settings = let
-      sshSoloWaybar = pkgs.waytools.sshSolo;
-
-      sshInWaybar = pkgs.waytools.sshIn;
-
-      sshOutWaybar = pkgs.waytools.sshOut;
-    in [
+    settings = [
       ({
           "position" = "top";
           "layer" = "top";
@@ -85,7 +79,7 @@
           };
 
           "custom/ssh-solo" = {
-            exec = "${lib.getExe sshSoloWaybar}";
+            exec = "${lib.getExe pkgs.barfeed.sshSolo}";
             return-type = "json";
             escape = false;
             interval = 2;
@@ -94,7 +88,7 @@
           };
 
           "custom/ssh-in" = {
-            exec = "${lib.getExe sshInWaybar}";
+            exec = "${lib.getExe pkgs.barfeed.sshIn}";
             return-type = "json";
             escape = false;
             interval = 2;
@@ -103,7 +97,7 @@
           };
 
           "custom/ssh-out" = {
-            exec = "${lib.getExe sshOutWaybar}";
+            exec = "${lib.getExe pkgs.barfeed.sshOut}";
             return-type = "json";
             escape = false;
             interval = 2;

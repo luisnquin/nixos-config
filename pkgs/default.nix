@@ -14,7 +14,7 @@ pkgs:
   phone = pkgs.callPackage ./phone {};
   pinentry-gate = pkgs.callPackage ./pinentry-gate {};
   setup = pkgs.callPackage ./setup {};
-  waytools = pkgs.callPackage ./waytools {};
+  barfeed = pkgs.callPackage ./barfeed {};
   ttygate = pkgs.callPackage ./ttygate {};
 }
 // import ./third-party pkgs
