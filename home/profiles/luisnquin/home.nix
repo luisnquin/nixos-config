@@ -20,6 +20,7 @@
     file.".face".source = ./.face;
 
     sessionVariables = {
+      DO_NOT_TRACK = 1;
       ENABLE_TELEMETRY = 0;
       TELEMETRY_ENABLED = 0;
     };
