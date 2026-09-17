@@ -1,4 +1,5 @@
 {
+  name,
   lib,
   pkgs,
   eww,
@@ -119,7 +120,7 @@ in {
       :initial '{"cpu_percent":0,"cpu_label":"—","cores":"—","load":"—","uptime":"—","freq":"—","temp":"—","mem_percent":0,"mem_label":"—","mem_used":"—","mem_total":"—","swap_used":"—","swap_percent":0,"swap_label":"—","top_cpu":[],"top_cpu_all":[],"top_mem":[],"top_mem_all":[]}'
       `${lib.getExe systemInfo}`)
 
-    (defwindow sysmon
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "100px"

@@ -1,4 +1,5 @@
 {
+  name,
   config,
   lib,
   pkgs,
@@ -110,7 +111,7 @@ in {
       :initial '{"present":false,"icon":"󰂑","state_class":"missing","status":"loading","percent":0,"pct_label":"—","source":"—","health":"—","health_label":"Health","rate":"—","voltage":"—","eta":"—","capacity_level":"—","model":"Battery"}'
       `${lib.getExe batteryInfo}`)
 
-    (defwindow battery
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "8px"
@@ -141,7 +142,7 @@ in {
         (progress :class "bat-bar" :value {bat.percent})
         (box :class "bat-actions" :orientation "h" :space-evenly true :spacing 8
           (button :class "bat-btn" :onclick "${eww} poll bat" "refresh")
-          (button :class "bat-btn" :onclick "${eww} close battery & ${lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop" "btop"))))
+          (button :class "bat-btn" :onclick "${eww} close ${name} & ${lib.getExe config.programs.ghostty.package} --class=waybar.btop -e ${pkgs.btop}/bin/btop" "btop"))))
 
     (defwidget bat-row [label value]
       (box :class "bat-row" :orientation "h" :space-evenly false

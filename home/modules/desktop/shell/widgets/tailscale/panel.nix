@@ -1,4 +1,5 @@
 {
+  name,
   lib,
   pkgs,
   eww,
@@ -69,7 +70,7 @@ in {
       :initial '{"connected":false,"online_count":0,"total_count":0,"self_name":"—","self_ip":"—","tailnet":"—","devices":[]}'
       `${lib.getExe tailscaleInfo}`)
 
-    (defwindow tailscale
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "160px"
@@ -106,7 +107,7 @@ in {
         (box :class "ts-actions" :orientation "h" :space-evenly true :spacing 8
           (button :class "ts-btn" :onclick "${eww} poll ts" "refresh")
           (button :class "ts-btn"
-            :onclick {"${eww} close tailscale & ${lib.getExe' pkgs.xdg-utils "xdg-open"} https://login.tailscale.com/admin/machines"}
+            :onclick {"${eww} close ${name} & ${lib.getExe' pkgs.xdg-utils "xdg-open"} https://login.tailscale.com/admin/machines"}
             "admin panel"))))
   '';
 }

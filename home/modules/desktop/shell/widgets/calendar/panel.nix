@@ -1,6 +1,6 @@
-{...}: {
+{name, ...}: {
   yuck = ''
-    (defwindow calendar
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "50%"

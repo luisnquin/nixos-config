@@ -1,8 +1,7 @@
 {
   imports = [
     ./hyprland
-    ./waybar
-    ./eww
+    ./shell
     ./heft.nix
     ./awww
     ./fuzzel.nix

@@ -1,4 +1,5 @@
 {
+  name,
   config,
   lib,
   pkgs,
@@ -97,7 +98,7 @@ in {
       :initial '{"connected":false,"icon":"󰤫","primary":"…","subtitle":"","signal_label":"","ip":"—","gateway":"—","freq_label":"—","up":"0 B/s","down":"0 B/s"}'
       `${lib.getExe netInfo}`)
 
-    (defwindow network
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "50px"
@@ -124,7 +125,7 @@ in {
           (label :class "net-up" :text {"↑ " + net.up})
           (label :class "net-down" :text {"↓ " + net.down}))
         (box :class "net-actions" :orientation "h" :space-evenly true :spacing 8
-          (button :class "net-btn" :onclick "${eww} close network & ${nmtuiCmd}" "nmtui")
+          (button :class "net-btn" :onclick "${eww} close ${name} & ${nmtuiCmd}" "nmtui")
           (button :class "net-btn" :onclick "${scanCmd}" "force scan"))))
 
     (defwidget net-row [label value]

@@ -1,4 +1,5 @@
 {
+  name,
   lib,
   pkgs,
   eww,
@@ -34,7 +35,7 @@ in {
       :initial '{"daemon":true,"dnd":false,"empty":true,"total":0,"active":0,"unread":0,"critical":0,"unread_critical":0,"headline":"loading","none":[],"void_rows":[],"groups":[],"panel_height":220}'
       `${hark} centre --watch`)
 
-    (defwindow notifications
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "20px"

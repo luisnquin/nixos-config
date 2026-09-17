@@ -1,4 +1,5 @@
 {
+  name,
   lib,
   pkgs,
   ...
@@ -28,7 +29,7 @@ in {
       :initial '{"filesystem":{"total":0,"used":0,"free":0},"pct_used":0,"domains":[],"movers":[],"reclaimable":0,"actions":[],"newcomers":[],"updated_label":"loading"}'
       `${lib.getExe heftInfo}`)
 
-    (defwindow heft
+    (defwindow ${name}
       :monitor 0
       :geometry (geometry
         :x "235px"
