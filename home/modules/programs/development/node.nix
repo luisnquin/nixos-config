@@ -11,6 +11,7 @@ in {
     packages = with pkgs; [
       npkill # remove node_modules from child directories
       biome
+      pnpm
     ];
 
     # sessionPath managed by home/modules/path.nix
