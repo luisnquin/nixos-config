@@ -6,9 +6,11 @@ _herdr_autoname_bin="${${(%):-%N}:A:h:h}/bin/herdr-autoname"
 if [[ -n ${HERDR_TAB_ID:-} && -x $_herdr_autoname_bin ]]; then
   _herdr_autoname_preexec() {
     # $2 is the alias-expanded command line; $1 is what was typed.
+    setopt localoptions no_monitor
     ("$_herdr_autoname_bin" preexec "${2:-$1}" &) >/dev/null 2>&1
   }
   _herdr_autoname_precmd() {
+    setopt localoptions no_monitor
     ("$_herdr_autoname_bin" precmd "${ZSH_NAME:-zsh}" "$PWD" &) >/dev/null 2>&1
   }
   autoload -Uz add-zsh-hook
