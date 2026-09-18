@@ -133,7 +133,9 @@
       '';
     });
 
-    llm-agents = prev.llm-agents // {inherit codex claude-code ccstatusline;};
+    freebuff = prev.callPackage ../pkgs/third-party/freebuff {};
+
+    llm-agents = prev.llm-agents // {inherit codex claude-code ccstatusline freebuff;};
   })
   (_final: prev: {
     mako = prev.mako.overrideAttrs (old: {

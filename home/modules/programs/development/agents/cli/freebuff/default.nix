@@ -1,3 +1,3 @@
 {pkgs, ...}: {
-  home.packages = [pkgs.freebuff];
+  home.packages = [pkgs.llm-agents.freebuff];
 }
