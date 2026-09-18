@@ -13,6 +13,14 @@
 
   vicinaeCmd = lib.getExe' config.programs.vicinae.package "vicinae";
 
+  # `deeplink` only opens; it never closes an already-open window like `toggle` does.
+  vicinaeApps = pkgs.writeShellScript "vicinae-apps-toggle" ''
+    if ${vicinaeCmd} state open; then
+      exec ${vicinaeCmd} close
+    fi
+    exec ${vicinaeCmd} deeplink vicinae://launch/applications
+  '';
+
   grimblastCmd = let
     inherit (pkgs.lib) getExe;
     package = pkgs.grimblast.overrideAttrs (_oldAttrs: {
@@ -111,7 +119,7 @@ in
     (b "SUPER + XF86AudioRaiseVolume" (dspExec "${lib.getExe sys-sound} --inc --unleashed"))
     (b "XF86MonBrightnessDown" (dspExec "${lib.getExe sys-brightness} --dec"))
     (b "XF86MonBrightnessUp" (dspExec "${lib.getExe sys-brightness} --inc"))
-    (b "${mainMod} + Q" (dspExec "${vicinaeCmd} toggle"))
+    (b "${mainMod} + Q" (dspExec (toString vicinaeApps)))
     (b "${mainMod} + SHIFT + E" (dspExec (lib.getExe pkgs.bemoji)))
     (b "${mainMod} + SHIFT + R" (dspExec "${hyprctlCmd} reload"))
     (b "${mainMod} + M" (dspExec (lib.getExe pkgs.hyprstfu)))
