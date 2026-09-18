@@ -28,8 +28,8 @@
     DefaultTimeoutStopSec = "15s";
   };
 
-  services.journald.extraConfig = ''
-    Storage=persistent
-    SystemMaxUse=500M
-  '';
+  services.journald.settings.Journal = {
+    Storage = "persistent";
+    SystemMaxUse = "500M";
+  };
 }
