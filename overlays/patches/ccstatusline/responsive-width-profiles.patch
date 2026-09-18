@@ -1,16 +1,16 @@
 diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
 --- a/dist/ccstatusline.js
 +++ b/dist/ccstatusline.js
-@@ -71886,6 +71886,7 @@
+@@ -63971,6 +63971,7 @@
      }
      return {
-       ...result2.data,
+       ...result.data,
 +      widthProfiles: rawData.widthProfiles,
-       lines: upgradeLegacyWidgetTypes(result2.data.lines)
+       lines: upgradeLegacyWidgetTypes(result.data.lines)
      };
-   } catch (error51) {
-@@ -81837,8 +81838,24 @@
-     execFileSync7("chcp.com", ["65001"], { stdio: "ignore", windowsHide: true });
+   } catch (error) {
+@@ -74496,8 +74497,28 @@
+     execFileSync("chcp.com", ["65001"], { stdio: "ignore", windowsHide: true });
    } catch {}
  }
 +function applyWidthProfile(settings, terminalWidth) {
@@ -30,16 +30,23 @@ diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
 +}
  async function renderMultipleLines(data) {
 -  const settings = await loadSettings();
-+  const detectedTerminalWidth = getTerminalWidth();
-+  const settings = applyWidthProfile(await loadSettings(), detectedTerminalWidth);
++  const baseSettings = await loadSettings();
++  const detectedTerminalWidth = getTerminalWidth({
++    sessionId: data.session_id,
++    ttlSeconds: baseSettings.terminalWidthCacheTtlSeconds
++  });
++  const settings = applyWidthProfile(baseSettings, detectedTerminalWidth);
    const configError = getConfigLoadError();
    source_default.level = settings.colorLevel;
    updateColorMap();
-@@ -81893,7 +81910,7 @@
+@@ -74552,10 +74573,7 @@
      transcriptThinkingEffort: needsTranscriptThinkingEffort ? transcriptAnalysis?.thinkingEffort ?? null : undefined,
      skillsMetrics,
      compactionData,
--    terminalWidth: getTerminalWidth(),
+-    terminalWidth: getTerminalWidth({
+-      sessionId: data.session_id,
+-      ttlSeconds: settings.terminalWidthCacheTtlSeconds
+-    }),
 +    terminalWidth: detectedTerminalWidth,
      isPreview: false,
      minimalist: settings.minimalistMode,

@@ -14,9 +14,7 @@ with inputs; [
         '';
     });
   })
-  (_final: _prev: {
-    llm-agents = llm-agents.packages.${system};
-  })
+  llm-agents.overlays.shared-nixpkgs
   bun2nix.overlays.default
   (_final: prev: {
     pythonPackagesExtensions =

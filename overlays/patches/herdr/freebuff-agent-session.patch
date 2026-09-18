@@ -1,6 +1,6 @@
 --- a/src/agent_resume.rs
 +++ b/src/agent_resume.rs
-@@ -140,6 +140,16 @@
+@@ -158,6 +158,16 @@
          ("herdr:droid", "droid", AgentSessionRefKind::Id) => {
              vec!["droid".into(), "--resume".into(), session_ref.value.clone()]
          }
@@ -17,7 +17,7 @@
          ("herdr:kimi", "kimi", AgentSessionRefKind::Id) => {
              vec!["kimi".into(), "--session".into(), session_ref.value.clone()]
          }
-@@ -232,6 +242,7 @@
+@@ -270,6 +280,7 @@
              | ("herdr:copilot", "copilot")
              | ("herdr:devin", "devin")
              | ("herdr:droid", "droid")
@@ -25,7 +25,7 @@
              | ("herdr:kimi", "kimi")
              | ("herdr:omp", "omp")
              | ("herdr:mastracode", "mastracode")
-@@ -338,6 +349,16 @@
+@@ -411,6 +422,16 @@
          );
          assert_eq!(
              plan(
@@ -44,8 +44,8 @@
                  &AgentSessionRef::id("kimi-session").unwrap()
 --- a/src/config/sound.rs
 +++ b/src/config/sound.rs
-@@ -144,6 +144,7 @@
-             Some(Agent::Qwen) => self.qwen,
+@@ -146,6 +146,7 @@
+             Some(Agent::Letta) => self.letta,
              Some(Agent::Maki) => self.maki,
              Some(Agent::Muse) => self.muse,
 +            Some(Agent::Freebuff) => AgentSoundSetting::Default,
@@ -54,13 +54,13 @@
      }
 --- a/src/detect/manifest.rs
 +++ b/src/detect/manifest.rs
-@@ -257,6 +257,7 @@
+@@ -260,6 +260,7 @@
      ("qodercli", include_str!("manifests/qodercli.toml")),
      ("qwen", include_str!("manifests/qwen.toml")),
      ("copilot", include_str!("manifests/github-copilot.toml")),
 +    ("freebuff", include_str!("manifests/freebuff.toml")),
  ];
-
+ 
  static MANIFEST_CACHE: OnceLock<RwLock<ManifestCache>> = OnceLock::new();
 --- /dev/null
 +++ b/src/detect/manifests/freebuff.toml
@@ -138,82 +138,78 @@
 +]
 --- a/src/detect/mod.rs
 +++ b/src/detect/mod.rs
-@@ -64,10 +64,11 @@
-     Qwen,
+@@ -65,10 +65,11 @@
+     Letta,
      Maki,
      Muse,
 +    Freebuff,
  }
  
  impl Agent {
--    pub const ALL: [Self; 23] = [
-+    pub const ALL: [Self; 24] = [
+-    pub const ALL: [Self; 24] = [
++    pub const ALL: [Self; 25] = [
          Self::Pi,
          Self::Claude,
          Self::Codex,
-@@ -91,9 +92,10 @@
-         Self::Qwen,
+@@ -93,9 +94,10 @@
+         Self::Letta,
          Self::Maki,
          Self::Muse,
 +        Self::Freebuff,
      ];
  
--    pub const SCREEN_MANIFEST_AGENTS: [Self; 21] = [
-+    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
+-    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
++    pub const SCREEN_MANIFEST_AGENTS: [Self; 23] = [
          Self::Pi,
          Self::Claude,
          Self::Codex,
-@@ -115,6 +117,7 @@
-         Self::Qwen,
+@@ -118,6 +120,7 @@
+         Self::Letta,
          Self::Maki,
          Self::Muse,
 +        Self::Freebuff,
      ];
  }
  
-@@ -143,6 +146,7 @@
-         Agent::Qwen => "qwen",
+@@ -147,6 +150,7 @@
+         Agent::Letta => "letta",
          Agent::Maki => "maki",
          Agent::Muse => "muse",
 +        Agent::Freebuff => "freebuff",
      }
  }
  
-@@ -177,6 +181,7 @@
-         Agent::Qwen => "qwen",
+@@ -182,6 +186,7 @@
+         Agent::Letta => "letta",
          Agent::Maki => "maki",
          Agent::Muse => "muse",
 +        Agent::Freebuff => "freebuff",
      }
  }
  
-@@ -216,6 +221,7 @@
-         "qwen" | "qwen-code" | "qwen code" => Some(Agent::Qwen),
+@@ -222,6 +227,7 @@
+         "letta" | "letta-code" | "letta code" => Some(Agent::Letta),
          "maki" => Some(Agent::Maki),
          "muse" | "muse-code" | "muse-cli" => Some(Agent::Muse),
 +        "freebuff" | "codebuff" => Some(Agent::Freebuff),
          _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
          _ => None,
      }
-@@ -328,7 +334,10 @@
- pub(crate) fn session_identity_only_integration(source: &str, agent_label: &str) -> bool {
-     matches!(
-         (source, agent_label),
--        ("herdr:hermes", "hermes") | ("herdr:qwen", "qwen") | ("herdr:antigravity_cli", "agy")
-+        ("herdr:hermes", "hermes")
-+            | ("herdr:qwen", "qwen")
-+            | ("herdr:antigravity_cli", "agy")
+@@ -343,6 +349,7 @@
+             | ("herdr:qwen", "qwen")
+             | ("herdr:letta", "letta")
+             | ("herdr:antigravity_cli", "agy")
 +            | ("herdr:freebuff", "freebuff")
      )
  }
  
 --- a/src/terminal/state.rs
 +++ b/src/terminal/state.rs
-@@ -1327,6 +1327,7 @@
+@@ -1334,6 +1334,7 @@
                  Some("startup" | "clear" | "resume" | "compact")
              ) | ("herdr:mastracode", "mastracode", Some("startup"))
                  | ("herdr:hermes", "hermes", Some("startup" | "new" | "resume"))
 +                | ("herdr:freebuff", "freebuff", Some("startup" | "new" | "resume"))
                  | ("herdr:opencode", "opencode", Some("select"))
                  | ("herdr:pi", "pi", Some("new" | "resume" | "fork"))
-                 | (
+                 | ("herdr:grok", "grok", Some("new"))

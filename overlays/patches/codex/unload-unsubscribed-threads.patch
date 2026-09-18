@@ -1,7 +1,7 @@
 diff --git a/app-server/src/thread_state.rs b/app-server/src/thread_state.rs
 --- a/app-server/src/thread_state.rs
 +++ b/app-server/src/thread_state.rs
-@@ -519,7 +519,6 @@
+@@ -547,7 +547,6 @@
          true
      }
  
@@ -12,9 +12,9 @@ diff --git a/app-server/src/thread_state.rs b/app-server/src/thread_state.rs
 diff --git a/app-server/src/request_processors/thread_lifecycle.rs b/app-server/src/request_processors/thread_lifecycle.rs
 --- a/app-server/src/request_processors/thread_lifecycle.rs
 +++ b/app-server/src/request_processors/thread_lifecycle.rs
-@@ -6,6 +6,13 @@
- 
- pub(super) const THREAD_UNLOADING_DELAY: Duration = Duration::from_secs(30 * 60);
+@@ -4,6 +4,13 @@
+ use codex_extension_api::ThreadIdleCause;
+ use codex_protocol::config_types::MultiAgentMode;
  
 +/// Grace period applied when a client explicitly sends `thread/unsubscribe` and no subscriber is
 +/// left, as opposed to a thread that merely fell idle or lost its connection. Keeping the thread
@@ -29,7 +29,7 @@ diff --git a/app-server/src/request_processors/thread_lifecycle.rs b/app-server/
 diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/src/request_processors/thread_processor.rs
 --- a/app-server/src/request_processors/thread_processor.rs
 +++ b/app-server/src/request_processors/thread_processor.rs
-@@ -965,7 +965,7 @@
+@@ -1040,7 +1040,7 @@
          let thread_id = ThreadId::from_string(&params.thread_id)
              .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
  
@@ -38,7 +38,7 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
              self.finalize_thread_teardown(thread_id).await;
              return Ok(ThreadUnsubscribeResponse {
                  status: ThreadUnsubscribeStatus::NotLoaded,
-@@ -978,6 +978,8 @@
+@@ -1053,6 +1053,8 @@
              .await;
  
          let status = if was_subscribed {
@@ -47,7 +47,7 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
              ThreadUnsubscribeStatus::Unsubscribed
          } else {
              ThreadUnsubscribeStatus::NotSubscribed
-@@ -985,6 +987,68 @@
+@@ -1060,6 +1062,68 @@
          Ok(ThreadUnsubscribeResponse { status })
      }
  
@@ -113,6 +113,6 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
 +        });
 +    }
 +
-     async fn prepare_thread_for_archive(&self, thread_id: ThreadId) {
-         self.prepare_thread_for_removal(thread_id, "archive").await;
-     }
+     async fn prepare_thread_for_archive(
+         &self,
+         thread_id: ThreadId,
