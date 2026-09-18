@@ -10,6 +10,8 @@ if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
   unset hotline_socket
 fi
 
+alias fb=freebuff
+
 rgf() {
   emulate -L zsh
 
