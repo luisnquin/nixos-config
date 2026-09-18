@@ -20,7 +20,6 @@ args @ {
   '';
 
   startupBody = ''
-    hl.exec_cmd("${pkgs.wl-clipboard}/bin/wl-paste --watch ${lib.getExe config.programs.cliphizt.package} store --max-items 200")
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("${waybarRestart}")
     ${tmuxDrop.startupBody}
@@ -275,12 +274,6 @@ in {
           suppress_event = "fullscreen fullscreenoutput";
           content = "game";
           idle_inhibit = "fullscreen";
-        }
-        {
-          name = "raffi-float";
-          match = {class = "^com\\.chmouel\\.raffi$";};
-          float = true;
-          center = true;
         }
         {
           name = "color-picker-float";

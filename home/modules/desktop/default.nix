@@ -4,16 +4,14 @@
     ./shell
     ./heft.nix
     ./awww
-    ./fuzzel.nix
     ./herdr.nix
+    ./vicinae.nix
 
-    ./clipboard.nix
     ./color-picker.nix
     ./gtk.nix
     ./mako.nix
     ./mouse.nix
     ./notifications.nix
-    ./raffi.nix
     ./wayvnc.nix
     ./xdg.nix
   ];

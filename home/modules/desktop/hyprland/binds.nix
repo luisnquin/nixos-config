@@ -2,7 +2,6 @@
 {
   config,
   pkgs,
-  libx,
   lib,
   tmuxDrop,
   ...
@@ -12,58 +11,7 @@
   mainMod = "SUPER";
   hyprctlCmd = "${pkgs.hyprland}/bin/hyprctl";
 
-  raffiExec = pkgs.writeShellScript "hypr-raffi-exec" ''
-    val="$(raffi -pI)"
-    [ -n "$val" ] && exec ${hyprctlCmd} dispatch exec "$val"
-  '';
-
-  clipz = {
-    toggleMode = pkgs.writeShellScript "hypr-clipz-toggle" (
-      let
-        notify = message:
-          libx.notify.desktop {
-            image = ./crop.512.png;
-            title = "Clipboard";
-            inherit message;
-          };
-      in ''
-        mode="$(${lib.getExe config.programs.cliphizt.package} mode toggle)"
-        case "$mode" in
-          normal)
-            ${notify "Entries will be kept forever."}
-            ;;
-          ephemeral)
-            ${notify "Entries will expire after the configured TTL."}
-            ;;
-          single-use)
-            ${notify "Entries will be deleted after first use."}
-            ;;
-          *)
-            ${notify "Mode changed: $mode"}
-            ;;
-        esac
-      ''
-    );
-
-    lens = pkgs.writeShellApplication {
-      name = "hypr-clipz-lens";
-
-      runtimeInputs = with pkgs; [
-        wl-clipboard
-        cliphizt
-        cliplenz
-      ];
-
-      text = ''
-        selected="$(cliphizt list | cliplenz --preview 'cliphizt decode')"
-
-        if [ -n "$selected" ]; then
-          id="$(printf '%s\n' "$selected" | awk '{print $1}')"
-          printf '%s\n' "$id" | cliphizt decode | wl-copy
-        fi
-      '';
-    };
-  };
+  vicinaeCmd = lib.getExe' config.programs.vicinae.package "vicinae";
 
   grimblastCmd = let
     inherit (pkgs.lib) getExe;
@@ -163,9 +111,7 @@ in
     (b "SUPER + XF86AudioRaiseVolume" (dspExec "${lib.getExe sys-sound} --inc --unleashed"))
     (b "XF86MonBrightnessDown" (dspExec "${lib.getExe sys-brightness} --dec"))
     (b "XF86MonBrightnessUp" (dspExec "${lib.getExe sys-brightness} --inc"))
-    (b "${mainMod} + SHIFT + Q" (dspExec "${lib.getExe pkgs.fuzzel} --dmenu"))
-    (b "${mainMod} + X" (dspExec (toString raffiExec)))
-    (b "${mainMod} + Q" (dspExec (lib.getExe pkgs.fuzzel)))
+    (b "${mainMod} + Q" (dspExec "${vicinaeCmd} toggle"))
     (b "${mainMod} + SHIFT + E" (dspExec (lib.getExe pkgs.bemoji)))
     (b "${mainMod} + SHIFT + R" (dspExec "${hyprctlCmd} reload"))
     (b "${mainMod} + M" (dspExec (lib.getExe pkgs.hyprstfu)))
@@ -177,8 +123,7 @@ in
     (b "${mainMod} + SHIFT + Print" (dspExec "${grimblastCmd} --freeze --notify copy area"))
     (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
     (b "Print" (dspExec (toString hyprPrintScreen)))
-    (b "${mainMod} + SHIFT + O" (dspExec (toString clipz.toggleMode)))
-    (b "${mainMod} + SHIFT + C" (dspExec (lib.getExe clipz.lens)))
+    (b "${mainMod} + SHIFT + C" (dspExec "${vicinaeCmd} deeplink vicinae://launch/clipboard/history"))
 
     (b "CTRL + SHIFT + braceleft" (dspExec (pctlFallback "position 5-")))
     (b "CTRL + SHIFT + braceright" (dspExec (pctlFallback "position 5+")))
