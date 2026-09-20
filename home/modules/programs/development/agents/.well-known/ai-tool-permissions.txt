@@ -128,7 +128,6 @@
 + Bash(npm -v)
 + Bash(node --version)
 + Bash(node -v)
-? Bash(git fetch:*)
 - Bash(cargo publish:*)
 - Bash(cargo install:*)
 - Bash(cargo uninstall:*)
