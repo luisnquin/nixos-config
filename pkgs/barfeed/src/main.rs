@@ -171,9 +171,10 @@ fn ssh_solo() {
         return;
     }
 
+    let count = inbound.len();
     print_json(json!({
-        "text": inbound_text(inbound.len()),
-        "tooltip": tooltip("inbound", &inbound),
+        "text": inbound_text(count),
+        "tooltip": tooltip("inbound", &inbound.sessions()),
     }));
 }
 
@@ -185,9 +186,10 @@ fn ssh_in() {
         return;
     }
 
+    let count = inbound.len();
     print_json(json!({
-        "text": inbound_text(inbound.len()),
-        "tooltip": tooltip("inbound", &inbound),
+        "text": inbound_text(count),
+        "tooltip": tooltip("inbound", &inbound.sessions()),
     }));
 }
 
@@ -250,28 +252,50 @@ impl Scan {
 
     // Live sockets, not utmp: that table writes a row per tmux pane, and a dropped
     // client leaves a sshd-session process with no socket. Neither one is access.
-    fn inbound(&self) -> Vec<Session> {
+    fn inbound(&self) -> Inbound<'_> {
         let ports = sshd_ports(&fs::read_to_string(SSHD_CONFIG).unwrap_or_default());
 
-        let servers: Vec<&Process> = self
-            .processes
-            .iter()
-            .filter(|process| process.comm == "mosh-server")
-            .collect();
-        let inbound: Vec<&Connection> = self
-            .connections
-            .iter()
-            .filter(|connection| ports.contains(&connection.local_port))
-            .collect();
+        Inbound {
+            servers: self
+                .processes
+                .iter()
+                .filter(|process| process.comm == "mosh-server")
+                .collect(),
+            sockets: self
+                .connections
+                .iter()
+                .filter(|connection| ports.contains(&connection.local_port))
+                .collect(),
+        }
+    }
+}
 
-        if servers.is_empty() && inbound.is_empty() {
+// Counting an inbound session needs neither a fork nor a label, so `who` stays
+// unspawned until a caller actually renders the tooltip.
+struct Inbound<'a> {
+    servers: Vec<&'a Process>,
+    sockets: Vec<&'a Connection>,
+}
+
+impl Inbound<'_> {
+    fn len(&self) -> usize {
+        self.servers.len() + self.sockets.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn sessions(self) -> Vec<Session> {
+        if self.is_empty() {
             return Vec::new();
         }
 
         let mut logins: Vec<Option<Login>> =
             who_entries(&who_output()).into_iter().map(Some).collect();
 
-        let mosh: Vec<Session> = servers
+        let mosh: Vec<Session> = self
+            .servers
             .into_iter()
             .map(|process| {
                 let login = take_login(&mut logins, |login| {
@@ -288,7 +312,8 @@ impl Scan {
             })
             .collect();
 
-        let mut sessions: Vec<Session> = inbound
+        let mut sessions: Vec<Session> = self
+            .sockets
             .into_iter()
             .map(|connection| Session {
                 kind: "ssh",
@@ -302,7 +327,9 @@ impl Scan {
         sessions.extend(mosh);
         sessions
     }
+}
 
+impl Scan {
     fn outbound(&self) -> Vec<Session> {
         let Ok(uid) = fs::metadata("/proc/self").map(|metadata| metadata.uid()) else {
             return Vec::new();
