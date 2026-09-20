@@ -12,8 +12,8 @@ reported. Everything else, and every plain shell, is gone.
 the last command line for a shell.
 
 ```
-sevastopol
-  w2F:p4     ~/Projects/github.com/cuentacero/sevastopol
+sample-app
+  w2F:p4     ~/Projects/github.com/acme/sample-app
     codex resume 019a3f7c-2b41-7a10-9c55-2f0a1d8e4b33
 
 .dotfiles (w2K)

@@ -1397,11 +1397,11 @@ mod tests {
                 decide(space_eligible(label, last_set), label, last_set, name)
             };
         // herdr's own cwd-derived label, never touched by us
-        assert_eq!(decide_space("cuentacero", None, ".dotfiles"), Action::Rename);
+        assert_eq!(decide_space("acme", None, ".dotfiles"), Action::Rename);
         assert_eq!(decide_space(".dotfiles", None, ".dotfiles"), Action::Record);
         // ours, and the active tab moved to another repo
         assert_eq!(
-            decide_space(".dotfiles", Some(".dotfiles"), "sevastopol"),
+            decide_space(".dotfiles", Some(".dotfiles"), "sample-app"),
             Action::Rename
         );
         assert_eq!(
