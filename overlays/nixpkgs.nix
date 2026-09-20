@@ -245,29 +245,18 @@
     });
   })
   (_final: prev: {
-    # The sidebar collapse toggle is a one-cell icon in the bottom-right corner:
-    # unhittable with a finger over ssh from a phone. The icon stays where it is,
-    # only its press area grows — left and up, never onto the divider column,
-    # which upstream keeps draggable down to its last row.
-    #
-    # The second patch teaches herdr about freebuff, which upstream does not
-    # know at all. Two halves: the resume planner checks every session source
-    # against a hardcoded allowlist, so freebuff chats were refused before they
-    # could be persisted; and `Agent` is a closed enum, so a freebuff pane
-    # rendered nameless in the agents sidebar with no state of its own. It pairs
-    # with the freebuff-side patch that reports the chat id, since freebuff has
-    # no hook or plugin surface for herdr to install into.
-    #
-    # The third patch stops `session.resume_agents_on_restore` from pressing
-    # enter. Upstream types `claude --resume <id>` plus a carriage return into
-    # every restored agent pane, so a restart silently re-enters conversations
-    # the user may be done with, and a stale id burns the pane on an error.
-    # Dropping the return leaves the command staged at the prompt instead.
-    #
-    # The fourth patch adds `--dangerously-skip-permissions` to the claude
-    # resume argv, which upstream hardcodes with no room for extra flags. It
-    # only rides along because the patch above leaves the command staged: the
-    # flag is on screen, unsubmitted, until it is read and accepted.
+    # 1. Grows the press area of the one-cell sidebar toggle, unhittable by
+    #    finger over ssh. Never onto the divider column, kept draggable.
+    # 2. Teaches herdr about freebuff: the hardcoded resume allowlist and the
+    #    closed `Agent` enum. Pairs with freebuff reporting its chat id.
+    # 3. Drops the carriage return from `resume_agents_on_restore`, staging the
+    #    resume command instead of re-entering conversations on every restart.
+    # 4. Adds `--dangerously-skip-permissions` to the claude resume argv, which
+    #    upstream hardcodes. Stays unsubmitted thanks to 3.
+    # 5. `ghostty_default_bg` inferred default-background ownership from a color
+    #    match against the one server-global `host_terminal_theme`, so a second
+    #    client with a different background baked an opaque literal into every
+    #    cell. Asks `child_default_background_changed` like the OSC path does.
     herdr = prev.llm-agents.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
@@ -276,6 +265,7 @@
           ./patches/herdr/freebuff-agent-session.patch
           ./patches/herdr/stage-agent-resume-command.patch
           ./patches/herdr/claude-resume-skip-permissions.patch
+          ./patches/herdr/default-bg-follows-child-ownership.patch
         ];
     });
   })

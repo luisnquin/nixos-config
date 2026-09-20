@@ -1,0 +1,64 @@
+--- a/src/pane/terminal.rs
++++ b/src/pane/terminal.rs
+@@ -2316,6 +2316,7 @@
+         let host_theme = core.host_terminal_theme;
+         let initial_default_foreground = core.initial_default_foreground;
+         let initial_default_background = core.initial_default_background;
++        let child_owns_default_background = core.child_default_background_changed;
+         let GhosttyPaneCore {
+             terminal,
+             render_state,
+@@ -2326,8 +2327,14 @@
+             return;
+         }
+         let colors = render_state.colors().ok();
+-        let default_bg = colors
+-            .and_then(|c| ghostty_default_bg(c.background, host_theme, initial_default_background));
++        let default_bg = colors.and_then(|c| {
++            ghostty_default_bg(
++                c.background,
++                host_theme,
++                initial_default_background,
++                child_owns_default_background,
++            )
++        });
+         let default_fg = colors
+             .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
+         let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
+@@ -2578,6 +2585,7 @@
+     let host_theme = core.host_terminal_theme;
+     let initial_default_foreground = core.initial_default_foreground;
+     let initial_default_background = core.initial_default_background;
++    let child_owns_default_background = core.child_default_background_changed;
+     let GhosttyPaneCore {
+         terminal,
+         render_state,
+@@ -2593,8 +2601,14 @@
+     }
+ 
+     let colors = render_state.colors().ok();
+-    let default_bg = colors
+-        .and_then(|c| ghostty_default_bg(c.background, host_theme, initial_default_background));
++    let default_bg = colors.and_then(|c| {
++        ghostty_default_bg(
++            c.background,
++            host_theme,
++            initial_default_background,
++            child_owns_default_background,
++        )
++    });
+     let default_fg = colors
+         .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
+     let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
+@@ -3451,7 +3465,11 @@
+     color: crate::ghostty::RgbColor,
+     host_theme: crate::terminal_theme::TerminalTheme,
+     initial_default_background: Option<crate::ghostty::RgbColor>,
++    child_owns_default_background: bool,
+ ) -> Option<Color> {
++    if !child_owns_default_background {
++        return None;
++    }
+     if let Some(host_background) = host_theme.background {
+         if host_background == terminal_theme_color(color) {
+             None
