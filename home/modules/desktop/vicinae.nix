@@ -41,6 +41,8 @@ in {
         keyboard_interactivity = "on_demand";
       };
 
+      providers.applications.entrypoints."zen-beta".alias = "zen";
+
       # Allowlist: a full $HOME scan indexes ~1M files, nearly all of it caches
       # the built-in excludes don't cover (.dartServer, .pub-cache, agent state).
       providers.files.preferences.indexingPaths = [
