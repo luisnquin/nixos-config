@@ -68,8 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          nix shell nixpkgs#nix-prefetch-github -c \
-            .github/scripts/bump-fetchers.sh bump \
+          .github/scripts/bump-fetchers.sh bump \
             "${{ matrix.pin.file }}" "${{ matrix.pin.owner }}" "${{ matrix.pin.repo }}"
 
       - name: Open pull request

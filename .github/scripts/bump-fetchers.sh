@@ -14,9 +14,13 @@ extract_pins() {
     }
     function count(line, ch,   tmp) { tmp = line; return gsub(ch, "", tmp) }
 
-    /fetchFromGitHub[[:space:]]*{/ { inside = 1; depth = 0; owner = repo = rev = hash = "" }
+    /fetchFromGitHub[[:space:]]*{/ { inside = 1; depth = 0; body = ""; owner = repo = rev = hash = "" }
 
     inside {
+      line = $0
+      gsub(/\t/, " ", line)
+      if (body == "") line = substr(line, index(line, "{"))
+
       if ((v = attr($0, "owner")) != "") owner = v
       if ((v = attr($0, "repo")) != "") repo = v
       if ((v = attr($0, "rev")) != "") rev = v
@@ -26,10 +30,23 @@ extract_pins() {
       depth += count($0, "{") - count($0, "}")
       if (depth <= 0) {
         inside = 0
-        if (owner && repo && rev && hash) print FILENAME "\t" owner "\t" repo "\t" rev "\t" hash
+        line = substr(line, 1, index(line, "}"))
+        body = (body == "" ? line : body "\\n" line)
+        if (owner && repo && rev && hash) print FILENAME "\t" owner "\t" repo "\t" rev "\t" hash "\t" body
+        next
       }
+
+      body = (body == "" ? line : body "\\n" line)
     }
   ' "$@"
+}
+
+pin_hash() {
+  local body=$1 nixpkgs expr
+  nixpkgs=$(jq -r '.nodes.nixpkgs.locked.rev' "$(git rev-parse --show-toplevel)/flake.lock")
+  expr="let pkgs = import (builtins.fetchTarball \"https://github.com/NixOS/nixpkgs/archive/$nixpkgs.tar.gz\") {}; in pkgs.fetchFromGitHub $body"
+
+  { nix build --impure --no-link --expr "$expr" 2>&1 || true; } | awk '$1 == "got:" { print $2 }'
 }
 
 emit() { [[ -n "${GITHUB_OUTPUT:-}" ]] && echo "$1" >>"$GITHUB_OUTPUT"; }
@@ -53,7 +70,7 @@ bump)
     exit 1
   }
 
-  IFS=$'\t' read -r _ _ _ old_rev old_hash <<<"$pin"
+  IFS=$'\t' read -r _ _ _ old_rev old_hash body <<<"$pin"
   rev=$(gh api "repos/$owner/$repo/commits/HEAD" --jq '.sha')
 
   if [[ "$rev" == "$old_rev" ]]; then
@@ -62,7 +79,16 @@ bump)
     exit 0
   fi
 
-  hash=$(nix-prefetch-github --rev "$rev" "$owner" "$repo" | jq -r '.hash')
+  body=${body//\\n/$'\n'}
+  body=${body//$old_rev/$rev}
+  body=${body//\"$old_hash\"/pkgs.lib.fakeHash}
+
+  hash=$(pin_hash "$body")
+  [[ -n "$hash" ]] || {
+    echo "no hash for $owner/$repo@$rev" >&2
+    exit 1
+  }
+
   sed -i "s|$old_rev|$rev|g; s|$old_hash|$hash|g" "$file"
 
   echo "$owner/$repo: ${old_rev:0:7} -> ${rev:0:7}"
