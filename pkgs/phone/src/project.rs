@@ -390,9 +390,9 @@ impl Manifest {
 mod tests {
     use super::*;
 
-    const SEVASTOPOL: &str = r#"
-host = "rose"
-dir = "~/Projects/github.com/cuentacero/sevastopol"
+    const MANIFEST: &str = r#"
+host = "mac"
+dir = "~/Projects/github.com/acme/sample-app"
 default = "pixel_7-api36"
 
 [deps]
@@ -403,7 +403,7 @@ run = "npm install"
 run = "npx expo start --dev-client"
 
 [build.android]
-app = "app.cuentacero.dev"
+app = "app.example.dev"
 stale = "npx @expo/fingerprint fingerprint:generate --platform android"
 run = "npx expo run:android --no-bundler"
 
@@ -420,12 +420,12 @@ devices = ["pixel_7-api36"]
 "#;
 
     fn manifest() -> Manifest {
-        Project::parse(SEVASTOPOL).expect("the reference manifest parses")
+        Project::parse(MANIFEST).expect("the reference manifest parses")
     }
 
     fn project() -> Project {
         Project {
-            root: PathBuf::from("/tmp/sevastopol"),
+            root: PathBuf::from("/tmp/sample-app"),
             manifest: manifest(),
         }
     }
@@ -434,9 +434,9 @@ devices = ["pixel_7-api36"]
     fn the_reference_manifest_reads_back_what_it_says() {
         let m = manifest();
 
-        assert_eq!(m.host.as_deref(), Some("rose"));
+        assert_eq!(m.host.as_deref(), Some("mac"));
         assert_eq!(m.default.as_deref(), Some("pixel_7-api36"));
-        assert_eq!(m.build["android"].app, "app.cuentacero.dev");
+        assert_eq!(m.build["android"].app, "app.example.dev");
         assert_eq!(m.devices["pixel_7-api36"].reverse, [8081]);
         assert_eq!(m.devices["pixel_7-api36"].state, Level::Prepared);
         assert_eq!(m.devices["iPhone 17 Pro Max"].state, Level::Ready);
@@ -514,7 +514,7 @@ devices = ["pixel_7-api36"]
     /// Appended to the build table rather than to the text, because the last
     /// table in the fixture is a profile and a key after it belongs to that.
     fn opening(url: &str) -> String {
-        SEVASTOPOL.replace(
+        MANIFEST.replace(
             "run = \"npx expo run:android --no-bundler\"",
             &format!("run = \"npx expo run:android --no-bundler\"\nopen = \"{url}\""),
         )
@@ -548,7 +548,7 @@ devices = ["pixel_7-api36"]
     /// sit on its menu with the manifest looking like it said otherwise.
     #[test]
     fn launch_arguments_on_an_android_build_are_refused() {
-        let text = SEVASTOPOL.replace(
+        let text = MANIFEST.replace(
             "[build.android]",
             "[build.android]\nargs = [\"--initialUrl\", \"http://localhost:8081\"]",
         );
@@ -561,7 +561,7 @@ devices = ["pixel_7-api36"]
     #[test]
     fn launch_arguments_on_an_ios_build_are_kept_in_order() {
         let text = format!(
-            "{SEVASTOPOL}\n[build.ios]\napp = \"app.cuentacero.dev\"\nrun = \"true\"\nargs = [\"--initialUrl\", \"http://localhost:8081\"]\n"
+            "{MANIFEST}\n[build.ios]\napp = \"app.example.dev\"\nrun = \"true\"\nargs = [\"--initialUrl\", \"http://localhost:8081\"]\n"
         );
 
         assert_eq!(
@@ -619,7 +619,7 @@ devices = ["pixel_7-api36"]
 
     #[test]
     fn a_remote_project_has_to_say_where_its_tree_is() {
-        let err = Project::parse("host = \"rose\"\n").unwrap_err().to_string();
+        let err = Project::parse("host = \"mac\"\n").unwrap_err().to_string();
 
         assert!(err.contains("dir"), "{err}");
     }
@@ -627,12 +627,12 @@ devices = ["pixel_7-api36"]
     #[test]
     fn a_local_project_runs_where_its_manifest_is() {
         let p = Project {
-            root: PathBuf::from("/tmp/sevastopol"),
+            root: PathBuf::from("/tmp/sample-app"),
             manifest: Project::parse("[devices.pixel]\n").unwrap(),
         };
 
         assert_eq!(p.host(), None);
-        assert_eq!(p.dir(), "/tmp/sevastopol");
+        assert_eq!(p.dir(), "/tmp/sample-app");
     }
 
     #[test]
@@ -658,7 +658,7 @@ devices = ["pixel_7-api36"]
     #[test]
     fn a_misspelled_key_is_refused_rather_than_ignored() {
         assert!(Project::parse("[devices.pixel]\nreverse_ports = [8081]\n").is_err());
-        assert!(Project::parse("hosts = \"rose\"\n").is_err());
+        assert!(Project::parse("hosts = \"mac\"\n").is_err());
     }
 
     #[test]

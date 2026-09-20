@@ -415,8 +415,8 @@ stream."#)]
     /// Choose which ssh hosts to survey for devices
     #[command(after_help = r#"Examples:
   phone host              # what each host was found to offer
-  phone host enable rose  # probe it, and survey it from then on
-  phone host disable rose
+  phone host enable mac  # probe it, and survey it from then on
+  phone host disable mac
 
 Only enabled hosts are surveyed, so each one adds to what every command costs.
 Enabling a host again re-probes what it can drive."#)]
@@ -522,7 +522,7 @@ take `connect`."#)]
     /// Bring up a transport to a device, trying history before discovery
     #[command(after_help = r#"Examples:
   phone device connect             # the most recent device
-  phone device connect faraday
+  phone device connect pixel-9
   phone device connect --no-sweep  # skip the port sweep when an address is remembered
 
 Brings up a transport to a device that is already running. To start one that is
@@ -616,7 +616,7 @@ for good or one whose remembered address is wrong."#)]
     #[command(after_help = r#"Examples:
   phone device boot "iPhone 17 Pro"  # a simulator, on whichever host has it
   phone device boot medium_phone     # an AVD, here or on a host
-  phone device boot --timeout 5m nyx-remote-android
+  phone device boot --timeout 5m remote-android
 
 Returns only once the device can actually be driven, not when the process
 starts: a simulator answers immediately and an emulator shows its window well
@@ -720,7 +720,7 @@ the scheme and an http url lands in the browser. Quote it: a shell reads `?` and
     /// Stream logs for a package name or bundle id
     #[command(after_help = r#"Examples:
   phone app logs com.example.app
-  phone app logs -t faraday com.example.app
+  phone app logs -t pixel-9 com.example.app
 
 A package name on Android, a bundle id on a simulator or an iPhone."#)]
     Logs { app: String },
@@ -735,7 +735,7 @@ pub enum HostAction {
 
     /// Survey this host's devices from now on, probing what it can drive
     #[command(after_help = r#"Examples:
-  phone host enable rose
+  phone host enable mac
 
 Probes the host once for adb, the Android sdk and the iOS tools, remembers what
 answered, and surveys it from then on."#)]
@@ -743,7 +743,7 @@ answered, and surveys it from then on."#)]
 
     /// Stop surveying it
     #[command(after_help = r#"Examples:
-  phone host disable rose
+  phone host disable mac
 
 Its devices stop appearing and every command gets quicker. What was remembered
 about it is kept, so enabling it again does not re-probe from nothing."#)]
@@ -1108,8 +1108,8 @@ mod tests {
     fn a_subcommand_does_not_shadow_a_global_flag() {
         Cli::command().debug_assert();
 
-        let cli = Cli::try_parse_from(["phone", "size", "-t", "faraday"]).unwrap();
-        assert_eq!(cli.target.as_deref(), Some("faraday"));
+        let cli = Cli::try_parse_from(["phone", "size", "-t", "pixel-9"]).unwrap();
+        assert_eq!(cli.target.as_deref(), Some("pixel-9"));
     }
 
     /// `-t` has to survive being written after a group as well as after a verb,
@@ -1117,10 +1117,10 @@ mod tests {
     #[test]
     fn a_global_flag_reaches_through_a_group_to_its_verb() {
         let cli =
-            Cli::try_parse_from(["phone", "app", "launch", "-t", "faraday", "com.example.app"])
+            Cli::try_parse_from(["phone", "app", "launch", "-t", "pixel-9", "com.example.app"])
                 .unwrap();
 
-        assert_eq!(cli.target.as_deref(), Some("faraday"));
+        assert_eq!(cli.target.as_deref(), Some("pixel-9"));
     }
 
     /// A group with nothing after it is a question about what it holds, and the

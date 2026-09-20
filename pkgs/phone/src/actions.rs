@@ -20,7 +20,7 @@ pub const BOOT_TIMEOUT: Duration = Duration::from_secs(180);
 
 /// Where a device is driven from: the machine it hangs off, or this one when it
 /// hangs off nothing. A simulator on the mac reads as `Here` to a `phone`
-/// running on that mac, and as `On("rose")` to one running anywhere else.
+/// running on that mac, and as `On("mac")` to one running anywhere else.
 pub fn where_of(device: &Device) -> Where {
     Where::of(device.host.as_deref())
 }
@@ -852,15 +852,15 @@ mod tests {
     fn a_forward_is_listed_in_the_shape_it_was_asked_for() {
         let listed = forwards(
             "host-16 tcp:8081 tcp:8081\nhost-16 tcp:3000 tcp:9000",
-            "rose",
+            "mac",
         );
 
-        assert_eq!(listed, ["8081 -> rose:8081", "3000 -> rose:9000"]);
+        assert_eq!(listed, ["8081 -> mac:8081", "3000 -> mac:9000"]);
     }
 
     #[test]
     fn a_device_with_no_forwards_lists_nothing_rather_than_a_blank_row() {
-        assert!(forwards("", "rose").is_empty());
+        assert!(forwards("", "mac").is_empty());
     }
 
     #[tokio::test]
@@ -954,8 +954,8 @@ mod tests {
         assert_eq!(where_of(&device), Where::Here);
         assert!(host_of(&device).is_err());
 
-        device.host = Some("rose".to_string());
-        assert_eq!(where_of(&device), Where::On("rose".to_string()));
+        device.host = Some("mac".to_string());
+        assert_eq!(where_of(&device), Where::On("mac".to_string()));
 
         // a host recorded as empty is no host, or a survey that wrote one would
         // send every command to a machine called ""

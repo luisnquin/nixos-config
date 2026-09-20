@@ -303,20 +303,20 @@ mod tests {
 
     #[test]
     fn reads_the_triple_ssh_resolved() {
-        let resolved = "user luisnquin\nhostname rose\nport 22\naddkeystoagent false\n";
+        let resolved = "user dev\nhostname mac\nport 22\naddkeystoagent false\n";
 
-        assert_eq!(target(resolved).as_deref(), Some("luisnquin@rose:22"));
+        assert_eq!(target(resolved).as_deref(), Some("dev@mac:22"));
     }
 
     #[test]
     fn an_alias_with_no_hostname_resolves_to_nothing() {
-        assert_eq!(target("user luisnquin\nport 22\n"), None);
+        assert_eq!(target("user dev\nport 22\n"), None);
     }
 
     #[test]
     fn keyword_accepts_both_separators() {
-        assert_eq!(keyword("  Host rose", "host"), Some("rose"));
+        assert_eq!(keyword("  Host mac", "host"), Some("mac"));
         assert_eq!(keyword("Include=/etc/ssh/x", "include"), Some("/etc/ssh/x"));
-        assert_eq!(keyword("HostName rose.local", "host"), None);
+        assert_eq!(keyword("HostName mac.local", "host"), None);
     }
 }

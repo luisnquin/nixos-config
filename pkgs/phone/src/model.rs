@@ -173,7 +173,7 @@ impl Device {
 
     /// An exact hit on one of the names this device is filed under. Substring
     /// matching is what makes a target quick to type, and also what makes
-    /// `emulator-5554` name `rose/emulator-5554` as well; typing one in full has
+    /// `emulator-5554` name `mac/emulator-5554` as well; typing one in full has
     /// to settle that.
     pub fn is(&self, want: &str) -> bool {
         let eq = |s: &str| s.eq_ignore_ascii_case(want);
@@ -477,10 +477,10 @@ mod tests {
 
     #[test]
     fn naming_a_device_in_full_beats_being_a_substring_of_another() {
-        let local = Device::new("emulator-5554", "nyx-remote-android", Platform::Emulator);
+        let local = Device::new("emulator-5554", "remote-android", Platform::Emulator);
         let hosted = Device::new(
-            "rose/emulator-5554",
-            "nyx-remote-android",
+            "mac/emulator-5554",
+            "remote-android",
             Platform::Emulator,
         );
 
@@ -489,7 +489,7 @@ mod tests {
         assert!(local.is("emulator-5554"));
         assert!(!hosted.is("emulator-5554"));
         assert!(
-            hosted.is("ROSE/emulator-5554"),
+            hosted.is("MAC/emulator-5554"),
             "ids are not case sensitive"
         );
     }
@@ -497,13 +497,13 @@ mod tests {
     #[test]
     fn tells_where_a_device_answered_apart_from_which_device_it_is() {
         assert!(is_transport_alias("emulator-5554"));
-        assert!(is_transport_alias("rose/emulator-5554"));
-        assert!(is_transport_alias("100.127.25.101:41939"));
-        assert!(is_transport_alias("faraday:5555"));
+        assert!(is_transport_alias("mac/emulator-5554"));
+        assert!(is_transport_alias("100.64.0.10:41939"));
+        assert!(is_transport_alias("pixel-9:5555"));
 
-        assert!(!is_transport_alias("58281FDCG001K5"));
-        assert!(!is_transport_alias("android_id:29a1ed706918672b"));
-        assert!(!is_transport_alias("rose/00008101-000C601611D2001E"));
+        assert!(!is_transport_alias("SERIALNUMBER01"));
+        assert!(!is_transport_alias("android_id:2222bbbb6918672b"));
+        assert!(!is_transport_alias("mac/00008101-000C601611D2001E"));
         assert!(!is_transport_alias("peer:tailscale:ncBC9WsKTg11CNTRL"));
     }
 

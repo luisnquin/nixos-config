@@ -479,10 +479,10 @@ mod tests {
 
     #[test]
     fn a_scan_names_what_it_is_still_waiting_on() {
-        let label = scanning_label(&scan(&["local", "rose"]), 80);
+        let label = scanning_label(&scan(&["local", "mac"]), 80);
 
         assert!(
-            label.contains("local · rose"),
+            label.contains("local · mac"),
             "a wait that names no host is a wait no one can act on: {label}"
         );
     }
@@ -497,7 +497,7 @@ mod tests {
             tx,
         );
 
-        app.scan = Some(scan(&["local", "rose"]));
+        app.scan = Some(scan(&["local", "mac"]));
 
         let mut terminal =
             ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 20)).unwrap();
@@ -513,7 +513,7 @@ mod tests {
             .collect();
 
         assert!(
-            screen.contains("scanning local · rose"),
+            screen.contains("scanning local · mac"),
             "the survey drew no sign of what it was waiting on"
         );
         assert!(
@@ -524,7 +524,7 @@ mod tests {
 
     #[test]
     fn too_many_hosts_to_name_get_counted_instead() {
-        let long = scan(&["rose", "moriarty", "watson", "faraday", "sevastopol"]);
+        let long = scan(&["mac", "peer-a", "peer-b", "pixel-9", "sample-app"]);
 
         assert_eq!(scanning_label(&long, 40).trim(), "⠋ scanning 5 sources");
     }

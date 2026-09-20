@@ -1621,8 +1621,8 @@ mod tests {
     fn a_report_that_came_from_elsewhere_names_where_it_came_from() {
         let mut report = Report {
             strays: Vec::new(),
-            project: "sevastopol".to_string(),
-            host: Some("rose".to_string()),
+            project: "sample-app".to_string(),
+            host: Some("mac".to_string()),
             steps: vec![Row {
                 note: "8081".to_string(),
                 ..row_of("bundler", "up", "down")
@@ -1632,7 +1632,7 @@ mod tests {
 
         let table = shown(&report);
 
-        assert!(table.starts_with("sevastopol on rose\n"), "{table}");
+        assert!(table.starts_with("sample-app on mac\n"), "{table}");
         assert!(!table.contains("this machine"), "{table}");
 
         report.host = None;

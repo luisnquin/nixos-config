@@ -562,7 +562,7 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
         let emu = Identity::parse(
             "serialno=EMULATOR36X6X11X0\r\nboot_serialno=EMULATOR36X6X11X0\r\n\
              model=sdk_gphone64_arm64\r\navd=\r\navd_kernel=pixel_7-api36\r\n\
-             android_id=6a2c0a1c04bc476d\r\n",
+             android_id=3333cccc04bc476d\r\n",
         );
 
         assert_eq!(emu.serialno, "EMULATOR36X6X11X0");
@@ -570,16 +570,16 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
             emu.avd, "pixel_7-api36",
             "falls back to the kernel spelling"
         );
-        assert_eq!(emu.android_id, "6a2c0a1c04bc476d");
+        assert_eq!(emu.android_id, "3333cccc04bc476d");
         assert!(emu.is_emulator());
 
         let handset = Identity::parse(
-            "serialno=\nboot_serialno=58281FDCG001K5\nmodel=Pixel 10 Pro Fold\n\
+            "serialno=\nboot_serialno=SERIALNUMBER01\nmodel=Pixel 10 Pro Fold\n\
              avd=\navd_kernel=\nandroid_id=null\n",
         );
 
         assert_eq!(
-            handset.serialno, "58281FDCG001K5",
+            handset.serialno, "SERIALNUMBER01",
             "a vendor that hides ro.serialno still boots with one"
         );
         assert_eq!(handset.model, "Pixel 10 Pro Fold");
@@ -594,23 +594,23 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
     fn an_emulator_is_keyed_by_the_only_id_that_varies_per_instance() {
         let emu = Identity {
             serialno: "EMULATOR36X6X11X0".into(),
-            android_id: "29a1ed706918672b".into(),
+            android_id: "2222bbbb6918672b".into(),
             model: "sdk gphone64 arm64".into(),
             ..Default::default()
         };
         let handset = Identity {
-            serialno: "58281FDCG001K5".into(),
-            android_id: "28aeb91fdbf85825".into(),
+            serialno: "SERIALNUMBER01".into(),
+            android_id: "1111aaaadbf85825".into(),
             model: "Pixel 10 Pro Fold".into(),
             ..Default::default()
         };
 
         assert_eq!(
             emu.best_id().as_deref(),
-            Some("android_id:29a1ed706918672b"),
+            Some("android_id:2222bbbb6918672b"),
             "every emulator from one image shares ro.serialno"
         );
-        assert_eq!(handset.best_id().as_deref(), Some("58281FDCG001K5"));
+        assert_eq!(handset.best_id().as_deref(), Some("SERIALNUMBER01"));
     }
 
     #[test]

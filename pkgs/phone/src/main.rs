@@ -1449,6 +1449,6 @@ mod tests {
     #[test]
     fn a_name_that_needs_quoting_is_handed_back_ready_to_paste() {
         assert_eq!(quoted("iPhone 17 Pro Max"), "\"iPhone 17 Pro Max\"");
-        assert_eq!(quoted("faraday"), "faraday");
+        assert_eq!(quoted("pixel-9"), "pixel-9");
     }
 }

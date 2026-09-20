@@ -130,7 +130,7 @@ cat "$f.png""#;
 
     // the capture itself is instant; what this waits on is ~3 MB of PNG coming
     // back over ssh, and that link is not always a fast one. Measured at 54 kB/s
-    // to rose, a panel takes about a minute, so 45s was a coin toss.
+    // to mac, a panel takes about a minute, so 45s was a coin toss.
     let mut ran = at.exec(SCRIPT, &[udid], Duration::from_secs(180)).await?;
     let png = std::mem::take(&mut ran.stdout);
 
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn rejects_a_udid_that_could_carry_shell_syntax() {
-        assert!(check("3F83A110-39DD-445A-AD47-7D487A0C818B").is_ok());
+        assert!(check("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE").is_ok());
         assert!(check("$(rm -rf /)").is_err());
     }
 

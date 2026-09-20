@@ -588,13 +588,13 @@ mod tests {
 
     #[test]
     fn a_serial_is_only_unique_within_its_own_server() {
-        let rose = Server::Remote {
-            host: "rose".into(),
+        let mac = Server::Remote {
+            host: "mac".into(),
             port: 5038,
         };
 
         assert_eq!(scoped(&Server::Local, "emulator-5554"), "emulator-5554");
-        assert_eq!(scoped(&rose, "emulator-5554"), "rose/emulator-5554");
+        assert_eq!(scoped(&mac, "emulator-5554"), "mac/emulator-5554");
     }
 
     #[test]
@@ -602,7 +602,7 @@ mod tests {
         let mut reg = Registry::default();
 
         reg.upsert(Device::new("udid", "iPhone 17", Platform::Ios));
-        reg.upsert(Device::new("serial", "faraday", Platform::Android));
+        reg.upsert(Device::new("serial", "pixel-9", Platform::Android));
 
         let views = merge(&mut reg, &Findings::default(), false);
 
@@ -610,20 +610,20 @@ mod tests {
         assert!(views.iter().all(|v| v.reach == Reach::Known));
     }
 
-    fn recreated_on_rose() -> (Registry, Findings) {
+    fn recreated_on_mac() -> (Registry, Findings) {
         let mut reg = Registry::default();
 
-        for udid in ["rose/dead", "rose/live"] {
+        for udid in ["mac/dead", "mac/live"] {
             let mut sim = Device::new(udid, "iPhone 17", Platform::Simulator);
 
-            sim.host = Some("rose".into());
+            sim.host = Some("mac".into());
 
             reg.upsert(sim);
         }
 
-        let mut live = Device::new("rose/live", "iPhone 17", Platform::Simulator);
+        let mut live = Device::new("mac/live", "iPhone 17", Platform::Simulator);
 
-        live.host = Some("rose".into());
+        live.host = Some("mac".into());
 
         let found = Findings {
             hosted: vec![(live, false)],
@@ -635,20 +635,20 @@ mod tests {
 
     #[test]
     fn a_simulator_the_host_no_longer_lists_stops_being_offered() {
-        let (mut reg, mut found) = recreated_on_rose();
+        let (mut reg, mut found) = recreated_on_mac();
 
-        found.inventoried.insert(Some("rose".into()));
+        found.inventoried.insert(Some("mac".into()));
 
         let views = merge(&mut reg, &found, true);
 
         assert_eq!(views.len(), 1);
-        assert_eq!(views[0].device.id, "rose/live");
+        assert_eq!(views[0].device.id, "mac/live");
         assert_eq!(reg.devices.len(), 1);
     }
 
     #[test]
     fn a_host_that_never_answered_keeps_its_remembered_simulators() {
-        let (mut reg, found) = recreated_on_rose();
+        let (mut reg, found) = recreated_on_mac();
 
         let views = merge(&mut reg, &found, true);
 

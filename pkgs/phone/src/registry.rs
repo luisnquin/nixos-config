@@ -154,7 +154,7 @@ impl Registry {
     }
 
     /// Naming a device in full settles what a substring cannot: `emulator-5554`
-    /// is also a substring of `rose/emulator-5554`.
+    /// is also a substring of `mac/emulator-5554`.
     pub fn find(&self, want: &str) -> Vec<&Device> {
         let exact: Vec<&Device> = self.devices.iter().filter(|d| d.is(want)).collect();
 
@@ -342,35 +342,35 @@ mod tests {
     #[test]
     fn a_transport_name_follows_the_device_last_seen_answering_to_it() {
         let mut reg = Registry {
-            devices: vec![device("android_id:29a1ed70", &["rose/emulator-5554"])],
+            devices: vec![device("android_id:2222bbbb", &["mac/emulator-5554"])],
             ..Default::default()
         };
 
-        let mut booted = device("android_id:6a2c0a1c", &[]);
-        booted.add_alias("rose/emulator-5554");
+        let mut booted = device("android_id:3333cccc", &[]);
+        booted.add_alias("mac/emulator-5554");
 
         reg.upsert(booted);
 
         assert_eq!(reg.devices[0].aliases, Vec::<String>::new());
         assert_eq!(
-            reg.by_alias("rose/emulator-5554").unwrap().id,
-            "android_id:6a2c0a1c"
+            reg.by_alias("mac/emulator-5554").unwrap().id,
+            "android_id:3333cccc"
         );
     }
 
     #[test]
     fn a_hardware_id_is_not_a_lease_and_stays_where_it_is() {
         let mut reg = Registry {
-            devices: vec![device("58281FDCG001K5", &["android_id:28aeb91f"])],
+            devices: vec![device("SERIALNUMBER01", &["android_id:1111aaaa"])],
             ..Default::default()
         };
 
         let mut other = device("peer:tailscale:nLhm", &[]);
-        other.add_alias("android_id:28aeb91f");
+        other.add_alias("android_id:1111aaaa");
 
         reg.upsert(other);
 
-        assert_eq!(reg.devices[0].aliases, ["android_id:28aeb91f"]);
+        assert_eq!(reg.devices[0].aliases, ["android_id:1111aaaa"]);
     }
 
     /// Every emulator from one system image answered `ro.serialno` with the same
@@ -381,9 +381,9 @@ mod tests {
             devices: vec![
                 device(
                     "EMULATOR36X6X11X0",
-                    &["emulator-5554", "android_id:29a1ed70"],
+                    &["emulator-5554", "android_id:2222bbbb"],
                 ),
-                device("58281FDCG001K5", &[]),
+                device("SERIALNUMBER01", &[]),
             ],
             current: Some("EMULATOR36X6X11X0".into()),
             ..Default::default()
@@ -392,7 +392,7 @@ mod tests {
         reg.migrate();
 
         assert_eq!(reg.devices.len(), 1);
-        assert_eq!(reg.devices[0].id, "58281FDCG001K5");
+        assert_eq!(reg.devices[0].id, "SERIALNUMBER01");
         assert_eq!(reg.current, None, "the default target cannot point at it");
     }
 
@@ -400,36 +400,36 @@ mod tests {
     fn a_row_another_row_already_answers_to_is_folded_into_it() {
         let mut reg = Registry {
             devices: vec![
-                device("58281FDCG001K5", &["100.127.25.101:5555", "faraday"]),
-                device("100.127.25.101:5555", &[]),
+                device("SERIALNUMBER01", &["100.64.0.10:5555", "pixel-9"]),
+                device("100.64.0.10:5555", &[]),
             ],
-            current: Some("100.127.25.101:5555".into()),
+            current: Some("100.64.0.10:5555".into()),
             ..Default::default()
         };
 
         reg.fold_aliased(&HashSet::new());
 
         assert_eq!(reg.devices.len(), 1);
-        assert_eq!(reg.devices[0].id, "58281FDCG001K5");
+        assert_eq!(reg.devices[0].id, "SERIALNUMBER01");
         assert_eq!(
             reg.current.as_deref(),
-            Some("58281FDCG001K5"),
+            Some("SERIALNUMBER01"),
             "the default target follows the row it was folded into"
         );
-        assert!(reg.by_alias("100.127.25.101:5555").is_some());
+        assert!(reg.by_alias("100.64.0.10:5555").is_some());
     }
 
     #[test]
     fn what_the_caller_is_already_holding_a_view_of_stays() {
         let mut reg = Registry {
             devices: vec![
-                device("58281FDCG001K5", &["100.127.25.101:5555"]),
-                device("100.127.25.101:5555", &[]),
+                device("SERIALNUMBER01", &["100.64.0.10:5555"]),
+                device("100.64.0.10:5555", &[]),
             ],
             ..Default::default()
         };
 
-        reg.fold_aliased(&HashSet::from(["100.127.25.101:5555".to_string()]));
+        reg.fold_aliased(&HashSet::from(["100.64.0.10:5555".to_string()]));
 
         assert_eq!(reg.devices.len(), 2);
     }
@@ -448,11 +448,11 @@ mod tests {
 
     #[test]
     fn endpoints_survive_the_fold() {
-        let mut stale = device("100.127.25.101:41939", &[]);
-        stale.merge_endpoint(Endpoint::new("100.127.25.101", 41939));
+        let mut stale = device("100.64.0.10:41939", &[]);
+        stale.merge_endpoint(Endpoint::new("100.64.0.10", 41939));
 
         let mut reg = Registry {
-            devices: vec![device("58281FDCG001K5", &["100.127.25.101:41939"]), stale],
+            devices: vec![device("SERIALNUMBER01", &["100.64.0.10:41939"]), stale],
             ..Default::default()
         };
 

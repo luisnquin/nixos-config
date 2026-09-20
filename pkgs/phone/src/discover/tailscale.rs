@@ -68,7 +68,7 @@ pub async fn peers() -> Result<Vec<Peer>> {
         .peer
         .into_values()
         .map(|p| Peer {
-            // HostName arrives capitalised as the device set it ("Watson");
+            // HostName arrives capitalised as the device set it ("Peer-b");
             // the MagicDNS label is what actually resolves and what gets typed.
             hostname: dns_label(&p.dns_name).unwrap_or_else(|| p.host_name.to_lowercase()),
             ip: p

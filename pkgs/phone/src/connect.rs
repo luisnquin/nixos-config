@@ -468,7 +468,7 @@ mod tests {
 
     fn peer(ip: &str, online: bool) -> tailscale::Peer {
         tailscale::Peer {
-            hostname: "moriarty".into(),
+            hostname: "peer-a".into(),
             ip: ip.into(),
             node_id: "nXXXX".into(),
             os: "android".into(),
@@ -479,22 +479,22 @@ mod tests {
 
     #[test]
     fn an_offline_peer_is_not_worth_sweeping() {
-        let peers = [peer("100.75.85.98", false)];
+        let peers = [peer("100.64.0.20", false)];
 
-        assert!(!routable(&peers, "100.75.85.98"));
+        assert!(!routable(&peers, "100.64.0.20"));
     }
 
     #[test]
     fn an_online_peer_is() {
-        let peers = [peer("100.75.85.98", true)];
+        let peers = [peer("100.64.0.20", true)];
 
-        assert!(routable(&peers, "100.75.85.98"));
+        assert!(routable(&peers, "100.64.0.20"));
     }
 
     #[test]
     fn an_address_the_tailnet_no_longer_lists_is_not() {
-        let peers = [peer("100.127.25.101", true)];
+        let peers = [peer("100.64.0.10", true)];
 
-        assert!(!routable(&peers, "100.75.85.98"));
+        assert!(!routable(&peers, "100.64.0.20"));
     }
 }

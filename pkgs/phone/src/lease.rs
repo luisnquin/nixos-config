@@ -71,7 +71,7 @@ impl Holder {
 
 /// What a device is filed under: its id as the host owning it spells it.
 ///
-/// A simulator on the mac is `3F83…` in the mac's own registry and `rose/3F83…`
+/// A simulator on the mac is `3F83…` in the mac's own registry and `mac/AAAA1111…`
 /// in a laptop's, and both registries have to land on the one entry in the
 /// mac's file. An emulator's `android_id:…` is already the same everywhere.
 pub fn key(device: &Device) -> &str {
@@ -375,17 +375,17 @@ mod tests {
 
     #[test]
     fn a_device_is_filed_as_its_own_host_spells_it() {
-        let mut sim = Device::new("rose/3F83", "iPhone 17", Platform::Simulator);
-        sim.host = Some("rose".to_string());
+        let mut sim = Device::new("mac/AAAA1111", "iPhone 17", Platform::Simulator);
+        sim.host = Some("mac".to_string());
 
-        let mut emu = Device::new("android_id:6a2c", "pixel", Platform::Emulator);
-        emu.host = Some("rose".to_string());
+        let mut emu = Device::new("android_id:3333", "pixel", Platform::Emulator);
+        emu.host = Some("mac".to_string());
 
-        let local = Device::new("android_id:506b", "pixel", Platform::Emulator);
+        let local = Device::new("android_id:4444", "pixel", Platform::Emulator);
 
-        assert_eq!(key(&sim), "3F83");
-        assert_eq!(key(&emu), "android_id:6a2c");
-        assert_eq!(key(&local), "android_id:506b");
+        assert_eq!(key(&sim), "AAAA1111");
+        assert_eq!(key(&emu), "android_id:3333");
+        assert_eq!(key(&local), "android_id:4444");
     }
 
     #[tokio::test]
