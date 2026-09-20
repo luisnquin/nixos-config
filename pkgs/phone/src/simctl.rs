@@ -30,21 +30,17 @@ struct SimJson {
 
 /// Every simulator that exists on `at`, each with whether it is running.
 /// Asking only for the booted ones would hide what could be started, which is
-/// the whole of what a caller needs before it can boot anything.
-pub async fn devices(at: &Where) -> Vec<(Device, bool)> {
+/// the whole of what a caller needs before it can boot anything. `None` when
+/// the host could not be asked, which is not the same answer as having none.
+pub async fn devices(at: &Where) -> Option<Vec<(Device, bool)>> {
     let bytes = ssh::output(
         at.run("xcrun simctl list devices available -j", &[]),
         Duration::from_secs(20),
     )
-    .await;
+    .await
+    .ok()?;
 
-    let Ok(bytes) = bytes else {
-        return Vec::new();
-    };
-
-    let Ok(list) = serde_json::from_slice::<ListJson>(&bytes) else {
-        return Vec::new();
-    };
+    let list = serde_json::from_slice::<ListJson>(&bytes).ok()?;
 
     let mut out = Vec::new();
 
@@ -77,7 +73,7 @@ pub async fn devices(at: &Where) -> Vec<(Device, bool)> {
 
     out.sort_by(|a, b| a.0.label.cmp(&b.0.label));
 
-    out
+    Some(out)
 }
 
 /// `com.apple.CoreSimulator.SimRuntime.iOS-26-5` is the runtime key; the last

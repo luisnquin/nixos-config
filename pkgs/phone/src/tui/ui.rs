@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Gauge, List, ListItem, Paragraph, Wrap};
 use ratatui::Frame;
 
-use super::app::{row_fields, App, Level, Mode, Prompt};
+use super::app::{row_fields, App, Level, Mode, Prompt, Scan};
 use crate::model::Reach;
 
 const KEYS: &[(&str, &str)] = &[
@@ -30,6 +30,26 @@ const SIDE_BY_SIDE_MIN_ASPECT: u16 = 3;
 const DEVICE_MIN_WIDTH: u16 = 60;
 const ACTIVITY_WIDTH: u16 = 38;
 const ACTIVITY_HEIGHT: u16 = 5;
+
+const SPINNER: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const SPINNER_PERIOD_MS: u128 = 90;
+
+fn scanning_label(scan: &Scan, width: u16) -> String {
+    let i = (scan.since.elapsed().as_millis() / SPINNER_PERIOD_MS) as usize % SPINNER.len();
+    let spin = SPINNER[i];
+
+    if scan.pending.is_empty() {
+        return format!(" {spin} scanning ");
+    }
+
+    let names = scan.pending.join(" · ");
+
+    if names.chars().count() + 14 <= width as usize {
+        format!(" {spin} scanning {names} ")
+    } else {
+        format!(" {spin} scanning {} sources ", scan.pending.len())
+    }
+}
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let [header, content, status, footer] = Layout::vertical([
@@ -168,7 +188,15 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_list(frame: &mut Frame, app: &mut App, area: Rect) {
-    let block = Block::bordered().title(" devices ");
+    let mut block = Block::bordered().title(" devices ");
+
+    if let Some(scan) = &app.scan {
+        block = block.title_bottom(Span::styled(
+            scanning_label(scan, area.width),
+            Style::default().fg(Color::Yellow),
+        ));
+    }
+
     let inner = block.inner(area);
 
     let (w_label, w_model, w_reach) = columns(inner.width);
@@ -440,6 +468,65 @@ mod tests {
 
         assert_eq!(devices, Rect::new(4, 2, 90, 25));
         assert_eq!(activity, Rect::new(4, 27, 90, ACTIVITY_HEIGHT));
+    }
+
+    fn scan(pending: &[&str]) -> Scan {
+        Scan {
+            pending: pending.iter().map(|p| p.to_string()).collect(),
+            since: std::time::Instant::now(),
+        }
+    }
+
+    #[test]
+    fn a_scan_names_what_it_is_still_waiting_on() {
+        let label = scanning_label(&scan(&["local", "rose"]), 80);
+
+        assert!(
+            label.contains("local · rose"),
+            "a wait that names no host is a wait no one can act on: {label}"
+        );
+    }
+
+    #[test]
+    fn the_pending_hosts_reach_the_screen() {
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let mut app = App::new(
+            std::sync::Arc::new(tokio::sync::Mutex::new(crate::registry::Registry::default())),
+            None,
+            tx,
+        );
+
+        app.scan = Some(scan(&["local", "rose"]));
+
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 20)).unwrap();
+
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+
+        let screen: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+
+        assert!(
+            screen.contains("scanning local · rose"),
+            "the survey drew no sign of what it was waiting on"
+        );
+        assert!(
+            screen.contains("so far"),
+            "a count taken mid-survey drew as a final one"
+        );
+    }
+
+    #[test]
+    fn too_many_hosts_to_name_get_counted_instead() {
+        let long = scan(&["rose", "moriarty", "watson", "faraday", "sevastopol"]);
+
+        assert_eq!(scanning_label(&long, 40).trim(), "⠋ scanning 5 sources");
     }
 
     #[test]

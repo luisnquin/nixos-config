@@ -5,7 +5,7 @@ pub mod tailscale;
 use std::collections::HashSet;
 
 use crate::adb::{self, Server};
-use crate::hosts::{self, Caps};
+use crate::hosts::{self, HostState};
 use crate::model::{
     discovered_id, Device, Endpoint, Pin, Platform, Reach, View, PLACEHOLDER_PREFIX,
 };
@@ -16,191 +16,266 @@ use crate::ssh::Where;
 /// them can claim the same machine without colliding.
 const TAILSCALE: &str = "tailscale";
 
+const LOCAL: &str = "local";
+
 /// Key prefix for an AVD read off a host's SDK. It is not a hardware id — the
 /// row is rebuilt from the host on every survey and never stored, because an
 /// AVD that is deleted should stop being offered rather than linger as a name
 /// nothing can boot.
 const AVD_PREFIX: &str = "avd:";
 
-/// Every adb server worth asking, this machine's first. Servers never talk to
-/// each other, so the fleet is assembled client-side, one forward per enabled
-/// host. Bringing those up is part of surveying: they are daemonised, so this
-/// usually only confirms a port an earlier run opened.
-async fn fleet(reg: &mut Registry) -> Vec<Server> {
-    let states: Vec<_> = reg
-        .hosts
-        .iter()
-        .filter(|h| h.enabled && h.caps.adb)
-        .cloned()
-        .collect();
-
-    let mut tasks = tokio::task::JoinSet::new();
-
-    for (i, mut state) in states.into_iter().enumerate() {
-        tasks.spawn(async move {
-            let port = hosts::adb_tunnel(&mut state).await.ok();
-
-            (i, state.name, port)
-        });
-    }
-
-    let mut up: Vec<(usize, String, u16)> = Vec::new();
-
-    while let Some(Ok((i, name, port))) = tasks.join_next().await {
-        if let Some(port) = port {
-            up.push((i, name, port));
-        }
-    }
-
-    up.sort_by_key(|(i, _, _)| *i);
-
-    let mut out = vec![Server::Local];
-
-    for (_, host, port) in up {
-        reg.host_mut(&host).tunnel_port = Some(port);
-        out.push(Server::Remote { host, port });
-    }
-
-    out
+struct Attach {
+    dev: adb::Attached,
+    ident: adb::Identity,
 }
 
-/// `adb devices` against every server at once, each answer kept next to the
-/// server that gave it: two macs both running `emulator-5554` is normal.
-async fn attached(fleet: &[Server]) -> Vec<(Server, Vec<adb::Attached>)> {
+#[derive(Default)]
+struct Found {
+    at: Option<String>,
+    inventoried: bool,
+    server: Option<(Server, Vec<Attach>)>,
+    hosted: Vec<(Device, bool)>,
+    avds: Vec<Device>,
+    peers: Vec<tailscale::Peer>,
+}
+
+#[derive(Default)]
+struct Findings {
+    fleet: Vec<(usize, Server, Vec<Attach>)>,
+    hosted: Vec<(Device, bool)>,
+    avds: Vec<Device>,
+    peers: Vec<tailscale::Peer>,
+    inventoried: HashSet<Option<String>>,
+}
+
+impl Findings {
+    fn absorb(&mut self, rank: usize, one: Found) {
+        if one.inventoried {
+            self.inventoried.insert(one.at.clone());
+        }
+
+        if let Some((server, rows)) = one.server {
+            self.fleet.push((rank, server, rows));
+            self.fleet.sort_by_key(|(rank, _, _)| *rank);
+        }
+
+        self.hosted.extend(one.hosted);
+        self.peers.extend(one.peers);
+        self.avds.extend(one.avds);
+
+        self.hosted.sort_by(|a, b| a.0.label.cmp(&b.0.label));
+        self.avds.sort_by(|a, b| a.label.cmp(&b.label));
+    }
+}
+
+pub struct Snapshot {
+    pub views: Vec<View>,
+    pub pending: Vec<String>,
+}
+
+async fn probe_server(server: Server) -> (Server, Vec<Attach>) {
+    let found = adb::devices(&server).await.unwrap_or_default();
+
     let mut tasks = tokio::task::JoinSet::new();
 
-    for (i, server) in fleet.iter().cloned().enumerate() {
-        tasks.spawn(async move {
-            let found = adb::devices(&server).await.unwrap_or_default();
+    for (i, dev) in found.into_iter().enumerate() {
+        let server = server.clone();
 
-            (i, server, found)
+        tasks.spawn(async move {
+            let ident = if dev.state == "device" {
+                adb::identity(&server, &dev.serial).await
+            } else {
+                adb::Identity::default()
+            };
+
+            (i, Attach { dev, ident })
         });
     }
 
-    let mut out: Vec<(usize, Server, Vec<adb::Attached>)> = Vec::new();
+    let mut rows: Vec<(usize, Attach)> = Vec::new();
 
     while let Some(Ok(row)) = tasks.join_next().await {
-        out.push(row);
+        rows.push(row);
     }
 
-    out.sort_by_key(|(i, _, _)| *i);
+    rows.sort_by_key(|(i, _)| *i);
 
-    out.into_iter().map(|(_, s, d)| (s, d)).collect()
+    (server, rows.into_iter().map(|(_, row)| row).collect())
 }
 
-/// Devices that are only ever driven by running commands on their host: iPhones
-/// behind a tunneld, and simulators, which have no socket to forward at all.
-async fn hosted(enabled: &[(String, Caps)]) -> Vec<(Device, bool)> {
-    let mut tasks = tokio::task::JoinSet::new();
+fn avd_device(host: Option<&str>, name: String) -> Device {
+    let id = match host {
+        Some(host) => format!("{AVD_PREFIX}{host}/{name}"),
+        None => format!("{AVD_PREFIX}{name}"),
+    };
 
-    // Unasked rather than behind a capability check: this machine is not a
-    // registered host and has no caps recorded, and one that cannot run simctl
-    // lists nothing, which is the same answer a probe would have cost a
-    // round trip to get. What it buys is a `phone` on the mac seeing the
-    // simulators that are right there.
-    tasks.spawn(async move { crate::simctl::devices(&Where::Here).await });
+    let mut device = Device::new(id, name, Platform::Emulator);
 
-    for (host, caps) in enabled.iter().cloned() {
-        if caps.tunneld {
-            let host = host.clone();
+    device.host = host.map(str::to_string);
 
+    device
+}
+
+async fn scan_local() -> Found {
+    let (server, sims, avds, peers) = tokio::join!(
+        probe_server(Server::Local),
+        crate::simctl::devices(&Where::Here),
+        crate::avd::list(&Where::Here),
+        tailscale::peers(),
+    );
+
+    Found {
+        at: None,
+        inventoried: sims.is_some(),
+        server: Some(server),
+        hosted: sims.unwrap_or_default(),
+        avds: avds
+            .into_iter()
+            .map(|name| avd_device(None, name))
+            .collect(),
+        peers: peers.unwrap_or_default(),
+    }
+}
+
+async fn scan_host(mut state: HostState) -> (HostState, Found) {
+    let name = state.name.clone();
+    let caps = state.caps;
+
+    let opened = if caps.adb {
+        hosts::adb_tunnel(&mut state)
+            .await
+            .ok()
+            .map(|port| Server::Remote {
+                host: name.clone(),
+                port,
+            })
+    } else {
+        None
+    };
+
+    let (server, iphones, sims, avds) = tokio::join!(
+        async {
+            match opened {
+                Some(server) => Some(probe_server(server).await),
+                None => None,
+            }
+        },
+        async {
             // a tunneld that lists an iPhone is listing one that is plugged in
-            tasks.spawn(async move {
-                crate::ios::devices(&host)
+            if caps.tunneld {
+                crate::ios::devices(&name)
                     .await
                     .into_iter()
                     .map(|d| (d, true))
                     .collect::<Vec<_>>()
-            });
-        }
+            } else {
+                Vec::new()
+            }
+        },
+        async {
+            if caps.simctl {
+                crate::simctl::devices(&Where::On(name.clone())).await
+            } else {
+                None
+            }
+        },
+        async {
+            if caps.adb || caps.emulator {
+                crate::avd::list(&Where::On(name.clone())).await
+            } else {
+                Vec::new()
+            }
+        },
+    );
 
-        if caps.simctl {
-            tasks.spawn(async move { crate::simctl::devices(&Where::On(host)).await });
-        }
-    }
+    let inventoried = sims.is_some();
 
-    let mut out = Vec::new();
+    let mut hosted = iphones;
 
-    while let Some(Ok(found)) = tasks.join_next().await {
-        out.extend(found);
-    }
+    hosted.extend(sims.unwrap_or_default());
 
-    out.sort_by(|a, b| a.0.label.cmp(&b.0.label));
+    let found = Found {
+        at: Some(name.clone()),
+        inventoried,
+        server,
+        hosted,
+        avds: avds
+            .into_iter()
+            .map(|avd| avd_device(Some(&name), avd))
+            .collect(),
+        peers: Vec::new(),
+    };
 
-    out
+    (state, found)
 }
 
-/// AVDs defined on this machine and on every host that has the emulator, which
-/// `adb` cannot report: it only ever sees one that is already running.
-async fn bootable(enabled: &[(String, Caps)]) -> Vec<Device> {
-    let mut tasks = tokio::task::JoinSet::new();
+pub async fn survey(reg: &mut Registry) -> Vec<View> {
+    scan(reg, |_| {}).await
+}
 
-    tasks.spawn(async move { (None, crate::avd::list(&Where::Here).await) });
+pub async fn scan(reg: &mut Registry, mut on: impl FnMut(Snapshot)) -> Vec<View> {
+    let states: Vec<HostState> = reg.enabled_hosts().into_iter().cloned().collect();
 
-    for (host, caps) in enabled.iter().cloned() {
-        // adb rather than the emulator cap alone: a host with adb has an SDK,
-        // and hosts enabled before the cap existed have it recorded as false
-        if !(caps.adb || caps.emulator) {
-            continue;
-        }
+    let mut pending: Vec<String> = std::iter::once(LOCAL.to_string())
+        .chain(states.iter().map(|h| h.name.clone()))
+        .collect();
 
+    let mut found = Findings::default();
+    let mut views = merge(reg, &found, pending.is_empty());
+
+    on(Snapshot {
+        views: views.clone(),
+        pending: pending.clone(),
+    });
+
+    let mut tasks: tokio::task::JoinSet<(usize, String, Option<HostState>, Found)> =
+        tokio::task::JoinSet::new();
+
+    tasks.spawn(async { (0, LOCAL.to_string(), None, scan_local().await) });
+
+    for (i, state) in states.into_iter().enumerate() {
         tasks.spawn(async move {
-            let found = crate::avd::list(&Where::On(host.clone())).await;
+            let name = state.name.clone();
+            let (state, found) = scan_host(state).await;
 
-            (Some(host), found)
+            (i + 1, name, Some(state), found)
         });
     }
 
-    let mut out = Vec::new();
+    while let Some(joined) = tasks.join_next().await {
+        let Ok((rank, name, state, one)) = joined else {
+            continue;
+        };
 
-    while let Some(Ok((host, names))) = tasks.join_next().await {
-        for name in names {
-            let id = match &host {
-                Some(host) => format!("{AVD_PREFIX}{host}/{name}"),
-                None => format!("{AVD_PREFIX}{name}"),
-            };
-
-            let mut device = Device::new(id, name, Platform::Emulator);
-
-            device.host = host.clone();
-
-            out.push(device);
+        if let Some(state) = state {
+            reg.host_mut(&name).tunnel_port = state.tunnel_port;
         }
+
+        found.absorb(rank, one);
+        pending.retain(|p| p != &name);
+
+        views = merge(reg, &found, pending.is_empty());
+
+        on(Snapshot {
+            views: views.clone(),
+            pending: pending.clone(),
+        });
     }
 
-    out.sort_by(|a, b| a.label.cmp(&b.label));
-
-    out
+    views
 }
 
 /// Merges everything that can name a device into one list keyed by stable id,
 /// writing back what it learns: an attached device is the only moment a
 /// transport address and a hardware id are observable together, which is what
 /// later reconnects depend on.
-pub async fn survey(reg: &mut Registry) -> Vec<View> {
-    let fleet = fleet(reg).await;
-
-    let enabled: Vec<(String, Caps)> = reg
-        .enabled_hosts()
-        .iter()
-        .map(|h| (h.name.clone(), h.caps))
-        .collect();
-
-    let (fleet_devices, hosted_devices, avds, peers) = tokio::join!(
-        attached(&fleet),
-        hosted(&enabled),
-        bootable(&enabled),
-        tailscale::peers()
-    );
-
-    let peers = peers.unwrap_or_default();
-
+fn merge(reg: &mut Registry, found: &Findings, settled: bool) -> Vec<View> {
     let mut views: Vec<View> = Vec::new();
     let mut claimed: HashSet<String> = HashSet::new();
 
-    for (server, found) in &fleet_devices {
-        for dev in found {
-            let Some((device, reach)) = resolve_attached(reg, server, dev).await else {
+    for (_, server, rows) in &found.fleet {
+        for row in rows {
+            let Some((device, reach)) = resolve_attached(reg, server, row) else {
                 continue;
             };
 
@@ -214,7 +289,7 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
         }
     }
 
-    for peer in peers.iter().filter(|p| p.is_android()) {
+    for peer in found.peers.iter().filter(|p| p.is_android()) {
         let discovered = discovered_id(TAILSCALE, &peer.node_id);
 
         let known = reg
@@ -265,7 +340,9 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     // drops often enough that a device listed only while reachable cannot be
     // selected or made the default. `last_connected` stays unset, since a bare
     // `phone device connect` reaches for the most recent device.
-    for (device, booted) in hosted_devices {
+    for (device, booted) in &found.hosted {
+        let device = device.clone();
+
         claimed.insert(device.id.clone());
 
         // only a running simulator is worth remembering: the row exists to
@@ -286,7 +363,9 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     // hardware id that emulator reported, and the two are the same device
     let mut off: Vec<String> = Vec::new();
 
-    for mut device in avds {
+    for device in &found.avds {
+        let mut device = device.clone();
+
         if views
             .iter()
             .any(|v| v.device.host == device.host && v.device.is(&device.label))
@@ -315,10 +394,27 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     // survey already listed under a stronger key. Folding here rather than on
     // load means the survey that learns the alias is the one that stops showing
     // two rows for the one device.
-    reg.fold_aliased(&claimed);
+    if settled {
+        reg.fold_aliased(&claimed);
+
+        let gone: Vec<String> = reg
+            .devices
+            .iter()
+            .filter(|d| stale_sim(&claimed, &found.inventoried, d))
+            .map(|d| d.id.clone())
+            .collect();
+
+        for id in gone {
+            reg.remove(&id);
+        }
+    }
 
     for device in &reg.devices {
         if claimed.contains(&device.id) {
+            continue;
+        }
+
+        if stale_sim(&claimed, &found.inventoried, device) {
             continue;
         }
 
@@ -348,6 +444,16 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     views
 }
 
+fn stale_sim(
+    claimed: &HashSet<String>,
+    inventoried: &HashSet<Option<String>>,
+    device: &Device,
+) -> bool {
+    device.platform == Platform::Simulator
+        && !claimed.contains(&device.id)
+        && inventoried.contains(&device.host)
+}
+
 /// The id a serial is filed under. Hardware ids are globally unique; an adb
 /// serial is only unique within its server, so it carries the host or a second
 /// mac's `emulator-5554` overwrites the first one's row.
@@ -358,11 +464,8 @@ pub fn scoped(server: &Server, serial: &str) -> String {
     }
 }
 
-async fn resolve_attached(
-    reg: &mut Registry,
-    server: &Server,
-    dev: &adb::Attached,
-) -> Option<(Device, Reach)> {
+fn resolve_attached(reg: &mut Registry, server: &Server, row: &Attach) -> Option<(Device, Reach)> {
+    let Attach { dev, ident } = row;
     let key = scoped(server, &dev.serial);
 
     if dev.state != "device" {
@@ -377,7 +480,6 @@ async fn resolve_attached(
             return None;
         }
 
-        // an unauthorized transport answers no shell command, so read no identity
         let mut device = reg
             .by_alias(&key)
             .cloned()
@@ -392,8 +494,6 @@ async fn resolve_attached(
             },
         ));
     }
-
-    let ident = adb::identity(server, &dev.serial).await;
 
     // the serial shape only says how this transport was opened: an emulator
     // reached over tcp has no `emulator-` serial and is an emulator regardless
@@ -495,5 +595,64 @@ mod tests {
 
         assert_eq!(scoped(&Server::Local, "emulator-5554"), "emulator-5554");
         assert_eq!(scoped(&rose, "emulator-5554"), "rose/emulator-5554");
+    }
+
+    #[test]
+    fn an_unanswered_survey_still_lists_what_is_remembered() {
+        let mut reg = Registry::default();
+
+        reg.upsert(Device::new("udid", "iPhone 17", Platform::Ios));
+        reg.upsert(Device::new("serial", "faraday", Platform::Android));
+
+        let views = merge(&mut reg, &Findings::default(), false);
+
+        assert_eq!(views.len(), 2);
+        assert!(views.iter().all(|v| v.reach == Reach::Known));
+    }
+
+    fn recreated_on_rose() -> (Registry, Findings) {
+        let mut reg = Registry::default();
+
+        for udid in ["rose/dead", "rose/live"] {
+            let mut sim = Device::new(udid, "iPhone 17", Platform::Simulator);
+
+            sim.host = Some("rose".into());
+
+            reg.upsert(sim);
+        }
+
+        let mut live = Device::new("rose/live", "iPhone 17", Platform::Simulator);
+
+        live.host = Some("rose".into());
+
+        let found = Findings {
+            hosted: vec![(live, false)],
+            ..Findings::default()
+        };
+
+        (reg, found)
+    }
+
+    #[test]
+    fn a_simulator_the_host_no_longer_lists_stops_being_offered() {
+        let (mut reg, mut found) = recreated_on_rose();
+
+        found.inventoried.insert(Some("rose".into()));
+
+        let views = merge(&mut reg, &found, true);
+
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].device.id, "rose/live");
+        assert_eq!(reg.devices.len(), 1);
+    }
+
+    #[test]
+    fn a_host_that_never_answered_keeps_its_remembered_simulators() {
+        let (mut reg, found) = recreated_on_rose();
+
+        let views = merge(&mut reg, &found, true);
+
+        assert_eq!(views.len(), 2);
+        assert_eq!(reg.devices.len(), 2);
     }
 }

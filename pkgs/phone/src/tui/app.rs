@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use ratatui::widgets::ListState;
 use tokio::sync::mpsc::UnboundedSender;
@@ -6,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::actions::{self, Sink};
 use crate::connect::{self, Reporter, Step};
-use crate::discover::survey;
+use crate::discover;
 use crate::hosts::Caps;
 use crate::model::{Blocked, Platform, Reach, View};
 use crate::registry::Registry;
@@ -28,10 +29,16 @@ pub struct LogLine {
 
 pub enum Msg {
     Views(Vec<View>),
+    Scanning(Vec<String>),
     Hosts(Vec<HostRow>),
     Step(Step),
     Finished(Result<String, String>),
     Exec(std::process::Command),
+}
+
+pub struct Scan {
+    pub pending: Vec<String>,
+    pub since: Instant,
 }
 
 /// One ssh host as the pane shows it. A snapshot rather than a borrow: the pane
@@ -101,6 +108,7 @@ pub struct App {
     pub queue: Vec<Queued>,
     pub hosts: Vec<HostRow>,
     pub host_state: ListState,
+    pub scan: Option<Scan>,
     shot: Option<Queued>,
     tx: UnboundedSender<Msg>,
 }
@@ -123,6 +131,7 @@ impl App {
             queue: Vec::new(),
             hosts: Vec::new(),
             host_state: ListState::default(),
+            scan: None,
             shot: None,
             tx,
         }
@@ -170,6 +179,16 @@ impl App {
                 }
 
                 self.drain_queue();
+            }
+            Msg::Scanning(pending) => {
+                self.scan = (!pending.is_empty()).then(|| Scan {
+                    pending,
+                    since: self.scan.as_ref().map_or_else(Instant::now, |s| s.since),
+                });
+
+                if self.scan.is_none() {
+                    self.drain_queue();
+                }
             }
             Msg::Hosts(hosts) => {
                 self.hosts = hosts;
@@ -261,23 +280,32 @@ impl App {
     }
 
     pub fn refresh(&mut self) {
-        if self.busy.is_some() {
-            // a survey and a running action would fight over the registry lock
+        if self.busy.is_some() || self.scan.is_some() {
             return;
         }
+
+        self.scan = Some(Scan {
+            pending: Vec::new(),
+            since: Instant::now(),
+        });
 
         let reg = self.reg.clone();
         let tx = self.tx.clone();
 
         tokio::spawn(async move {
-            let views = {
+            {
                 let mut guard = reg.lock().await;
-                let views = survey(&mut guard).await;
-                let _ = guard.save();
-                views
-            };
 
-            let _ = tx.send(Msg::Views(views));
+                discover::scan(&mut guard, |snap| {
+                    let _ = tx.send(Msg::Views(snap.views));
+                    let _ = tx.send(Msg::Scanning(snap.pending));
+                })
+                .await;
+
+                let _ = guard.save();
+            }
+
+            let _ = tx.send(Msg::Scanning(Vec::new()));
         });
     }
 
@@ -562,7 +590,7 @@ impl App {
 
     /// Fires the first queued shot whose device is back, on every survey.
     fn drain_queue(&mut self) {
-        if self.busy.is_some() {
+        if self.busy.is_some() || self.scan.is_some() {
             return;
         }
 
@@ -779,10 +807,15 @@ impl App {
             .filter(|v| v.reach == Reach::Online)
             .count();
 
-        format!(
+        let counts = format!(
             "{} device(s)   {attached} attached   {online} online",
             self.views.len()
-        )
+        );
+
+        match self.scan.is_some() {
+            true => format!("{counts}   so far"),
+            false => counts,
+        }
     }
 
     /// Footer hints for the selected row. Offering `connect` or `pin` on a

@@ -31,6 +31,10 @@ pub async fn run(reg: Registry) -> Result<Option<std::process::Command>> {
 
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
+    let mut spin = tokio::time::interval(Duration::from_millis(90));
+
+    spin.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
     let outcome = loop {
         terminal.draw(|frame| ui::render(frame, &mut app))?;
 
@@ -38,6 +42,7 @@ pub async fn run(reg: Registry) -> Result<Option<std::process::Command>> {
             Some(Ok(event)) = events.next() => on_event(&mut app, event),
             Some(msg) = rx.recv() => app.on_msg(msg),
             _ = tick.tick() => app.refresh(),
+            _ = spin.tick(), if app.scan.is_some() => {}
         }
 
         if let Some(outcome) = app.quit.take() {
