@@ -39,6 +39,7 @@ in {
         # 'exclusive' breaks action-panel popups under Hyprland and suppresses
         # close_on_focus_loss
         keyboard_interactivity = "on_demand";
+        layer = "overlay";
       };
 
       providers.applications.entrypoints."zen-beta".alias = "zen";
