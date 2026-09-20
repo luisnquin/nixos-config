@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -154,8 +155,9 @@ fn battery_class(capacity: u8, warning: u8, critical: u8) -> &'static str {
 // top of a vertical box, so it would never sit on the bar's centre line.
 // Whichever layout is not in use prints nothing and hide-empty-text drops it.
 fn ssh_solo() {
-    let inbound = inbound_sessions();
-    let outbound = outbound_sessions();
+    let scan = Scan::take();
+    let inbound = scan.inbound();
+    let outbound = scan.outbound();
     if !inbound.is_empty() && !outbound.is_empty() {
         print_json(json!({"text": ""}));
         return;
@@ -176,8 +178,9 @@ fn ssh_solo() {
 }
 
 fn ssh_in() {
-    let inbound = inbound_sessions();
-    if inbound.is_empty() || outbound_sessions().is_empty() {
+    let scan = Scan::take();
+    let inbound = scan.inbound();
+    if inbound.is_empty() || scan.outbound().is_empty() {
         print_json(json!({"text": ""}));
         return;
     }
@@ -189,8 +192,9 @@ fn ssh_in() {
 }
 
 fn ssh_out() {
-    let outbound = outbound_sessions();
-    if outbound.is_empty() || inbound_sessions().is_empty() {
+    let scan = Scan::take();
+    let outbound = scan.outbound();
+    if outbound.is_empty() || scan.inbound().is_empty() {
         print_json(json!({"text": ""}));
         return;
     }
@@ -231,79 +235,109 @@ fn escape_markup(text: &str) -> String {
         .replace('>', "&gt;")
 }
 
-// Live sockets, not utmp: that table writes a row per tmux pane, and a dropped
-// client leaves a sshd-session process with no socket. Neither one is access.
-fn inbound_sessions() -> Vec<Session> {
-    let ports = sshd_ports(&fs::read_to_string(SSHD_CONFIG).unwrap_or_default());
-    let mut logins: Vec<Option<Login>> = who_entries(&who_output()).into_iter().map(Some).collect();
-
-    let mosh: Vec<Session> = processes()
-        .into_iter()
-        .filter(|process| process.comm == "mosh-server")
-        .map(|process| {
-            let login = take_login(&mut logins, |login| {
-                mosh_pid(&login.host) == Some(process.pid)
-            });
-            Session {
-                kind: "mosh",
-                peer: login.as_ref().map_or_else(
-                    || "unknown".to_owned(),
-                    |login| host_address(&login.host).to_owned(),
-                ),
-                label: login.map(|login| format!("{}@{}", login.user, login.terminal)),
-            }
-        })
-        .collect();
-
-    let mut sessions: Vec<Session> = established_connections()
-        .into_iter()
-        .filter(|connection| ports.contains(&connection.local_port))
-        .map(|connection| Session {
-            kind: "ssh",
-            label: claim_login(&mut logins, |login| {
-                ssh_login_matches(login, &connection.peer)
-            }),
-            peer: connection.peer,
-        })
-        .collect();
-
-    sessions.extend(mosh);
-    sessions
+struct Scan {
+    processes: Vec<Process>,
+    connections: Vec<Connection>,
 }
 
-fn outbound_sessions() -> Vec<Session> {
-    let Ok(uid) = fs::metadata("/proc/self").map(|metadata| metadata.uid()) else {
-        return Vec::new();
-    };
-    let connections = established_connections();
+impl Scan {
+    fn take() -> Self {
+        Self {
+            processes: session_processes(),
+            connections: established_connections(),
+        }
+    }
 
-    processes()
-        .into_iter()
-        .filter(|process| process.uid == uid)
-        .filter_map(|process| {
-            let arguments = arguments(&process.path);
-            match process.comm.as_str() {
-                "ssh" => Some(Session {
-                    kind: if arguments.iter().any(|argument| argument == "-N") {
-                        "tunnel"
-                    } else {
-                        "ssh"
-                    },
-                    peer: socket_peers(&process.path, &connections)
-                        .first()
-                        .cloned()
-                        .unwrap_or_else(|| "multiplexed".to_owned()),
-                    label: ssh_target(&arguments),
+    // Live sockets, not utmp: that table writes a row per tmux pane, and a dropped
+    // client leaves a sshd-session process with no socket. Neither one is access.
+    fn inbound(&self) -> Vec<Session> {
+        let ports = sshd_ports(&fs::read_to_string(SSHD_CONFIG).unwrap_or_default());
+
+        let servers: Vec<&Process> = self
+            .processes
+            .iter()
+            .filter(|process| process.comm == "mosh-server")
+            .collect();
+        let inbound: Vec<&Connection> = self
+            .connections
+            .iter()
+            .filter(|connection| ports.contains(&connection.local_port))
+            .collect();
+
+        if servers.is_empty() && inbound.is_empty() {
+            return Vec::new();
+        }
+
+        let mut logins: Vec<Option<Login>> =
+            who_entries(&who_output()).into_iter().map(Some).collect();
+
+        let mosh: Vec<Session> = servers
+            .into_iter()
+            .map(|process| {
+                let login = take_login(&mut logins, |login| {
+                    mosh_pid(&login.host) == Some(process.pid)
+                });
+                Session {
+                    kind: "mosh",
+                    peer: login.as_ref().map_or_else(
+                        || "unknown".to_owned(),
+                        |login| host_address(&login.host).to_owned(),
+                    ),
+                    label: login.map(|login| format!("{}@{}", login.user, login.terminal)),
+                }
+            })
+            .collect();
+
+        let mut sessions: Vec<Session> = inbound
+            .into_iter()
+            .map(|connection| Session {
+                kind: "ssh",
+                label: claim_login(&mut logins, |login| {
+                    ssh_login_matches(login, &connection.peer)
                 }),
+                peer: connection.peer.clone(),
+            })
+            .collect();
+
+        sessions.extend(mosh);
+        sessions
+    }
+
+    fn outbound(&self) -> Vec<Session> {
+        let Ok(uid) = fs::metadata("/proc/self").map(|metadata| metadata.uid()) else {
+            return Vec::new();
+        };
+        let sockets = socket_index(&self.connections);
+
+        self.processes
+            .iter()
+            .filter(|process| process.uid == uid)
+            .filter_map(|process| match process.comm.as_str() {
+                "ssh" => {
+                    let arguments = arguments(&process.path);
+                    Some(Session {
+                        kind: if arguments.iter().any(|argument| argument == "-N") {
+                            "tunnel"
+                        } else {
+                            "ssh"
+                        },
+                        peer: socket_peers(&process.path, &sockets)
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| "multiplexed".to_owned()),
+                        label: ssh_target(&arguments),
+                    })
+                }
                 "mosh-client" => Some(Session {
                     kind: "mosh",
-                    peer: mosh_client_peer(&arguments).unwrap_or_else(|| "unknown".to_owned()),
+                    peer: mosh_client_peer(&arguments(&process.path))
+                        .unwrap_or_else(|| "unknown".to_owned()),
                     label: None,
                 }),
                 _ => None,
-            }
-        })
-        .collect()
+            })
+            .collect()
+    }
 }
 
 fn who_output() -> String {
@@ -459,7 +493,9 @@ struct Process {
     uid: u32,
 }
 
-fn processes() -> Vec<Process> {
+const SESSION_COMMS: [&str; 3] = ["mosh-server", "ssh", "mosh-client"];
+
+fn session_processes() -> Vec<Process> {
     let Ok(entries) = fs::read_dir("/proc") else {
         return Vec::new();
     };
@@ -470,10 +506,14 @@ fn processes() -> Vec<Process> {
             let name = entry.file_name();
             let pid = name.to_str()?.parse().ok()?;
             let path = entry.path();
+            let comm = read_comm(&path.join("comm"))?;
+            if !SESSION_COMMS.contains(&comm.as_str()) {
+                return None;
+            }
             Some(Process {
                 pid,
-                comm: read_trimmed(path.join("comm"))?,
                 uid: fs::metadata(&path).ok()?.uid(),
+                comm,
                 path,
             })
         })
@@ -489,7 +529,14 @@ fn arguments(path: &Path) -> Vec<String> {
         .collect()
 }
 
-fn socket_peers(path: &Path, connections: &[Connection]) -> Vec<String> {
+fn socket_index(connections: &[Connection]) -> HashMap<u64, &Connection> {
+    connections
+        .iter()
+        .map(|connection| (connection.inode, connection))
+        .collect()
+}
+
+fn socket_peers(path: &Path, sockets: &HashMap<u64, &Connection>) -> Vec<String> {
     let Ok(descriptors) = fs::read_dir(path.join("fd")) else {
         return Vec::new();
     };
@@ -504,9 +551,7 @@ fn socket_peers(path: &Path, connections: &[Connection]) -> Vec<String> {
                 .strip_suffix(']')?
                 .parse::<u64>()
                 .ok()?;
-            let connection = connections
-                .iter()
-                .find(|connection| connection.inode == inode)?;
+            let connection = sockets.get(&inode)?;
             Some(format!("{}:{}", connection.peer, connection.peer_port))
         })
         .collect()
@@ -617,6 +662,13 @@ fn connected_tailscale(online: usize, total: usize) {
 
 fn disconnected_tailscale() {
     print_json(json!({"text": "\u{e9ff} off", "class": "disconnected"}));
+}
+
+fn read_comm(path: &Path) -> Option<String> {
+    let mut file = fs::File::open(path).ok()?;
+    let mut buffer = [0u8; 32];
+    let read = file.read(&mut buffer).ok()?;
+    Some(std::str::from_utf8(&buffer[..read]).ok()?.trim().to_owned())
 }
 
 fn read_trimmed(path: impl AsRef<Path>) -> Option<String> {
