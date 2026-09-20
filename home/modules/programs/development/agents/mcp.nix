@@ -7,6 +7,12 @@
   ...
 }: let
   encore = inputs.encore.packages.${system}.encore;
+
+  isSkillFile = name: lib.any (p: lib.hasPrefix p name) [".agents/skills/" ".claude/skills/"];
+  skillStoreRoots =
+    lib.unique
+    (lib.mapAttrsToList (_: v: builtins.dirOf (toString v.source))
+      (lib.filterAttrs (name: _: isSkillFile name) config.home.file));
 in {
   home.packages = [pkgs.codebase-memory-mcp];
 
@@ -18,12 +24,14 @@ in {
       {
         name = "filesystem";
         package = pkgs.mcp-server-filesystem;
-        args = [
-          "."
-          "/tmp"
-          "${config.home.homeDirectory}/.agents/skills"
-          "${config.home.homeDirectory}/.claude/skills"
-        ];
+        args =
+          [
+            "."
+            "/tmp"
+            "${config.home.homeDirectory}/.agents/skills"
+            "${config.home.homeDirectory}/.claude/skills"
+          ]
+          ++ skillStoreRoots;
         scope = "workspace";
       }
       {
