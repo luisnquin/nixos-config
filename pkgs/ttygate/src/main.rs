@@ -1,5 +1,6 @@
 mod app;
 mod ascii_animation;
+mod bg;
 mod config;
 mod greetd;
 mod logs;
@@ -243,7 +244,10 @@ fn ascii_demo_draw(f: &mut Frame, tick: u64, theme: &Theme) {
     f.render_widget(Paragraph::new(sprite), body);
 
     f.render_widget(
-        Paragraph::new("ascii demo   ·   q / ESC quit")
+        Paragraph::new(format!(
+            "ascii demo   ·   {}   ·   q / ESC quit",
+            ascii_animation::current_name(tick)
+        ))
             .alignment(Alignment::Center)
             .style(Style::default().fg(theme.dim).add_modifier(Modifier::BOLD)),
         foot,
