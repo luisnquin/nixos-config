@@ -291,8 +291,10 @@ fn span_of(centre: f32, half: f32, n: usize) -> (usize, usize) {
     (lo as usize, hi as usize)
 }
 
+const SHRINK: usize = 2;
+
 pub fn render_at(tick: f32, place: Place, d: &mut Dots) {
-    let mut f = Field::dots(d);
+    let mut f = Field::dots_shrunk(d, SHRINK);
     shade(tick, place, &mut f);
     f.dither_dots(d, 0.0);
 }
@@ -367,7 +369,7 @@ mod tests {
     fn projected_box_covers_every_hit() {
         let (w, h) = (240usize, 67usize);
         let d = Dots::new(w, h);
-        let f = Field::dots(&d);
+        let f = Field::dots_shrunk(&d, SHRINK);
         let span = f.h as f32 * 0.5 * f.row_pitch;
 
         for i in 0..24 {
