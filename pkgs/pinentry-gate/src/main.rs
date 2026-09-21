@@ -10,6 +10,7 @@ mod assuan;
 mod broker;
 mod config;
 mod modal;
+mod paint;
 mod phone;
 mod seat;
 mod signals;

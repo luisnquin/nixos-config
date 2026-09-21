@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::assuan::Payload;
+use ttycanvas::carousel::Carousel;
+use crate::paint::{self, Ink, Screen};
 use crate::signals::{self, interrupted};
 
 const VT_GETSTATE: libc::c_ulong = 0x5603;
@@ -140,10 +142,28 @@ fn label(text: &str, fallback: &str) -> String {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Tone {
+    Title,
+    Body,
+    Error,
+    Dim,
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct Row {
+    pub text: String,
+    pub tone: Tone,
+}
+
+fn row(text: impl Into<String>, tone: Tone) -> Row {
+    Row { text: text.into(), tone }
+}
+
 /// A rendered request: fixed lines above the field, the field, the footer.
 pub struct Frame {
     pub inner: usize,
-    pub head: Vec<String>,
+    pub head: Vec<Row>,
     pub field_label: String,
     pub footer: String,
     pub mode: String,
@@ -151,18 +171,17 @@ pub struct Frame {
 
 pub fn layout(payload: &Payload, cols: u16) -> Frame {
     let inner = (usize::from(cols).saturating_sub(4)).clamp(24, 72);
-    let mut head = Vec::new();
-    head.push(format!("\x1b[1;33m{}\x1b[0m", "AUTHORIZATION REQUIRED"));
-    head.push(String::new());
+    let mut head = vec![
+        row("AUTHORIZATION REQUIRED", Tone::Title),
+        row("", Tone::Body),
+    ];
     if !payload.desc.is_empty() {
-        head.extend(wrap(&payload.desc, inner - 2));
-        head.push(String::new());
+        head.extend(wrap(&payload.desc, inner - 2).into_iter().map(|l| row(l, Tone::Body)));
+        head.push(row("", Tone::Body));
     }
     if !payload.error.is_empty() {
-        for line in wrap(&payload.error, inner - 2) {
-            head.push(format!("\x1b[1;31m{line}\x1b[0m"));
-        }
-        head.push(String::new());
+        head.extend(wrap(&payload.error, inner - 2).into_iter().map(|l| row(l, Tone::Error)));
+        head.push(row("", Tone::Body));
     }
     let ok = label(&payload.ok, "OK");
     let cancel = label(&payload.cancel, "CANCEL");
@@ -174,21 +193,13 @@ pub fn layout(payload: &Payload, cols: u16) -> Frame {
     Frame { inner, head, field_label, footer, mode: payload.mode.clone() }
 }
 
-fn visible_len(text: &str) -> usize {
-    let mut len = 0;
-    let mut in_escape = false;
-    for c in text.chars() {
-        if in_escape {
-            if c.is_ascii_alphabetic() {
-                in_escape = false;
-            }
-        } else if c == '\x1b' {
-            in_escape = true;
-        } else {
-            len += 1;
-        }
+fn ink(ch: char, tone: Tone) -> Ink {
+    match tone {
+        Tone::Title => Ink::bold(ch, paint::ACCENT),
+        Tone::Error => Ink::bold(ch, paint::ERROR),
+        Tone::Body => Ink::new(ch, paint::FG),
+        Tone::Dim => Ink::new(ch, paint::DIM),
     }
-    len
 }
 
 impl Frame {
@@ -196,40 +207,68 @@ impl Frame {
         if self.field_label.is_empty() {
             return String::new();
         }
-        let mask: String = "*".repeat(typed);
-        let line = format!("{} > {mask}", self.field_label);
         let room = self.inner - 2;
-        if visible_len(&line) > room {
-            let keep = room.saturating_sub(self.field_label.len() + 4);
+        let line = format!("{} > {}", self.field_label, "*".repeat(typed));
+        if line.chars().count() > room {
+            let keep = room.saturating_sub(self.field_label.chars().count() + 4);
             format!("{} > …{}", self.field_label, "*".repeat(keep))
         } else {
             line
         }
     }
 
-    pub fn render(&self, typed: usize, cols: u16, rows: u16) -> Vec<u8> {
-        let mut body: Vec<String> = self.head.clone();
+    pub fn width(&self) -> usize {
+        self.inner + 2
+    }
+
+    pub fn lines(&self, typed: usize) -> Vec<Row> {
+        let mut body = self.head.clone();
         let field = self.field(typed);
         if !field.is_empty() {
-            body.push(field);
-            body.push(String::new());
+            body.push(row(field, Tone::Body));
+            body.push(row("", Tone::Body));
         }
-        body.push(format!("\x1b[2m{}\x1b[0m", self.footer));
-        let height = body.len() + 2;
-        let left = usize::from(cols).saturating_sub(self.inner + 2) / 2;
-        let top = usize::from(rows).saturating_sub(height) / 2;
-        let pad = " ".repeat(left);
-        let mut out = Vec::new();
-        out.extend_from_slice(b"\x1b[?25l\x1b[2J\x1b[H");
-        let mut lines = Vec::with_capacity(height);
-        lines.push(format!("{pad}┌{}┐", "─".repeat(self.inner)));
-        for line in &body {
-            let fill = self.inner.saturating_sub(visible_len(line) + 2);
-            lines.push(format!("{pad}│ {line}{} │", " ".repeat(fill)));
+        body.push(row(self.footer.clone(), Tone::Dim));
+        for line in &mut body {
+            let fill = (self.inner - 2).saturating_sub(line.text.chars().count());
+            line.text.push_str(&" ".repeat(fill));
         }
-        lines.push(format!("{pad}└{}┘", "─".repeat(self.inner)));
+        body
+    }
+
+    pub fn paint(&self, typed: usize, cols: u16, rows: u16, bg: &[Ink]) -> Vec<Ink> {
+        let (w, h) = (usize::from(cols), usize::from(rows));
+        let mut out = if bg.len() == w * h {
+            bg.to_vec()
+        } else {
+            vec![Ink::default(); w * h]
+        };
+        let lines = self.lines(typed);
+        let left = w.saturating_sub(self.width()) / 2;
+        let top = h.saturating_sub(lines.len() + 2) / 2;
+        let mut put = |x: usize, y: usize, ch: char, tone: Tone| {
+            if x < w && y < h {
+                out[y * w + x] = ink(ch, tone);
+            }
+        };
+        let (bottom, right) = (top + lines.len() + 1, left + self.inner + 1);
+        for i in 1..=self.inner {
+            put(left + i, top, '─', Tone::Dim);
+            put(left + i, bottom, '─', Tone::Dim);
+        }
+        put(left, top, '┌', Tone::Dim);
+        put(right, top, '┐', Tone::Dim);
+        put(left, bottom, '└', Tone::Dim);
+        put(right, bottom, '┘', Tone::Dim);
         for (i, line) in lines.iter().enumerate() {
-            out.extend_from_slice(format!("\x1b[{};1H{line}", top + i + 1).as_bytes());
+            let y = top + i + 1;
+            put(left, y, '│', Tone::Dim);
+            put(right, y, '│', Tone::Dim);
+            put(left + 1, y, ' ', Tone::Dim);
+            put(left + self.inner, y, ' ', Tone::Dim);
+            for (j, ch) in line.text.chars().enumerate() {
+                put(left + 2 + j, y, ch, line.tone);
+            }
         }
         out
     }
@@ -278,7 +317,10 @@ pub fn read_answer(fd: i32, mode: &str, mut draw: impl FnMut(usize)) -> Outcome 
         }
         let byte = match read_byte(fd, 100) {
             None => return Outcome::Interrupted,
-            Some(None) => continue,
+            Some(None) => {
+                draw(pin.len());
+                continue;
+            }
             Some(Some(byte)) => byte,
         };
         match byte {
@@ -332,8 +374,15 @@ pub fn deliver(fifo: &Path, answer: Option<String>) -> bool {
 pub fn run(console: &Console, payload: &Payload) -> Outcome {
     let (cols, rows) = size(console.raw());
     let frame = layout(payload, cols);
+    let carousel = Carousel::from_clock();
+    let mut screen = Screen::new(usize::from(cols), usize::from(rows));
+    let mut tick: u64 = 0;
     console.write(b"\x1b[?1049h");
-    read_answer(console.raw(), &frame.mode, |typed| console.write(&frame.render(typed, cols, rows)))
+    read_answer(console.raw(), &frame.mode, |typed| {
+        let bg = paint::background(&carousel, tick, screen.w, screen.h);
+        console.write(&screen.flush(&frame.paint(typed, cols, rows, &bg)));
+        tick += 1;
+    })
 }
 
 struct Args {
@@ -469,26 +518,67 @@ mod tests {
         let frame = layout(&payload, 60);
         assert_eq!(frame.inner, 56);
         assert_eq!(frame.field_label, "PASSPHRASE");
-        assert!(frame.head.iter().any(|l| l.contains("Bad Passphrase") && l.contains("\x1b[1;31m")));
-        let out = String::from_utf8(frame.render(4, 60, 24)).unwrap();
-        assert!(out.contains("PASSPHRASE > ****"));
-        assert!(out.contains("┌"));
-        let mut lines: Vec<String> = Vec::new();
-        for chunk in out.split("\x1b[") {
-            let is_move = chunk.find(";1H").is_some_and(|at| chunk[..at].chars().all(|c| c.is_ascii_digit()));
-            if is_move {
-                lines.push(chunk[chunk.find(";1H").unwrap() + 3..].to_string());
-            } else if let Some(last) = lines.last_mut() {
-                last.push_str("\x1b[");
-                last.push_str(chunk);
-            }
-        }
-        assert!(lines.len() > 5);
+        assert!(frame
+            .head
+            .iter()
+            .any(|l| l.text.contains("Bad Passphrase") && l.tone == Tone::Error));
+
+        let lines = frame.lines(4);
+        assert!(lines.iter().any(|l| l.text.starts_with("PASSPHRASE > ****")));
         for line in &lines {
-            assert_eq!(visible_len(line), 1 + 56 + 2, "{line:?}");
+            assert_eq!(line.text.chars().count(), 54, "{:?}", line.text);
         }
+
+        let grid = grid(&frame, 4, 60, 24);
+        assert!(grid.iter().any(|r| r.contains('┌')));
+        let boxed: Vec<&String> = grid.iter().filter(|r| r.contains('│') || r.contains('┌') || r.contains('└')).collect();
+        assert_eq!(boxed.len(), lines.len() + 2);
+        for line in &boxed {
+            let drawn = line.trim_end_matches(' ').trim_start_matches(' ');
+            assert_eq!(drawn.chars().count(), 58, "{drawn:?}");
+        }
+
         let tiny = layout(&payload, 20);
         assert_eq!(tiny.inner, 24);
+    }
+
+    fn grid(frame: &Frame, typed: usize, cols: u16, rows: u16) -> Vec<String> {
+        let blank = vec![Ink::default(); usize::from(cols) * usize::from(rows)];
+        frame
+            .paint(typed, cols, rows, &blank)
+            .chunks_exact(usize::from(cols))
+            .map(|row| row.iter().map(|i| i.ch).collect())
+            .collect()
+    }
+
+    #[test]
+    fn the_box_is_opaque_over_the_background() {
+        let payload = Payload { mode: "pin".into(), prompt: "Passphrase:".into(), ..Payload::default() };
+        let frame = layout(&payload, 80);
+        let noisy = vec![Ink::new('@', paint::ACCENT); 80 * 24];
+        let painted = frame.paint(3, 80, 24, &noisy);
+        let left = (80 - frame.width()) / 2;
+        let top = (24 - (frame.lines(3).len() + 2)) / 2;
+        for i in 0..frame.width() {
+            assert_ne!(painted[top * 80 + left + i].ch, '@', "background bled through the border");
+        }
+        let field = painted[(top + frame.head.len() + 1) * 80 + left + 2..][..10]
+            .iter()
+            .map(|i| i.ch)
+            .collect::<String>();
+        assert!(field.starts_with("PASSPHRASE"), "field overwritten by the background: {field:?}");
+    }
+
+    #[test]
+    fn the_background_advances_while_nothing_is_typed() {
+        let mut screen = Screen::new(40, 12);
+        let payload = Payload { mode: "pin".into(), ..Payload::default() };
+        let frame = layout(&payload, 40);
+        let carousel = Carousel::new(5);
+        let first = screen.flush(&frame.paint(0, 40, 12, &paint::background(&carousel, 0, 40, 12)));
+        let second = screen.flush(&frame.paint(0, 40, 12, &paint::background(&carousel, 1, 40, 12)));
+        assert!(!first.is_empty());
+        assert!(second.len() > 8, "a tick with no keystroke produced no repaint");
     }
 
     #[test]

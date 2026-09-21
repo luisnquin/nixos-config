@@ -34,6 +34,7 @@ dependencies = [
  "libc",
  "serde",
  "serde_json",
+ "ttycanvas",
 ]
 
 [[package]]
@@ -107,6 +108,10 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "ttycanvas"
+version = "0.1.0"
 
 [[package]]
 name = "unicode-ident"

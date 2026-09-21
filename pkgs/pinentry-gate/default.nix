@@ -7,14 +7,20 @@ rustPlatform.buildRustPackage {
   pname = "pinentry-gate";
   version = "0.1.0";
 
+  # Rooted at pkgs/ so the ttycanvas path dependency resolves inside the store
+  # copy; sourceRoot puts cargo back in this package.
   src = lib.fileset.toSource {
-    root = ./.;
+    root = ../.;
     fileset = lib.fileset.unions [
       ./Cargo.toml
       ./Cargo.lock
       ./src
+      ../ttycanvas/Cargo.toml
+      ../ttycanvas/src
     ];
   };
+
+  sourceRoot = "source/pinentry-gate";
 
   cargoLock.lockFile = ./Cargo.lock;
 
