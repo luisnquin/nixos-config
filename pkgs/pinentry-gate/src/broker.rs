@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use crate::assuan::Request;
 use crate::config::Config;
 use crate::signals::interrupted;
-use crate::{phone, seat};
+use crate::{fifo, phone, seat};
 
 /// A surface is started with the fifo it answers on and the file describing
 /// the request; it hands back the process, or None when it cannot start.
@@ -107,6 +107,24 @@ fn stop(child: &mut Option<Child>) {
     let _ = proc.wait();
 }
 
+fn sweep(runtime: &Path) {
+    let Ok(entries) = fs::read_dir(runtime) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let request_file = entry.path();
+        if request_file.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let pipe = request_file.with_extension("");
+        if fifo::live(&pipe) {
+            continue;
+        }
+        let _ = fs::remove_file(&pipe);
+        let _ = fs::remove_file(&request_file);
+    }
+}
+
 fn random_id() -> String {
     let mut bytes = [0u8; 8];
     if File::open("/dev/urandom").and_then(|mut f| f.read_exact(&mut bytes)).is_err() {
@@ -148,6 +166,7 @@ impl Broker {
             return None;
         }
         let _ = fs::set_permissions(&self.runtime, fs::Permissions::from_mode(0o700));
+        sweep(&self.runtime);
         let id = random_id();
         let fifo = self.runtime.join(&id);
         let request_file = self.runtime.join(format!("{id}.json"));
@@ -374,6 +393,47 @@ mod tests {
         assert!(started.elapsed() < Duration::from_secs(5));
         let told = told.lock().unwrap();
         assert_eq!(told[0].0, vec![PathBuf::from("/dev/pts/99")]);
+    }
+
+    fn stale(name: &str) -> PathBuf {
+        let dir = scratch(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        let pipe = dir.join("ae7fd1b08f6b0c89");
+        let path = std::ffi::CString::new(pipe.as_os_str().as_encoded_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
+        std::fs::write(dir.join("ae7fd1b08f6b0c89.json"), "{}").unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_request_no_one_reads_is_swept() {
+        let dir = stale("swept");
+        sweep(&dir);
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn a_request_still_held_survives_the_sweep() {
+        let dir = stale("held");
+        let pipe = dir.join("ae7fd1b08f6b0c89");
+        let _reader = OpenOptions::new().read(true).write(true).custom_flags(libc::O_NONBLOCK).open(&pipe).unwrap();
+        sweep(&dir);
+        assert!(pipe.exists());
+        assert!(dir.join("ae7fd1b08f6b0c89.json").exists());
+    }
+
+    #[test]
+    fn asking_sweeps_what_an_earlier_broker_left() {
+        let dir = stale("on-ask");
+        let mut b = Broker::with(
+            Config { user: "me".into(), timeout: 5, ..Config::default() },
+            dir.clone(),
+            Box::new(|_, _| vec![shell("printf 'pin\\n' > \"$FIFO\"")]),
+            Box::new(|_, _, _| Vec::new()),
+            Box::new(|_, _| {}),
+        );
+        assert_eq!(b.ask(&Request::default()), Some("pin".into()));
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
     }
 
     #[test]

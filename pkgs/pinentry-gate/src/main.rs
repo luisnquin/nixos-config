@@ -6,9 +6,11 @@
 //! otherwise) and an escape sequence into every terminal that marked its pty.
 //! The first decision wins and the others withdraw.
 
+mod answer;
 mod assuan;
 mod broker;
 mod config;
+mod fifo;
 mod modal;
 mod paint;
 mod phone;
@@ -19,8 +21,16 @@ use std::io;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.first().map(String::as_str) == Some("modal") {
-        std::process::exit(modal::main(&args[1..]));
+    if let Some(word) = args.first().filter(|arg| !arg.starts_with('-')) {
+        let code = match word.as_str() {
+            "modal" => modal::main(&args[1..]),
+            "answer" => answer::main(&args[1..]),
+            _ => {
+                eprintln!("pinentry-gate: unknown subcommand: {word}");
+                2
+            }
+        };
+        std::process::exit(code);
     }
     // Anything else on the command line is gpg-agent's habit of passing
     // --display and friends; every decision arrives over Assuan.

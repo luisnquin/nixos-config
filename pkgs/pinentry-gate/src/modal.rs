@@ -3,7 +3,6 @@
 //! console it switches to.
 
 use std::fs::OpenOptions;
-use std::io::Write;
 use std::os::unix::io::{AsRawFd, OwnedFd};
 use std::path::{Path, PathBuf};
 #[cfg(test)]
@@ -368,12 +367,9 @@ pub fn read_answer(fd: i32, mode: &str, mut draw: impl FnMut(usize)) -> Outcome 
 /// created: once the broker has removed it another surface has already won,
 /// and a passphrase must not end up in a regular file in its place.
 pub fn deliver(fifo: &Path, answer: Option<String>) -> bool {
-    let Ok(mut file) = OpenOptions::new().write(true).open(fifo) else {
-        return false;
-    };
     let mut line = answer.unwrap_or_default();
     line.push('\n');
-    file.write_all(line.as_bytes()).is_ok()
+    crate::fifo::deliver(fifo, &line)
 }
 
 pub fn open_sound(cfg: &SoundConfig) -> Option<Sound> {
