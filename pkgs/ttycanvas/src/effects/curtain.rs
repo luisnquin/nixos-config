@@ -1,6 +1,6 @@
 use super::surge;
-use crate::bg::grid::{ramp_pick, Grid, RAMP_FULL};
-use crate::bg::noise::{bayer, hash01};
+use crate::grid::{ramp_pick, Grid, RAMP_FULL};
+use crate::noise::{bayer, hash01};
 
 const STRIP: i32 = 3;
 pub const FLICKER: f32 = 0.22;

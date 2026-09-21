@@ -1,6 +1,6 @@
 use super::surge;
-use crate::bg::grid::Grid;
-use crate::bg::noise::{bayer, value_noise};
+use crate::grid::Grid;
+use crate::noise::{bayer, value_noise};
 
 pub const PITCH_X: usize = 3;
 pub const PITCH_Y: usize = 2;

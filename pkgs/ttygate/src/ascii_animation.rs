@@ -3,9 +3,9 @@ use std::sync::OnceLock;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span, Text};
 
-use crate::bg::carousel::Carousel;
-use crate::bg::noise::bayer;
-use crate::bg::{self, Cell};
+use ttycanvas::carousel::Carousel;
+use ttycanvas::noise::bayer;
+use ttycanvas::{self as bg, Cell};
 use crate::theme::Theme;
 
 static CAROUSEL: OnceLock<Carousel> = OnceLock::new();
@@ -95,8 +95,8 @@ fn mix(a: u8, b: u8, t: f32) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bg::carousel::SLOT;
-    use crate::bg::effects::ENTRIES;
+    use ttycanvas::carousel::SLOT;
+    use ttycanvas::effects::ENTRIES;
     use crate::theme::{Accent, Theme};
 
     fn plain(text: &Text) -> String {

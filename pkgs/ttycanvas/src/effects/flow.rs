@@ -1,6 +1,6 @@
 use super::surge;
-use crate::bg::dots::Dots;
-use crate::bg::noise::{bayer, fbm, value_noise};
+use crate::dots::Dots;
+use crate::noise::{bayer, fbm, value_noise};
 
 const SCALE: f32 = 0.011;
 pub const DRIFT_X: f32 = 0.018;

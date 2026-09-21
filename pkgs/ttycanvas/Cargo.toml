@@ -1,0 +1,8 @@
+[package]
+name = "ttycanvas"
+version = "0.1.0"
+edition = "2021"
+description = "procedural character-cell backgrounds for console surfaces"
+license = "MIT"
+
+[dependencies]

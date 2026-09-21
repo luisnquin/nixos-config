@@ -1,5 +1,5 @@
-use crate::bg::dots::Dots;
-use crate::bg::noise::hash01;
+use crate::dots::Dots;
+use crate::noise::hash01;
 
 const GROUP: i32 = 4;
 const EPOCH: f32 = 1.5;

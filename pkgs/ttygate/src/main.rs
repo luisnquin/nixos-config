@@ -1,6 +1,5 @@
 mod app;
 mod ascii_animation;
-mod bg;
 mod config;
 mod greetd;
 mod logs;

@@ -1,5 +1,5 @@
-use crate::bg::dots::Dots;
-use crate::bg::field::Field;
+use crate::dots::Dots;
+use crate::field::Field;
 
 const CAM_Z: f32 = 3.0;
 const FOV: f32 = 0.45;

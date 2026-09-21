@@ -1,7 +1,7 @@
 use super::surge;
-use crate::bg::dots::Dots;
-use crate::bg::field::Field;
-use crate::bg::noise::hash01;
+use crate::dots::Dots;
+use crate::field::Field;
+use crate::noise::hash01;
 
 const DOT: f32 = 0.5;
 const DEPTH_K: f32 = 150.0;

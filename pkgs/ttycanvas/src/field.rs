@@ -1,5 +1,5 @@
-use crate::bg::dots::Dots;
-use crate::bg::noise::bayer;
+use crate::dots::Dots;
+use crate::noise::bayer;
 
 pub struct Field {
     pub w: usize,

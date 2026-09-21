@@ -1,4 +1,4 @@
-use crate::bg::{Cell, RAMP};
+use crate::{Cell, RAMP};
 
 const ASPECT: f32 = 2.0;
 const DEPTH_SCALE: f32 = 22.0;

@@ -1,6 +1,6 @@
 use super::{glitch, lattice, skull};
-use crate::bg::dots::Dots;
-use crate::bg::noise::{bayer, hash01};
+use crate::dots::Dots;
+use crate::noise::{bayer, hash01};
 
 const PITCH: usize = 4;
 

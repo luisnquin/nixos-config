@@ -1,6 +1,6 @@
-use crate::bg::dots::Dots;
-use crate::bg::grid::Grid;
-use crate::bg::Cell;
+use crate::dots::Dots;
+use crate::grid::Grid;
+use crate::Cell;
 
 pub mod curtain;
 pub mod flow;
