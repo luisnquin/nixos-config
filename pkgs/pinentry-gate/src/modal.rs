@@ -8,11 +8,16 @@ use std::os::unix::io::{AsRawFd, OwnedFd};
 use std::path::{Path, PathBuf};
 #[cfg(test)]
 use std::time::Duration;
+use std::time::Instant;
 
 use crate::assuan::Payload;
+use crate::config::{Config, SoundConfig};
+use ttycanvas::audio::{Cue, Options, Sound};
 use ttycanvas::carousel::Carousel;
 use crate::paint::{self, Ink, Screen};
 use crate::signals::{self, interrupted};
+
+const TICK_MS: u64 = 100;
 
 const VT_GETSTATE: libc::c_ulong = 0x5603;
 const VT_ACTIVATE: libc::c_ulong = 0x5606;
@@ -371,17 +376,41 @@ pub fn deliver(fifo: &Path, answer: Option<String>) -> bool {
     file.write_all(line.as_bytes()).is_ok()
 }
 
-pub fn run(console: &Console, payload: &Payload) -> Outcome {
+pub fn open_sound(cfg: &SoundConfig) -> Option<Sound> {
+    if !cfg.enable {
+        return None;
+    }
+    let options = Options {
+        device: cfg.device.clone(),
+        volume: cfg.volume,
+        tick_ms: TICK_MS,
+    };
+    Sound::open(options, Carousel::from_clock())
+}
+
+/// The picture and the sound share one clock, so a tick is wall time, not a
+/// draw count: keystrokes redraw without advancing it.
+pub fn run(console: &Console, payload: &Payload, sound: Option<&Sound>) -> Outcome {
     let (cols, rows) = size(console.raw());
     let frame = layout(payload, cols);
     let carousel = Carousel::from_clock();
     let mut screen = Screen::new(usize::from(cols), usize::from(rows));
-    let mut tick: u64 = 0;
+    let started = Instant::now();
+    let mut typed_before = 0;
     console.write(b"\x1b[?1049h");
     read_answer(console.raw(), &frame.mode, |typed| {
+        let tick = (started.elapsed().as_millis() / u128::from(TICK_MS)) as u64;
+        if let Some(sound) = sound {
+            sound.tick(tick);
+            if typed > typed_before {
+                sound.cue(Cue::Key);
+            } else if typed < typed_before {
+                sound.cue(Cue::Erase);
+            }
+        }
+        typed_before = typed;
         let bg = paint::background(&carousel, tick, screen.w, screen.h);
         console.write(&screen.flush(&frame.paint(typed, cols, rows, &bg)));
-        tick += 1;
     })
 }
 
@@ -421,18 +450,30 @@ pub fn main(args: &[String]) -> i32 {
         Some(vt) => PathBuf::from(format!("/dev/tty{vt}")),
         None => PathBuf::from("/dev/tty"),
     };
+    let sound = open_sound(&Config::load().sound);
     let Some(console) = Console::take(&device, args.vt) else {
         return 3;
     };
-    let outcome = run(&console, &payload);
+    let outcome = run(&console, &payload, sound.as_ref());
+    if let Some(sound) = &sound {
+        match &outcome {
+            Outcome::Decided(Some(_)) => sound.cue(Cue::Grant),
+            Outcome::Decided(None) => sound.cue(Cue::Cancel),
+            Outcome::Interrupted => {}
+        }
+    }
     drop(console);
-    match outcome {
+    let code = match outcome {
         Outcome::Interrupted => 4,
         Outcome::Decided(answer) => {
             deliver(&args.fifo, answer);
             0
         }
+    };
+    if let Some(sound) = sound {
+        sound.finish();
     }
+    code
 }
 
 #[cfg(test)]

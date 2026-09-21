@@ -14,10 +14,30 @@ pub struct Config {
     pub terminal: Vec<String>,
     #[serde(default = "default_timeout")]
     pub timeout: u64,
+    #[serde(default)]
+    pub sound: SoundConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SoundConfig {
+    #[serde(default = "default_true")]
+    pub enable: bool,
+    #[serde(default)]
+    pub device: Option<String>,
+    #[serde(default = "default_volume")]
+    pub volume: f32,
 }
 
 fn default_timeout() -> u64 {
     300
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_volume() -> f32 {
+    0.4
 }
 
 impl Default for Config {
@@ -27,6 +47,17 @@ impl Default for Config {
             vt: None,
             terminal: Vec::new(),
             timeout: default_timeout(),
+            sound: SoundConfig::default(),
+        }
+    }
+}
+
+impl Default for SoundConfig {
+    fn default() -> Self {
+        SoundConfig {
+            enable: true,
+            device: None,
+            volume: default_volume(),
         }
     }
 }
@@ -56,6 +87,16 @@ mod tests {
         assert_eq!(config.vt, None);
         assert!(config.terminal.is_empty());
         assert_eq!(config.timeout, 300);
+        assert!(config.sound.enable);
+        assert_eq!(config.sound.device, None);
+    }
+
+    #[test]
+    fn a_null_sound_device_is_none() {
+        let config: Config = serde_json::from_str(r#"{"sound":{"enable":false,"device":null,"volume":0.2}}"#).unwrap();
+        assert!(!config.sound.enable);
+        assert_eq!(config.sound.device, None);
+        assert_eq!(config.sound.volume, 0.2);
     }
 
     #[test]

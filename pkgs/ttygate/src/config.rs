@@ -40,6 +40,24 @@ pub struct Config {
     pub overrides: Overrides,
     pub disclaimer: Option<String>,
     pub show_help: bool,
+    pub sound: SoundConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct SoundConfig {
+    pub enable: bool,
+    pub device: Option<String>,
+    pub volume: f32,
+}
+
+impl Default for SoundConfig {
+    fn default() -> Self {
+        SoundConfig {
+            enable: true,
+            device: None,
+            volume: 0.4,
+        }
+    }
 }
 
 impl Default for Config {
@@ -53,6 +71,7 @@ impl Default for Config {
             overrides: Overrides::default(),
             disclaimer: None,
             show_help: true,
+            sound: SoundConfig::default(),
         }
     }
 }
@@ -71,6 +90,16 @@ struct FileConfig {
     disclaimer_path: Option<PathBuf>,
     #[serde(default)]
     colors: ColorsFile,
+    #[serde(default)]
+    sound: SoundFile,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SoundFile {
+    enable: Option<bool>,
+    device: Option<String>,
+    volume: Option<f32>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -125,6 +154,15 @@ impl Config {
         }
         if let Some(v) = file.show_help {
             self.show_help = v;
+        }
+        if let Some(v) = file.sound.enable {
+            self.sound.enable = v;
+        }
+        if let Some(v) = file.sound.device {
+            self.sound.device = Some(v);
+        }
+        if let Some(v) = file.sound.volume {
+            self.sound.volume = v;
         }
 
         // disclaimer_path (resolved relative to the config file) wins over the

@@ -51,6 +51,27 @@ in {
       default = 300;
       description = "Seconds a request waits for a decision before it is cancelled.";
     };
+
+    sound = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Play the synthesized soundtrack under the modal, following its background animation.";
+      };
+
+      device = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "plughw:1";
+        description = "ALSA playback device. Null tries `default`, then every card in turn.";
+      };
+
+      volume = lib.mkOption {
+        type = lib.types.float;
+        default = 0.4;
+        description = "Master gain, 0 to 1.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -58,6 +79,7 @@ in {
 
     environment.etc."pinentry-gate/config.json".text = builtins.toJSON {
       inherit (cfg) user vt terminal timeout;
+      sound = {inherit (cfg.sound) enable device volume;};
     };
 
     services.udev.extraRules = lib.mkIf (cfg.vt != null) ''

@@ -27,6 +27,12 @@
     field_background = cfg.colors.fieldBackground;
   };
 
+  sound = prune {
+    enable = cfg.sound.enable;
+    device = cfg.sound.device;
+    volume = cfg.sound.volume;
+  };
+
   settings =
     prune {
       session_cmd = cfg.sessionCmd;
@@ -38,7 +44,8 @@
       disclaimer = cfg.disclaimer;
       disclaimer_path = cfg.disclaimerPath;
     }
-    // lib.optionalAttrs (colors != {}) {inherit colors;};
+    // lib.optionalAttrs (colors != {}) {inherit colors;}
+    // {inherit sound;};
 in {
   options.programs.ttygate = {
     enable = lib.mkEnableOption "0xc000022070's greeter";
@@ -113,6 +120,31 @@ in {
       description = "Path to a file whose contents become the disclaimer.";
     };
 
+    sound = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Play the synthesized soundtrack that follows the background animation.
+          The greeter user gets the `audio` group so it can reach the sound
+          card directly; no sound server runs for it.
+        '';
+      };
+
+      device = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "plughw:1";
+        description = "ALSA playback device. Null tries `default`, then every card in turn.";
+      };
+
+      volume = lib.mkOption {
+        type = lib.types.float;
+        default = 0.4;
+        description = "Master gain, 0 to 1.";
+      };
+    };
+
     colors = {
       accent = colorOpt "status bar + focused borders";
       onAccent = colorOpt "text on the status bar";
@@ -145,7 +177,7 @@ in {
     environment.etc."ttygate/config.toml".source = cfg.configFile;
 
     users.users = lib.optionalAttrs (cfg.journalUser != null) {
-      ${cfg.journalUser}.extraGroups = ["systemd-journal"];
+      ${cfg.journalUser}.extraGroups = ["systemd-journal"] ++ lib.optional cfg.sound.enable "audio";
     };
   };
 }

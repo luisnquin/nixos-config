@@ -2,11 +2,11 @@ use crate::{Cell, RAMP};
 
 const ASPECT: f32 = 2.0;
 const DEPTH_SCALE: f32 = 22.0;
-const RING_FREQ: f32 = 1.35;
+pub const RING_FREQ: f32 = 1.35;
 const SPOKES: f32 = 7.0;
 const TWIST: f32 = 0.45;
-const ZOOM_SPEED: f32 = 0.20;
-const SPIN_SPEED: f32 = 0.03;
+pub const ZOOM_SPEED: f32 = 0.20;
+pub const SPIN_SPEED: f32 = 0.03;
 const MAX_DEPTH: f32 = 60.0;
 
 pub fn render(tick: f32, w: usize, h: usize, out: &mut [Cell]) {

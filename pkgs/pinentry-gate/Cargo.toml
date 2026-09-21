@@ -6,7 +6,7 @@ description = "a pinentry that asks on every surface at once"
 license = "MIT"
 
 [dependencies]
-ttycanvas = { path = "../ttycanvas" }
+ttycanvas = { path = "../ttycanvas", features = ["audio"] }
 base64 = "0.22"
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }

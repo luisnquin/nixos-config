@@ -22,9 +22,13 @@ pub fn render(tick: f32, d: &mut Dots) {
     let epoch = (tick / DWELL).floor();
     backdrop(tick, d);
     skull::render_at(tick, place(epoch as i32, d), d);
-    let since = tick - epoch * DWELL;
-    let heat = (1.0 - since / BURST).clamp(0.0, 1.0);
+    let heat = heat(tick);
     glitch::apply(tick, heat * heat, d);
+}
+
+pub fn heat(tick: f32) -> f32 {
+    let since = tick - (tick / DWELL).floor() * DWELL;
+    (1.0 - since / BURST).clamp(0.0, 1.0)
 }
 
 pub fn place(epoch: i32, d: &Dots) -> skull::Place {

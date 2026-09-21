@@ -1,6 +1,7 @@
 //! The VT console font has nothing in U+2800..28FF, so the braille backends
 //! fold each 2x4 dot block to its lit-dot count and shade it through `RAMP`.
 
+pub mod audio;
 pub mod carousel;
 pub mod dots;
 pub mod effects;

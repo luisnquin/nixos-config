@@ -10,7 +10,7 @@ name = "ttygate"
 path = "src/main.rs"
 
 [dependencies]
-ttycanvas = { path = "../ttycanvas" }
+ttycanvas = { path = "../ttycanvas", features = ["audio"] }
 ratatui = "0.29"
 crossterm = { version = "0.28", features = ["event-stream"] }
 greetd_ipc = { version = "0.10", features = ["tokio-codec"] }

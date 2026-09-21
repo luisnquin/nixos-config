@@ -10,6 +10,7 @@ const MAX_ENTRIES: usize = 8;
 const _: () = assert!(ENTRIES.len() <= MAX_ENTRIES);
 const _: () = assert!(!ENTRIES.is_empty());
 
+#[derive(Clone, Copy)]
 pub struct Carousel {
     seed: u64,
 }

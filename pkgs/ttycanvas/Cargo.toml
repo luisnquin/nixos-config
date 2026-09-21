@@ -5,4 +5,8 @@ edition = "2021"
 description = "procedural character-cell backgrounds for console surfaces"
 license = "MIT"
 
+[features]
+audio = ["dep:alsa"]
+
 [dependencies]
+alsa = { version = "0.12", optional = true }

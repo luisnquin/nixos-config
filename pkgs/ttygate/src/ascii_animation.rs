@@ -14,6 +14,10 @@ pub fn frame(tick: u64, w: u16, h: u16, theme: &Theme) -> Text<'static> {
     frame_with(CAROUSEL.get_or_init(Carousel::from_clock), tick, w, h, theme)
 }
 
+pub fn carousel() -> Carousel {
+    *CAROUSEL.get_or_init(Carousel::from_clock)
+}
+
 pub fn current_name(tick: u64) -> &'static str {
     CAROUSEL.get_or_init(Carousel::from_clock).at(tick).current.name
 }
