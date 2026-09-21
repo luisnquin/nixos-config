@@ -108,19 +108,23 @@ async fn event_loop<B: ratatui::backend::Backend>(
     let mut logs = LogBuffer::new(500);
     let mut events = EventStream::new();
     let mut ticker = tokio::time::interval(Duration::from_millis(120));
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     // Foreign writers (kernel/systemd) can paint over our frame; ratatui only
     // repaints cells it knows changed, so force a full repaint on the tick after
     // any log activity — adaptive noise-healing that stays quiet once boot settles.
     let mut logs_dirty = false;
     let mut force_clear = false;
+    let mut dirty = true;
 
     loop {
-        if std::mem::take(&mut force_clear) {
-            terminal.clear()?;
+        if std::mem::take(&mut dirty) {
+            if std::mem::take(&mut force_clear) {
+                terminal.clear()?;
+            }
+            let mut scroll = app.log_scroll;
+            terminal.draw(|f| scroll = ui::draw(f, &app, &logs, chrome))?;
+            app.log_scroll = scroll;
         }
-        let mut scroll = app.log_scroll;
-        terminal.draw(|f| scroll = ui::draw(f, &app, &logs, chrome))?;
-        app.log_scroll = scroll;
 
         tokio::select! {
             _ = ticker.tick() => {
@@ -129,6 +133,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
                     force_clear = true;
                     logs_dirty = false;
                 }
+                dirty = true;
             }
             maybe_event = events.next() => {
                 match maybe_event {
@@ -147,6 +152,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
                         }
                         if let Some(action) = map_key(key.code, app.logs_open) {
                             let effects = app.update(action);
+                            dirty = true;
                             if let Some(outcome) = apply(effects, &greetd).await {
                                 return Ok(outcome);
                             }
@@ -159,6 +165,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
             maybe_resp = greetd.resp_rx.recv() => {
                 if let Some(resp) = maybe_resp {
                     let effects = app.update(Action::Greetd(resp));
+                    dirty = true;
                     if let Some(outcome) = apply(effects, &greetd).await {
                         return Ok(outcome);
                     }
@@ -167,6 +174,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
             maybe_line = log_rx.recv() => {
                 if let Some(line) = maybe_line {
                     logs.push(line);
+                    // Deliberately not `dirty`: a burst rides the next tick as one frame.
                     logs_dirty = true;
                 }
             }
@@ -208,6 +216,7 @@ async fn ascii_demo_loop<B: ratatui::backend::Backend>(
 ) -> Result<()> {
     let mut events = EventStream::new();
     let mut ticker = tokio::time::interval(Duration::from_millis(120));
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut tick: u64 = 0;
 
     loop {
