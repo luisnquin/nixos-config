@@ -9,6 +9,7 @@ pkgs:
   herdr-autoname = pkgs.callPackage ./herdr-autoname {};
   herdr-recall = pkgs.callPackage ./herdr-recall {};
   mcp-gateway = pkgs.callPackage ./mcp-gateway {};
+  outage = pkgs.callPackage ./outage {};
   phone = pkgs.callPackage ./phone {};
   pinentry-gate = pkgs.callPackage ./pinentry-gate {};
   setup = pkgs.callPackage ./setup {};

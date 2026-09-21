@@ -1,0 +1,24 @@
+[package]
+name = "outage"
+version = "0.1.0"
+edition = "2021"
+description = "one-shot power-outage protocol: terminate the session, sleep between internet checks"
+license = "MIT"
+
+[[bin]]
+name = "outage"
+path = "src/main.rs"
+
+[lib]
+name = "outage"
+path = "src/lib.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+strip = true
