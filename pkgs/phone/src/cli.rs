@@ -131,7 +131,9 @@ names the holder: a second launch would put its app in front of the first's, and
 every snapshot the first agent took from then on would describe the wrong screen
 without anything saying so. `--take` overrides it. A device that had to be booted
 is nobody's whatever was written down, since the session holding it did not
-survive the shutdown.
+survive the shutdown. `phone device list` names the holder of every running
+device, and `phone status` says which of them this project is holding, so a hold
+can be read before it is what a refusal is about.
 
 Devices on different platforms converge at once rather than in turn, so an iPhone
 does not wait out an android build. Two devices that would run the same build take

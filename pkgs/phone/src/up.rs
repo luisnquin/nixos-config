@@ -27,7 +27,7 @@ use tokio::sync::Mutex;
 use crate::connect;
 use crate::discover::survey;
 use crate::lease::{self, Holder, Leases};
-use crate::model::{Platform, Reach, View};
+use crate::model::{self, Platform, Reach, View};
 use crate::project::{Build, Level, Project, Spec, Task};
 use crate::registry::Registry;
 use crate::ssh::{Status, Where};
@@ -582,7 +582,7 @@ async fn claim(
     booted: &[String],
     take: bool,
 ) -> Result<()> {
-    let mine = Holder::of(&site.key, &project.name());
+    let mine = Holder::of(&site.key, &project.name()).on(site.at.host());
     let mut hosts: Vec<(Where, Leases)> = Vec::new();
     let mut refused = Vec::new();
 
@@ -607,8 +607,9 @@ async fn claim(
                 true => eprintln!("phone: {name} taken from {}", holder.label()),
                 false => {
                     refused.push(format!(
-                        "{name} is held by {}; `phone down` there releases it, `phone up --take` takes it",
-                        holder.label()
+                        "{name} is held by {}; `phone down` in {} releases it, `phone up --take` takes it",
+                        holder.label(),
+                        holder.at()
                     ));
 
                     continue;
@@ -630,17 +631,18 @@ async fn claim(
     Ok(())
 }
 
-/// Who holds a running device, if that is not this project. Read-only, for
-/// `status`; a host that cannot be asked reads as nobody, since the device row
-/// has its own way of saying the host is unreachable.
-async fn held_by(site: &Site, view: &View) -> Option<Holder> {
+async fn hold_on(site: &Site, view: &View) -> Option<(Holder, bool)> {
     reached(view)?;
 
-    Leases::open(&actions::where_of(&view.device))
+    let holder = Leases::open(&actions::where_of(&view.device))
         .await
         .ok()?
-        .other(lease::key(&view.device), &site.key)
-        .cloned()
+        .holder(lease::key(&view.device))
+        .cloned()?;
+
+    let mine = holder.tree == site.key;
+
+    Some((holder, mine))
 }
 
 /// Drops this project's hold on a device, unless another project's session is
@@ -1030,12 +1032,23 @@ async fn row(
 
     // whatever rung it is on: a device that is prepared for this project and
     // being driven by another is the one case the rest of the row cannot see
-    let held = held_by(site, view).await.map(|holder| holder.label());
+    let hold = hold_on(site, view).await;
 
-    if let Some(holder) = &held {
+    // ours is worth printing but is not drift
+    let held = hold
+        .as_ref()
+        .filter(|(_, mine)| !mine)
+        .map(|(holder, _)| holder.label());
+
+    if let Some((holder, mine)) = &hold {
+        let whose = match mine {
+            true => format!("yours ({})", model::ago(holder.since)),
+            false => format!("held by {}", holder.label()),
+        };
+
         note = match note.is_empty() {
-            true => format!("held by {holder}"),
-            false => format!("held by {holder}; {note}"),
+            true => whose,
+            false => format!("{whose}; {note}"),
         };
     }
 

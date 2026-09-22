@@ -19,6 +19,7 @@ mod ssh;
 mod stamps;
 mod tui;
 mod up;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use std::os::unix::process::CommandExt;
@@ -163,10 +164,17 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     let views = survey(&mut reg).await;
                     reg.save()?;
 
+                    let holds = lease::holds(&views).await;
+
                     if json {
-                        print_json(&views)?;
+                        print_json(&views, &holds)?;
                     } else {
-                        print_table(&views);
+                        let mine = match holds.is_empty() {
+                            true => None,
+                            false => lease::mine().await,
+                        };
+
+                        print_table(&views, &holds, mine.as_deref());
                     }
 
                     Ok(())
@@ -1201,7 +1209,14 @@ async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
     Ok(candidates.remove(index))
 }
 
-fn print_table(views: &[View]) {
+fn whose(holder: &lease::Holder, mine: Option<&str>) -> String {
+    match mine.is_some_and(|tree| tree == holder.tree) {
+        true => format!("yours ({})", model::ago(holder.since)),
+        false => holder.label(),
+    }
+}
+
+fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Option<&str>) {
     if views.is_empty() {
         eprintln!("phone: nothing reachable or remembered");
 
@@ -1237,8 +1252,8 @@ fn print_table(views: &[View]) {
             .or_else(|| d.host.clone())
             .unwrap_or_else(|| "-".into());
 
-        println!(
-            "{:<9} {:<28} {:<20} {:<16} {:<24} {}",
+        let row = format!(
+            "{:<9} {:<28} {:<20} {:<16} {:<24} {:<10} {}",
             d.platform.as_str(),
             truncate(&name, 28),
             truncate(&d.model, 20),
@@ -1247,15 +1262,22 @@ fn print_table(views: &[View]) {
             d.last_connected
                 .map(model::ago)
                 .unwrap_or_else(|| "never".into()),
+            holds
+                .get(&d.id)
+                .map(|holder| whose(holder, mine))
+                .unwrap_or_default(),
         );
+
+        println!("{}", row.trim_end());
     }
 }
 
-fn print_json(views: &[View]) -> Result<()> {
+fn print_json(views: &[View], holds: &BTreeMap<String, lease::Holder>) -> Result<()> {
     let rows: Vec<serde_json::Value> = views
         .iter()
         .map(|v| {
             serde_json::json!({
+                "hold": holds.get(&v.device.id),
                 "id": v.device.id,
                 "label": v.device.label,
                 "model": v.device.model,

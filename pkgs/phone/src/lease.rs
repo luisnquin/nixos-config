@@ -52,6 +52,8 @@ pub struct Holder {
     /// What to call it to a reader.
     pub project: String,
     pub since: Unix,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
 }
 
 impl Holder {
@@ -60,12 +62,26 @@ impl Holder {
             tree: tree.to_string(),
             project: project.to_string(),
             since: model::now(),
+            host: None,
         }
+    }
+
+    pub fn on(mut self, host: Option<&str>) -> Self {
+        self.host = host.filter(|h| !h.is_empty()).map(str::to_string);
+
+        self
     }
 
     /// `hotline (2h ago)`, for a message or a status row.
     pub fn label(&self) -> String {
         format!("{} ({})", self.project, model::ago(self.since))
+    }
+
+    pub fn at(&self) -> String {
+        match &self.host {
+            Some(host) => format!("{} on {host}", self.tree),
+            None => self.tree.clone(),
+        }
     }
 }
 
@@ -189,6 +205,11 @@ pub async fn tree(project: &Project) -> Result<String> {
     Ok(ran.text().trim().to_string())
 }
 
+pub enum Caller {
+    Nowhere,
+    Elsewhere { project: String, tree: String },
+}
+
 /// Refuses a running device that another project holds.
 ///
 /// `claim` guards `up`; this guards everything after it. A hold only `up`
@@ -209,26 +230,92 @@ pub async fn check(view: &View) -> Result<()> {
         return Ok(());
     };
 
-    if let Some(project) = Project::here().ok().flatten() {
-        if tree(&project).await? == holder.tree {
-            return Ok(());
-        }
-    }
+    let caller = match Project::here().ok().flatten() {
+        Some(project) => {
+            let tree = tree(&project).await?;
 
-    anyhow::bail!("{}", refusal(&view.device.label, holder))
+            if tree == holder.tree {
+                return Ok(());
+            }
+
+            Caller::Elsewhere {
+                project: project.name(),
+                tree,
+            }
+        }
+        None => Caller::Nowhere,
+    };
+
+    anyhow::bail!("{}", refusal(&view.device.label, holder, &caller))
 }
 
 /// What a refused agent reads. It has to say whose the device is, why the
 /// refusal is not a bug to route around, and the two ways past it — with the
 /// one that walks over the other session named last and as a question to ask.
-pub fn refusal(label: &str, holder: &Holder) -> String {
+pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
+    let (project, tree) = match caller {
+        Caller::Nowhere => {
+            return format!(
+                "{label} is held by {}, and this is not running from a project\n\
+                 a verb typed outside any checkout is nobody, and nobody is not the holder, so the hold refuses it even when the hold is its own\n\
+                 run it from {}, or pick a device nobody holds (`phone device list` names every holder)",
+                holder.label(),
+                holder.at()
+            );
+        }
+        Caller::Elsewhere { project, tree } => (project, tree),
+    };
+
+    if *project == holder.project {
+        return format!(
+            "{label} is held by {}, which is another checkout of {project} and not this one\n\
+             the hold is on {}, this is {tree}\n\
+             run it from there, or `phone up --take` here to move the hold; ask before using it",
+            holder.label(),
+            holder.at()
+        );
+    }
+
     format!(
         "{label} is held by {}: another agent's session is on it, and driving it from here would put your screens in front of theirs\n\
-         pick a device nobody holds (`phone device list`), or have that agent release it with `phone down` in {}\n\
+         pick a device nobody holds (`phone device list` names every holder), or have that agent release it with `phone down` in {}\n\
          `phone up --take` there overrides the hold; ask before using it",
         holder.label(),
-        holder.tree
+        holder.at()
     )
+}
+
+pub async fn holds(views: &[View]) -> BTreeMap<String, Holder> {
+    let mut found = BTreeMap::new();
+    let mut read: Vec<(Where, Leases)> = Vec::new();
+
+    for view in views.iter().filter(|v| actions::running(&v.reach)) {
+        let at = actions::where_of(&view.device);
+
+        let leases = match read.iter().position(|(known, _)| *known == at) {
+            Some(i) => &read[i].1,
+            None => match Leases::open(&at).await {
+                Ok(leases) => {
+                    read.push((at, leases));
+
+                    &read.last().expect("just pushed").1
+                }
+                Err(_) => continue,
+            },
+        };
+
+        if let Some(holder) = leases.holder(key(&view.device)) {
+            found.insert(view.device.id.clone(), holder.clone());
+        }
+    }
+
+    found
+}
+
+pub async fn mine() -> Option<String> {
+    let project = Project::here().ok().flatten()?;
+
+    tree(&project).await.ok()
 }
 
 /// Drops whatever hold a device this process just booted carried: the session
@@ -309,13 +396,63 @@ mod tests {
         assert!(leases.other("emu:2", "/b").is_none());
     }
 
+    fn elsewhere(project: &str, tree: &str) -> Caller {
+        Caller::Elsewhere {
+            project: project.to_string(),
+            tree: tree.to_string(),
+        }
+    }
+
     #[test]
     fn a_refusal_names_the_holder_and_where_to_release_it() {
-        let said = refusal("Pixel 9", &Holder::of("/home/x/hotline", "hotline"));
+        let said = refusal(
+            "Pixel 9",
+            &Holder::of("/home/x/hotline", "hotline"),
+            &elsewhere("clipz", "/home/x/clipz"),
+        );
 
         assert!(said.starts_with("Pixel 9 is held by hotline ("));
         assert!(said.contains("`phone down` in /home/x/hotline"));
         assert!(said.ends_with("ask before using it"));
+    }
+
+    #[test]
+    fn a_refusal_says_which_machine_the_tree_is_on() {
+        let said = refusal(
+            "Pixel 9",
+            &Holder::of("/ext/projects/hotline", "hotline").on(Some("rose")),
+            &elsewhere("clipz", "/home/x/clipz"),
+        );
+
+        assert!(said.contains("`phone down` in /ext/projects/hotline on rose"));
+    }
+
+    #[test]
+    fn nobody_is_not_told_it_walked_into_somebody() {
+        let said = refusal(
+            "Pixel 9",
+            &Holder::of("/home/x/hotline", "hotline"),
+            &Caller::Nowhere,
+        );
+
+        assert!(said.contains("this is not running from a project"));
+        assert!(said.contains("run it from /home/x/hotline"));
+        assert!(!said.contains("another agent's session"));
+    }
+
+    #[test]
+    fn a_second_checkout_is_told_it_is_the_same_project() {
+        let said = refusal(
+            "Pixel 9",
+            &Holder::of("/ext/projects/hotline", "hotline").on(Some("rose")),
+            &elsewhere("hotline", "/home/x/hotline"),
+        );
+
+        assert!(said.contains("another checkout of hotline and not this one"));
+        assert!(
+            said.contains("the hold is on /ext/projects/hotline on rose, this is /home/x/hotline")
+        );
+        assert!(!said.contains("another agent's session"));
     }
 
     #[test]
