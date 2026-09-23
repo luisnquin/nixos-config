@@ -1009,11 +1009,13 @@ async fn wait(
     let started = std::time::Instant::now();
 
     loop {
-        // a dump that fails mid-transition is not an answer either way
-        let present = a11y::dump(t)
-            .await
-            .map(|nodes| a11y::present(&nodes, what))
-            .unwrap_or(gone);
+        // a dump that fails mid-transition is not an answer either way, but one
+        // that never goes idle will not answer by the timeout either
+        let present = match a11y::dump(t).await {
+            Ok(nodes) => a11y::present(&nodes, what),
+            Err(e) if e.is::<a11y::NotIdle>() => return Err(e),
+            Err(_) => gone,
+        };
 
         if present != gone {
             eprintln!(

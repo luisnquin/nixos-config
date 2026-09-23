@@ -8,8 +8,26 @@ use crate::simctl;
 
 /// uiautomator will not write to stdout on every vendor build, so the dump goes
 /// to a file that is read and removed in the same shell.
-const REMOTE: &str = "uiautomator dump /sdcard/.phone-a11y.xml >/dev/null 2>&1; \
-     cat /sdcard/.phone-a11y.xml; rm -f /sdcard/.phone-a11y.xml";
+const REMOTE: &str = "said=$(uiautomator dump /sdcard/.phone-a11y.xml 2>&1); \
+     case \"$said\" in *'could not get idle state'*) echo phone:not-idle;; esac; \
+     cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phone-a11y.xml";
+
+const NOT_IDLE: &str = "phone:not-idle";
+
+#[derive(Debug)]
+pub struct NotIdle;
+
+impl std::fmt::Display for NotIdle {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(
+            "the screen never went idle, so uiautomator would not read it: something on it \
+             animates without end. Turn on Remove animations, or set the animator, transition \
+             and window animation scales to 0 in Developer options",
+        )
+    }
+}
+
+impl std::error::Error for NotIdle {}
 
 /// A device to read and press, resolved once per invocation. The two arms differ
 /// only in how a verb reaches the device: the elements they report and the
@@ -274,6 +292,7 @@ pub async fn dump(t: &Target) -> Result<Vec<Node>> {
 
         match dump_once(a).await {
             Ok(nodes) => return Ok(nodes),
+            Err(e) if e.is::<NotIdle>() => return Err(e),
             Err(e) => last = Some(e),
         }
     }
@@ -284,13 +303,26 @@ pub async fn dump(t: &Target) -> Result<Vec<Node>> {
 async fn dump_once(a: &Adb) -> Result<Vec<Node>> {
     let remote = format!("{}{REMOTE}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
-    let xml = String::from_utf8_lossy(&bytes);
+
+    read_dump(ok, &String::from_utf8_lossy(&bytes))
+}
+
+fn read_dump(ok: bool, out: &str) -> Result<Vec<Node>> {
+    let (said, xml) = out.split_at(
+        out.find("<?xml")
+            .or_else(|| out.find("<hierarchy"))
+            .unwrap_or(out.len()),
+    );
+
+    if said.contains(NOT_IDLE) {
+        return Err(NotIdle.into());
+    }
 
     if !ok || !xml.contains("<hierarchy") {
         bail!("uiautomator returned no hierarchy (is the screen on and unlocked?)");
     }
 
-    parse(&xml)
+    parse(xml)
 }
 
 /// The panel, in the space `bounds` and taps use.
@@ -762,5 +794,17 @@ mod tests {
         assert!(unsendable("hola que tal").is_empty());
         assert_eq!(unsendable("Menú de opciónes"), vec!['ó', 'ú']);
         assert_eq!(unsendable("line\nbreak"), vec!['\n']);
+    }
+
+    #[test]
+    fn a_screen_that_never_goes_idle_is_told_apart_from_one_that_is_off() {
+        let err = read_dump(true, "phone:not-idle\n").unwrap_err();
+
+        assert!(err.is::<NotIdle>(), "{err}");
+        assert!(err.to_string().contains("Remove animations"), "{err}");
+
+        let err = read_dump(true, "  mInputShown=false\n").unwrap_err();
+        assert!(!err.is::<NotIdle>(), "{err}");
+        assert!(err.to_string().contains("no hierarchy"), "{err}");
     }
 }

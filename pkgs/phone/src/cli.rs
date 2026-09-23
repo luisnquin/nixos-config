@@ -203,7 +203,10 @@ the manifest never declared is listed under them."#)]
 
 The cheapest way to see a screen, and the one that gives names to press. Empty
 on anything drawn rather than laid out — a game, a canvas, a video — and there
-`shot` plus a coordinate is the only way through."#)]
+`shot` plus a coordinate is the only way through.
+
+A screen that animates without end cannot be read at all: uiautomator waits for
+it to go idle first. That is refused with the reason rather than retried."#)]
     Snapshot {
         #[arg(id = "device")]
         target: Option<String>,
