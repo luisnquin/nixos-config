@@ -304,8 +304,8 @@ tap on the same element does something else entirely."#)]
     Press {
         what: String,
 
-        /// How long to keep the touch down
-        #[arg(long, default_value = "800ms", value_parser = parse_duration)]
+        /// How long to keep the touch down, with its unit: 800ms, 2s
+        #[arg(long, default_value = "800ms", value_parser = parse_gesture_time)]
         hold: Duration,
     },
     /// Drag between two points, or scroll the screen a direction
@@ -326,8 +326,8 @@ edge is a system gesture and never reaches the app."#)]
         /// X,Y or an element; left out when the first is a direction
         to: Option<String>,
 
-        /// How long the drag takes; a slow one scrolls, a fast one flings
-        #[arg(long, default_value = "300ms", value_parser = parse_duration)]
+        /// How long the drag takes, with its unit: 300ms, 1s
+        #[arg(long, default_value = "300ms", value_parser = parse_gesture_time)]
         duration: Duration,
 
         /// How much of the panel a directional swipe crosses
@@ -808,9 +808,6 @@ pub fn parse_point(s: &str) -> Result<(i32, i32), String> {
     ))
 }
 
-/// A number with a unit, because a bare one reads as either: `--hold 800` is
-/// milliseconds to anyone who has used `input swipe` and seconds to anyone who
-/// has used `sleep`.
 pub fn parse_duration(s: &str) -> Result<Duration, String> {
     let s = s.trim();
     let (value, unit) = s.split_at(
@@ -828,6 +825,18 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
     };
 
     Ok(Duration::from_secs_f64(seconds))
+}
+
+/// `--duration 800` is milliseconds to anyone who has used `input swipe` and
+/// seconds to anyone who has used `sleep`, so a gesture time carries its unit.
+pub fn parse_gesture_time(s: &str) -> Result<Duration, String> {
+    let s = s.trim();
+
+    if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return Err(format!("{s} needs a unit: {s}ms or {s}s"));
+    }
+
+    parse_duration(s)
 }
 
 /// A factor, not a percentage or a pixel count. The ceiling is there because
@@ -975,6 +984,26 @@ mod tests {
 
         assert!(parse_duration("soon").is_err());
         assert!(parse_duration("15 fortnights").is_err());
+    }
+
+    #[test]
+    fn a_gesture_time_without_a_unit_is_refused_rather_than_read_as_seconds() {
+        let err = parse_gesture_time("800").unwrap_err();
+        assert!(err.contains("800ms"), "{err}");
+        assert!(parse_gesture_time("0.5").is_err());
+
+        assert_eq!(
+            parse_gesture_time("800ms").unwrap(),
+            Duration::from_millis(800)
+        );
+        assert_eq!(parse_gesture_time("2s").unwrap(), Duration::from_secs(2));
+
+        assert!(Cli::try_parse_from(["phone", "swipe", "up", "--duration", "800"]).is_err());
+        assert!(Cli::try_parse_from(["phone", "press", "OK", "--hold", "2"]).is_err());
+        assert!(
+            Cli::try_parse_from(["phone", "wait", "Inbox", "--timeout", "10"]).is_ok(),
+            "a timeout keeps its bare seconds"
+        );
     }
 
     /// The overview's table of commands, as `(heading, verbs)`. A heading that
