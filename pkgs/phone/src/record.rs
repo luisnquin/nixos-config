@@ -80,7 +80,7 @@ pub async fn record(
     let mut out = vec![mp4.clone()];
 
     if let Some(want) = take.frames {
-        out.extend(extract(&mp4, want, &take.shot, rep).await?);
+        out.extend(extract(&mp4, want, &take.shot, take.seconds, rep).await?);
     }
 
     Ok(out)
@@ -184,8 +184,22 @@ rm -f "$clip""#;
 /// Evenly spaced across the clip, first and last inclusive. Seeking to each
 /// timestamp separately rather than decoding the whole clip once: a 30s capture
 /// is a thousand frames and four of them are wanted.
-async fn extract(mp4: &Path, want: Frames, shot: &Shot, rep: &Reporter) -> Result<Vec<PathBuf>> {
+async fn extract(
+    mp4: &Path,
+    want: Frames,
+    shot: &Shot,
+    asked: u32,
+    rep: &Reporter,
+) -> Result<Vec<PathBuf>> {
     let clip = probe(mp4).await?;
+
+    if clip.span + 1.0 < f64::from(asked) {
+        rep.note(format!(
+            "the clip runs {:.1}s of the {asked}s recorded: nothing changed after {:.1}s, and no frame is written for a still screen",
+            clip.span, clip.last
+        ));
+    }
+
     let stem = mp4.with_extension("");
     let at = moments(mp4, &clip, want, rep).await?;
 
@@ -228,10 +242,16 @@ async fn extract(mp4: &Path, want: Frames, shot: &Shot, rep: &Reporter) -> Resul
 /// One still, or `None` where the clip holds no image at that instant. ffmpeg
 /// answers a seek past the last packet with no file and no complaint, so the
 /// file is what is checked rather than the status.
+/// Truncated rather than rounded: ffmpeg finds nothing past the last frame, and
+/// rounding a seek to it up to the millisecond lands there.
+fn seek(at: f64) -> String {
+    format!("{:.3}", (at * 1000.0).floor() / 1000.0)
+}
+
 async fn still(mp4: &Path, at: f64, frame: &Path, shot: &Shot) -> Result<Option<PathBuf>> {
     let ok = tokio::process::Command::new("ffmpeg")
         .args(["-nostdin", "-v", "error", "-y", "-ss"])
-        .arg(format!("{at:.3}"))
+        .arg(seek(at))
         .arg("-i")
         .arg(mp4)
         .args(["-frames:v", "1"])
@@ -537,6 +557,12 @@ mod tests {
         let taken = spread(&clip(5.0, None, 3.2), 3, &watched().0);
 
         assert_eq!(taken, [0.0, 2.5, 3.2]);
+    }
+
+    #[test]
+    fn a_seek_to_the_last_frame_never_rounds_past_it() {
+        assert_eq!(seek(8.743556), "8.743");
+        assert_eq!(seek(2.5), "2.500");
     }
 
     #[test]
