@@ -777,10 +777,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
         }
 
         Command::Key { name } => {
-            let t = &s.target;
-
-            a11y::key(t, &name).await?;
-            eprintln!("phone: sent {}", name.to_uppercase());
+            eprintln!("phone: {}", a11y::key(&s.target, &name).await?);
 
             Ok(())
         }

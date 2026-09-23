@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use serde::Deserialize;
 
 use crate::adb::{self, Server};
@@ -635,13 +635,16 @@ pub async fn type_text(t: &Target, text: &str) -> Result<()> {
 
 /// `input keyevent` exits 0 on a name it does not know and prints nothing, so
 /// names are checked here. A bare number reaches the codes not listed.
+/// HIDE_KEYBOARD is no keycode: it is BACK, sent only while the keyboard is up.
 const KEYS: &str = "APP_SWITCH BACK CALL CAMERA DEL DPAD_CENTER DPAD_DOWN DPAD_LEFT DPAD_RIGHT \
-     DPAD_UP ENDCALL ENTER ESCAPE FORWARD_DEL HOME MEDIA_NEXT MEDIA_PLAY_PAUSE MEDIA_PREVIOUS \
-     MENU MOVE_END MOVE_HOME NOTIFICATION PAGE_DOWN PAGE_UP POWER SEARCH SETTINGS SLEEP TAB \
-     VOLUME_DOWN VOLUME_MUTE VOLUME_UP WAKEUP";
+     DPAD_UP ENDCALL ENTER ESCAPE FORWARD_DEL HIDE_KEYBOARD HOME MEDIA_NEXT MEDIA_PLAY_PAUSE \
+     MEDIA_PREVIOUS MENU MOVE_END MOVE_HOME NOTIFICATION PAGE_DOWN PAGE_UP POWER SEARCH SETTINGS \
+     SLEEP TAB VOLUME_DOWN VOLUME_MUTE VOLUME_UP WAKEUP";
+
+const HIDE_KEYBOARD: &str = "HIDE_KEYBOARD";
 
 fn keycode(name: &str) -> Result<String> {
-    let name = name.trim().to_uppercase();
+    let name = name.trim().to_uppercase().replace('-', "_");
     let name = name.strip_prefix("KEYCODE_").unwrap_or(&name);
 
     if name.parse::<u16>().is_ok() || KEYS.split_whitespace().any(|key| key == name) {
@@ -660,14 +663,74 @@ fn keycode(name: &str) -> Result<String> {
     bail!("unknown key '{name}' — did you mean {}?", near.join(", "))
 }
 
-pub async fn key(t: &Target, name: &str) -> Result<()> {
+pub async fn key(t: &Target, name: &str) -> Result<String> {
     // Both sides are addressed by the Android key name, so `phone key home` is
     // one command whatever answers it. Validated against the list each backend
     // actually has rather than against a union of both.
-    match t {
-        Target::Adb(a) => input(a, &format!("keyevent {}", keycode(name)?)).await,
-        Target::Simulator(s) => simctl::key(&s.at, &s.udid, name).await,
+    let a = match t {
+        Target::Adb(a) => a,
+        Target::Simulator(s) => {
+            simctl::key(&s.at, &s.udid, name).await?;
+
+            return Ok(format!("sent {}", name.to_uppercase()));
+        }
+    };
+
+    let code = keycode(name)?;
+
+    if code == HIDE_KEYBOARD {
+        return Ok(match hide_keyboard(a).await? {
+            true => "closed the keyboard".to_string(),
+            false => "the keyboard was already down".to_string(),
+        });
     }
+
+    if code == "BACK" && keyboard(a).await?.shown {
+        hide_keyboard(a).await?;
+
+        return Ok("sent BACK, which closed the keyboard".to_string());
+    }
+
+    input(a, &format!("keyevent {code}")).await?;
+
+    Ok(format!("sent {code}"))
+}
+
+pub async fn keyboard(a: &Adb) -> Result<Keyboard> {
+    let out = adb::run_timeout(
+        &a.server,
+        &["-s", &a.serial, "shell", KEYBOARD],
+        Duration::from_secs(20),
+    )
+    .await?;
+
+    Keyboard::parse(&out.stdout)
+        .ok_or_else(|| anyhow!("dumpsys input_method does not say whether the keyboard is up"))
+}
+
+const KEYBOARD_GONE: Duration = Duration::from_secs(3);
+
+async fn hide_keyboard(a: &Adb) -> Result<bool> {
+    if !keyboard(a).await?.shown {
+        return Ok(false);
+    }
+
+    input(a, "keyevent BACK").await?;
+
+    let started = std::time::Instant::now();
+
+    while started.elapsed() < KEYBOARD_GONE {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        if !keyboard(a).await?.shown {
+            return Ok(true);
+        }
+    }
+
+    bail!(
+        "the keyboard was still up {}s after BACK",
+        KEYBOARD_GONE.as_secs()
+    )
 }
 
 fn shell_quote(text: &str) -> String {
@@ -1038,5 +1101,11 @@ mod tests {
         let err = pick(&parse(FORM).unwrap(), "e").unwrap_err();
 
         assert!(err.to_string().contains("matches"), "{err}");
+    }
+
+    #[test]
+    fn hiding_the_keyboard_is_a_key_by_either_spelling() {
+        assert_eq!(keycode("hide_keyboard").unwrap(), HIDE_KEYBOARD);
+        assert_eq!(keycode("hide-keyboard").unwrap(), HIDE_KEYBOARD);
     }
 }

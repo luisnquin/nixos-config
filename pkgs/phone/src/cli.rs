@@ -373,7 +373,12 @@ still reports success."#)]
   phone key enter
   phone key home
   phone key app_switch
+  phone key hide_keyboard  # closes the keyboard if it is up, and nothing else
   phone key back  # on Android this navigates, and can leave a form losing it
+
+With the keyboard up, `back` closes the keyboard rather than navigating, and
+returns once it is gone. `hide_keyboard` is that and only that: with the keyboard
+already down it sends nothing, where `back` would leave the screen.
 
 A simulator has no back button; when a key is refused the ones it does take are
 listed."#)]
