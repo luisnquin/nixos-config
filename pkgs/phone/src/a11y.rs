@@ -594,6 +594,16 @@ pub fn pick_in<'a>(
                 return Ok(outer);
             }
 
+            if let [one] = many
+                .iter()
+                .copied()
+                .filter(|n| n.clickable)
+                .collect::<Vec<_>>()
+                .as_slice()
+            {
+                return Ok(one);
+            }
+
             let listed = many
                 .iter()
                 .map(|n| format!("@{} {}", n.index, n.label()))
@@ -1262,6 +1272,22 @@ mod tests {
         let nodes = parse(&xml).unwrap();
 
         assert_eq!(pick(&nodes, "Continue").unwrap().res_id, "row");
+    }
+
+    #[test]
+    fn a_name_on_one_pressable_and_a_loose_label_picks_the_pressable() {
+        let xml = FORM.replace(
+            r#"  <node class="android.widget.EditText" bounds="[40,500]"#,
+            r#"  <node class="android.widget.TextView" bounds="[40,1000][1040,1100]" clickable="false" text="Search settings" content-desc="" resource-id=""/>
+  <node class="android.widget.EditText" bounds="[40,500]"#,
+        );
+
+        assert_eq!(
+            pick(&parse(&xml).unwrap(), "Search settings")
+                .unwrap()
+                .res_id,
+            "search"
+        );
     }
 
     #[test]
