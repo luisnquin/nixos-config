@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::adb::EMULATOR_BUILD_SERIAL;
 use crate::hosts::HostState;
-use crate::model::{discovered_id, is_transport_alias, now, Device, PLACEHOLDER_PREFIX};
+use crate::model::{discovered_id, is_transport_alias, now, Device, Platform, PLACEHOLDER_PREFIX};
 
 /// The id prefix placeholders carried before discovery sources were named.
 const LEGACY_PLACEHOLDER_PREFIX: &str = "tailnet:";
@@ -190,6 +190,46 @@ impl Registry {
 
             let stale = self.devices.remove(i);
             let winner = if winner > i { winner - 1 } else { winner };
+
+            self.devices[winner].absorb(&stale);
+
+            if self.current.as_deref() == Some(stale.id.as_str()) {
+                self.current = Some(self.devices[winner].id.clone());
+            }
+        }
+    }
+
+    /// A label equal to the model is a system image many AVDs share, not an AVD
+    /// name, so it ties nothing together.
+    pub fn fold_wiped(&mut self, live: &HashSet<String>) {
+        let mut i = 0;
+
+        while i < self.devices.len() {
+            let stale = &self.devices[i];
+
+            let winner = if live.contains(&stale.id) || stale.platform != Platform::Emulator {
+                None
+            } else {
+                self.devices.iter().position(|d| {
+                    d.id != stale.id
+                        && live.contains(&d.id)
+                        && d.platform == Platform::Emulator
+                        && d.host == stale.host
+                        && d.label == stale.label
+                        && d.label != d.model
+                })
+            };
+
+            let Some(winner) = winner else {
+                i += 1;
+                continue;
+            };
+
+            let mut stale = self.devices.remove(i);
+            let winner = if winner > i { winner - 1 } else { winner };
+
+            stale.aliases.retain(|a| !is_transport_alias(a));
+            stale.endpoints.clear();
 
             self.devices[winner].absorb(&stale);
 
@@ -444,6 +484,128 @@ mod tests {
         reg.fold_aliased(&HashSet::new());
 
         assert_eq!(reg.devices.len(), 1);
+    }
+
+    fn avd(id: &str, host: Option<&str>, name: &str, aliases: &[&str]) -> Device {
+        let mut d = device(id, aliases);
+
+        d.label = name.into();
+        d.model = "sdk_gphone16k_arm64".into();
+        d.platform = Platform::Emulator;
+        d.host = host.map(str::to_string);
+
+        d
+    }
+
+    fn wiped_twice() -> Registry {
+        Registry {
+            devices: vec![
+                avd("android_id:2222bbbb", Some("mac"), "pixel_7-api36", &[]),
+                avd(
+                    "android_id:1111aaaa",
+                    Some("mac"),
+                    "pixel_7-api36",
+                    &["mac/emulator-5554"],
+                ),
+                avd(
+                    "android_id:3333cccc",
+                    Some("mac"),
+                    "pixel_7-api36",
+                    &["localhost:5557"],
+                ),
+                avd(
+                    "android_id:4444dddd",
+                    Some("mac"),
+                    "pixel_7-api36-b",
+                    &["mac/emulator-5556"],
+                ),
+            ],
+            current: Some("android_id:2222bbbb".into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_running_avd_takes_over_the_rows_its_wipes_left_behind() {
+        let mut reg = wiped_twice();
+
+        reg.fold_wiped(&HashSet::from([
+            "android_id:1111aaaa".to_string(),
+            "android_id:4444dddd".to_string(),
+        ]));
+
+        let ids: Vec<&str> = reg.devices.iter().map(|d| d.id.as_str()).collect();
+
+        assert_eq!(ids, ["android_id:1111aaaa", "android_id:4444dddd"]);
+        assert_eq!(reg.current.as_deref(), Some("android_id:1111aaaa"));
+        assert_eq!(
+            reg.by_alias("android_id:3333cccc").unwrap().id,
+            "android_id:1111aaaa",
+            "the old id stays resolvable"
+        );
+        assert!(
+            reg.by_alias("localhost:5557").is_none(),
+            "a transport the old process answered on is not inherited"
+        );
+    }
+
+    #[test]
+    fn rows_of_an_avd_that_is_not_running_are_left_alone() {
+        let mut reg = wiped_twice();
+
+        reg.fold_wiped(&HashSet::from(["android_id:4444dddd".to_string()]));
+
+        assert_eq!(reg.devices.len(), 4);
+    }
+
+    #[test]
+    fn an_avd_of_the_same_name_on_another_host_is_another_device() {
+        let mut reg = Registry {
+            devices: vec![
+                avd("android_id:1111", Some("mac"), "pixel_7-api36", &[]),
+                avd("android_id:2222", None, "pixel_7-api36", &[]),
+            ],
+            ..Default::default()
+        };
+
+        reg.fold_wiped(&HashSet::from(["android_id:2222".to_string()]));
+
+        assert_eq!(reg.devices.len(), 2);
+    }
+
+    #[test]
+    fn emulators_labelled_by_their_system_image_are_not_folded() {
+        let mut reg = Registry {
+            devices: vec![
+                avd("android_id:1111", Some("mac"), "sdk_gphone16k_arm64", &[]),
+                avd("android_id:2222", Some("mac"), "sdk_gphone16k_arm64", &[]),
+            ],
+            ..Default::default()
+        };
+
+        reg.fold_wiped(&HashSet::from(["android_id:2222".to_string()]));
+
+        assert_eq!(reg.devices.len(), 2);
+    }
+
+    #[test]
+    fn a_handset_is_never_folded_into_an_emulator_of_its_name() {
+        let mut handset = device("SERIALNUMBER01", &[]);
+
+        handset.label = "pixel_7-api36".into();
+        handset.host = Some("mac".into());
+
+        let mut reg = Registry {
+            devices: vec![
+                handset,
+                avd("android_id:1111aaaa", Some("mac"), "pixel_7-api36", &[]),
+            ],
+            ..Default::default()
+        };
+
+        reg.fold_wiped(&HashSet::from(["android_id:1111aaaa".to_string()]));
+
+        assert_eq!(reg.devices.len(), 2);
     }
 
     #[test]

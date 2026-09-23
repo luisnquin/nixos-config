@@ -396,6 +396,7 @@ fn merge(reg: &mut Registry, found: &Findings, settled: bool) -> Vec<View> {
     // two rows for the one device.
     if settled {
         reg.fold_aliased(&claimed);
+        reg.fold_wiped(&claimed);
 
         let gone: Vec<String> = reg
             .devices
