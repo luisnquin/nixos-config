@@ -19,6 +19,7 @@ mod ssh;
 mod stamps;
 mod tui;
 mod up;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -569,6 +570,7 @@ struct Session {
     view: View,
     target: a11y::Target,
     focus: Option<(i32, i32)>,
+    before: RefCell<Option<Vec<u8>>>,
 }
 
 impl Session {
@@ -584,6 +586,7 @@ impl Session {
             view,
             target,
             focus,
+            before: RefCell::new(None),
         })
     }
 
@@ -640,8 +643,18 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                 settle,
             };
 
+            let before = s.before.take();
+
             let (rep, drain) = reporter();
-            let res = actions::screenshot(&s.view.server, &s.view.device, &sink, &rep, &shot).await;
+            let res = actions::screenshot_after(
+                &s.view.server,
+                &s.view.device,
+                &sink,
+                &rep,
+                &shot,
+                before,
+            )
+            .await;
 
             drop(rep);
             drain.await;
@@ -817,41 +830,33 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 /// the meaning it has on its own, and so that a caller can build one from the
 /// same strings it would have typed.
 async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
-    for (n, raw) in steps.iter().enumerate() {
-        let words = shell_words::split(raw).map_err(|e| anyhow::anyhow!("step {}: {e}", n + 1))?;
+    let commands = steps
+        .iter()
+        .enumerate()
+        .map(|(n, raw)| parse_step(n, raw))
+        .collect::<Result<Vec<_>>>()?;
 
-        let parsed = Cli::try_parse_from(std::iter::once("phone".to_string()).chain(words))
-            .map_err(|e| {
-                anyhow::anyhow!("step {} ({raw}): {}", n + 1, first_line(&e.to_string()))
-            })?;
+    let settles: Vec<bool> = commands
+        .iter()
+        .map(|c| matches!(c, Command::Shot { settle: true, .. }))
+        .collect();
 
-        // the device and the window were settled before the first step ran, and a
-        // step that names either would be describing a different session
-        if parsed.target.is_some() || parsed.focus.is_some() {
-            bail!(
-                "step {} ({raw}): --target and --focus belong on `do`, not on a step",
-                n + 1
-            );
-        }
-
-        let Some(command) = parsed.command else {
-            bail!("step {} ({raw}): no verb", n + 1);
-        };
-
-        if command.on_screen().is_none() {
-            bail!(
-                "step {} ({raw}): only verbs that read or press a screen can be sequenced",
-                n + 1
-            );
-        }
-
-        if matches!(command, Command::Do { .. }) {
-            bail!("step {} ({raw}): a sequence does not nest", n + 1);
-        }
+    for (n, command) in commands.into_iter().enumerate() {
+        let raw = &steps[n];
 
         // named before it runs, not after: a step that hangs is the one an agent
         // needs to see, and its own line only arrives once it is over
         eprintln!("  [{}/{}] {raw}", n + 1, steps.len());
+
+        if command.acts() && settles.get(n + 1) == Some(&true) {
+            let (rep, drain) = reporter();
+            let frame = actions::capture(&s.view.server, &s.view.device, &rep).await;
+
+            drop(rep);
+            drain.await;
+
+            *s.before.borrow_mut() = frame.ok();
+        }
 
         Box::pin(step(s, command))
             .await
@@ -859,6 +864,39 @@ async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn parse_step(n: usize, raw: &str) -> Result<Command> {
+    let words = shell_words::split(raw).map_err(|e| anyhow::anyhow!("step {}: {e}", n + 1))?;
+
+    let parsed = Cli::try_parse_from(std::iter::once("phone".to_string()).chain(words))
+        .map_err(|e| anyhow::anyhow!("step {} ({raw}): {}", n + 1, first_line(&e.to_string())))?;
+
+    // the device and the window were settled before the first step ran, and a
+    // step that names either would be describing a different session
+    if parsed.target.is_some() || parsed.focus.is_some() {
+        bail!(
+            "step {} ({raw}): --target and --focus belong on `do`, not on a step",
+            n + 1
+        );
+    }
+
+    let Some(command) = parsed.command else {
+        bail!("step {} ({raw}): no verb", n + 1);
+    };
+
+    if command.on_screen().is_none() {
+        bail!(
+            "step {} ({raw}): only verbs that read or press a screen can be sequenced",
+            n + 1
+        );
+    }
+
+    if matches!(command, Command::Do { .. }) {
+        bail!("step {} ({raw}): a sequence does not nest", n + 1);
+    }
+
+    Ok(command)
 }
 
 /// clap renders a usage block under its message, which reads as noise once the

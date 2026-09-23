@@ -51,7 +51,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
   Steps known in advance belong in one `do`, which runs them against one device:
 
-    phone do "tap 'Log in'" "wait Dashboard" "shot --crop @2"
+    phone do "tap 'Log in'" "wait Dashboard" "shot --settle --crop Dashboard"
 
 The commands
 
@@ -238,7 +238,12 @@ text.
 `--crop <name>` finds the element carrying that name, which for a card is its
 label rather than the card. `--expand 1` widens to the box around it, `--expand
 2` to the box around that; use it when what you want to see is the control and
-its state rather than the words on it."#)]
+its state rather than the words on it.
+
+`--settle` takes frames until two in a row match. Inside a `do`, straight after
+a step that acts, it also waits for the screen to move off the frame from before
+that step, so an act that has not landed yet is not mistaken for a still screen.
+When nothing moves within 3s it hands over what is there and says so."#)]
     Shot {
         #[arg(id = "device")]
         target: Option<String>,
@@ -426,7 +431,7 @@ returns the frame that was already up. Takes a name, not an @index."#)]
     },
     /// Run several screen verbs against one device, surveying once
     #[command(after_help = r#"Examples:
-  phone do "tap 'Log in'" "wait Inbox" "shot --crop @2"
+  phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
   phone do -t pixel_7-api36 "swipe up --amount 0.5" "wait Calendar" "snapshot"
 
 Every invocation of `phone` surveys the hosts before it acts, which costs around
@@ -830,6 +835,18 @@ impl Command {
         };
 
         Some(positional)
+    }
+
+    pub fn acts(&self) -> bool {
+        matches!(
+            self,
+            Command::Tap { .. }
+                | Command::Press { .. }
+                | Command::Swipe { .. }
+                | Command::Type { .. }
+                | Command::Fill { .. }
+                | Command::Key { .. }
+        )
     }
 }
 

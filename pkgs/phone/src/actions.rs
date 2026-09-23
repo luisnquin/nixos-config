@@ -96,16 +96,29 @@ pub async fn screenshot(
     rep: &Reporter,
     shot: &Shot,
 ) -> Result<String> {
+    screenshot_after(server, device, sink, rep, shot, None).await
+}
+
+pub async fn screenshot_after(
+    server: &Server,
+    device: &Device,
+    sink: &Sink,
+    rep: &Reporter,
+    shot: &Shot,
+    before: Option<Vec<u8>>,
+) -> Result<String> {
     let mut png = capture(server, device, rep).await?;
 
     if shot.settle {
-        png = settle(server, device, rep, png).await?;
+        png = settle(server, device, rep, png, before).await?;
     }
 
     let png = render(png, shot)?;
 
     deliver(device, sink, png, shot).await
 }
+
+const MOVE_LIMIT: Duration = Duration::from_secs(3);
 
 /// Frames until two running are the same. Compared whole rather than by a hash
 /// of part of them: a PNG of an unchanged screen is byte-identical, and any
@@ -115,25 +128,76 @@ async fn settle(
     device: &Device,
     rep: &Reporter,
     first: Vec<u8>,
+    before: Option<Vec<u8>>,
 ) -> Result<Vec<u8>> {
     let started = std::time::Instant::now();
-    let mut previous = first;
+    let mut settling = Settling::new(before, first);
 
-    while started.elapsed() < SETTLE_LIMIT {
+    loop {
         tokio::time::sleep(SETTLE_STEP).await;
 
         let next = capture(server, device, rep).await?;
 
-        if next == previous {
-            return Ok(next);
-        }
+        match settling.see(next, started.elapsed()) {
+            Settled::Still => continue,
+            Settled::Done(png) => return Ok(png),
+            Settled::Unmoved(png) => {
+                rep.note(format!(
+                    "nothing moved off the frame from before the last step within {}s; \
+                     this is the screen as it was",
+                    MOVE_LIMIT.as_secs()
+                ));
 
-        previous = next;
+                return Ok(png);
+            }
+            Settled::Restless(png) => {
+                rep.note("the screen never stopped changing");
+
+                return Ok(png);
+            }
+        }
+    }
+}
+
+enum Settled {
+    Still,
+    Done(Vec<u8>),
+    Unmoved(Vec<u8>),
+    Restless(Vec<u8>),
+}
+
+struct Settling {
+    before: Option<Vec<u8>>,
+    previous: Vec<u8>,
+    moved: bool,
+}
+
+impl Settling {
+    fn new(before: Option<Vec<u8>>, first: Vec<u8>) -> Self {
+        let moved = before.as_ref().is_none_or(|b| *b != first);
+
+        Settling {
+            before,
+            previous: first,
+            moved,
+        }
     }
 
-    rep.note("the screen never stopped changing");
+    fn see(&mut self, next: Vec<u8>, elapsed: Duration) -> Settled {
+        self.moved |= self.before.as_ref().is_some_and(|b| *b != next);
 
-    Ok(previous)
+        let still = next == self.previous;
+        self.previous = next;
+
+        match (still, self.moved) {
+            (true, true) => Settled::Done(std::mem::take(&mut self.previous)),
+            (true, false) if elapsed >= MOVE_LIMIT => {
+                Settled::Unmoved(std::mem::take(&mut self.previous))
+            }
+            _ if elapsed >= SETTLE_LIMIT => Settled::Restless(std::mem::take(&mut self.previous)),
+            _ => Settled::Still,
+        }
+    }
 }
 
 pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
@@ -183,7 +247,7 @@ pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
     Ok(out.into_inner())
 }
 
-async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result<Vec<u8>> {
+pub async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result<Vec<u8>> {
     let png = match device.platform {
         Platform::Ios => {
             let host = host_of(device)?;
@@ -1006,5 +1070,65 @@ mod tests {
         // send every command to a machine called ""
         device.host = Some(String::new());
         assert_eq!(where_of(&device), Where::Here);
+    }
+
+    const MS: fn(u64) -> Duration = Duration::from_millis;
+
+    #[test]
+    fn the_frame_from_before_the_tap_does_not_count_as_settled() {
+        let before = b"old".to_vec();
+        let mut settling = Settling::new(Some(before.clone()), before.clone());
+
+        assert!(matches!(
+            settling.see(before.clone(), MS(200)),
+            Settled::Still
+        ));
+        assert!(matches!(
+            settling.see(b"new".to_vec(), MS(400)),
+            Settled::Still
+        ));
+        assert!(matches!(
+            settling.see(b"new".to_vec(), MS(600)),
+            Settled::Done(png) if png == b"new"
+        ));
+    }
+
+    #[test]
+    fn a_tap_that_changed_nothing_is_given_up_on_and_said_so() {
+        let before = b"old".to_vec();
+        let mut settling = Settling::new(Some(before.clone()), before.clone());
+
+        assert!(matches!(
+            settling.see(before.clone(), MS(2900)),
+            Settled::Still
+        ));
+        assert!(matches!(
+            settling.see(before.clone(), MOVE_LIMIT),
+            Settled::Unmoved(png) if png == before
+        ));
+    }
+
+    #[test]
+    fn without_a_frame_from_before_two_equal_frames_are_enough() {
+        let mut settling = Settling::new(None, b"a".to_vec());
+
+        assert!(matches!(
+            settling.see(b"a".to_vec(), MS(200)),
+            Settled::Done(_)
+        ));
+    }
+
+    #[test]
+    fn a_screen_that_keeps_changing_is_taken_as_it_is_at_the_limit() {
+        let mut settling = Settling::new(None, b"a".to_vec());
+
+        assert!(matches!(
+            settling.see(b"b".to_vec(), MS(200)),
+            Settled::Still
+        ));
+        assert!(matches!(
+            settling.see(b"c".to_vec(), SETTLE_LIMIT),
+            Settled::Restless(png) if png == b"c"
+        ));
     }
 }
