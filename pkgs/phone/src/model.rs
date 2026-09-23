@@ -402,6 +402,18 @@ impl View {
         self
     }
 
+    pub fn answers_to(&self, want: &str) -> bool {
+        let Some(serial) = self.reach.serial() else {
+            return false;
+        };
+
+        serial.eq_ignore_ascii_case(want)
+            || self
+                .server
+                .host()
+                .is_some_and(|host| format!("{host}/{serial}").eq_ignore_ascii_case(want))
+    }
+
     /// `Online` means a discovery source still lists the device, and adb cannot
     /// screencap through that. Hosted platforms capture on their host, so being
     /// listed there is all the reachability they get.
@@ -505,6 +517,37 @@ mod tests {
         assert!(!is_transport_alias("android_id:2222bbbb6918672b"));
         assert!(!is_transport_alias("mac/00008101-000C601611D2001E"));
         assert!(!is_transport_alias("peer:tailscale:ncBC9WsKTg11CNTRL"));
+    }
+
+    #[test]
+    fn a_live_serial_names_its_device_bare_or_scoped_to_its_host() {
+        let mac = crate::adb::Server::Remote {
+            host: "mac".into(),
+            port: 5038,
+        };
+
+        let live = View::new(
+            Device::new("android_id:4444dddd", "pixel_7-api36-b", Platform::Emulator),
+            Reach::Attached {
+                serial: "emulator-5556".into(),
+                wireless: false,
+            },
+        )
+        .on(mac.clone());
+
+        let known = View::new(
+            Device::new("android_id:2222bbbb", "pixel_7-api36", Platform::Emulator),
+            Reach::Known,
+        )
+        .on(mac);
+
+        assert!(live.answers_to("emulator-5556"));
+        assert!(live.answers_to("MAC/emulator-5556"));
+        assert!(!live.answers_to("studio/emulator-5556"));
+        assert!(
+            !known.answers_to("emulator-5556"),
+            "a row with no transport answers to none"
+        );
     }
 
     #[test]

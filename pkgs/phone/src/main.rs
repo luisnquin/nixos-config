@@ -185,7 +185,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     range,
                     concurrency,
                 } => {
-                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+                    let view =
+                        resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
 
                     let opts = connect::Opts {
                         sweep: !no_sweep,
@@ -212,7 +213,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
                         return Ok(());
                     }
 
-                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+                    let view =
+                        resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
 
                     let Some(serial) = view.reach.serial().filter(|s| s.contains(':')) else {
                         bail!("{} has no wireless transport", view.device.label);
@@ -237,7 +239,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     Ok(())
                 }
                 DeviceAction::Pin { target, port } => {
-                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+                    let view =
+                        resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
 
                     let (rep, drain) = reporter();
                     let res = connect::pin(&mut reg, &view.server, &view.device, port, &rep).await;
@@ -248,7 +251,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     res
                 }
                 DeviceAction::Use { target } => {
-                    let view = resolve(&mut reg, target.as_deref(), false).await?;
+                    let view = resolve(&mut reg, target.as_deref(), false, Aim::Running).await?;
 
                     reg.current = Some(view.device.id.clone());
                     reg.save()?;
@@ -279,12 +282,14 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     Ok(())
                 }
                 DeviceAction::Boot { target, timeout } => {
-                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+                    let view =
+                        resolve(&mut reg, want(target).as_deref(), true, Aim::Bootable).await?;
 
                     boot(&mut reg, view, timeout).await
                 }
                 DeviceAction::Shutdown { target } => {
-                    let view = resolve(&mut reg, want(target).as_deref(), true).await?;
+                    let view =
+                        resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
 
                     // turning off the device somebody else is holding ends their session
                     lease::check(&view).await?;
@@ -1064,9 +1069,6 @@ fn print_elements_json(nodes: &[a11y::Node]) -> Result<()> {
     Ok(())
 }
 
-/// Turns whatever the user typed into exactly one device. `prefer_recent` is
-/// what makes a bare `phone device connect` one keystroke: with nothing to go on it
-/// reaches for the last device used rather than a mostly-offline picker.
 /// The device has to be surveyed again once it is up: the survey is what opens
 /// the forward to its host's adb server, so a device that just booted is not
 /// yet one the next command can reach.
@@ -1119,7 +1121,7 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 /// and none names the fix. The survey that finds the device already knows, so
 /// it is answered here once, in the name it was asked in.
 async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
-    let view = resolve(reg, want, prefer_recent).await?;
+    let view = resolve(reg, want, prefer_recent, Aim::Running).await?;
 
     if view.reach == model::Reach::Off {
         let label = &view.device.label;
@@ -1144,7 +1146,14 @@ fn quoted(label: &str) -> String {
     }
 }
 
-async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
+/// `prefer_recent` makes a bare `phone device connect` one keystroke: with nothing
+/// to go on it reaches for the last device used rather than a mostly-offline picker.
+async fn resolve(
+    reg: &mut Registry,
+    want: Option<&str>,
+    prefer_recent: bool,
+    aim: Aim,
+) -> Result<View> {
     let views = survey(reg).await;
     reg.save()?;
 
@@ -1153,22 +1162,7 @@ async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         .or_else(|| std::env::var("PHONE_TARGET").ok())
         .filter(|s| !s.is_empty());
 
-    let mut candidates: Vec<View> = match &want {
-        Some(w) => {
-            let exact: Vec<View> = views.iter().filter(|v| v.device.is(w)).cloned().collect();
-
-            if exact.is_empty() {
-                views
-                    .iter()
-                    .filter(|v| v.device.matches(w))
-                    .cloned()
-                    .collect()
-            } else {
-                exact
-            }
-        }
-        None => views.clone(),
-    };
+    let mut candidates = candidates(&views, want.as_deref(), aim);
 
     if candidates.is_empty() {
         bail!(match want {
@@ -1211,6 +1205,57 @@ async fn resolve(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
     let index = picker::pick(&candidates, "phone").await?;
 
     Ok(candidates.remove(index))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Aim {
+    Running,
+    Bootable,
+}
+
+fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
+    let Some(w) = want else {
+        return views.to_vec();
+    };
+
+    let exact: Vec<View> = views
+        .iter()
+        .filter(|v| v.device.is(w) || v.answers_to(w))
+        .cloned()
+        .collect();
+
+    if exact.is_empty() {
+        return views
+            .iter()
+            .filter(|v| v.device.matches(w))
+            .cloned()
+            .collect();
+    }
+
+    let running = |v: &View| actions::running(&v.reach);
+    let off = |v: &View| v.reach == model::Reach::Off;
+    let named = |v: &View| v.device.is(w);
+
+    let by: &[&dyn Fn(&View) -> bool] = match aim {
+        Aim::Running => &[&running, &named],
+        Aim::Bootable => &[&off, &running, &named],
+    };
+
+    let mut left = exact;
+
+    for keep in by {
+        if left.len() <= 1 {
+            break;
+        }
+
+        let hits: Vec<View> = left.iter().filter(|v| keep(v)).cloned().collect();
+
+        if !hits.is_empty() {
+            left = hits;
+        }
+    }
+
+    left
 }
 
 fn whose(holder: &lease::Holder, mine: Option<&str>) -> String {
@@ -1476,5 +1521,153 @@ mod tests {
     fn a_name_that_needs_quoting_is_handed_back_ready_to_paste() {
         assert_eq!(quoted("iPhone 17 Pro Max"), "\"iPhone 17 Pro Max\"");
         assert_eq!(quoted("pixel-9"), "pixel-9");
+    }
+
+    use model::{Device, Reach};
+
+    fn mac() -> Server {
+        Server::Remote {
+            host: "mac".into(),
+            port: 5038,
+        }
+    }
+
+    fn emu(id: &str, label: &str, reach: Reach) -> View {
+        View::new(Device::new(id, label, Platform::Emulator), reach).on(mac())
+    }
+
+    fn attached(serial: &str) -> Reach {
+        Reach::Attached {
+            serial: serial.into(),
+            wireless: false,
+        }
+    }
+
+    fn ids(views: &[View]) -> Vec<&str> {
+        views.iter().map(|v| v.device.id.as_str()).collect()
+    }
+
+    fn wiped() -> Vec<View> {
+        vec![
+            emu(
+                "android_id:1111aaaa",
+                "pixel_7-api36",
+                attached("emulator-5554"),
+            ),
+            emu("android_id:2222bbbb", "pixel_7-api36", Reach::Known),
+            emu("android_id:3333cccc", "pixel_7-api36", Reach::Known),
+            emu(
+                "android_id:4444dddd",
+                "pixel_7-api36-b",
+                attached("emulator-5556"),
+            ),
+        ]
+    }
+
+    #[test]
+    fn a_name_shared_with_rows_left_by_a_wipe_means_the_one_running() {
+        let views = wiped();
+
+        assert_eq!(
+            ids(&candidates(&views, Some("pixel_7-api36"), Aim::Running)),
+            ["android_id:1111aaaa"]
+        );
+    }
+
+    #[test]
+    fn booting_a_name_that_is_running_finds_it_running_rather_than_asking() {
+        let views = wiped();
+
+        assert_eq!(
+            ids(&candidates(&views, Some("pixel_7-api36"), Aim::Bootable)),
+            ["android_id:1111aaaa"]
+        );
+    }
+
+    #[test]
+    fn booting_a_name_a_running_handset_shares_starts_the_avd() {
+        let handset = View::new(
+            Device::new("SERIALNUMBER01", "pixel-9", Platform::Android),
+            attached("SERIALNUMBER01"),
+        );
+        let avd = emu("avd:mac/pixel-9", "pixel-9", Reach::Off);
+
+        let views = [handset, avd];
+
+        assert_eq!(
+            ids(&candidates(&views, Some("pixel-9"), Aim::Bootable)),
+            ["avd:mac/pixel-9"]
+        );
+        assert_eq!(
+            ids(&candidates(&views, Some("pixel-9"), Aim::Running)),
+            ["SERIALNUMBER01"]
+        );
+    }
+
+    #[test]
+    fn two_running_devices_of_one_name_are_still_asked_about() {
+        let views = [
+            emu("android_id:1111", "sdk_gphone", attached("emulator-5554")),
+            emu("android_id:2222", "sdk_gphone", attached("emulator-5556")),
+        ];
+
+        assert_eq!(
+            candidates(&views, Some("sdk_gphone"), Aim::Running).len(),
+            2
+        );
+    }
+
+    #[test]
+    fn a_serial_names_the_device_holding_it_on_any_host() {
+        let views = wiped();
+
+        for want in ["emulator-5556", "mac/emulator-5556"] {
+            assert_eq!(
+                ids(&candidates(&views, Some(want), Aim::Running)),
+                ["android_id:4444dddd"],
+                "{want}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_serial_still_filed_under_a_row_loses_to_the_device_holding_it() {
+        let mut ghost = Device::new("android_id:5555eeee", "tablet-api35", Platform::Emulator);
+
+        ghost.add_alias("emulator-5554");
+
+        let views = [View::new(ghost, Reach::Known), wiped().remove(0)];
+
+        assert_eq!(
+            ids(&candidates(&views, Some("emulator-5554"), Aim::Running)),
+            ["android_id:1111aaaa"]
+        );
+    }
+
+    #[test]
+    fn a_local_serial_typed_in_full_beats_the_same_serial_on_a_host() {
+        let local = View::new(
+            Device::new("emulator-5554", "remote-android", Platform::Emulator),
+            attached("emulator-5554"),
+        );
+        let hosted = emu(
+            "mac/emulator-5554",
+            "remote-android",
+            attached("emulator-5554"),
+        );
+
+        let views = [hosted, local];
+
+        assert_eq!(
+            ids(&candidates(&views, Some("emulator-5554"), Aim::Running)),
+            ["emulator-5554"]
+        );
+    }
+
+    #[test]
+    fn a_substring_is_never_narrowed_to_whichever_is_running() {
+        let views = wiped();
+
+        assert_eq!(candidates(&views, Some("pixel"), Aim::Running).len(), 4);
     }
 }
