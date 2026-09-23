@@ -160,10 +160,20 @@ static NSString *DFActiveDeveloperDirectory(void) {
 
 static NSString *DFSimulatorKitExecutablePath(void) {
     NSString *developerDir = DFActiveDeveloperDirectory();
-    if (developerDir.length > 0) {
-        return [developerDir stringByAppendingPathComponent:@"Library/PrivateFrameworks/SimulatorKit.framework/SimulatorKit"];
+    if (developerDir.length == 0) {
+        developerDir = @"/Applications/Xcode.app/Contents/Developer";
     }
-    return @"/Applications/Xcode.app/Contents/Developer/Library/PrivateFrameworks/SimulatorKit.framework/SimulatorKit";
+
+    NSArray<NSString *> *candidates = @[
+        [developerDir stringByAppendingPathComponent:@"Library/PrivateFrameworks/SimulatorKit.framework/SimulatorKit"],
+        [[developerDir stringByAppendingPathComponent:@"../SharedFrameworks/SimulatorKit.framework/SimulatorKit"] stringByStandardizingPath],
+    ];
+    for (NSString *candidate in candidates) {
+        if ([NSFileManager.defaultManager fileExistsAtPath:candidate]) {
+            return candidate;
+        }
+    }
+    return candidates.firstObject;
 }
 
 typedef struct {
