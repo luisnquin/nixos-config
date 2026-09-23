@@ -794,6 +794,12 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             Ok(())
         }
 
+        Command::Fill { what, text, force } => {
+            eprintln!("phone: {}", fill(s, &what, &text, force).await?);
+
+            Ok(())
+        }
+
         Command::Key { name } => {
             eprintln!("phone: {}", a11y::key(&s.target, &name).await?);
 
@@ -932,6 +938,122 @@ fn refuse_covered(screen: &a11y::Screen, node: &a11y::Node) -> Result<()> {
     }
 
     Ok(())
+}
+
+const FIELD_READS: usize = 4;
+
+fn related(a: &a11y::Node, b: &a11y::Node) -> bool {
+    a.bounds.holds(b.bounds.center()) || b.bounds.holds(a.bounds.center())
+}
+
+fn editable(node: &a11y::Node) -> bool {
+    node.class.contains("EditText") || node.class.contains("TextField") || !node.hint.is_empty()
+}
+
+async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String> {
+    let t = &s.target;
+
+    if !matches!(t, a11y::Target::Adb(_)) {
+        bail!("fill reads a field back through Android's dump; on a simulator tap and type");
+    }
+
+    a11y::sendable(text)?;
+
+    let screen = a11y::dump(t).await?;
+    let target = s.pick(&screen, what)?.clone();
+
+    let already = screen.focused().filter(|f| related(f, &target)).cloned();
+
+    let field = match already {
+        Some(field) => field,
+        None => {
+            if !force {
+                refuse_covered(&screen, &target)?;
+            }
+
+            let (x, y) = target.bounds.center();
+            a11y::tap(t, x, y).await?;
+
+            focus_after_tap(t, &target).await?
+        }
+    };
+
+    if !field.is_empty_field() {
+        a11y::clear(t, field.text.chars().count()).await?;
+    }
+
+    if !text.is_empty() {
+        a11y::type_text(t, text).await?;
+    }
+
+    let label = field.field_name();
+
+    if field.password {
+        return Ok(format!(
+            "filled {label} with {} characters (a password, not read back)",
+            text.chars().count()
+        ));
+    }
+
+    let mut last = None;
+
+    for attempt in 0..FIELD_READS {
+        if attempt > 0 {
+            tokio::time::sleep(POLL).await;
+        }
+
+        let screen = a11y::dump(t).await?;
+        let now = screen
+            .nodes
+            .iter()
+            .find(|n| n.bounds == field.bounds && n.class == field.class)
+            .or_else(|| screen.focused())
+            .cloned();
+
+        match now {
+            Some(now) if now.reads(text) => {
+                return Ok(match text.is_empty() {
+                    true => format!("emptied {label}"),
+                    false => format!("filled {label}, which reads {text:?}"),
+                });
+            }
+            other => last = other,
+        }
+    }
+
+    match last {
+        Some(now) => {
+            let actual = if now.is_empty_field() {
+                ""
+            } else {
+                now.text.as_str()
+            };
+
+            bail!("{label} reads {actual:?} rather than {text:?}")
+        }
+        None => bail!("{label} lost focus while being filled; nothing on screen holds it"),
+    }
+}
+
+async fn focus_after_tap(t: &a11y::Target, target: &a11y::Node) -> Result<a11y::Node> {
+    let mut stray = None;
+
+    for _ in 0..FIELD_READS {
+        tokio::time::sleep(POLL).await;
+
+        let screen = a11y::dump(t).await?;
+
+        match screen.focused() {
+            Some(f) if related(f, target) || editable(f) => return Ok(f.clone()),
+            Some(f) => stray = Some(f.label()),
+            None => {}
+        }
+    }
+
+    match stray {
+        Some(other) => bail!("tapped {} but focus went to {other}", target.label()),
+        None => bail!("tapped {} but nothing took focus", target.label()),
+    }
 }
 
 /// `at 416,1627` for a bare point, `Gmail at 416,1627` for a named element.

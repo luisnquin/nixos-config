@@ -56,7 +56,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 The commands
 
   project  up down status
-  screen   snapshot shot size tap press swipe type key wait do
+  screen   snapshot shot size tap press swipe type fill key wait do
   device   list connect disconnect pair pin use forget boot shutdown reverse
   app      install launch stop open logs
   host     list enable disable
@@ -364,10 +364,33 @@ edge is a system gesture and never reaches the app."#)]
   phone type "rust lang"
   phone key enter
 
-Goes to whatever holds focus, so tap the field first. Printable ASCII only, and
-anything else is refused outright: the device drops what it cannot spell and
-still reports success."#)]
+Goes to whatever holds focus, so tap the field first — or use `fill`, which
+does that and checks the result. Printable ASCII only, and anything else is
+refused outright: the device drops what it cannot spell and still reports
+success."#)]
     Type { text: String },
+    #[command(about = "Put exactly this text in a field: focus it, clear it, type, read it back")]
+    #[command(after_help = r#"Examples:
+  phone fill "Search settings" wifi
+  phone fill @4 "ana@example.com"
+  phone fill email ""  # empty it
+
+Taps the field unless it already holds focus, and fails if nothing takes focus.
+What was there is cleared, the text typed, and the screen read again: a field
+that does not then say exactly that — an autocorrect, a mask, a length limit, a
+keystroke that went to the wrong window — fails and shows what it says instead.
+A password field cannot be read back, so there the check is skipped.
+
+Android only, and printable ASCII only, as with `type`."#)]
+    Fill {
+        #[arg(help = "The field, named as `tap` names one")]
+        what: String,
+
+        text: String,
+
+        #[arg(long, help = "Tap the field even where the keyboard covers it")]
+        force: bool,
+    },
     /// Send a key, by keycode name (back, home, enter, tab…)
     #[command(after_help = r#"Examples:
   phone key enter
@@ -799,6 +822,7 @@ impl Command {
             | Command::Swipe { .. }
             | Command::Wait { .. }
             | Command::Type { .. }
+            | Command::Fill { .. }
             | Command::Key { .. }
             | Command::Do { .. } => None,
 
@@ -1033,6 +1057,21 @@ mod tests {
             Cli::try_parse_from(["phone", "wait", "Inbox", "--timeout", "10"]).is_ok(),
             "a timeout keeps its bare seconds"
         );
+    }
+
+    #[test]
+    fn fill_takes_a_field_and_the_text_for_it() {
+        let cli = Cli::try_parse_from(["phone", "fill", "Search settings", ""]).unwrap();
+
+        match cli.command {
+            Some(Command::Fill { what, text, force }) => {
+                assert_eq!(
+                    (what.as_str(), text.as_str(), force),
+                    ("Search settings", "", false)
+                );
+            }
+            _ => panic!("not a fill"),
+        }
     }
 
     /// The overview's table of commands, as `(heading, verbs)`. A heading that

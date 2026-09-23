@@ -64,6 +64,15 @@ impl Adb {
             .map(|(x, y)| format!("input tap {x} {y}; sleep 0.6; "))
             .unwrap_or_default()
     }
+
+    fn input(&self) -> String {
+        let aim = self
+            .display
+            .map(|d| format!(" -d {}", d.logical))
+            .unwrap_or_default();
+
+        format!("input{aim}")
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -200,6 +209,13 @@ impl Node {
     /// An empty field reports its hint as its text.
     pub fn is_empty_field(&self) -> bool {
         self.text.is_empty() || (!self.hint.is_empty() && self.text == self.hint)
+    }
+
+    pub fn reads(&self, wanted: &str) -> bool {
+        match wanted.is_empty() {
+            true => self.is_empty_field(),
+            false => !self.is_empty_field() && self.text == wanted,
+        }
     }
 
     pub fn describe_field(&self) -> String {
@@ -634,12 +650,11 @@ pub fn present(nodes: &[Node], needle: &str) -> bool {
 /// line as its own words and flags. Without `-d` it aims at logical display 0,
 /// which is the live panel on everything that has one.
 async fn input(a: &Adb, args: &str) -> Result<()> {
-    let aim = a
-        .display
-        .map(|d| format!(" -d {}", d.logical))
-        .unwrap_or_default();
+    shell(a, &format!("{} {args}", a.input())).await
+}
 
-    let remote = format!("{}input{aim} {args}", a.prefix());
+async fn shell(a: &Adb, script: &str) -> Result<()> {
+    let remote = format!("{}{script}", a.prefix());
     let out = adb::run_timeout(
         &a.server,
         &["-s", &a.serial, "shell", &remote],
@@ -739,12 +754,18 @@ fn unsendable(text: &str) -> Vec<char> {
     odd
 }
 
-pub async fn type_text(t: &Target, text: &str) -> Result<()> {
+pub fn sendable(text: &str) -> Result<()> {
     let odd = unsendable(text);
 
     if !odd.is_empty() {
         bail!("cannot type {odd:?} — the device spells out ASCII only and drops the rest silently");
     }
+
+    Ok(())
+}
+
+pub async fn type_text(t: &Target, text: &str) -> Result<()> {
+    sendable(text)?;
 
     match t {
         Target::Adb(a) => input(a, &format!("text {}", shell_quote(text))).await,
@@ -849,6 +870,28 @@ async fn hide_keyboard(a: &Adb) -> Result<bool> {
     bail!(
         "the keyboard was still up {}s after BACK",
         KEYBOARD_GONE.as_secs()
+    )
+}
+
+/// Below this API level select-all cannot be sent from a shell, so a field is
+/// emptied a character at a time.
+const KEYCOMBINATION_SDK: u32 = 33;
+
+pub async fn clear(t: &Target, len: usize) -> Result<()> {
+    let Target::Adb(a) = t else {
+        bail!("clearing a field needs Android");
+    };
+
+    shell(a, &clear_script(&a.input(), len)).await
+}
+
+fn clear_script(input: &str, len: usize) -> String {
+    let dels = vec!["DEL"; len.max(1)].join(" ");
+
+    format!(
+        "if [ \"$(getprop ro.build.version.sdk)\" -ge {KEYCOMBINATION_SDK} ]; then \
+         {input} keycombination CTRL_LEFT A && {input} keyevent DEL; \
+         else {input} keyevent MOVE_END {dels}; fi"
     )
 }
 
@@ -1181,6 +1224,11 @@ mod tests {
 
         assert_eq!(search.res_id, "search");
         assert!(search.is_empty_field());
+        assert!(search.reads(""));
+        assert!(
+            !search.reads("Search settings"),
+            "asking for the hint's words is asking for text"
+        );
         assert_eq!(
             search.describe_field(),
             r#"search (EditText) empty, hint "Search settings""#
@@ -1287,5 +1335,16 @@ mod tests {
     fn hiding_the_keyboard_is_a_key_by_either_spelling() {
         assert_eq!(keycode("hide_keyboard").unwrap(), HIDE_KEYBOARD);
         assert_eq!(keycode("hide-keyboard").unwrap(), HIDE_KEYBOARD);
+    }
+
+    #[test]
+    fn a_field_is_emptied_by_select_all_where_the_device_can_send_it() {
+        let script = clear_script("input -d 2", 3);
+
+        assert!(
+            script.contains("input -d 2 keycombination CTRL_LEFT A && input -d 2 keyevent DEL"),
+            "{script}"
+        );
+        assert!(script.contains("keyevent MOVE_END DEL DEL DEL"), "{script}");
     }
 }
