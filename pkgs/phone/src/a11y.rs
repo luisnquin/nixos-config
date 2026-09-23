@@ -1,7 +1,8 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::adb::{self, Server};
 use crate::simctl;
@@ -65,7 +66,7 @@ impl Adb {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Bounds {
     pub x1: i32,
     pub y1: i32,
@@ -176,7 +177,26 @@ pub struct Node {
     pub password: bool,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct Signature {
+    pub res_id: String,
+    pub class: String,
+    pub text: String,
+    pub desc: String,
+    pub bounds: Bounds,
+}
+
 impl Node {
+    pub fn signature(&self) -> Signature {
+        Signature {
+            res_id: self.res_id.clone(),
+            class: self.class.clone(),
+            text: self.text.clone(),
+            desc: self.desc.clone(),
+            bounds: self.bounds,
+        }
+    }
+
     /// An empty field reports its hint as its text.
     pub fn is_empty_field(&self) -> bool {
         self.text.is_empty() || (!self.hint.is_empty() && self.text == self.hint)
@@ -432,6 +452,39 @@ fn read_dump(ok: bool, out: &str) -> Result<Screen> {
     })
 }
 
+fn record_path(device: &str) -> PathBuf {
+    let name: String = device
+        .chars()
+        .map(
+            |c| match c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                true => c,
+                false => '_',
+            },
+        )
+        .collect();
+
+    crate::registry::state_dir()
+        .join("snapshots")
+        .join(format!("{name}.json"))
+}
+
+pub fn remember(device: &str, nodes: &[Node]) -> Result<()> {
+    let path = record_path(device);
+    let rows: Vec<Signature> = nodes.iter().map(Node::signature).collect();
+
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+
+    std::fs::write(&path, serde_json::to_vec(&rows)?)?;
+
+    Ok(())
+}
+
+pub fn recall(device: &str) -> Option<Vec<Signature>> {
+    serde_json::from_slice(&std::fs::read(record_path(device)).ok()?).ok()
+}
+
 /// The panel, in the space `bounds` and taps use.
 pub async fn size(t: &Target) -> Result<Size> {
     match t {
@@ -452,14 +505,54 @@ pub async fn size(t: &Target) -> Result<Size> {
 
 /// The one element `needle` names. Ambiguity is reported rather than resolved by
 /// picking the first, since acting on the wrong control is worse than not acting.
-pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
+#[cfg(test)]
+fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
+    pick_in(nodes, needle, None)
+}
+
+#[derive(Debug)]
+pub struct Ambiguous(String);
+
+impl std::fmt::Display for Ambiguous {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Ambiguous {}
+
+pub fn pick_in<'a>(
+    nodes: &'a [Node],
+    needle: &str,
+    shown: Option<&[Signature]>,
+) -> Result<&'a Node> {
     if let Some(index) = needle
         .strip_prefix('@')
         .and_then(|n| n.parse::<usize>().ok())
     {
-        return nodes
+        let Some(shown) = shown else {
+            return nodes
+                .get(index)
+                .ok_or_else(|| anyhow!("no element @{index} in this snapshot"));
+        };
+
+        let row = shown
             .get(index)
-            .ok_or_else(|| anyhow::anyhow!("no element @{index} in this snapshot"));
+            .ok_or_else(|| anyhow!("no element @{index} in the last snapshot"))?;
+
+        return found(nodes, row).ok_or_else(|| {
+            let name = [&row.text, &row.desc, &row.res_id]
+                .into_iter()
+                .find(|s| !s.is_empty())
+                .cloned()
+                .unwrap_or_else(|| {
+                    format!("<{}>", row.class.rsplit('.').next().unwrap_or_default())
+                });
+
+            anyhow!(
+                "@{index} ({name}) is no longer where the last snapshot saw it; take a new snapshot"
+            )
+        });
     }
 
     let hits: Vec<&Node> = nodes.iter().filter(|n| n.matches(needle)).collect();
@@ -490,7 +583,11 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            bail!("'{needle}' matches {} elements: {listed}", many.len())
+            Err(Ambiguous(format!(
+                "'{needle}' matches {} elements: {listed}",
+                many.len()
+            ))
+            .into())
         }
     }
 }
@@ -501,6 +598,28 @@ fn outermost<'a>(hits: &[&'a Node]) -> Option<&'a Node> {
         .filter(|n| n.clickable)
         .max_by_key(|n| n.bounds.area())
         .filter(|outer| hits.iter().all(|n| outer.bounds.contains(&n.bounds)))
+}
+
+/// Text and size are state as much as identity, so an id only one element on
+/// screen carries is enough; without one, only its words and place are left.
+fn found<'a>(nodes: &'a [Node], row: &Signature) -> Option<&'a Node> {
+    if let Some(same) = nodes.iter().find(|n| n.signature() == *row) {
+        return Some(same);
+    }
+
+    if row.res_id.is_empty() {
+        return None;
+    }
+
+    match nodes
+        .iter()
+        .filter(|n| n.res_id == row.res_id && n.class == row.class)
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [one] => Some(one),
+        _ => None,
+    }
 }
 
 /// Whether anything on screen answers to `needle`. Unlike `pick`, how many do
@@ -1100,7 +1219,68 @@ mod tests {
     fn matches_side_by_side_stay_ambiguous() {
         let err = pick(&parse(FORM).unwrap(), "e").unwrap_err();
 
-        assert!(err.to_string().contains("matches"), "{err}");
+        assert!(err.is::<Ambiguous>(), "{err}");
+    }
+
+    #[test]
+    fn an_index_names_the_row_it_was_shown_on_not_the_position() {
+        let before = parse(FORM).unwrap();
+        let shown: Vec<Signature> = before.iter().map(Node::signature).collect();
+
+        let xml = FORM.replace(
+            r#"  <node class="android.widget.EditText" bounds="[40,300]"#,
+            r#"  <node class="android.widget.TextView" bounds="[40,100][1040,200]" clickable="false" text="Offline" content-desc="" resource-id=""/>
+  <node class="android.widget.EditText" bounds="[40,300]"#,
+        );
+        let after = parse(&xml).unwrap();
+
+        assert_eq!(pick(&after, "@1").unwrap().res_id, "search", "positional");
+        assert_eq!(
+            pick_in(&after, "@1", Some(&shown)).unwrap().res_id,
+            "secret"
+        );
+    }
+
+    #[test]
+    fn a_field_is_found_again_after_its_text_and_size_changed() {
+        let shown: Vec<Signature> = parse(FORM).unwrap().iter().map(Node::signature).collect();
+        let typed = parse(
+            &FORM
+                .replace(r#"text="Search settings" hint"#, r#"text="wifi" hint"#)
+                .replace("[40,300][1040,400]", "[40,300][900,400]"),
+        )
+        .unwrap();
+
+        assert_eq!(pick_in(&typed, "@0", Some(&shown)).unwrap().text, "wifi");
+    }
+
+    #[test]
+    fn an_id_shared_by_two_rows_does_not_find_a_changed_one() {
+        let shown: Vec<Signature> = parse(FORM).unwrap().iter().map(Node::signature).collect();
+        let twice = parse(
+            &FORM
+                .replace(r#"text="Search settings" hint"#, r#"text="wifi" hint"#)
+                .replace("com.app:id/secret", "com.app:id/search"),
+        )
+        .unwrap();
+
+        assert!(pick_in(&twice, "@0", Some(&shown)).is_err());
+    }
+
+    #[test]
+    fn an_index_whose_row_moved_is_refused() {
+        let shown: Vec<Signature> = parse(FORM).unwrap().iter().map(Node::signature).collect();
+        let scrolled = parse(&FORM.replace("[80,1820][600,1930]", "[80,1620][600,1730]")).unwrap();
+
+        let err = pick_in(&scrolled, "@3", Some(&shown))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("@3 (Continue) is no longer where"), "{err}");
+
+        let err = pick_in(&scrolled, "@7", Some(&shown))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("no element @7 in the last snapshot"), "{err}");
     }
 
     #[test]

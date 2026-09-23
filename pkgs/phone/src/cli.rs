@@ -79,9 +79,9 @@ Naming things
   phone.toml names. A name matches on text, model, host or alias, and an
   ambiguous one is refused with the candidates listed rather than guessed at.
 
-  @index numbers the rows of one snapshot only. Two commands are two dumps and
-  the screen may have moved between them, so name elements by their text unless
-  the index came from the command immediately before.
+  @index names a row of the last snapshot printed for that device. It is found
+  again by what was on that row, and refused once the element has moved or gone,
+  so a stale index fails rather than pressing whatever took its place.
 
   A snapshot row printed as <View> or <EditText> has no name of its own — that
   is its class, shown in angle brackets because nothing will match on it. Reach
@@ -296,9 +296,9 @@ iOS screenshot has to be divided by `scale` before it can be tapped."#)]
 
 An ambiguous name is refused with the candidates listed as @index rather than
 guessed at, except when every match sits inside one pressable match — a button
-and its own label — where the button is pressed. Those indices number the rows
-of one dump, so name an element by its text unless the index came from the
-command immediately before.
+and its own label — where the button is pressed. An @index is the row of the
+last snapshot or refusal shown for this device, found again by what was on it;
+if that element has moved or gone the tap is refused.
 
 An element the keyboard is drawn over is refused too, since the keyboard would
 take the tap: close it with `phone key hide_keyboard`, or pass --force."#)]

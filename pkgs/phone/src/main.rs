@@ -586,6 +586,22 @@ impl Session {
             focus,
         })
     }
+
+    fn pick<'a>(&self, screen: &'a a11y::Screen, what: &str) -> Result<&'a a11y::Node> {
+        let shown = a11y::recall(&self.view.device.id);
+
+        a11y::pick_in(&screen.nodes, what, shown.as_deref()).inspect_err(|e| {
+            if e.is::<a11y::Ambiguous>() {
+                self.remember(&screen.nodes);
+            }
+        })
+    }
+
+    fn remember(&self, nodes: &[a11y::Node]) {
+        if let Err(e) = a11y::remember(&self.view.device.id, nodes) {
+            eprintln!("phone: could not keep these rows for @index: {e:#}");
+        }
+    }
 }
 
 /// A screen verb against an already-resolved device.
@@ -612,7 +628,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             // reading the frame and reading the elements in it are two calls to
             // the same device, so the crop is worked out off this one view
             let crop = match &crop {
-                Some(spec) => Some(crop_bounds(&s.target, spec, expand, pad).await?),
+                Some(spec) => Some(crop_bounds(s, spec, expand, pad).await?),
                 None => None,
             };
 
@@ -676,6 +692,8 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             let _ = target;
             let screen = a11y::dump(&s.target).await?;
 
+            s.remember(&screen.nodes);
+
             if json {
                 print_elements_json(&screen)?;
             } else {
@@ -687,7 +705,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 
         Command::Tap { what, force } => {
             let t = &s.target;
-            let ((x, y), name) = at(t, &what, force).await?;
+            let ((x, y), name) = at(s, &what, force).await?;
 
             a11y::tap(t, x, y).await?;
             eprintln!("phone: tapped {}", aim((x, y), name));
@@ -697,7 +715,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 
         Command::Press { what, hold, force } => {
             let t = &s.target;
-            let ((x, y), name) = at(t, &what, force).await?;
+            let ((x, y), name) = at(s, &what, force).await?;
 
             // a device tells a press from a tap by how long the touch lasts, not
             // by where it went, so a hold is a drag that stays where it started
@@ -729,7 +747,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                         bail!("--amount sizes a directional swipe; this one has both ends");
                     }
 
-                    (at(t, &from, force).await?.0, at(t, to, force).await?.0)
+                    (at(s, &from, force).await?.0, at(s, to, force).await?.0)
                 }
                 None => {
                     let direction = from.parse().map_err(|e| {
@@ -887,13 +905,13 @@ async fn target_of(view: &View, focus: Option<(i32, i32)>) -> Result<a11y::Targe
 /// a canvas, a map, an unfocused split half — and anything else names an
 /// element. The name comes back so that a tap, a hold and a drag all report the
 /// same way; a caller that resolved an element wants to see which one.
-async fn at(t: &a11y::Target, what: &str, force: bool) -> Result<((i32, i32), Option<String>)> {
+async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<String>)> {
     if let Ok(point) = cli::parse_point(what) {
         return Ok((point, None));
     }
 
-    let screen = a11y::dump(t).await?;
-    let node = a11y::pick(&screen.nodes, what)?;
+    let screen = a11y::dump(&s.target).await?;
+    let node = s.pick(&screen, what)?;
 
     if !force {
         refuse_covered(&screen, node)?;
@@ -928,11 +946,12 @@ fn aim(point: (i32, i32), name: Option<String>) -> String {
 /// crop tight to its bounds shows a control with nothing around it to say where
 /// on the screen it is; an explicit rectangle is taken as given.
 async fn crop_bounds(
-    t: &a11y::Target,
+    s: &Session,
     spec: &str,
     expand: Option<u8>,
     pad: i32,
 ) -> Result<a11y::Bounds> {
+    let t = &s.target;
     let size = a11y::size(t).await?;
     let panel = (size.width as i32, size.height as i32);
 
@@ -948,7 +967,7 @@ async fn crop_bounds(
         }
         None => {
             let screen = a11y::dump(t).await?;
-            let node = a11y::pick(&screen.nodes, spec)?;
+            let node = s.pick(&screen, spec)?;
 
             let bounds = match expand {
                 None => node.bounds,
