@@ -9,9 +9,10 @@ use crate::simctl;
 
 /// uiautomator will not write to stdout on every vendor build, so the dump goes
 /// to a file that is read and removed in the same shell.
-const REMOTE: &str = "said=$(uiautomator dump /sdcard/.phone-a11y.xml 2>&1); \
-     case \"$said\" in *'could not get idle state'*) echo phone:not-idle;; esac; \
-     cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phone-a11y.xml";
+const DUMP: &str = "said=$(uiautomator dump /sdcard/.phone-a11y.xml 2>&1); \
+     case \"$said\" in *'could not get idle state'*) echo phone:not-idle;; esac";
+
+const READ: &str = "cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phone-a11y.xml";
 
 const KEYBOARD: &str = "dumpsys input_method 2>/dev/null | grep -m1 mInputShown; \
      dumpsys window 2>/dev/null | grep -m1 'type=ime frame='";
@@ -441,7 +442,7 @@ pub async fn dump(t: &Target) -> Result<Screen> {
 }
 
 async fn dump_once(a: &Adb) -> Result<Screen> {
-    let remote = format!("{}{KEYBOARD}; {REMOTE}", a.prefix());
+    let remote = format!("{}{DUMP}; {KEYBOARD}; {READ}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
 
     read_dump(ok, &String::from_utf8_lossy(&bytes))
