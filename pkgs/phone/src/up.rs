@@ -526,6 +526,12 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
 
     for (name, _, view) in &mut wanted {
         *view = pick(&views, name)?.clone();
+
+        if booted.iter().any(|b| b == name) && view.device.platform == Platform::Emulator {
+            for changed in actions::quiet(&view.server, &view.device).await? {
+                eprintln!("phone: {name} {changed}");
+            }
+        }
     }
 
     // the attach writes to the registry, so it is the one rung a device cannot

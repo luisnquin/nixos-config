@@ -613,6 +613,22 @@ fn spelled(stale: &[&(&str, &str, String)]) -> Vec<String> {
         .collect()
 }
 
+/// Written before `up` applies a manifest's settings, so a manifest that wants
+/// either back still gets it.
+const QUIET: [(&str, &str, &str); 2] = [
+    ("secure", "stylus_handwriting_enabled", "0"),
+    ("secure", "show_ime_with_hard_keyboard", "1"),
+];
+
+pub async fn quiet(server: &Server, device: &Device) -> Result<Vec<String>> {
+    let want: Vec<(&str, &str, String)> = QUIET
+        .iter()
+        .map(|(ns, key, value)| (*ns, *key, value.to_string()))
+        .collect();
+
+    settings(server, device, &want).await
+}
+
 async fn unsettled<'a>(
     server: &Server,
     device: &Device,

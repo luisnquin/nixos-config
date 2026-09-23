@@ -1096,6 +1096,12 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
         bail!("{label} booted but no survey can see it yet");
     };
 
+    if live.device.platform == Platform::Emulator {
+        for changed in actions::quiet(&live.server, &live.device).await? {
+            eprintln!("phone: {label} {changed}");
+        }
+    }
+
     println!("{} is {}", live.device.label, live.reach.label());
 
     Ok(())
