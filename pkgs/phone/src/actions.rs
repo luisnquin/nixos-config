@@ -563,8 +563,63 @@ pub async fn settings(
     device: &Device,
     want: &[(&str, &str, String)],
 ) -> Result<Vec<String>> {
-    if want.is_empty() {
+    let Some((serial, stale)) = unsettled(server, device, want).await? else {
         return Ok(Vec::new());
+    };
+
+    if stale.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let writes: Vec<String> = stale
+        .iter()
+        .map(|(ns, key, value)| format!("settings put {ns} {key} {value}"))
+        .collect();
+
+    let out = adb::run_timeout(
+        server,
+        &["-s", &serial, "shell", &writes.join("\n")],
+        SETTINGS_TIMEOUT,
+    )
+    .await?;
+
+    if !out.ok() {
+        bail!(
+            "{}",
+            first_line(&out.stderr).unwrap_or("adb refused to write the settings")
+        );
+    }
+
+    Ok(spelled(&stale))
+}
+
+/// The settings `settings` would write, without writing them: a report must not
+/// be what puts a device another session holds back in place.
+pub async fn drifted(
+    server: &Server,
+    device: &Device,
+    want: &[(&str, &str, String)],
+) -> Result<Vec<String>> {
+    Ok(unsettled(server, device, want)
+        .await?
+        .map(|(_, stale)| spelled(&stale))
+        .unwrap_or_default())
+}
+
+fn spelled(stale: &[&(&str, &str, String)]) -> Vec<String> {
+    stale
+        .iter()
+        .map(|(ns, key, value)| format!("{ns}.{key} = {value}"))
+        .collect()
+}
+
+async fn unsettled<'a>(
+    server: &Server,
+    device: &Device,
+    want: &'a [(&'a str, &'a str, String)],
+) -> Result<Option<(String, Vec<&'a (&'a str, &'a str, String)>)>> {
+    if want.is_empty() {
+        return Ok(None);
     }
 
     if !device.platform.is_adb() {
@@ -614,33 +669,7 @@ pub async fn settings(
         .map(|(_, spec)| spec)
         .collect();
 
-    if stale.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let writes: Vec<String> = stale
-        .iter()
-        .map(|(ns, key, value)| format!("settings put {ns} {key} {value}"))
-        .collect();
-
-    let out = adb::run_timeout(
-        server,
-        &["-s", &serial, "shell", &writes.join("\n")],
-        SETTINGS_TIMEOUT,
-    )
-    .await?;
-
-    if !out.ok() {
-        bail!(
-            "{}",
-            first_line(&out.stderr).unwrap_or("adb refused to write the settings")
-        );
-    }
-
-    Ok(stale
-        .iter()
-        .map(|(ns, key, value)| format!("{ns}.{key} = {value}"))
-        .collect())
+    Ok(Some((serial, stale)))
 }
 
 /// Short: `settings` is a local database read, and a device that cannot answer

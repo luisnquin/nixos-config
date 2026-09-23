@@ -1080,10 +1080,8 @@ async fn settled(view: &View, spec: &Spec) -> Result<bool> {
         }
     }
 
-    // `settings` writes only what differs and reports what it wrote, so an
-    // empty answer is the reading and there is nothing separate to check
     Ok(
-        actions::settings(&view.server, &view.device, &spec.settings.each())
+        actions::drifted(&view.server, &view.device, &spec.settings.each())
             .await?
             .is_empty(),
     )
