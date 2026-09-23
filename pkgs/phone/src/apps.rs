@@ -23,6 +23,8 @@ const LAUNCH_TIMEOUT: Duration = Duration::from_secs(30);
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(15);
 
+const PID_WAIT: Duration = Duration::from_secs(5);
+
 /// A package name on Android, a bundle id on iOS. The two are the same shape,
 /// which is why one check covers both.
 ///
@@ -135,13 +137,31 @@ pub async fn launch(
     }
 
     // the pid is the only proof that separates a started app from an intent the
-    // system accepted and dropped
-    match adb::pidof(server, &serial, app).await {
+    // system accepted and dropped. `am start` returns once the intent is sent,
+    // before a cold process has forked, so one look is too early
+    match settled_pid(server, &serial, app).await {
         Some(pid) => Ok(format!("launched {app} on {} (pid {pid})", device.label)),
         None => Ok(format!(
-            "started {app} on {}, but nothing is running under that name yet",
-            device.label
+            "started {app} on {}, but nothing ran under that name within {}s",
+            device.label,
+            PID_WAIT.as_secs()
         )),
+    }
+}
+
+async fn settled_pid(server: &Server, serial: &str, app: &str) -> Option<String> {
+    let deadline = tokio::time::Instant::now() + PID_WAIT;
+
+    loop {
+        if let Some(pid) = adb::pidof(server, serial, app).await {
+            return Some(pid);
+        }
+
+        if tokio::time::Instant::now() >= deadline {
+            return None;
+        }
+
+        tokio::time::sleep(Duration::from_millis(250)).await;
     }
 }
 
