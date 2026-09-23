@@ -111,6 +111,10 @@ impl Bounds {
     fn area(&self) -> i64 {
         ((self.x2 - self.x1) as i64).max(0) * ((self.y2 - self.y1) as i64).max(0)
     }
+
+    fn contains(&self, other: &Bounds) -> bool {
+        self.x1 <= other.x1 && self.y1 <= other.y1 && self.x2 >= other.x2 && self.y2 >= other.y2
+    }
 }
 
 /// The panel in the space its element bounds and taps are given in, and the
@@ -361,13 +365,20 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
         [] => bail!("nothing on screen matches '{needle}'"),
         [one] => Ok(one),
         many => {
-            let exact: Vec<&&Node> = many
+            let exact: Vec<&Node> = many
                 .iter()
+                .copied()
                 .filter(|n| n.name().eq_ignore_ascii_case(needle))
                 .collect();
 
             if let [one] = exact.as_slice() {
                 return Ok(one);
+            }
+
+            // a pressable and the label drawn inside it both carry the name,
+            // and pressing either presses the same thing
+            if let Some(outer) = outermost(many).or_else(|| outermost(&exact)) {
+                return Ok(outer);
             }
 
             let listed = many
@@ -379,6 +390,14 @@ pub fn pick<'a>(nodes: &'a [Node], needle: &str) -> Result<&'a Node> {
             bail!("'{needle}' matches {} elements: {listed}", many.len())
         }
     }
+}
+
+fn outermost<'a>(hits: &[&'a Node]) -> Option<&'a Node> {
+    hits.iter()
+        .copied()
+        .filter(|n| n.clickable)
+        .max_by_key(|n| n.bounds.area())
+        .filter(|outer| hits.iter().all(|n| outer.bounds.contains(&n.bounds)))
 }
 
 /// Whether anything on screen answers to `needle`. Unlike `pick`, how many do
@@ -796,6 +815,17 @@ mod tests {
         assert_eq!(unsendable("line\nbreak"), vec!['\n']);
     }
 
+    const FORM: &str = r#"<?xml version='1.0' encoding='UTF-8'?>
+<hierarchy rotation="0">
+ <node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" clickable="false" text="" content-desc="" resource-id="">
+  <node class="android.widget.EditText" bounds="[40,300][1040,400]" clickable="true" focused="true" text="Search settings" hint="Search settings" content-desc="" resource-id="com.app:id/search"/>
+  <node class="android.widget.EditText" bounds="[40,500][1040,600]" clickable="true" focused="false" text="hunter2" hint="" password="true" content-desc="" resource-id="com.app:id/secret"/>
+  <node class="android.view.ViewGroup" bounds="[40,1800][1040,1950]" clickable="true" text="" content-desc="" resource-id="com.app:id/row">
+   <node class="android.widget.TextView" bounds="[80,1820][600,1930]" clickable="false" text="Continue" content-desc="" resource-id=""/>
+  </node>
+ </node>
+</hierarchy>"#;
+
     #[test]
     fn a_screen_that_never_goes_idle_is_told_apart_from_one_that_is_off() {
         let err = read_dump(true, "phone:not-idle\n").unwrap_err();
@@ -806,5 +836,23 @@ mod tests {
         let err = read_dump(true, "  mInputShown=false\n").unwrap_err();
         assert!(!err.is::<NotIdle>(), "{err}");
         assert!(err.to_string().contains("no hierarchy"), "{err}");
+    }
+
+    #[test]
+    fn a_name_on_a_pressable_and_the_label_inside_it_picks_the_pressable() {
+        let xml = FORM.replace(
+            r#"text="" content-desc="" resource-id="com.app:id/row""#,
+            r#"text="" content-desc="Continue" resource-id="com.app:id/row""#,
+        );
+        let nodes = parse(&xml).unwrap();
+
+        assert_eq!(pick(&nodes, "Continue").unwrap().res_id, "row");
+    }
+
+    #[test]
+    fn matches_side_by_side_stay_ambiguous() {
+        let err = pick(&parse(FORM).unwrap(), "e").unwrap_err();
+
+        assert!(err.to_string().contains("matches"), "{err}");
     }
 }

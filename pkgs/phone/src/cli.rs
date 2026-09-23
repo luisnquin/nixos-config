@@ -290,8 +290,10 @@ iOS screenshot has to be divided by `scale` before it can be tapped."#)]
   phone tap 540,1200  # by coordinate, where there are no elements to name
 
 An ambiguous name is refused with the candidates listed as @index rather than
-guessed at. Those indices number the rows of one dump, so name an element by its
-text unless the index came from the command immediately before."#)]
+guessed at, except when every match sits inside one pressable match — a button
+and its own label — where the button is pressed. Those indices number the rows
+of one dump, so name an element by its text unless the index came from the
+command immediately before."#)]
     Tap { what: String },
     /// Hold an element down, named as `tap` names one
     #[command(after_help = r#"Examples:
