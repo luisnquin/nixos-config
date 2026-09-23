@@ -427,10 +427,22 @@ static CGSize XCWDisplayPixelSizeForDeviceType(NSString *deviceTypeIdentifier, C
         NSDictionary *profile = [NSDictionary dictionaryWithContentsOfFile:profilePath];
         CGFloat width = [profile[@"mainScreenWidth"] doubleValue];
         CGFloat height = [profile[@"mainScreenHeight"] doubleValue];
+        CGFloat mainScreenScale = [profile[@"mainScreenScale"] doubleValue];
+
+        if (width <= 0.0 || height <= 0.0) {
+            // Xcode 27 dropped the geometry from profile.plist; it only lives in capabilities.plist now.
+            NSString *capabilitiesPath = [path stringByAppendingPathComponent:@"Contents/Resources/capabilities.plist"];
+            NSDictionary *capabilities = [NSDictionary dictionaryWithContentsOfFile:capabilitiesPath];
+            NSDictionary *screen = capabilities[@"capabilities"][@"ScreenDimensionsCapability"];
+            if ([screen isKindOfClass:[NSDictionary class]]) {
+                width = [screen[@"main-screen-width"] doubleValue];
+                height = [screen[@"main-screen-height"] doubleValue];
+                mainScreenScale = [screen[@"main-screen-scale"] doubleValue];
+            }
+        }
 
         if (width > 0.0 && height > 0.0) {
             if (scale != NULL) {
-                CGFloat mainScreenScale = [profile[@"mainScreenScale"] doubleValue];
                 *scale = mainScreenScale > 0.0 ? mainScreenScale : 1.0;
             }
             return CGSizeMake(width, height);
