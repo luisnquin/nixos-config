@@ -1089,16 +1089,14 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 
     lease::forget(&view).await?;
 
-    let found = survey(reg).await;
+    let found = discover::arrived(reg, std::slice::from_ref(&view.device)).await;
     reg.save()?;
 
-    match found
-        .iter()
-        .find(|v| v.device.is(&label) && actions::running(&v.reach))
-    {
-        Some(v) => println!("{} is {}", v.device.label, v.reach.label()),
-        None => bail!("{label} booted but no survey can see it yet"),
-    }
+    let Some(live) = found.iter().find(|v| discover::landed(v, &view.device)) else {
+        bail!("{label} booted but no survey can see it yet");
+    };
+
+    println!("{} is {}", live.device.label, live.reach.label());
 
     Ok(())
 }

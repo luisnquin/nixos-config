@@ -25,9 +25,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::connect;
-use crate::discover::survey;
+use crate::discover::{self, survey};
 use crate::lease::{self, Holder, Leases};
-use crate::model::{self, Platform, Reach, View};
+use crate::model::{self, Device, Platform, Reach, View};
 use crate::project::{Build, Level, Project, Spec, Task};
 use crate::registry::Registry;
 use crate::ssh::{Status, Where};
@@ -490,6 +490,10 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         .collect();
 
     let booted: Vec<String> = cold.iter().map(|(name, _, _)| name.to_string()).collect();
+    let started: Vec<Device> = cold
+        .iter()
+        .map(|(_, _, view)| view.device.clone())
+        .collect();
 
     if !cold.is_empty() {
         let (rep, drain) = crate::reporter();
@@ -513,7 +517,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
     let views = match cold.is_empty() {
         true => views,
         false => {
-            let views = survey(reg).await;
+            let views = discover::arrived(reg, &started).await;
             reg.save()?;
 
             views

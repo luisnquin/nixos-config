@@ -3,11 +3,13 @@ pub mod sweep;
 pub mod tailscale;
 
 use std::collections::HashSet;
+use std::time::Duration;
 
 use crate::adb::{self, Server};
 use crate::hosts::{self, HostState};
 use crate::model::{
-    discovered_id, Device, Endpoint, Pin, Platform, Reach, View, PLACEHOLDER_PREFIX,
+    discovered_id, is_transport_alias, Device, Endpoint, Pin, Platform, Reach, View,
+    PLACEHOLDER_PREFIX,
 };
 use crate::registry::Registry;
 use crate::ssh::Where;
@@ -211,6 +213,41 @@ async fn scan_host(mut state: HostState) -> (HostState, Found) {
 
 pub async fn survey(reg: &mut Registry) -> Vec<View> {
     scan(reg, |_| {}).await
+}
+
+const ARRIVAL: Duration = Duration::from_secs(20);
+
+pub async fn arrived(reg: &mut Registry, booted: &[Device]) -> Vec<View> {
+    let began = std::time::Instant::now();
+
+    loop {
+        let views = survey(reg).await;
+
+        let all = booted
+            .iter()
+            .all(|device| views.iter().any(|v| landed(v, device)));
+
+        if all || began.elapsed() >= ARRIVAL {
+            return views;
+        }
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+}
+
+/// An emulator filed under its serial rather than a hardware id is a row the
+/// next survey replaces, so it has not landed yet.
+pub fn landed(view: &View, booted: &Device) -> bool {
+    let d = &view.device;
+
+    if d.platform != booted.platform || d.host != booted.host || d.label != booted.label {
+        return false;
+    }
+
+    match d.platform {
+        Platform::Emulator => view.reach.is_attached() && !is_transport_alias(&d.id),
+        _ => view.reach.is_attached() || view.reach == Reach::Online,
+    }
 }
 
 pub async fn scan(reg: &mut Registry, mut on: impl FnMut(Snapshot)) -> Vec<View> {
