@@ -12,6 +12,9 @@ const REMOTE: &str = "said=$(uiautomator dump /sdcard/.phone-a11y.xml 2>&1); \
      case \"$said\" in *'could not get idle state'*) echo phone:not-idle;; esac; \
      cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phone-a11y.xml";
 
+const KEYBOARD: &str = "dumpsys input_method 2>/dev/null | grep -m1 mInputShown; \
+     dumpsys window 2>/dev/null | grep -m1 'type=ime frame='";
+
 const NOT_IDLE: &str = "phone:not-idle";
 
 #[derive(Debug)]
@@ -115,6 +118,10 @@ impl Bounds {
     fn contains(&self, other: &Bounds) -> bool {
         self.x1 <= other.x1 && self.y1 <= other.y1 && self.x2 >= other.x2 && self.y2 >= other.y2
     }
+
+    pub fn holds(&self, (x, y): (i32, i32)) -> bool {
+        (self.x1..self.x2).contains(&x) && (self.y1..self.y2).contains(&y)
+    }
 }
 
 /// The panel in the space its element bounds and taps are given in, and the
@@ -161,9 +168,44 @@ pub struct Node {
     /// is why the callers say so rather than quietly cropping to nothing.
     #[serde(default)]
     pub ancestors: Vec<Bounds>,
+    #[serde(default)]
+    pub focused: bool,
+    #[serde(default)]
+    pub hint: String,
+    #[serde(default)]
+    pub password: bool,
 }
 
 impl Node {
+    /// An empty field reports its hint as its text.
+    pub fn is_empty_field(&self) -> bool {
+        self.text.is_empty() || (!self.hint.is_empty() && self.text == self.hint)
+    }
+
+    pub fn describe_field(&self) -> String {
+        let name = self.field_name();
+
+        let value = if self.password {
+            "password".to_string()
+        } else if self.is_empty_field() {
+            match self.hint.as_str() {
+                "" => "empty".to_string(),
+                hint => format!("empty, hint {hint:?}"),
+            }
+        } else {
+            format!("{:?}", self.text)
+        };
+
+        format!("{name} ({}) {value}", self.kind())
+    }
+
+    pub fn field_name(&self) -> String {
+        match self.res_id.as_str() {
+            "" => self.label(),
+            id => id.to_string(),
+        }
+    }
+
     /// The name this element answers to, empty when it carries none of its own.
     /// Deliberately the same three fields `matches` searches: what a snapshot
     /// prints and what `pick` can resolve have to be one set, or a caller reads
@@ -244,8 +286,9 @@ fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
         let desc = attr("content-desc");
         let res_id = attr("resource-id");
         let clickable = element.attribute("clickable") == Some("true");
+        let focused = element.attribute("focused") == Some("true");
 
-        if !(text.is_empty() && desc.is_empty() && !clickable) {
+        if !(text.is_empty() && desc.is_empty() && !clickable && !focused) {
             out.push(Node {
                 index: out.len(),
                 text,
@@ -256,6 +299,9 @@ fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
                 clickable,
                 bounds,
                 ancestors: enclosing.to_vec(),
+                focused,
+                hint: attr("hint"),
+                password: element.attribute("password") == Some("true"),
             });
         }
     }
@@ -281,10 +327,64 @@ fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
 /// tap is worth asking for twice before calling the screen unreadable.
 const DUMP_TRIES: usize = 3;
 
-pub async fn dump(t: &Target) -> Result<Vec<Node>> {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Keyboard {
+    pub shown: bool,
+    pub frame: Option<Bounds>,
+}
+
+impl Keyboard {
+    fn parse(text: &str) -> Option<Self> {
+        let shown = text
+            .lines()
+            .find_map(|line| line.trim().strip_prefix("mInputShown="))?
+            == "true";
+
+        let frame = text
+            .lines()
+            .find_map(|line| line.split_once("type=ime frame="))
+            .and_then(|(_, rest)| Bounds::parse(rest.split_whitespace().next()?))
+            .filter(|b| shown && b.area() > 0);
+
+        Some(Keyboard { shown, frame })
+    }
+
+    pub fn describe(&self) -> String {
+        match (self.shown, self.frame) {
+            (false, _) => "down".to_string(),
+            (true, None) => "up".to_string(),
+            (true, Some(b)) => format!("up over [{},{}][{},{}]", b.x1, b.y1, b.x2, b.y2),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Screen {
+    pub nodes: Vec<Node>,
+    pub keyboard: Option<Keyboard>,
+}
+
+impl Screen {
+    pub fn covered(&self, node: &Node) -> bool {
+        self.keyboard
+            .and_then(|k| k.frame)
+            .is_some_and(|frame| frame.holds(node.bounds.center()))
+    }
+
+    pub fn focused(&self) -> Option<&Node> {
+        self.nodes.iter().find(|n| n.focused)
+    }
+}
+
+pub async fn dump(t: &Target) -> Result<Screen> {
     let a = match t {
         Target::Adb(a) => a,
-        Target::Simulator(s) => return simctl::snapshot(&s.at, &s.udid).await,
+        Target::Simulator(s) => {
+            return Ok(Screen {
+                nodes: simctl::snapshot(&s.at, &s.udid).await?,
+                keyboard: None,
+            })
+        }
     };
 
     let mut last = None;
@@ -295,7 +395,7 @@ pub async fn dump(t: &Target) -> Result<Vec<Node>> {
         }
 
         match dump_once(a).await {
-            Ok(nodes) => return Ok(nodes),
+            Ok(screen) => return Ok(screen),
             Err(e) if e.is::<NotIdle>() => return Err(e),
             Err(e) => last = Some(e),
         }
@@ -304,14 +404,14 @@ pub async fn dump(t: &Target) -> Result<Vec<Node>> {
     Err(last.expect("the loop runs at least once"))
 }
 
-async fn dump_once(a: &Adb) -> Result<Vec<Node>> {
-    let remote = format!("{}{REMOTE}", a.prefix());
+async fn dump_once(a: &Adb) -> Result<Screen> {
+    let remote = format!("{}{KEYBOARD}; {REMOTE}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
 
     read_dump(ok, &String::from_utf8_lossy(&bytes))
 }
 
-fn read_dump(ok: bool, out: &str) -> Result<Vec<Node>> {
+fn read_dump(ok: bool, out: &str) -> Result<Screen> {
     let (said, xml) = out.split_at(
         out.find("<?xml")
             .or_else(|| out.find("<hierarchy"))
@@ -326,7 +426,10 @@ fn read_dump(ok: bool, out: &str) -> Result<Vec<Node>> {
         bail!("uiautomator returned no hierarchy (is the screen on and unlocked?)");
     }
 
-    parse(xml)
+    Ok(Screen {
+        nodes: parse(xml)?,
+        keyboard: Keyboard::parse(said),
+    })
 }
 
 /// The panel, in the space `bounds` and taps use.
@@ -826,6 +929,10 @@ mod tests {
  </node>
 </hierarchy>"#;
 
+    const IME_UP: &str = "  mInputShown=true\n  Window #3 Window{f00 u0 InputMethod}: ty=INPUT_METHOD type=ime frame=[0,1500][1080,2400] visibleFrame=[0,1500][1080,2400] visible=true\n";
+
+    const IME_DOWN: &str = "  mInputShown=false\n  Window #3 Window{f00 u0 InputMethod}: ty=INPUT_METHOD type=ime frame=[0,0][0,0] visibleFrame=[0,0][0,0] visible=false\n";
+
     #[test]
     fn a_screen_that_never_goes_idle_is_told_apart_from_one_that_is_off() {
         let err = read_dump(true, "phone:not-idle\n").unwrap_err();
@@ -836,6 +943,83 @@ mod tests {
         let err = read_dump(true, "  mInputShown=false\n").unwrap_err();
         assert!(!err.is::<NotIdle>(), "{err}");
         assert!(err.to_string().contains("no hierarchy"), "{err}");
+    }
+
+    #[test]
+    fn the_keyboard_is_read_off_what_comes_before_the_hierarchy() {
+        let up = read_dump(true, &format!("{IME_UP}{FORM}")).unwrap();
+
+        assert_eq!(
+            up.keyboard,
+            Some(Keyboard {
+                shown: true,
+                frame: Bounds::parse("[0,1500][1080,2400]"),
+            })
+        );
+        assert_eq!(
+            up.keyboard.unwrap().describe(),
+            "up over [0,1500][1080,2400]"
+        );
+
+        let down = read_dump(true, &format!("{IME_DOWN}{FORM}")).unwrap();
+
+        assert_eq!(
+            down.keyboard,
+            Some(Keyboard {
+                shown: false,
+                frame: None
+            })
+        );
+        assert_eq!(down.nodes.len(), up.nodes.len());
+
+        let silent = read_dump(true, FORM).unwrap();
+        assert_eq!(silent.keyboard, None, "unknown is not down");
+    }
+
+    #[test]
+    fn a_row_whose_middle_is_under_the_keyboard_is_covered() {
+        let screen = read_dump(true, &format!("{IME_UP}{FORM}")).unwrap();
+        let covered: Vec<String> = screen
+            .nodes
+            .iter()
+            .filter(|n| screen.covered(n))
+            .map(|n| n.label())
+            .collect();
+
+        assert_eq!(covered, ["row", "Continue"]);
+
+        let down = read_dump(true, &format!("{IME_DOWN}{FORM}")).unwrap();
+        assert!(down.nodes.iter().all(|n| !down.covered(n)));
+    }
+
+    #[test]
+    fn a_field_showing_its_hint_is_empty() {
+        let screen = read_dump(true, FORM).unwrap();
+        let search = screen.focused().expect("the search field holds focus");
+
+        assert_eq!(search.res_id, "search");
+        assert!(search.is_empty_field());
+        assert_eq!(
+            search.describe_field(),
+            r#"search (EditText) empty, hint "Search settings""#
+        );
+
+        let secret = pick(&screen.nodes, "secret").unwrap();
+        assert!(secret.password);
+        assert_eq!(secret.describe_field(), "secret (EditText) password");
+    }
+
+    #[test]
+    fn a_focused_field_is_kept_even_with_nothing_to_name_it() {
+        let xml = FORM.replace(
+            r#"text="Search settings" hint="Search settings" content-desc="" resource-id="com.app:id/search""#,
+            r#"text="" hint="" content-desc="" resource-id="""#,
+        )
+        .replace(r#"clickable="true" focused="true""#, r#"clickable="false" focused="true""#);
+
+        let screen = read_dump(true, &xml).unwrap();
+
+        assert_eq!(screen.focused().unwrap().label(), "<EditText>");
     }
 
     #[test]

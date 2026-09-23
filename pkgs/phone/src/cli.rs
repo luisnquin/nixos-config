@@ -205,6 +205,11 @@ The cheapest way to see a screen, and the one that gives names to press. Empty
 on anything drawn rather than laid out — a game, a canvas, a video — and there
 `shot` plus a coordinate is the only way through.
 
+On Android two lines come first: the field holding focus and what is in it, and
+whether the keyboard is up and where. The keyboard is not part of the app's
+window and never appears as rows, so a row it is drawn over is marked
+`under keyboard` instead; a tap there would land on a key.
+
 A screen that animates without end cannot be read at all: uiautomator waits for
 it to go idle first. That is refused with the reason rather than retried."#)]
     Snapshot {
@@ -293,8 +298,16 @@ An ambiguous name is refused with the candidates listed as @index rather than
 guessed at, except when every match sits inside one pressable match — a button
 and its own label — where the button is pressed. Those indices number the rows
 of one dump, so name an element by its text unless the index came from the
-command immediately before."#)]
-    Tap { what: String },
+command immediately before.
+
+An element the keyboard is drawn over is refused too, since the keyboard would
+take the tap: close it with `phone key hide_keyboard`, or pass --force."#)]
+    Tap {
+        what: String,
+
+        #[arg(long, help = "Press a named element even where the keyboard covers it")]
+        force: bool,
+    },
     /// Hold an element down, named as `tap` names one
     #[command(after_help = r#"Examples:
   phone press Settings  # held for 800ms
@@ -309,6 +322,9 @@ tap on the same element does something else entirely."#)]
         /// How long to keep the touch down, with its unit: 800ms, 2s
         #[arg(long, default_value = "800ms", value_parser = parse_gesture_time)]
         hold: Duration,
+
+        #[arg(long, help = "Press a named element even where the keyboard covers it")]
+        force: bool,
     },
     /// Drag between two points, or scroll the screen a direction
     #[command(after_help = r#"Examples:
@@ -335,6 +351,12 @@ edge is a system gesture and never reaches the app."#)]
         /// How much of the panel a directional swipe crosses
         #[arg(long, default_value_t = DEFAULT_AMOUNT)]
         amount: f64,
+
+        #[arg(
+            long,
+            help = "Start or end on a named element even where the keyboard covers it"
+        )]
+        force: bool,
     },
     /// Type into whatever holds focus
     #[command(after_help = r#"Examples:

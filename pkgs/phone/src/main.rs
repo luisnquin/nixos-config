@@ -674,21 +674,20 @@ async fn step(s: &Session, command: Command) -> Result<()> {
         Command::Snapshot { target, json } => {
             // uiautomator has no display flag; it reads whichever one holds focus
             let _ = target;
-            let t = &s.target;
-            let nodes = a11y::dump(t).await?;
+            let screen = a11y::dump(&s.target).await?;
 
             if json {
-                print_elements_json(&nodes)?;
+                print_elements_json(&screen)?;
             } else {
-                print_elements(&nodes);
+                print_elements(&screen);
             }
 
             Ok(())
         }
 
-        Command::Tap { what } => {
+        Command::Tap { what, force } => {
             let t = &s.target;
-            let ((x, y), name) = at(t, &what).await?;
+            let ((x, y), name) = at(t, &what, force).await?;
 
             a11y::tap(t, x, y).await?;
             eprintln!("phone: tapped {}", aim((x, y), name));
@@ -696,9 +695,9 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             Ok(())
         }
 
-        Command::Press { what, hold } => {
+        Command::Press { what, hold, force } => {
             let t = &s.target;
-            let ((x, y), name) = at(t, &what).await?;
+            let ((x, y), name) = at(t, &what, force).await?;
 
             // a device tells a press from a tap by how long the touch lasts, not
             // by where it went, so a hold is a drag that stays where it started
@@ -717,6 +716,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             to,
             duration,
             amount,
+            force,
         } => {
             let t = &s.target;
 
@@ -729,7 +729,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                         bail!("--amount sizes a directional swipe; this one has both ends");
                     }
 
-                    (at(t, &from).await?.0, at(t, to).await?.0)
+                    (at(t, &from, force).await?.0, at(t, to, force).await?.0)
                 }
                 None => {
                     let direction = from.parse().map_err(|e| {
@@ -890,15 +890,33 @@ async fn target_of(view: &View, focus: Option<(i32, i32)>) -> Result<a11y::Targe
 /// a canvas, a map, an unfocused split half — and anything else names an
 /// element. The name comes back so that a tap, a hold and a drag all report the
 /// same way; a caller that resolved an element wants to see which one.
-async fn at(t: &a11y::Target, what: &str) -> Result<((i32, i32), Option<String>)> {
+async fn at(t: &a11y::Target, what: &str, force: bool) -> Result<((i32, i32), Option<String>)> {
     if let Ok(point) = cli::parse_point(what) {
         return Ok((point, None));
     }
 
-    let nodes = a11y::dump(t).await?;
-    let node = a11y::pick(&nodes, what)?;
+    let screen = a11y::dump(t).await?;
+    let node = a11y::pick(&screen.nodes, what)?;
+
+    if !force {
+        refuse_covered(&screen, node)?;
+    }
 
     Ok((node.bounds.center(), Some(node.label())))
+}
+
+fn refuse_covered(screen: &a11y::Screen, node: &a11y::Node) -> Result<()> {
+    if screen.covered(node) {
+        let (x, y) = node.bounds.center();
+
+        bail!(
+            "{} at {x},{y} is under the keyboard, which would take the touch; \
+             `phone key hide_keyboard` first, or --force",
+            node.label()
+        );
+    }
+
+    Ok(())
 }
 
 /// `at 416,1627` for a bare point, `Gmail at 416,1627` for a named element.
@@ -932,8 +950,8 @@ async fn crop_bounds(
             )
         }
         None => {
-            let nodes = a11y::dump(t).await?;
-            let node = a11y::pick(&nodes, spec)?;
+            let screen = a11y::dump(t).await?;
+            let node = a11y::pick(&screen.nodes, spec)?;
 
             let bounds = match expand {
                 None => node.bounds,
@@ -1012,7 +1030,7 @@ async fn wait(
         // a dump that fails mid-transition is not an answer either way, but one
         // that never goes idle will not answer by the timeout either
         let present = match a11y::dump(t).await {
-            Ok(nodes) => a11y::present(&nodes, what),
+            Ok(screen) => a11y::present(&screen.nodes, what),
             Err(e) if e.is::<a11y::NotIdle>() => return Err(e),
             Err(_) => gone,
         };
@@ -1039,17 +1057,38 @@ async fn wait(
     }
 }
 
-fn print_elements(nodes: &[a11y::Node]) {
-    for node in nodes {
+fn print_elements(screen: &a11y::Screen) {
+    if let Some(keyboard) = &screen.keyboard {
+        let focus = screen
+            .focused()
+            .map(a11y::Node::describe_field)
+            .unwrap_or_else(|| "nothing".to_string());
+
+        println!("focus     {focus}");
+        println!("keyboard  {}", keyboard.describe());
+        println!();
+    }
+
+    for node in &screen.nodes {
         let (x, y) = node.bounds.center();
         let press = if node.clickable { "tap" } else { "   " };
+        let under = if screen.covered(node) {
+            "  under keyboard"
+        } else {
+            ""
+        };
 
-        println!("@{:<3} {press}  {:<40} {x},{y}", node.index, node.label());
+        println!(
+            "@{:<3} {press}  {:<40} {x},{y}{under}",
+            node.index,
+            node.label()
+        );
     }
 }
 
-fn print_elements_json(nodes: &[a11y::Node]) -> Result<()> {
-    let rows: Vec<serde_json::Value> = nodes
+fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
+    let rows: Vec<serde_json::Value> = screen
+        .nodes
         .iter()
         .map(|node| {
             let (x, y) = node.bounds.center();
@@ -1061,6 +1100,8 @@ fn print_elements_json(nodes: &[a11y::Node]) -> Result<()> {
                 "desc": node.desc,
                 "id": node.res_id,
                 "clickable": node.clickable,
+                "focused": node.focused,
+                "covered": screen.covered(node),
                 "at": [x, y],
             })
         })
