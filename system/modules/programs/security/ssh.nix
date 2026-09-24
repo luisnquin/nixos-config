@@ -112,6 +112,7 @@ in {
 
       extraConfig = ''
         PerSourcePenalties crash:3600s authfail:3600s max:86400s
+        PerSourcePenaltyExemptList 100.64.0.0/10,fd7a:115c:a1e0::/48
       '';
 
       knownHosts = inputs.identity.lib.ssh.nixosKnownHosts;
