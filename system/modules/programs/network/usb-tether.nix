@@ -12,10 +12,6 @@
     model = "xiaomi-dandelion";
   };
 
-  # Declared by the device, not here. A mismatch costs it the internet with
-  # nothing logged on either side.
-  subnet = "172.16.42.0/24";
-
   hostAddress = "172.16.42.2";
 in {
   systemd.network.links."10-${interface}" = {
@@ -40,7 +36,7 @@ in {
 
   networking.nat = {
     enable = true;
-    internalIPs = [subnet];
+    internalInterfaces = [interface];
 
     # Unpinned. Naming an uplink stamps `-o <iface>` on both the masquerade and
     # the forward ACCEPT, and this host has two default routes.
