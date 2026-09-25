@@ -28,9 +28,13 @@ in {
 
       analytics.enabled = true;
       feedback.enabled = true;
-      mcp_servers = kit.mkMcpServers {
-        snakeCase = true;
-      };
+      mcp_servers =
+        (kit.mkMcpServers {
+          snakeCase = true;
+        })
+        // {
+          sponsorbar.url = "https://sponsorbar.io/mcp";
+        };
 
       agents = {
         job_max_runtime_seconds = 3600;
