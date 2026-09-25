@@ -29,7 +29,15 @@ in {
     mcpServers = kit.mkMcpServers {};
 
     hooks = {
-      "rtk-rewrite.sh" = builtins.readFile "${pkgs.rtk}/share/rtk/hooks/claude/rtk-rewrite.sh";
+      "rtk-rewrite.sh" = let
+        upstream = builtins.readFile "${pkgs.rtk}/share/rtk/hooks/claude/rtk-rewrite.sh";
+        autoAllow = lib.concatMapStrings (line: "        ${line}\n") [
+          ''"permissionDecision": "allow",''
+          ''"permissionDecisionReason": "RTK auto-rewrite",''
+        ];
+      in
+        assert lib.assertMsg (lib.hasInfix autoAllow upstream) "rtk-rewrite.sh changed; re-check its auto-allow branch";
+          builtins.replaceStrings [autoAllow] [""] upstream;
     };
 
     marketplaces = {
