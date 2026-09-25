@@ -24,6 +24,8 @@
     }
   ];
 
+  systemd.services.debug-shell.enable = false;
+
   systemd.settings.Manager = {
     DefaultTimeoutStopSec = "15s";
   };
