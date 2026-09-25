@@ -7,7 +7,6 @@
     ./user.nix
     ./sudo.nix
     ./ssh.nix
-    ./tools
   ];
 
   security.polkit.enable = true;
