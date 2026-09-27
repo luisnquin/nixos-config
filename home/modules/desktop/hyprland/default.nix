@@ -29,6 +29,21 @@ args @ {
 
   allowExe = exe: type: {_args = [(lib.escapeRegex exe) type "allow"];};
   allowPathRegex = regex: type: {_args = [regex type "allow"];};
+
+  pinentryClass = "ghostty.pinentry-gate";
+
+  onPinentry = event: body: {
+    _args = [
+      event
+      (mkLuaInline ''
+        function(w)
+          if w.class == ${lib.generators.toLua {} pinentryClass} then
+            ${body}
+          end
+        end
+      '')
+    ];
+  };
 in {
   home.sessionVariables = {
     GRIMBLAST_HIDE_CURSOR = 0;
@@ -251,6 +266,13 @@ in {
         }
         tmuxDrop.windowRule
         {
+          name = "pinentry-gate";
+          match = {class = "^${lib.escapeRegex pinentryClass}$";};
+          fullscreen = true;
+          stay_focused = true;
+          suppress_event = "fullscreen maximize";
+        }
+        {
           name = "waybar-nmtui";
           match = {class = "^waybar\\.nmtui$";};
           float = true;
@@ -330,6 +352,21 @@ in {
             (mkLuaInline ''
               function()
                 ${waybarReload}
+              end
+            '')
+          ];
+        }
+        (onPinentry "window.open" ''hl.dispatch(hl.dsp.submap("pinentry"))'')
+        (onPinentry "window.close" ''hl.dispatch(hl.dsp.submap("reset"))'')
+      ];
+
+      define_submap = [
+        {
+          _args = [
+            "pinentry"
+            (mkLuaInline ''
+              function()
+                hl.bind("SUPER + SHIFT + W", hl.dsp.window.close())
               end
             '')
           ];
