@@ -486,8 +486,8 @@ impl App {
     pub fn boot_selected(&mut self) {
         let Some(view) = self.selected() else { return };
 
-        let device = view.device.clone();
-        let label = device.label.clone();
+        let view = view.clone();
+        let label = view.device.label.clone();
 
         if crate::actions::running(&view.reach) {
             self.push_log(Level::Note, format!("{label} is already running"));
@@ -495,8 +495,19 @@ impl App {
             return;
         }
 
-        self.spawn(format!("boot {label}"), move |_reg, rep| async move {
-            crate::actions::boot(&device, crate::actions::BOOT_TIMEOUT, &rep).await
+        self.spawn(format!("boot {label}"), move |reg, rep| async move {
+            let booted =
+                crate::actions::boot(&view.device, crate::actions::BOOT_TIMEOUT, &rep).await?;
+
+            rep.done(booted);
+
+            let (live, notes) = crate::actions::arrive(&mut *reg.lock().await, &view).await?;
+
+            for note in notes {
+                rep.note(note);
+            }
+
+            anyhow::Ok(format!("{} is {}", live.device.label, live.reach.label()))
         });
     }
 

@@ -1288,17 +1288,12 @@ fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
     Ok(())
 }
 
-/// The device has to be surveyed again once it is up: the survey is what opens
-/// the forward to its host's adb server, so a device that just booted is not
-/// yet one the next command can reach.
 async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
     if actions::running(&view.reach) {
         eprintln!("phone: {} is already running", view.device.label);
 
         return Ok(());
     }
-
-    let label = view.device.label.clone();
 
     let (rep, drain) = reporter();
     let res = actions::boot(&view.device, timeout, &rep).await;
@@ -1308,19 +1303,10 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 
     eprintln!("phone: {}", res?);
 
-    lease::forget(&view).await?;
+    let (live, notes) = actions::arrive(reg, &view).await?;
 
-    let found = discover::arrived(reg, std::slice::from_ref(&view.device)).await;
-    reg.save()?;
-
-    let Some(live) = found.iter().find(|v| discover::landed(v, &view.device)) else {
-        bail!("{label} booted but no survey can see it yet");
-    };
-
-    if live.device.platform == Platform::Emulator {
-        for changed in actions::quiet(&live.server, &live.device).await? {
-            eprintln!("phone: {label} {changed}");
-        }
+    for note in notes {
+        eprintln!("phone: {note}");
     }
 
     println!("{} is {}", live.device.label, live.reach.label());

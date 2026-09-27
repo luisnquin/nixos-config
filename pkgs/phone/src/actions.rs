@@ -8,9 +8,10 @@ use anyhow::{anyhow, bail, Context, Result};
 use crate::a11y::Bounds;
 use crate::adb::{self, Server};
 use crate::connect::{attached_serial, Reporter};
-use crate::model::{Device, Platform, Reach};
+use crate::model::{Device, Platform, Reach, View};
+use crate::registry::Registry;
 use crate::ssh::Where;
-use crate::{avd, ios, simctl};
+use crate::{avd, discover, ios, lease, simctl};
 
 const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 
@@ -857,6 +858,32 @@ pub async fn install(
 /// holds an adb transport, a simulator only ever shows as listed on its host.
 pub fn running(reach: &Reach) -> bool {
     reach.is_attached() || *reach == Reach::Online
+}
+
+/// A device that just booted is unreachable until a survey opens the forward to
+/// its host's adb server.
+pub async fn arrive(reg: &mut Registry, view: &View) -> Result<(View, Vec<String>)> {
+    let label = &view.device.label;
+
+    let mut notes: Vec<String> = lease::forget(view).await?.into_iter().collect();
+
+    let found = discover::arrived(reg, std::slice::from_ref(&view.device)).await;
+    reg.save()?;
+
+    let Some(live) = found
+        .into_iter()
+        .find(|v| discover::landed(v, &view.device))
+    else {
+        bail!("{label} booted but no survey can see it yet");
+    };
+
+    if live.device.platform == Platform::Emulator {
+        let changed = quiet(&live.server, &live.device).await?;
+
+        notes.extend(changed.into_iter().map(|c| format!("{label} {c}")));
+    }
+
+    Ok((live, notes))
 }
 
 /// Starts a device and returns only once it can be driven, which is a later

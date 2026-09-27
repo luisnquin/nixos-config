@@ -374,20 +374,20 @@ pub async fn mine() -> Option<String> {
 /// that held it did not survive the shutdown, and a hold with no session behind
 /// it would refuse everyone until somebody found the right checkout to run
 /// `phone down` in.
-pub async fn forget(view: &View) -> Result<()> {
+pub async fn forget(view: &View) -> Result<Option<String>> {
     let mut leases = Leases::open(&actions::where_of(&view.device)).await?;
 
-    if let Some(had) = leases.release(key(&view.device)) {
-        eprintln!(
-            "phone: {} was held by {}; that session did not survive the shutdown, so the hold is dropped",
-            view.device.label,
-            had.label()
-        );
+    let Some(had) = leases.release(key(&view.device)) else {
+        return Ok(None);
+    };
 
-        leases.save().await?;
-    }
+    leases.save().await?;
 
-    Ok(())
+    Ok(Some(format!(
+        "{} was held by {}; that session did not survive the shutdown, so the hold is dropped",
+        view.device.label,
+        had.label()
+    )))
 }
 
 #[cfg(test)]
