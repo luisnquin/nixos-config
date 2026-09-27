@@ -6,6 +6,7 @@ mod avd;
 mod cli;
 mod connect;
 mod discover;
+mod help;
 mod hosts;
 mod ios;
 mod lease;
@@ -48,7 +49,7 @@ async fn main() -> ExitCode {
     // read, and it must end the run quietly rather than in a backtrace.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
 
-    match dispatch(Cli::parse()).await {
+    match dispatch(help::parse()).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             // the alternate form walks the context chain; without it a failure
