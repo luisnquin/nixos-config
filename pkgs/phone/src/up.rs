@@ -33,7 +33,7 @@ use crate::project::{Build, Level, Project, Spec, Task};
 use crate::registry::Registry;
 use crate::ssh::{Status, Where};
 use crate::stamps::{self, Stamps};
-use crate::{actions, apps};
+use crate::{actions, apps, memory};
 
 /// Long enough for a `git rev-parse` over a cold ssh session or an Expo
 /// fingerprint over a large tree, short enough that a hung probe is reported
@@ -50,6 +50,7 @@ pub struct Opts {
     pub rebuild: bool,
     /// Take a device another project holds.
     pub take: bool,
+    pub over_budget: bool,
     pub timeout: Duration,
 }
 
@@ -81,6 +82,9 @@ pub struct Report {
     /// Running, reachable, and named nowhere in the manifest. Reported but not
     /// counted as drift: nothing declared it, so nothing is out of place.
     pub strays: Vec<String>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub memory: Vec<String>,
 }
 
 impl Row {
@@ -497,6 +501,10 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         .collect();
 
     if !cold.is_empty() {
+        let booting: Vec<&Device> = cold.iter().map(|(_, _, view)| &view.device).collect();
+
+        memory::admit(reg, &views, &booting, opts.over_budget).await?;
+
         let (rep, drain) = crate::reporter();
 
         let booting = cold
@@ -997,12 +1005,35 @@ pub async fn status(
     )
     .await;
 
+    let mine: Vec<&View> = declared
+        .iter()
+        .filter_map(|(name, _)| pick(&views, name).ok())
+        .collect();
+
+    let mut memory = memory::report(reg, &views, &memory::hosts_of(mine.iter().copied())).await;
+
+    for view in mine
+        .iter()
+        .filter(|v| v.device.platform == Platform::Emulator)
+    {
+        let Some(serial) = view.reach.serial() else {
+            continue;
+        };
+
+        if let Some(guest) = memory::guest(&view.server, serial).await {
+            if guest.heavy() {
+                memory.push(memory::swapping(&view.device.label, &guest));
+            }
+        }
+    }
+
     Ok(Report {
         project: project.name(),
         host: project.host().map(str::to_string),
         steps,
         devices,
         strays: strays(&views, project),
+        memory,
     })
 }
 
@@ -1280,6 +1311,10 @@ fn write(report: &Report, out: &mut impl std::io::Write) -> std::io::Result<()> 
             "  {label:name$}  {:want$}    {:have$}  running, declared nowhere here",
             "", ""
         )?;
+    }
+
+    for line in &report.memory {
+        writeln!(out, "{line}")?;
     }
 
     Ok(())
@@ -1629,6 +1664,7 @@ mod tests {
     fn a_report_has_converged_only_when_every_row_has() {
         let mut report = Report {
             strays: Vec::new(),
+            memory: Vec::new(),
             project: "p".to_string(),
             host: None,
             steps: vec![row_of("deps", "current", "current")],
@@ -1658,6 +1694,7 @@ mod tests {
     fn a_report_that_came_from_elsewhere_names_where_it_came_from() {
         let mut report = Report {
             strays: Vec::new(),
+            memory: Vec::new(),
             project: "sample-app".to_string(),
             host: Some("mac".to_string()),
             steps: vec![Row {

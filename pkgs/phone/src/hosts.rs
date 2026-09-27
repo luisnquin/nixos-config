@@ -69,6 +69,8 @@ pub struct HostState {
     pub caps: Caps,
     #[serde(default)]
     pub probed: Option<Unix>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget: Option<crate::memory::Budget>,
 }
 
 impl HostState {

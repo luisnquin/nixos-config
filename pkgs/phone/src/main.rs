@@ -9,6 +9,7 @@ mod discover;
 mod hosts;
 mod ios;
 mod lease;
+mod memory;
 mod model;
 mod picker;
 mod pids;
@@ -54,10 +55,24 @@ async fn main() -> ExitCode {
             // reads as "in phone.toml" with the reason it failed dropped
             eprintln!("phone: {e:#}");
 
-            ExitCode::FAILURE
+            match e.downcast_ref::<Refused>() {
+                Some(_) => ExitCode::from(3),
+                None => ExitCode::FAILURE,
+            }
         }
     }
 }
+
+#[derive(Debug)]
+pub struct Refused(pub String);
+
+impl std::fmt::Display for Refused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Refused {}
 
 async fn dispatch(cli: Cli) -> Result<()> {
     if let Some(Command::Completions { shell }) = cli.command {
@@ -115,6 +130,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             profile,
             rebuild,
             take,
+            over_budget,
             timeout,
         }) => {
             let project = declared()?;
@@ -123,6 +139,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 profile,
                 rebuild,
                 take,
+                over_budget,
                 timeout,
             };
 
@@ -177,6 +194,12 @@ async fn dispatch(cli: Cli) -> Result<()> {
                         };
 
                         print_table(&views, &holds, mine.as_ref());
+
+                        let hosts = memory::hosts_of(&views);
+
+                        for line in memory::report(&reg, &views, &hosts).await {
+                            println!("{line}");
+                        }
                     }
 
                     Ok(())
@@ -283,9 +306,20 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
                     Ok(())
                 }
-                DeviceAction::Boot { target, timeout } => {
+                DeviceAction::Boot {
+                    target,
+                    over_budget,
+                    timeout,
+                } => {
+                    let views = survey(&mut reg).await;
+                    reg.save()?;
+
                     let view =
-                        resolve(&mut reg, want(target).as_deref(), true, Aim::Bootable).await?;
+                        choose(&views, &reg, want(target).as_deref(), true, Aim::Bootable).await?;
+
+                    if !actions::running(&view.reach) {
+                        memory::admit(&reg, &views, &[&view.device], over_budget).await?;
+                    }
 
                     boot(&mut reg, view, timeout).await
                 }
@@ -470,6 +504,39 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
             if !caps.any() {
                 eprintln!("phone: nothing to drive there; adb, xcrun and tunneld all answered no");
             }
+
+            Ok(())
+        }
+
+        Some(HostAction::Budget {
+            name,
+            reserve,
+            emulator_overhead,
+            simulator,
+        }) => {
+            let state = reg.host_mut(&name);
+            let mut budget = state.budget.unwrap_or_default();
+
+            for (set, to) in [
+                (&mut budget.reserve, reserve),
+                (&mut budget.emulator_overhead, emulator_overhead),
+                (&mut budget.simulator, simulator),
+            ] {
+                if let Some(to) = to {
+                    if !(to >= 0.0 && to.is_finite()) {
+                        bail!("{to} is not a size in GB");
+                    }
+
+                    *set = to;
+                }
+            }
+
+            if reserve.or(emulator_overhead).or(simulator).is_some() {
+                state.budget = Some(budget);
+                reg.save()?;
+            }
+
+            println!("{name}: {}", budget.label());
 
             Ok(())
         }
@@ -1384,12 +1451,22 @@ async fn resolve(
     let views = survey(reg).await;
     reg.save()?;
 
+    choose(&views, reg, want, prefer_recent, aim).await
+}
+
+async fn choose(
+    views: &[View],
+    reg: &Registry,
+    want: Option<&str>,
+    prefer_recent: bool,
+    aim: Aim,
+) -> Result<View> {
     let want = want
         .map(str::to_string)
         .or_else(|| std::env::var("PHONE_TARGET").ok())
         .filter(|s| !s.is_empty());
 
-    let mut candidates = candidates(&views, want.as_deref(), aim);
+    let mut candidates = candidates(views, want.as_deref(), aim);
 
     if candidates.is_empty() {
         bail!(match want {

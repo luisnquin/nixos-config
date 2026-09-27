@@ -11,7 +11,7 @@ use crate::connect::{attached_serial, Reporter};
 use crate::model::{Device, Platform, Reach, View};
 use crate::registry::Registry;
 use crate::ssh::Where;
-use crate::{avd, discover, ios, lease, simctl};
+use crate::{avd, discover, ios, lease, memory, simctl};
 
 const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 
@@ -148,15 +148,28 @@ async fn settle(
                      this is the screen as it was",
                     MOVE_LIMIT.as_secs()
                 ));
+                strained(server, device, rep).await;
 
                 return Ok(png);
             }
             Settled::Restless(png) => {
                 rep.note("the screen never stopped changing");
+                strained(server, device, rep).await;
 
                 return Ok(png);
             }
         }
+    }
+}
+
+async fn strained(server: &Server, device: &Device, rep: &Reporter) {
+    let serial = match device.platform {
+        Platform::Emulator => attached_serial(server, device).await,
+        _ => None,
+    };
+
+    for said in memory::strain(server, device, serial.as_deref()).await {
+        rep.note(said);
     }
 }
 

@@ -59,7 +59,7 @@ The commands
   screen   snapshot shot size tap press swipe type fill key wait do
   device   list connect disconnect pair pin use forget boot shutdown reverse
   app      install launch stop open logs
-  host     list enable disable
+  host     list enable disable budget
   this     mirror record doctor
 
 What to know before scripting it
@@ -71,6 +71,11 @@ What to know before scripting it
   What costs more than any single read is reading twice to find out whether the
   first act landed. `wait <name>` and `shot --settle` are the answer to that:
   both return once the screen has caught up, so the next read is the only read.
+
+  A host short of memory takes taps and never acts on them. `phone status` and
+  `phone device list` end with each host's memory and what may be booted there;
+  follow that line rather than guessing. A boot it has no room for is refused
+  with exit status 3, which means "not now", not "broken".
 
 Naming things
 
@@ -138,7 +143,10 @@ can be read before it is what a refusal is about.
 Devices on different platforms converge at once rather than in turn, so an iPhone
 does not wait out an android build. Two devices that would run the same build take
 turns, since they would run it in the same directory. While more than one is going
-each line of output says which device it came from."#)]
+each line of output says which device it came from.
+
+A device that has to be booted is weighed against its host's memory first, as
+`phone device boot` does, and `--over-budget` is how past it."#)]
     Up {
         /// Only the devices this profile names
         #[arg(long)]
@@ -151,6 +159,9 @@ each line of output says which device it came from."#)]
         /// Take a device another project holds
         #[arg(long)]
         take: bool,
+
+        #[arg(long, help = "Boot what is off even where its host has no room for it")]
+        over_budget: bool,
 
         /// Give up on a device that is still not usable by then
         #[arg(long, default_value = "180s", value_parser = parse_duration)]
@@ -183,7 +194,12 @@ declared to be and non-zero when anything has drifted, which is what lets a test
 script gate on one command: `phone status || phone up`.
 
 A `!` in the first column marks the rows that differ, and a device running that
-the manifest never declared is listed under them."#)]
+the manifest never declared is listed under them.
+
+Under those, each host the declared devices run on gets a memory line — what
+it has, what its running devices commit and who holds them — and what may be
+booted there, with a warning for any declared emulator deep in its own swap.
+Neither counts as drift."#)]
     Status {
         /// Only the devices this profile names
         #[arg(long)]
@@ -699,10 +715,20 @@ that is already running says so and exits 0, so it is safe in front of a script.
 
 `phone device list` lists what can be booted as `off`. Expect 20-30s. This
 starts something already defined; creating an AVD or a simulator is still
-`avdmanager` or `simctl create`."#)]
+`avdmanager` or `simctl create`.
+
+Before booting, the host's memory is weighed: its RAM less a reserve, less what
+each running device costs (`phone host budget`). A boot that does not fit, or
+one onto a host whose kernel reports memory pressure, is refused with exit
+status 3 and says what is running there, who holds it and what to do instead:
+reuse an unheld device, or wait. A starved host takes taps and never acts on
+them. `--over-budget` boots it anyway; ask before using it."#)]
     Boot {
         #[arg(id = "device")]
         target: Option<String>,
+
+        #[arg(long, help = "Boot it even where its host has no room for it")]
+        over_budget: bool,
 
         /// Give up if it is still not usable by then
         #[arg(long, default_value = "180s", value_parser = parse_duration)]
@@ -822,6 +848,29 @@ answered, and surveys it from then on."#)]
 Its devices stop appearing and every command gets quicker. What was remembered
 about it is kept, so enabling it again does not re-probe from nothing."#)]
     Disable { name: String },
+
+    #[command(about = "Show or set how much of a host's memory its devices may take")]
+    #[command(after_help = r#"Examples:
+  phone host budget rose
+  phone host budget rose --reserve 7
+  phone host budget rose --emulator-overhead 0.7 --simulator 4
+
+In GB. A host's RAM less the reserve is what its devices may commit between
+them; an emulator is taken to cost its AVD's hw.ramSize plus the overhead, a
+simulator the flat figure. `device boot` and `up` refuse a boot that does not
+fit, and `status` and `device list` say how much is left."#)]
+    Budget {
+        name: String,
+
+        #[arg(long, help = "What the OS, the bundler and the builds keep for themselves")]
+        reserve: Option<f64>,
+
+        #[arg(long, help = "What an emulator costs over its hw.ramSize")]
+        emulator_overhead: Option<f64>,
+
+        #[arg(long, help = "What a booted simulator costs")]
+        simulator: Option<f64>,
+    },
 }
 
 impl Command {
