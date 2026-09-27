@@ -92,6 +92,7 @@ in {
         357
       ];
       openFirewall = false;
+      authorizedKeysInHomedir = false;
 
       settings = {
         Banner = "/etc/ssh/ssh-banner";
