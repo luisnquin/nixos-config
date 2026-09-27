@@ -58,7 +58,7 @@ The commands
   project  up down status
   screen   snapshot shot size tap press swipe type fill key wait do
   device   list connect disconnect pair pin use forget boot shutdown reverse
-  app      install launch stop open logs
+  app      install launch stop open logs notifications
   host     list enable disable budget
   this     mirror record doctor hook
 
@@ -847,6 +847,14 @@ the scheme and an http url lands in the browser. Quote it: a shell reads `?` and
 
 A package name on Android, a bundle id on a simulator or an iPhone."#)]
     Logs { app: String },
+    /// List the notifications posted on the device, optionally for one app
+    #[command(after_help = r#"Examples:
+  phone app notifications
+  phone app notifications com.example.app
+
+One line per notification in the shade: the package, its title and its text.
+Android only; a simulator has no command that reads its notification center."#)]
+    Notifications { app: Option<String> },
 }
 
 #[derive(Subcommand)]

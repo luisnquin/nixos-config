@@ -429,6 +429,11 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
 
             return Ok(());
         }
+        AppAction::Notifications { app } => {
+            println!("{}", apps::notifications(server, device, app.as_deref()).await?);
+
+            return Ok(());
+        }
         AppAction::Logs { app } => {
             bail!("{}", actions::logs_command(server, device, &app).await?.exec())
         }

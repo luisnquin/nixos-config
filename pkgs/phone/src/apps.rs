@@ -376,6 +376,86 @@ async fn on_host(device: &Device, verb: &str, arg: &str, limit: Duration) -> Res
         .await
 }
 
+pub async fn notifications(server: &Server, device: &Device, app: Option<&str>) -> Result<String> {
+    let app = app.map(app_id).transpose()?;
+
+    if device.platform.is_hosted() {
+        bail!(
+            "cannot read notifications on {}; only Android exposes them",
+            device.label
+        );
+    }
+
+    let serial = attached(server, device).await?;
+    let out = adb::run_timeout(
+        server,
+        &["-s", &serial, "shell", "dumpsys notification --noredact"],
+        STOP_TIMEOUT,
+    )
+    .await?;
+
+    if !out.ok() {
+        bail!("{}", out.stderr.trim());
+    }
+
+    let lines: Vec<String> = posted(&out.stdout)
+        .into_iter()
+        .filter(|n| app.is_none_or(|a| n.pkg == a))
+        .map(|n| format!("{}: {} — {}", n.pkg, n.title, n.text))
+        .collect();
+
+    Ok(match lines.is_empty() {
+        true => format!("no notifications on {}", device.label),
+        false => lines.join("\n"),
+    })
+}
+
+#[derive(Debug, Default, PartialEq)]
+struct Posted {
+    pkg: String,
+    title: String,
+    text: String,
+}
+
+fn posted(dump: &str) -> Vec<Posted> {
+    let mut lines = dump
+        .lines()
+        .skip_while(|l| l.trim() != "Notification List:");
+    let Some(header) = lines.next() else {
+        return vec![];
+    };
+    let depth = indent(header);
+    let mut found: Vec<Posted> = vec![];
+
+    for line in lines.take_while(|l| l.trim().is_empty() || indent(l) > depth) {
+        let line = line.trim();
+
+        if let Some(rest) = line.strip_prefix("NotificationRecord(") {
+            let pkg = rest.split_whitespace().find_map(|w| w.strip_prefix("pkg="));
+            found.push(Posted {
+                pkg: pkg.unwrap_or_default().to_string(),
+                ..Posted::default()
+            });
+        } else if let (Some(n), Some(v)) = (found.last_mut(), extra(line, "android.title=")) {
+            n.title = v;
+        } else if let (Some(n), Some(v)) = (found.last_mut(), extra(line, "android.text=")) {
+            n.text = v;
+        }
+    }
+
+    found
+}
+
+fn indent(line: &str) -> usize {
+    line.len() - line.trim_start().len()
+}
+
+fn extra(line: &str, key: &str) -> Option<String> {
+    let (_, value) = line.strip_prefix(key)?.split_once(" (")?;
+
+    Some(value.strip_suffix(')').unwrap_or(value).to_string())
+}
+
 async fn attached(server: &Server, device: &Device) -> Result<String> {
     serial_of(server, device).await
 }
@@ -457,6 +537,27 @@ mod tests {
         assert!(first.contains("category.LAUNCHER -p com.example.app"));
         assert!(first.contains("exit 0"), "a clean start must stop there");
         assert!(rest.contains("am start -n"));
+    }
+
+    #[test]
+    fn only_the_shade_is_read_from_a_notification_dump() {
+        const DUMP: &str = "Current Notification Manager state:\n  Notification List:\n    NotificationRecord(0x0f9e2c4a: pkg=app.repbit user=UserHandle{0} id=7 tag=null importance=4 key=0|app.repbit|7|null|10190: Notification(channel=invites))\n      uid=10190 userId=0\n      extras={\n        android.title=String (Ana te invit\u{f3})\n        android.text=SpannableString (Liga de amigos (beta))\n        android.subText=null\n      }\n    NotificationRecord(0x1: pkg=com.android.systemui user=UserHandle{0} id=1 tag=null)\n      extras={\n        android.title=null\n      }\n\n  mSnoozedNotifications:\n    NotificationRecord(0x2: pkg=gone.app user=UserHandle{0} id=2 tag=null)\n        android.title=String (snoozed)\n";
+
+        assert_eq!(
+            posted(DUMP),
+            vec![
+                Posted {
+                    pkg: "app.repbit".into(),
+                    title: "Ana te invit\u{f3}".into(),
+                    text: "Liga de amigos (beta)".into()
+                },
+                Posted {
+                    pkg: "com.android.systemui".into(),
+                    ..Posted::default()
+                },
+            ]
+        );
+        assert!(posted("no list here").is_empty());
     }
 
     #[test]
