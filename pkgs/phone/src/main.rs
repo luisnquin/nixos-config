@@ -175,7 +175,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                             false => lease::mine().await,
                         };
 
-                        print_table(&views, &holds, mine.as_deref());
+                        print_table(&views, &holds, mine.as_ref());
                     }
 
                     Ok(())
@@ -1472,14 +1472,14 @@ fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
     left
 }
 
-fn whose(holder: &lease::Holder, mine: Option<&str>) -> String {
-    match mine.is_some_and(|tree| tree == holder.tree) {
+fn whose(holder: &lease::Holder, mine: Option<&lease::Holder>) -> String {
+    match mine.is_some_and(|me| holder.admits(&me.tree, me.session.as_deref())) {
         true => format!("yours ({})", model::ago(holder.since)),
         false => holder.label(),
     }
 }
 
-fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Option<&str>) {
+fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Option<&lease::Holder>) {
     if views.is_empty() {
         eprintln!("phone: nothing reachable or remembered");
 

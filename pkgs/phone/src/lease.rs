@@ -54,6 +54,8 @@ pub struct Holder {
     pub since: Unix,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<String>,
 }
 
 impl Holder {
@@ -63,6 +65,7 @@ impl Holder {
             project: project.to_string(),
             since: model::now(),
             host: None,
+            session: None,
         }
     }
 
@@ -72,9 +75,33 @@ impl Holder {
         self
     }
 
+    pub fn by(mut self, session: Option<&str>) -> Self {
+        self.session = session.filter(|s| !s.is_empty()).map(str::to_string);
+
+        self
+    }
+
+    /// A side naming no session is let in by its tree alone: a hold stamped
+    /// before sessions existed, or a verb typed by hand.
+    pub fn admits(&self, tree: &str, session: Option<&str>) -> bool {
+        self.tree == tree
+            && match (self.session.as_deref(), session) {
+                (Some(held), Some(asking)) => held == asking,
+                _ => true,
+            }
+    }
+
     /// `hotline (2h ago)`, for a message or a status row.
     pub fn label(&self) -> String {
-        format!("{} ({})", self.project, model::ago(self.since))
+        match &self.session {
+            Some(session) => format!(
+                "{}, session {} ({})",
+                self.project,
+                short(session),
+                model::ago(self.since)
+            ),
+            None => format!("{} ({})", self.project, model::ago(self.since)),
+        }
     }
 
     pub fn at(&self) -> String {
@@ -83,6 +110,18 @@ impl Holder {
             None => self.tree.clone(),
         }
     }
+}
+
+fn short(session: &str) -> &str {
+    session.get(..8).unwrap_or(session)
+}
+
+pub fn session() -> Option<String> {
+    ["PHONE_SESSION", "CLAUDE_CODE_SESSION_ID"]
+        .iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .map(|s| s.trim().to_string())
+        .find(|s| !s.is_empty())
 }
 
 /// What a device is filed under: its id as the host owning it spells it.
@@ -188,8 +227,9 @@ impl Leases {
     }
 
     /// Who holds `id`, if it is not the project at `tree`.
-    pub fn other(&self, key: impl Into<Key>, tree: &str) -> Option<&Holder> {
-        self.holder(key).filter(|holder| holder.tree != tree)
+    pub fn other(&self, key: impl Into<Key>, tree: &str, session: Option<&str>) -> Option<&Holder> {
+        self.holder(key)
+            .filter(|holder| !holder.admits(tree, session))
     }
 
     /// Puts `holder`'s name on `id`. A project already holding it keeps its
@@ -197,9 +237,21 @@ impl Leases {
     /// renewed.
     pub fn take(&mut self, key: impl Into<Key>, holder: Holder) {
         let key = key.into();
-        let had = self.remove(&key).filter(|had| had.tree == holder.tree);
+        let held = match self
+            .remove(&key)
+            .filter(|had| had.admits(&holder.tree, holder.session.as_deref()))
+        {
+            Some(mut had) => {
+                if had.session.is_none() {
+                    had.session = holder.session;
+                }
 
-        self.held.insert(key.id, had.unwrap_or(holder));
+                had
+            }
+            None => holder,
+        };
+
+        self.held.insert(key.id, held);
     }
 
     pub fn release(&mut self, key: impl Into<Key>) -> Option<Holder> {
@@ -259,7 +311,11 @@ pub async fn tree(project: &Project) -> Result<String> {
 
 pub enum Caller {
     Nowhere,
-    Elsewhere { project: String, tree: String },
+    Beside,
+    Elsewhere {
+        project: String,
+        tree: String,
+    },
 }
 
 /// Refuses a running device that another project holds.
@@ -286,13 +342,16 @@ pub async fn check(view: &View) -> Result<()> {
         Some(project) => {
             let tree = tree(&project).await?;
 
-            if tree == holder.tree {
+            if holder.admits(&tree, session().as_deref()) {
                 return Ok(());
             }
 
-            Caller::Elsewhere {
-                project: project.name(),
-                tree,
+            match tree == holder.tree {
+                true => Caller::Beside,
+                false => Caller::Elsewhere {
+                    project: project.name(),
+                    tree,
+                },
             }
         }
         None => Caller::Nowhere,
@@ -313,6 +372,15 @@ pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
                  run it from {}, or pick a device nobody holds (`phone device list` names every holder)",
                 holder.label(),
                 holder.at()
+            );
+        }
+        Caller::Beside => {
+            return format!(
+                "{label} is held by {}: another agent session in this same checkout, and driving it from here would put your screens in front of theirs\n\
+                 its reinstalls and restarts would land in the middle of your run and yours in theirs, with nothing on either side saying why\n\
+                 pick a device nobody holds (`phone device list` names every holder), or wait for that session's `phone down`\n\
+                 `phone up --take` here moves the hold to this session; ask before using it",
+                holder.label()
             );
         }
         Caller::Elsewhere { project, tree } => (project, tree),
@@ -364,10 +432,11 @@ pub async fn holds(views: &[View]) -> BTreeMap<String, Holder> {
     found
 }
 
-pub async fn mine() -> Option<String> {
+pub async fn mine() -> Option<Holder> {
     let project = Project::here().ok().flatten()?;
+    let tree = tree(&project).await.ok()?;
 
-    tree(&project).await.ok()
+    Some(Holder::of(&tree, &project.name()).by(session().as_deref()))
 }
 
 /// Drops whatever hold a device this process just booted carried: the session
@@ -440,12 +509,78 @@ mod tests {
 
         leases.take("emu:1", Holder::of("/a", "alpha"));
 
-        assert!(leases.other("emu:1", "/a").is_none());
+        assert!(leases.other("emu:1", "/a", None).is_none());
         assert_eq!(
-            leases.other("emu:1", "/b").map(|h| h.project.as_str()),
+            leases
+                .other("emu:1", "/b", None)
+                .map(|h| h.project.as_str()),
             Some("alpha")
         );
-        assert!(leases.other("emu:2", "/b").is_none());
+        assert!(leases.other("emu:2", "/b", None).is_none());
+    }
+
+    #[test]
+    fn a_second_session_in_the_same_tree_is_somebody_else() {
+        let mut leases = Leases::default();
+
+        leases.take("emu:1", Holder::of("/a", "alpha").by(Some("one")));
+
+        assert!(leases.other("emu:1", "/a", Some("one")).is_none());
+        assert_eq!(
+            leases
+                .other("emu:1", "/a", Some("two"))
+                .and_then(|h| h.session.as_deref()),
+            Some("one")
+        );
+    }
+
+    #[test]
+    fn a_side_with_no_session_is_let_in_by_its_tree() {
+        let old: Holder =
+            serde_json::from_str(r#"{"tree":"/a","project":"alpha","since":1000}"#).unwrap();
+
+        assert_eq!(old.session, None);
+        assert!(old.admits("/a", Some("two")));
+        assert!(!old.admits("/b", Some("two")));
+
+        assert!(Holder::of("/a", "alpha").by(Some("one")).admits("/a", None));
+    }
+
+    #[test]
+    fn renewing_a_hold_from_before_sessions_stamps_the_session() {
+        let mut leases = Leases::default();
+        let mut old = Holder::of("/a", "alpha");
+
+        old.since = 1_000;
+        leases.take("emu:1", old);
+        leases.take("emu:1", Holder::of("/a", "alpha").by(Some("one")));
+
+        let holder = leases.holder("emu:1").unwrap();
+
+        assert_eq!(
+            (holder.since, holder.session.as_deref()),
+            (1_000, Some("one"))
+        );
+    }
+
+    #[test]
+    fn a_hold_without_a_session_is_written_as_before() {
+        let body = serde_json::to_string(&Holder::of("/a", "alpha")).unwrap();
+
+        assert!(!body.contains("session"));
+    }
+
+    #[test]
+    fn a_second_session_is_told_the_hold_is_in_its_own_checkout() {
+        let said = refusal(
+            "Pixel 9",
+            &Holder::of("/home/x/hotline", "hotline").by(Some("5dac5f28-ad4e-48bf")),
+            &Caller::Beside,
+        );
+
+        assert!(said.starts_with("Pixel 9 is held by hotline, session 5dac5f28 ("));
+        assert!(said.contains("another agent session in this same checkout"));
+        assert!(said.ends_with("ask before using it"));
     }
 
     fn elsewhere(project: &str, tree: &str) -> Caller {
@@ -596,11 +731,11 @@ mod tests {
         clone.host = Some("rose".to_string());
 
         assert_eq!(
-            leases.other(key(&pixel), "/b").map(|h| h.project.as_str()),
+            leases.other(key(&pixel), "/b", None).map(|h| h.project.as_str()),
             Some("alpha")
         );
         assert!(
-            leases.other(key(&clone), "/b").is_none(),
+            leases.other(key(&clone), "/b", None).is_none(),
             "a clone does not own its source's android_id"
         );
 

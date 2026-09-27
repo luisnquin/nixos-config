@@ -592,7 +592,10 @@ async fn claim(
     booted: &[String],
     take: bool,
 ) -> Result<()> {
-    let mine = Holder::of(&site.key, &project.name()).on(site.at.host());
+    let session = lease::session();
+    let mine = Holder::of(&site.key, &project.name())
+        .on(site.at.host())
+        .by(session.as_deref());
     let mut hosts: Vec<(Where, Leases)> = Vec::new();
     let mut refused = Vec::new();
 
@@ -610,11 +613,19 @@ async fn claim(
         let fresh = booted.iter().any(|b| b == name);
 
         if let Some(holder) = leases
-            .other(lease::key(&view.device), &site.key)
+            .other(lease::key(&view.device), &site.key, session.as_deref())
             .filter(|_| !fresh)
         {
             match take {
                 true => eprintln!("phone: {name} taken from {}", holder.label()),
+                false if holder.tree == site.key => {
+                    refused.push(format!(
+                        "{name} is held by {}, another agent session in this same checkout; its `phone down` releases it, `phone up --take` takes it",
+                        holder.label()
+                    ));
+
+                    continue;
+                }
                 false => {
                     refused.push(format!(
                         "{name} is held by {}; `phone down` in {} releases it, `phone up --take` takes it",
@@ -650,7 +661,7 @@ async fn hold_on(site: &Site, view: &View) -> Option<(Holder, bool)> {
         .holder(lease::key(&view.device))
         .cloned()?;
 
-    let mine = holder.tree == site.key;
+    let mine = holder.admits(&site.key, lease::session().as_deref());
 
     Some((holder, mine))
 }
@@ -662,7 +673,7 @@ async fn released(site: &Site, view: &View) -> Result<Option<Holder>> {
     let mut leases = Leases::open(&at).await?;
 
     if let Some(holder) = leases
-        .other(lease::key(&view.device), &site.key)
+        .other(lease::key(&view.device), &site.key, lease::session().as_deref())
         .filter(|_| actions::running(&view.reach))
     {
         return Ok(Some(holder.clone()));
