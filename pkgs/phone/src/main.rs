@@ -1307,6 +1307,7 @@ async fn wait(
     timeout: std::time::Duration,
 ) -> Result<()> {
     let started = std::time::Instant::now();
+    let mut first = true;
 
     loop {
         // a dump that fails mid-transition is not an answer either way, but one
@@ -1318,11 +1319,18 @@ async fn wait(
         };
 
         if present != gone {
-            eprintln!(
-                "phone: '{what}' {} after {:.1}s",
-                if gone { "left" } else { "appeared" },
-                started.elapsed().as_secs_f64()
-            );
+            if first {
+                eprintln!(
+                    "phone: '{what}' was already {} before the wait; nothing changed",
+                    if gone { "gone" } else { "on screen" }
+                );
+            } else {
+                eprintln!(
+                    "phone: '{what}' {} after {:.1}s",
+                    if gone { "left" } else { "appeared" },
+                    started.elapsed().as_secs_f64()
+                );
+            }
 
             return Ok(());
         }
@@ -1336,6 +1344,7 @@ async fn wait(
         }
 
         tokio::time::sleep(POLL).await;
+        first = false;
     }
 }
 
