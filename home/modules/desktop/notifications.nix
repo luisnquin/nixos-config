@@ -31,7 +31,7 @@
           {appName = "(?i)(claude|codex|gemini|opencode|aider|cursor|copilot)";}
           {
             appName = "(?i)notify-send";
-            summary = "(?i)\\b(claude|codex|gemini|opencode|aider|roborev)\\b";
+            summary = "(?i)\\b(claude|codex|gemini|opencode|aider)\\b";
           }
         ];
       };

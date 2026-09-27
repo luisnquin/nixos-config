@@ -5,10 +5,7 @@
   pkgs,
   lib,
 }: {
-  mkAgentKit = {
-    isRoborev ? false,
-    audioArgs ? "--volume=32768",
-  }: let
+  mkAgentKit = {audioArgs ? "--volume=32768"}: let
     allowedDomains = let
       f = builtins.readFile ./.well-known/ai-allowed-domains.txt;
     in
@@ -171,15 +168,6 @@
 
     audioArgsPart = lib.optionalString (audioArgs != "") "${audioArgs} ";
 
-    guardRoborev = command:
-      if isRoborev
-      then ''
-        if [ -z "$ROBOREV" ]; then
-          ${command}
-        fi
-      ''
-      else command;
-
     audioCommand = file: "${pkgs.pulseaudio}/bin/paplay ${audioArgsPart}${lib.escapeShellArg file}";
 
     agentNotify = pkgs.writeShellApplication {
@@ -211,9 +199,7 @@
     inherit mkAgentPermissions;
 
     mkAudioCmd = files:
-      guardRoborev (
-        builtins.concatStringsSep " && " (map audioCommand files)
-      );
+      builtins.concatStringsSep " && " (map audioCommand files);
 
     # A delay + sequenceId means the notification must be cancelable, so it is
     # held in a local systemd timer via agent-notify. Without them it fires
@@ -228,8 +214,7 @@
         then ""
         else "${lib.removeSuffix "/" host}/${topic}";
     in
-      guardRoborev (
-        if isScheduled
+      if isScheduled
         then
           lib.concatStringsSep " " (
             [
@@ -261,27 +246,22 @@
                 inherit host topic;
               }
               // builtins.removeAttrs ntfy ["delay" "sequenceId"];
-          }
-      );
+          };
 
     mkCancelNotificationCmd = {sequenceId, ...}:
-      guardRoborev (
-        lib.concatStringsSep " " [
-          (lib.getExe agentNotify)
-          "cancel"
-          "--id"
-          (lib.escapeShellArg sequenceId)
-        ]
-      );
+      lib.concatStringsSep " " [
+        (lib.getExe agentNotify)
+        "cancel"
+        "--id"
+        (lib.escapeShellArg sequenceId)
+      ];
 
     mkTerminalStatusCmd = state: title:
-      guardRoborev (
-        lib.concatStringsSep " " [
-          (lib.getExe agentTerminalStatus)
-          (lib.escapeShellArg state)
-          (lib.escapeShellArg title)
-        ]
-      );
+      lib.concatStringsSep " " [
+        (lib.getExe agentTerminalStatus)
+        (lib.escapeShellArg state)
+        (lib.escapeShellArg title)
+      ];
 
     # herdr learns a pane's agent session id only from this script, and it
     # installs the script by rewriting the agent's own settings file. Those

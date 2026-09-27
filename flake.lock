@@ -1204,26 +1204,6 @@
         "type": "github"
       }
     },
-    "roborev": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1783877821,
-        "narHash": "sha256-opynL2oJg+Ewt4+tqroQ37tJiRtz4qrM8nBRTZsNbaE=",
-        "owner": "roborev-dev",
-        "repo": "roborev",
-        "rev": "b97a3d836cb9a24c02d372981bd7e955106224e6",
-        "type": "github"
-      },
-      "original": {
-        "owner": "roborev-dev",
-        "repo": "roborev",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "3mf2stl": "3mf2stl",
@@ -1248,7 +1228,6 @@
         "nixpkgs": "nixpkgs",
         "nixpkgs-extra": "nixpkgs-extra",
         "preservation": "preservation",
-        "roborev": "roborev",
         "rust-overlay": "rust-overlay",
         "sops-nix": "sops-nix",
         "systems": "systems_2",
