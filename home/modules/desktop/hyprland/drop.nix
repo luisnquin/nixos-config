@@ -19,7 +19,7 @@ in
   }: let
     classRegex = "^${lib.escapeRegex class}$";
     selector = toLua "class:${classRegex}";
-    toggleCommand = "${hyprdropCmd} --solo -i ${class} ${lib.escapeShellArg command}";
+    toggleCommand = "${hyprdropCmd} --solo --solo-scope monitor -i ${class} ${lib.escapeShellArg command}";
   in {
     windowRule = {
       inherit name;
