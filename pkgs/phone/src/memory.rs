@@ -378,6 +378,12 @@ impl Room {
         fits
     }
 
+    pub fn room_for(&self, platform: Platform) -> Option<usize> {
+        let n = self.fits().into_iter().find(|(p, _)| *p == platform)?.1;
+
+        Some(if self.pressed() { 0 } else { n })
+    }
+
     pub fn brief(&self) -> String {
         if self.pressed() {
             return format!(
@@ -872,6 +878,7 @@ SwapFree:              0 kB
         let open = room(&[("iPhone 17", 3.7, Some("dazzle"))], Level::Normal);
 
         assert_eq!(open.brief(), "room to boot 2 emu or 1 sim");
+        assert_eq!(open.room_for(Platform::Emulator), Some(2));
         assert_eq!(open.advice(), Vec::<String>::new());
 
         let full = room(
@@ -884,6 +891,7 @@ SwapFree:              0 kB
         let pressed = room(&[], Level::Warn);
 
         assert_eq!(pressed.brief(), "memory pressure warn, boot nothing");
+        assert_eq!(pressed.room_for(Platform::Simulator), Some(0));
     }
 
     #[test]

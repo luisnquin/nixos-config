@@ -1502,6 +1502,10 @@ async fn choose(
         .or_else(|| std::env::var("PHONE_TARGET").ok())
         .filter(|s| !s.is_empty());
 
+    if let Some((host, kind)) = want.as_deref().and_then(|w| host_target(views, w)) {
+        return on_host(views, reg, &host, kind, aim).await;
+    }
+
     let mut candidates = candidates(views, want.as_deref(), aim);
 
     if candidates.is_empty() {
@@ -1511,31 +1515,8 @@ async fn choose(
         });
     }
 
-    if want.is_none() {
-        if let Some(id) = reg.current.clone() {
-            if let Some(view) = candidates.iter().find(|v| v.device.id == id) {
-                return Ok(view.clone());
-            }
-        }
-
-        // the weakest claim of the four: a project names a device it prefers,
-        // and anything typed or anything remembered overrules it
-        if let Some(name) = preferred() {
-            if let Some(view) = candidates.iter().find(|v| v.device.is(&name)) {
-                return Ok(view.clone());
-            }
-        }
-
-        if prefer_recent {
-            let recent = candidates
-                .iter()
-                .filter(|v| v.device.last_connected.is_some())
-                .max_by_key(|v| v.device.last_connected.unwrap_or(0));
-
-            if let Some(view) = recent {
-                return Ok(view.clone());
-            }
-        }
+    if let Some(view) = want.is_none().then(|| untargeted(&candidates, reg, prefer_recent)).flatten() {
+        return Ok(view);
     }
 
     if candidates.len() == 1 {
@@ -1551,6 +1532,27 @@ async fn choose(
 enum Aim {
     Running,
     Bootable,
+}
+
+fn untargeted(candidates: &[View], reg: &Registry, prefer_recent: bool) -> Option<View> {
+    let current = reg
+        .current
+        .as_ref()
+        .and_then(|id| candidates.iter().find(|v| v.device.id == *id));
+
+    // the weakest claim of the four: a project names a device it prefers,
+    // and anything typed or anything remembered overrules it
+    let named = || preferred().and_then(|name| candidates.iter().find(|v| v.device.is(&name)));
+
+    let recent = || {
+        candidates
+            .iter()
+            .filter(|_| prefer_recent)
+            .filter(|v| v.device.last_connected.is_some())
+            .max_by_key(|v| v.device.last_connected.unwrap_or(0))
+    };
+
+    current.or_else(named).or_else(recent).cloned()
 }
 
 fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
@@ -1596,6 +1598,163 @@ fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
     }
 
     left
+}
+
+fn host_target(views: &[View], want: &str) -> Option<(String, Option<Platform>)> {
+    if views
+        .iter()
+        .any(|v| v.device.is(want) || v.answers_to(want))
+    {
+        return None;
+    }
+
+    let (host, kind) = match want.split_once('/') {
+        Some((host, kind)) => {
+            let kind = [Platform::Emulator, Platform::Simulator]
+                .into_iter()
+                .find(|p| p.as_str().eq_ignore_ascii_case(kind))?;
+
+            (host, Some(kind))
+        }
+        None => (want, None),
+    };
+
+    let host = views
+        .iter()
+        .filter_map(|v| v.device.host.as_deref())
+        .find(|h| h.eq_ignore_ascii_case(host))?;
+
+    Some((host.to_string(), kind))
+}
+
+fn pool<'a>(views: &'a [View], host: &str, kind: Option<Platform>) -> Vec<&'a View> {
+    views
+        .iter()
+        .filter(|v| matches!(v.device.platform, Platform::Emulator | Platform::Simulator))
+        .filter(|v| kind.is_none_or(|k| v.device.platform == k))
+        .filter(|v| v.device.host.as_deref() == Some(host))
+        .collect()
+}
+
+fn pick<'a>(
+    pool: &[&'a View],
+    driven: &BTreeMap<String, usage::Driven>,
+    free: impl Fn(&View) -> bool,
+) -> Option<&'a View> {
+    let mut up: Vec<&View> = pool
+        .iter()
+        .copied()
+        .filter(|v| actions::running(&v.reach) && free(v))
+        .collect();
+
+    usage::rank(&mut up, |v| {
+        driven.get(&v.device.id).copied().unwrap_or_default()
+    });
+
+    up.first().copied()
+}
+
+fn stranded(
+    host: &str,
+    pool: &[&View],
+    driven: &BTreeMap<String, usage::Driven>,
+    room: Option<&memory::Room>,
+) -> String {
+    let mut said = vec![match pool.iter().any(|v| actions::running(&v.reach)) {
+        true => format!("everything up on {host} is held by another project"),
+        false => format!("nothing on {host} is up"),
+    }];
+
+    let off: Vec<&View> = pool
+        .iter()
+        .copied()
+        .filter(|v| v.reach == model::Reach::Off)
+        .collect();
+    let usual = usage::usual(&off, driven);
+
+    match usual {
+        Some((view, true)) => {
+            said.push(format!("this project usually boots {}", view.device.label))
+        }
+        Some((view, false)) => said.push(format!("{} is the most driven there", view.device.label)),
+        None => {}
+    }
+
+    let fit = room
+        .zip(usual)
+        .and_then(|(room, (view, _))| room.room_for(view.device.platform));
+
+    if let Some(room) = room {
+        said.push(match fit {
+            Some(n) if n > 0 => format!("room to boot {n}"),
+            _ => room.brief(),
+        });
+    }
+
+    said.push(match (usual, fit) {
+        (_, Some(0)) => format!("`phone device list` shows who holds what on {host}"),
+        (Some((view, _)), _) => format!("`phone device boot {}`", quoted(&view.device.label)),
+        (None, _) => format!("`phone device list` ranks what {host} has"),
+    });
+
+    said.join("; ")
+}
+
+async fn on_host(
+    views: &[View],
+    reg: &Registry,
+    host: &str,
+    kind: Option<Platform>,
+    aim: Aim,
+) -> Result<View> {
+    let at = ssh::Where::of(Some(host));
+    let pool = pool(views, host, kind);
+
+    let (ledger, mine) = tokio::join!(lease::Leases::open(&at), lease::mine());
+    let ledger = ledger.ok();
+    let tree = mine.as_ref().map(|me| me.tree.as_str());
+
+    let driven: BTreeMap<String, usage::Driven> = pool
+        .iter()
+        .map(|v| {
+            let used = ledger.as_ref().map(|l| l.usage.of(&v.device, tree));
+
+            (v.device.id.clone(), used.unwrap_or_default())
+        })
+        .collect();
+
+    if aim == Aim::Bootable {
+        let off: Vec<&View> = pool
+            .iter()
+            .copied()
+            .filter(|v| v.reach == model::Reach::Off)
+            .collect();
+
+        return match usage::usual(&off, &driven) {
+            Some((view, _)) => Ok(view.clone()),
+            None => bail!("nothing on {host} was driven before; name one: `phone device list` ranks what {host} has"),
+        };
+    }
+
+    let free = |v: &View| {
+        let held = ledger
+            .as_ref()
+            .and_then(|l| l.holder(lease::key(&v.device)));
+
+        held.is_none_or(|h| {
+            mine.as_ref()
+                .is_some_and(|me| h.admits(&me.tree, me.session.as_deref()))
+        })
+    };
+
+    if let Some(view) = pick(&pool, &driven, free) {
+        return Ok(view.clone());
+    }
+
+    let rooms = memory::rooms(reg, views, std::slice::from_ref(&at)).await;
+    let room = rooms.into_iter().next().and_then(|(_, room)| room.ok());
+
+    Err(Refused(stranded(host, &pool, &driven, room.as_ref())).into())
 }
 
 fn whose(holder: &lease::Holder, mine: Option<&lease::Holder>) -> String {
@@ -2076,5 +2235,111 @@ mod tests {
         let views = wiped();
 
         assert_eq!(candidates(&views, Some("pixel"), Aim::Running).len(), 4);
+    }
+
+    use crate::usage::tests::on_rose;
+
+    fn rose() -> Vec<View> {
+        vec![
+            on_rose("avd:pixel", "pixel", Platform::Emulator, Reach::Off),
+            on_rose(
+                "avd:tab",
+                "tab",
+                Platform::Emulator,
+                attached("emulator-5554"),
+            ),
+            on_rose(
+                "avd:fold",
+                "fold",
+                Platform::Emulator,
+                attached("emulator-5556"),
+            ),
+            on_rose("AAAA", "iPhone 17", Platform::Simulator, Reach::Off),
+        ]
+    }
+
+    fn used(project: u64, all: u64) -> usage::Driven {
+        let of = |count| (count > 0).then_some(usage::Use { at: 1, count });
+
+        usage::Driven {
+            project: of(project),
+            all: of(all),
+        }
+    }
+
+    #[test]
+    fn a_host_with_a_kind_names_its_devices_of_that_kind() {
+        let views = rose();
+
+        assert_eq!(host_target(&views, "ROSE"), Some(("rose".into(), None)));
+        assert_eq!(
+            host_target(&views, "rose/sim"),
+            Some(("rose".into(), Some(Platform::Simulator)))
+        );
+        assert_eq!(host_target(&views, "rose/tablet"), None);
+        assert_eq!(host_target(&views, "nyx"), None);
+        assert_eq!(
+            ids(&pool(&views, "rose", Some(Platform::Emulator))
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>()),
+            ["avd:pixel", "avd:tab", "avd:fold"]
+        );
+    }
+
+    #[test]
+    fn a_device_named_like_a_host_wins_over_the_host() {
+        let mut views = rose();
+        views.push(on_rose("avd:rose", "rose", Platform::Emulator, Reach::Off));
+
+        assert_eq!(host_target(&views, "rose"), None);
+        assert_eq!(host_target(&views, "emulator-5554"), None);
+    }
+
+    #[test]
+    fn a_host_gives_the_most_driven_device_up_that_nobody_else_holds() {
+        let views = rose();
+        let pool = pool(&views, "rose", None);
+        let driven = BTreeMap::from([
+            ("avd:tab".to_string(), used(0, 40)),
+            ("avd:fold".to_string(), used(2, 2)),
+        ]);
+
+        let got = pick(&pool, &driven, |_| true).map(|v| v.device.id.as_str());
+        assert_eq!(got, Some("avd:fold"));
+
+        let got = pick(&pool, &driven, |v| v.device.id != "avd:fold").map(|v| v.device.id.as_str());
+        assert_eq!(got, Some("avd:tab"));
+
+        assert!(pick(&pool, &driven, |_| false).is_none());
+    }
+
+    #[test]
+    fn a_host_with_nothing_up_spells_out_what_to_boot() {
+        let views = rose();
+        let off: Vec<View> = views
+            .iter()
+            .filter(|v| v.reach == Reach::Off)
+            .cloned()
+            .collect();
+        let pool = pool(&off, "rose", None);
+
+        let driven = BTreeMap::from([("avd:pixel".to_string(), used(3, 9))]);
+        assert_eq!(
+            stranded("rose", &pool, &driven, None),
+            "nothing on rose is up; this project usually boots pixel; `phone device boot pixel`"
+        );
+
+        let driven = BTreeMap::from([("AAAA".to_string(), used(0, 9))]);
+        assert_eq!(
+            stranded("rose", &pool, &driven, None),
+            "nothing on rose is up; iPhone 17 is the most driven there; `phone device boot \"iPhone 17\"`"
+        );
+
+        let everyone = super::pool(&views, "rose", None);
+        assert_eq!(
+            stranded("rose", &everyone, &BTreeMap::new(), None),
+            "everything up on rose is held by another project; `phone device list` ranks what rose has"
+        );
     }
 }

@@ -215,11 +215,11 @@ pub async fn stamp(device: &Device) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::model::Reach;
 
-    fn on_rose(id: &str, label: &str, platform: Platform, reach: Reach) -> View {
+    pub(crate) fn on_rose(id: &str, label: &str, platform: Platform, reach: Reach) -> View {
         let mut device = Device::new(id, label, platform);
         device.host = Some("rose".into());
 
