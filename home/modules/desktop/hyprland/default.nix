@@ -220,10 +220,18 @@ in {
         }
       ];
 
-      workspace_rule = map (workspace: {
-        inherit workspace;
-        layout = "scrolling";
-      }) ["2" "3" "10" "name:~"];
+      workspace_rule =
+        map (workspace: {
+          inherit workspace;
+          layout = "scrolling";
+        }) ["2" "3" "10" "name:~"]
+        ++ [
+          {
+            workspace = "name:ext";
+            monitor = "HDMI-A-1";
+            default = true;
+          }
+        ];
 
       window_rule = [
         {
