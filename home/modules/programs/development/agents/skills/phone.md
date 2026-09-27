@@ -1,120 +1,91 @@
 # Phone
 
-Drive the Android handsets and emulators and the iOS simulators on this desk
-with the `phone` CLI: pick a device, see what is on its screen, press it, type
-into it.
+`phone` drives every Android handset, emulator and iOS simulator reachable from
+this machine, including the ones on remote Macs (rose) over ssh. Use it instead
+of `adb`, `emulator`, `simctl`, `avdmanager` or `ssh <host> …`: it boots with a
+memory check, holds the device for your project, and survives macOS shell quirks
+a hand-rolled `nohup emulator &` does not.
 
-`phone` reaches Android over adb, directly or through an ssh host running its
-own adb server. A simulator has no such transport — CoreSimulator only runs on
-the Mac that owns it — so those verbs run as a `phone` on that host and come
-back over ssh. Either way the commands are the same. A physical iPhone shows up
-in `phone device list` but can only be screenshotted and tailed, not read or
-pressed.
+This page is enough to work without `phone --help`. Reach for
+`phone help <verb>` only when a flag below is not enough.
 
-**The CLI documents itself. `phone --help` carries the verb list and the loop
-they are meant to be used in; `phone help <verb>` carries that verb's flags,
-worked examples and what it is for.** This file covers only what the CLI cannot
-tell you about the devices themselves.
+## Every call costs ~8 s
 
-The verbs are grouped: `phone device …` for the devices, `phone app …` for what
-runs on them, `phone host …` for the machines that hold them. Everything that
-touches the screen — `shot`, `snapshot`, `tap`, `type`, `wait` — is top level,
-because that is the loop.
+Each invocation surveys all hosts before acting. So:
 
-## Start with `phone up`
+- Run `phone device list` once, then `export PHONE_TARGET=<name>`. Every later
+  call skips the choice.
+- Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
+  call.
+- Never `sleep` between an act and a read. `wait <what>` and `shot --settle`
+  return as soon as the screen catches up.
 
-A repository that declares a `phone.toml` beside its code has already said what
-a working device looks like for it: which emulator, which ports forwarded, which
-build, which bundler and on which machine. `phone up` reads that and does only
-what is missing.
+## Pick a device
 
-That is the first command to run in such a project, before reaching for anything
-below. It is safe to repeat — a second run against a converged project opens the
-app and stops, it does not rebuild — so there is never a reason to work out by
-hand which half of the setup survived. `phone status` answers the same question
-without changing anything and exits non-zero when something has drifted, which
-is what a test script gates on.
+`phone device list` prints a per-host summary (memory left, what may still boot),
+then the devices ranked by how often this project drives them. Take the top
+row unless told otherwise.
 
-A device belongs to the project that last brought it up, until that project's
-`phone down`. Every verb that drives it from another project, or from outside
-any project, is refused and names the holder: `up`, because the second launch
-would put its app in front of the first's; `tap`, `shot`, `app launch` and the
-rest, because every snapshot the holder takes from then on would describe a
-screen somebody else is driving. Do not reach for `--take` to get past that: it
-is the other agent's session. Declare a different device, or ask before taking
-one. `phone device boot` on a device that is off drops whatever hold it carried,
-since the session that held it did not survive the shutdown.
+| state | next step |
+| --- | --- |
+| `attached`, `online` | drive it |
+| `off` | `phone device boot <name>` |
+| `known`, `offline` | `phone device connect <name>` |
+| `unauthorized` | the user accepts the dialog on the device |
 
-Nothing below is wrong in such a project, it is just the long way round.
+A name matches on text, model, host or alias: `-t pixel_7`, `-t rose` (its most-driven free
+running device), `-t rose/emu`, `-t rose/sim`.
 
-## Device states
+Exit status 3 means "not now", not broken: the device is held by another project
+or session, or its host has no memory for a boot. The message names what to do,
+usually reusing a device that is already running. Do not pass `--take` or
+`--over-budget` without asking the user.
 
-`phone device list` prints a state per device, and the state says what to do
-next:
+In a repo with `phone.toml`, run `phone up` first. It boots, forwards ports,
+installs a fresh build and opens the app, doing only what is missing, and is
+safe to repeat. `phone status` checks without changing anything.
 
-| state | meaning | next step |
-| --- | --- | --- |
-| `attached`, `online` | ready to drive | nothing |
-| `off` | defined on its host, not running | `phone device boot` |
-| `known` | remembered, not visible anywhere right now | `phone device connect` |
-| `offline` | last seen at an address that no longer answers | `phone device connect` |
-| `unauthorized` | plugged in, waiting on the dialog | accept it on the device |
-
-`device boot` starts a device that already exists. Creating an AVD or a
-simulator that was never defined is `avdmanager` or `simctl` over ssh by hand.
-
-## Never sleep between an act and a read
-
-A screenshot taken right after a tap returns the frame that was already up. The
-device has not repainted yet and nothing in the transport waits for it, so the
-image is of the screen being left rather than the one being opened — which reads
-as the tap having missed.
-
-A fixed sleep either guesses short and reads that stale frame anyway, or guesses
-long and pays for it on every step. `wait <name>` returns the moment the answer
-is yes and `shot --settle` returns once the screen has stopped moving. Between
-them there is no case left that a sleep answers.
-
-## Coordinate spaces
-
-Android reports element bounds, taps and screenshots all in pixels. A simulator
-reports bounds and taps in **points** while screenshotting at 2x or 3x, so a
-coordinate read off an iOS screenshot is not a coordinate that can be tapped.
-`phone` converts internally — `--crop @N` is right on both — but a coordinate
-worked out by eye from an image has to be divided by the `scale` that
-`phone size` reports.
-
-## Focus, and why a snapshot can describe the wrong app
-
-`uiautomator` and every keyevent go to the window holding focus. In split screen
-that is whichever half was touched last, so a snapshot taken while someone uses
-the other half describes *that* app, and `phone key back` lands in it.
-
-`--focus X,Y` presses a point first, in the same device-side shell as the command
-that follows, so nothing interleaves:
+## Verbs
 
 ```
-phone --focus 297,1971 snapshot
+phone snapshot                      # elements on screen, as text with @index
+phone tap "Log in" | @3 | X,Y       # name, snapshot row, or coordinate
+phone press <what> --hold 2s        # long press
+phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]
+phone type "text"                   # into whatever has focus
+phone fill <field> "text"           # focus, clear, type, read back
+phone key back|home|enter|tab|…
+phone wait <what> [--gone] [--timeout 15s]
+phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle]
+phone size                          # panel size and scale
+phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
+phone record -s 5 --frames changed
+phone device list|boot|shutdown|connect|reverse 8081
+phone app install app.apk | launch <id> | stop <id> | open <url> | logs <id>
 ```
 
-It still loses to someone actively tapping the other half. A coordinate tap is
-routed by position rather than by focus, so `phone shot` to look and
-`phone tap X,Y` to act works when nothing else does.
+`-t <device>` and `--focus X,Y` work on any verb; with `do` they go on `do`, not inside a step.
 
-## Foldables
+## Keep reads cheap
 
-Two panels, and Android keeps two unrelated id namespaces for them: a 64-bit
-SurfaceFlinger id that `screencap` takes, and a small logical id that `input`
-takes. `phone` reads both out of `dumpsys display` and follows whichever is
-live, so folding and unfolding mid-session needs no flag.
+- `shot` without `-o` goes to the clipboard, which you cannot read: always pass
+  `-o <file>` and open that file.
+- `snapshot` is text and usually answers the question. A full `shot` costs about
+  1500 tokens; `--crop` one element, or `--scale 0.3 --jpeg 60`, costs a fraction.
+- An `@index` is refused once its element moved, so take a new snapshot after
+  the screen changes rather than guessing.
+- Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
 
-`phone` wraps none of the state overrides, so folding from the CLI for a test is
-adb by hand:
+## What phone does not cover
 
-```
-adb shell cmd device_state print-states
-adb shell cmd device_state state 0     # 0 closed, 2 opened
-adb shell cmd device_state state reset # hand it back to the hinge sensor
-```
-
-Always `reset` afterwards, or the sensor stays overridden.
+- iOS taps and bounds are in points and screenshots in pixels. A coordinate read
+  off an image is divided by the `scale` from `phone size`. `--crop` already
+  converts.
+- In split screen, snapshots and keys go to the focused half. `--focus X,Y`
+  presses a point first. A coordinate `tap` always goes where it points.
+- Creating a new AVD or simulator: `avdmanager` or `xcrun simctl create` on its
+  host, by hand. `device boot` only starts one that exists.
+- Folding a foldable:
+  `adb shell cmd device_state state 0|2` (closed or open), then always
+  `adb shell cmd device_state state reset`.
+- A physical iPhone can only be screenshotted and have its logs read.

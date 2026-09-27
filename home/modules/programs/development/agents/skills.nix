@@ -40,7 +40,7 @@ in {
         })
       (mkInlineSkill {
           "phone" = {
-            description = "Drive the Android handsets and emulators and the iOS simulators on this desk with the `phone` CLI — boot a simulator or AVD from cold, pick a device, screenshot or crop it, list the elements on screen, tap, hold, swipe, type, send keys, wait for the screen to catch up, record a clip and cut it into stills, launch or stop an app, open a deep link, reverse a port to a dev server, and run a whole sequence of those against one device. Use for any hands-on mobile device automation from this host.";
+            description = "Drive Android phones, emulators (AVDs) and iOS simulators, local or on a remote Mac like rose, with the `phone` CLI instead of raw adb, emulator, avdmanager, xcrun simctl or ssh. Boot, pick a device, snapshot the screen, tap, swipe, type, wait, screenshot, record, install, launch, open deep links, reverse ports.";
             tags = ["mobile"];
             content = builtins.readFile ./skills/phone.md;
           };
