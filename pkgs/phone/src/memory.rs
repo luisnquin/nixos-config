@@ -207,6 +207,12 @@ pub struct Tenant {
     pub holder: Option<Holder>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Fit {
+    Room(String),
+    Full(Vec<String>),
+}
+
 #[derive(Clone, Debug)]
 pub struct Room {
     pub at: Where,
@@ -275,6 +281,32 @@ impl Room {
         )
     }
 
+    fn idle(&self) -> impl Iterator<Item = String> + '_ {
+        self.tenants
+            .iter()
+            .filter(|t| t.holder.is_none())
+            .map(|idle| {
+                format!(
+                    "{} is running and nobody holds it: use it with -t {} before booting another",
+                    idle.label,
+                    quoted(&idle.label)
+                )
+            })
+    }
+
+    pub fn fit(&self, device: &Device) -> Fit {
+        let need = self.cost(device);
+
+        match self.admits(need) {
+            None => Fit::Room(format!(
+                "{} has room for it ({:.1} GB left, it needs {need:.1})",
+                self.at.label(),
+                self.left()
+            )),
+            Some(why) => Fit::Full(std::iter::once(why).chain(self.idle()).collect()),
+        }
+    }
+
     pub fn invite(&self) -> Vec<String> {
         let host = self.at.label();
         let mut out = Vec::new();
@@ -286,13 +318,7 @@ impl Room {
             ));
         }
 
-        for idle in self.tenants.iter().filter(|t| t.holder.is_none()) {
-            out.push(format!(
-                "{} is running and nobody holds it: use it with -t {} before booting another",
-                idle.label,
-                quoted(&idle.label)
-            ));
-        }
+        out.extend(self.idle());
 
         if self.pressed() {
             return out;
@@ -403,8 +429,9 @@ async fn room(budget: Budget, at: &Where, views: &[&View]) -> Result<Room> {
         .map(|v| v.device.label.as_str())
         .collect();
 
-    let (memory, ram) = read(at, &avds).await?;
-    let leases = Leases::open(at).await.unwrap_or_default();
+    let (read, leases) = tokio::join!(read(at, &avds), Leases::open(at));
+    let (memory, ram) = read?;
+    let leases = leases.unwrap_or_default();
 
     let mut room = Room {
         at: at.clone(),
@@ -451,6 +478,13 @@ pub async fn report(reg: &Registry, views: &[View], hosts: &[Where]) -> Vec<Stri
     }
 
     out
+}
+
+pub async fn fit(reg: &Registry, views: &[View], device: &Device) -> Option<Fit> {
+    let at = actions::where_of(device);
+    let (_, room) = rooms(reg, views, &[at]).await.pop()?;
+
+    room.ok().map(|room| room.fit(device))
 }
 
 pub async fn admit(reg: &Registry, views: &[View], booting: &[&Device], over: bool) -> Result<()> {
@@ -747,6 +781,38 @@ SwapFree:              0 kB
             room.invite(),
             vec!["no room on rose for another device: wait for a `phone down`, or ask a holder above to release theirs"]
         );
+    }
+
+    #[test]
+    fn says_whether_one_more_device_fits_and_what_to_use_when_it_does_not() {
+        let avd = Device::new(
+            "avd:rose/pixel_7-api36-c",
+            "pixel_7-api36-c",
+            Platform::Emulator,
+        );
+
+        let roomy = room(&[("iPhone 17", 3.7, Some("dazzle"))], Level::Normal);
+
+        assert_eq!(
+            roomy.fit(&avd),
+            Fit::Room("rose has room for it (6.3 GB left, it needs 2.5)".into())
+        );
+
+        let full = room(
+            &[
+                ("iPhone 17", 3.7, Some("dazzle")),
+                ("pixel_7-api36", 2.5, None),
+                ("pixel_7-api36-b", 2.5, Some("clipz")),
+            ],
+            Level::Normal,
+        );
+
+        let Fit::Full(said) = full.fit(&avd) else {
+            panic!("a full host has no room");
+        };
+
+        assert!(said[0].starts_with("no room on rose: this needs 2.5 GB"));
+        assert!(said[1].starts_with("pixel_7-api36 is running and nobody holds it"));
     }
 
     #[test]

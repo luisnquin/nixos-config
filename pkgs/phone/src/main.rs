@@ -1410,15 +1410,15 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 /// and none names the fix. The survey that finds the device already knows, so
 /// it is answered here once, in the name it was asked in.
 async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
-    let view = resolve(reg, want, prefer_recent, Aim::Running).await?;
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let view = choose(&views, reg, want, prefer_recent, Aim::Running).await?;
 
     if view.reach == model::Reach::Off {
-        let label = &view.device.label;
+        let fit = memory::fit(reg, &views, &view.device).await;
 
-        bail!(
-            "{label} is off; start it with `phone device boot {}`",
-            quoted(label)
-        );
+        bail!(off(&view.device.label, fit));
     }
 
     let (held, looked) = tokio::join!(lease::check(&view), pids::look(&view));
@@ -1430,6 +1430,20 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
     }
 
     Ok(view)
+}
+
+fn off(label: &str, fit: Option<memory::Fit>) -> String {
+    let boot = format!("phone device boot {}", quoted(label));
+
+    match fit {
+        Some(memory::Fit::Room(room)) => format!("{label} is off; {room}: `{boot}`"),
+        Some(memory::Fit::Full(why)) => format!(
+            "{label} is off and there is no room to boot it now: {}\n\
+             wait for a `phone down` or a release, or `{boot} --over-budget` boots it anyway; ask before using it",
+            why.join("\n")
+        ),
+        None => format!("{label} is off; start it with `{boot}`"),
+    }
 }
 
 /// A name with a space in it is one argument only if the shell is told so, and
@@ -1826,6 +1840,30 @@ mod tests {
     fn a_name_that_needs_quoting_is_handed_back_ready_to_paste() {
         assert_eq!(quoted("iPhone 17 Pro Max"), "\"iPhone 17 Pro Max\"");
         assert_eq!(quoted("pixel-9"), "pixel-9");
+    }
+
+    #[test]
+    fn an_off_device_says_whether_booting_it_is_welcome() {
+        let room = memory::Fit::Room("rose has room for it (6.3 GB left, it needs 2.5)".into());
+
+        assert_eq!(
+            off("pixel_7-api36", Some(room)),
+            "pixel_7-api36 is off; rose has room for it (6.3 GB left, it needs 2.5): \
+             `phone device boot pixel_7-api36`"
+        );
+
+        let full = memory::Fit::Full(vec![
+            "no room on rose: this needs 2.5 GB and 0.4 is left".into()
+        ]);
+        let said = off("iPad (A16)", Some(full));
+
+        assert!(said.starts_with("iPad (A16) is off and there is no room to boot it now: no room"));
+        assert!(said.contains("`phone device boot \"iPad (A16)\" --over-budget`"));
+
+        assert_eq!(
+            off("pixel_7-api36", None),
+            "pixel_7-api36 is off; start it with `phone device boot pixel_7-api36`"
+        );
     }
 
     use model::{Device, Reach};
