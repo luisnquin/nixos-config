@@ -10,16 +10,15 @@ diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboar
  use codex_app_server_protocol::ServerNotification;
  use codex_exec_server::LOCAL_FS;
  use codex_git_utils::resolve_root_git_project_for_trust;
-@@ -36,9 +33,6 @@ use codex_protocol::config_types::ForcedLoginMethod;
+@@ -34,8 +31,5 @@ use codex_protocol::config_types::ForcedLoginMethod;
  use crate::LoginStatus;
  use crate::app_server_session::AppServerSession;
  use crate::config_update::RemoteProjectTrust;
 -use crate::config_update::format_config_error;
 -use crate::config_update::replace_config_value;
 -use crate::config_update::write_trusted_project;
+ use crate::empty_state_animation::Presentation;
  use crate::key_hint::KeyBindingListExt;
- use crate::legacy_core::config::Config;
- use crate::onboarding::auth::AuthModeWidget;
 @@ -54,7 +48,5 @@ use crate::tui::TuiEvent;
  use color_eyre::eyre::Result;
 -use color_eyre::eyre::WrapErr;

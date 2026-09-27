@@ -35,7 +35,7 @@ index c63f6f746c..3d3247ebdb 100644
                  spans.push(Span::styled("fast", self.model_style.magenta()));
              }
 -            spans.push("   ".dim());
--            spans.push(CHANGE_MODEL_HINT_COMMAND.cyan());
+-            spans.push(CHANGE_MODEL_HINT_COMMAND.fg(accent_color()));
 -            spans.push(CHANGE_MODEL_HINT_EXPLANATION.dim());
              spans
          };

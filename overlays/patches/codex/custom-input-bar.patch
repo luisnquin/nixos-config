@@ -48,8 +48,8 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
 diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
 --- a/tui/src/history_cell/messages.rs
 +++ b/tui/src/history_cell/messages.rs
-@@ -153,6 +153,10 @@
-     Line::from(local_image_label_text(index)).style(style)
+@@ -175,6 +175,10 @@
+     }
  }
  
 +fn custom_input_bar_line(width: u16) -> Line<'static> {
@@ -59,27 +59,27 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
  impl HistoryCell for UserHistoryCell {
      fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
          visible_lines(self.display_hyperlink_lines(width))
-@@ -177,8 +181,8 @@
+@@ -199,8 +203,8 @@
              )
-             .max(1);
+             .max(/*other*/ 1);
  
--        let style = user_message_style();
--        let element_style = style.fg(Color::Cyan);
+-        let style = history_prompt_style();
+-        let element_style = style.fg(accent_color_on(style.bg));
 +        let style = Style::default();
 +        let element_style = Style::default().fg(Color::Cyan);
  
-         let wrapped_remote_images = if self.remote_image_urls.is_empty() {
-             None
-@@ -254,7 +258,7 @@
+         let wrapped_images = plain_hyperlink_lines(adaptive_wrap_lines(
+             self.image_labels_not_in_message()
+@@ -215,7 +219,7 @@
              return Vec::new();
          }
  
 -        let mut lines = vec![HyperlinkLine::new(Line::from("").style(style))];
 +        let mut lines = vec![HyperlinkLine::new(custom_input_bar_line(width))];
  
-         if let Some(wrapped_remote_images) = wrapped_remote_images {
+         if !wrapped_images.is_empty() {
              lines.extend(prefix_hyperlink_lines(
-@@ -271,15 +275,15 @@
+@@ -231,16 +235,16 @@
              lines.extend(prefix_hyperlink_lines(
                  wrapped_message,
                  if self.spoken {
@@ -95,6 +95,6 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
  
 -        lines.push(HyperlinkLine::new(Line::from("").style(style)));
 +        lines.push(HyperlinkLine::new(custom_input_bar_line(width)));
-         lines
-     }
- 
+         for source in lines.iter_mut().filter_map(|line| line.source.as_mut()) {
+             source.right_reserve = 1;
+         }
