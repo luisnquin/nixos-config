@@ -531,7 +531,10 @@ impl App {
         let serial = view.reach.serial().map(str::to_string);
 
         let Some(serial) = serial else {
-            self.push_log(Level::Fail, format!("{label} is not attached"));
+            self.push_log(
+                Level::Fail,
+                format!("{label} has no adb transport to disconnect"),
+            );
             return;
         };
 

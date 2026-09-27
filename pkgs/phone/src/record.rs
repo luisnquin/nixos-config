@@ -18,7 +18,7 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::actions::{self, where_of, Shot};
 use crate::adb::{self, Server};
-use crate::connect::{attached_serial, Reporter};
+use crate::connect::{serial_of, Reporter};
 use crate::model::{Device, Platform};
 use crate::registry::state_dir;
 use crate::{simctl, ssh};
@@ -105,9 +105,7 @@ fn scratch(name: &str) -> PathBuf {
 /// back afterwards rather than streamed. `exec-out` keeps the bytes binary —
 /// the same reason `shot` uses it.
 async fn from_android(server: &Server, device: &Device, seconds: u32) -> Result<Vec<u8>> {
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     // a path under the app-visible part of storage, so the pull needs no root
     let on_device = "/sdcard/phone-record.mp4";

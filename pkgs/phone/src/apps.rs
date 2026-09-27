@@ -10,10 +10,10 @@
 
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 
 use crate::adb::{self, Server};
-use crate::connect::attached_serial;
+use crate::connect::serial_of;
 use crate::model::{Device, Platform};
 use crate::{simctl, ssh};
 
@@ -360,9 +360,7 @@ async fn on_host(device: &Device, verb: &str, arg: &str, limit: Duration) -> Res
 }
 
 async fn attached(server: &Server, device: &Device) -> Result<String> {
-    attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))
+    serial_of(server, device).await
 }
 
 #[cfg(test)]

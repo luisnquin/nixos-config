@@ -1017,9 +1017,7 @@ async fn target_of(view: &View, focus: Option<(i32, i32)>) -> Result<a11y::Targe
         );
     }
 
-    let serial = connect::attached_serial(&view.server, &view.device)
-        .await
-        .ok_or_else(|| anyhow::anyhow!("{} is not attached", view.device.label))?;
+    let serial = connect::serial_of(&view.server, &view.device).await?;
 
     Ok(a11y::Target::Adb(a11y::Adb {
         display: adb::active_display(&view.server, &serial).await,
@@ -1419,6 +1417,10 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         let fit = memory::fit(reg, &views, &view.device).await;
 
         bail!(off(&view.device.label, fit));
+    }
+
+    if let Some(why) = connect::stranded(&views, &view) {
+        bail!(why);
     }
 
     let (held, looked) = tokio::join!(lease::check(&view), pids::look(&view));

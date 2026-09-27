@@ -6,7 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::adb::{self, Server};
 use crate::discover::{avahi, scoped, split_addr, sweep, tailscale};
-use crate::model::{Device, Pin};
+use crate::model::{Device, Pin, Platform, Reach, View};
 use crate::registry::Registry;
 
 #[derive(Clone, Debug)]
@@ -122,6 +122,93 @@ pub async fn attached_serial(server: &Server, device: &Device) -> Option<String>
                 || device.endpoints.iter().any(|e| e.addr() == a.serial)
         })
         .map(|a| a.serial)
+}
+
+pub async fn serial_of(server: &Server, device: &Device) -> Result<String> {
+    attached_serial(server, device)
+        .await
+        .ok_or_else(|| anyhow!(unattached(device)))
+}
+
+pub fn unattached(device: &Device) -> String {
+    let label = &device.label;
+    let q = crate::quoted(label);
+
+    match device.platform {
+        Platform::Emulator => format!(
+            "{label} is not attached: if it is running, `phone device connect {q}`; \
+             if `phone device list` shows it off, `phone device boot {q}`"
+        ),
+        _ => format!(
+            "{label} is not attached: plug it in over USB, or turn on wireless debugging \
+             and `phone device connect {q}`"
+        ),
+    }
+}
+
+/// The survey already knows why a device has no transport, which a lookup made
+/// later, from the device alone, cannot.
+pub fn stranded(views: &[View], view: &View) -> Option<String> {
+    let device = &view.device;
+
+    if !device.platform.is_adb() || view.reach.is_attached() {
+        return None;
+    }
+
+    let label = &device.label;
+    let q = crate::quoted(label);
+
+    let said = match (&view.reach, device.platform) {
+        (Reach::Unauthorized { .. }, _) => format!(
+            "{label} is attached but has not authorized this machine: accept the USB debugging prompt on its screen, then retry"
+        ),
+        (Reach::Online, _) => format!(
+            "{label} is on the network with no adb transport: `phone device connect {q}`"
+        ),
+        (_, Platform::Emulator) => {
+            let host = device.host.as_deref().unwrap_or("this machine");
+
+            let id = &device.id;
+            let avds: Vec<&View> = views
+                .iter()
+                .filter(|v| {
+                    v.device.platform == Platform::Emulator
+                        && v.device.host == device.host
+                        && v.device.id != device.id
+                        && v.reach != Reach::Known
+                })
+                .collect();
+
+            if let Some(live) = avds.iter().find(|v| v.device.is(label)) {
+                return Some(format!(
+                    "{id} is a stale row of {label}, which {host} lists as {} ({}): \
+                     `-t {}`, or `phone device forget {id}` drops the stale row",
+                    live.device.id,
+                    live.reach.label(),
+                    live.device.id
+                ));
+            }
+
+            let instead = match avds.is_empty() {
+                true => format!("{host} lists no AVD at all, so it may be unreachable (`phone doctor`)"),
+                false => format!(
+                    "{host} has {}",
+                    avds.iter()
+                        .map(|v| crate::quoted(&v.device.label))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            };
+
+            format!(
+                "{label} is a remembered emulator that no AVD on {host} answers to now, likely a stale row: \
+                 {instead}; `phone device forget {id}` drops it"
+            )
+        }
+        _ => unattached(device),
+    };
+
+    Some(said)
 }
 
 async fn try_history(
@@ -337,9 +424,7 @@ pub async fn pin(
     port: u16,
     rep: &Reporter,
 ) -> Result<()> {
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     rep.try_(format!("adb tcpip {port}"));
     adb::tcpip(server, &serial, port).await?;
@@ -465,6 +550,94 @@ pub async fn pair(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn on_rose(id: &str, label: &str, reach: Reach) -> View {
+        let mut device = Device::new(id, label, Platform::Emulator);
+
+        device.host = Some("rose".into());
+
+        View::new(device, reach)
+    }
+
+    #[test]
+    fn a_remembered_emulator_names_the_avd_it_is_a_stale_row_of() {
+        let stale = on_rose("android_id:2222bbbb", "pixel_7-api36", Reach::Known);
+        let views = vec![
+            on_rose("avd:rose/pixel_7-api36", "pixel_7-api36", Reach::Off),
+            stale.clone(),
+        ];
+
+        assert_eq!(
+            stranded(&views, &stale).unwrap(),
+            "android_id:2222bbbb is a stale row of pixel_7-api36, which rose lists as \
+             avd:rose/pixel_7-api36 (off): `-t avd:rose/pixel_7-api36`, or \
+             `phone device forget android_id:2222bbbb` drops the stale row"
+        );
+    }
+
+    #[test]
+    fn a_remembered_emulator_no_avd_answers_to_lists_the_ones_that_do() {
+        let gone = on_rose("android_id:9999", "nyx-remote-android", Reach::Known);
+        let views = vec![
+            on_rose("avd:rose/pixel_7-api36", "pixel_7-api36", Reach::Off),
+            gone.clone(),
+        ];
+
+        let said = stranded(&views, &gone).unwrap();
+
+        assert!(said.contains("no AVD on rose answers to now"));
+        assert!(said.contains("rose has pixel_7-api36"));
+        assert!(said.ends_with("`phone device forget android_id:9999` drops it"));
+
+        let alone = stranded(std::slice::from_ref(&gone), &gone).unwrap();
+
+        assert!(alone.contains("rose lists no AVD at all"));
+    }
+
+    #[test]
+    fn every_missing_transport_names_its_next_step() {
+        let phone = Device::new("serial", "pixel-9", Platform::Android);
+        let listed = View::new(phone.clone(), Reach::Online);
+        let prompt = View::new(
+            phone.clone(),
+            Reach::Unauthorized {
+                serial: "serial".into(),
+            },
+        );
+        let attached = View::new(
+            phone.clone(),
+            Reach::Attached {
+                serial: "serial".into(),
+                wireless: false,
+            },
+        );
+
+        assert!(stranded(&[], &listed)
+            .unwrap()
+            .ends_with("`phone device connect pixel-9`"));
+        assert!(stranded(&[], &prompt)
+            .unwrap()
+            .contains("accept the USB debugging prompt"));
+        assert!(stranded(&[], &View::new(phone.clone(), Reach::Known))
+            .unwrap()
+            .contains("plug it in over USB"));
+        assert_eq!(stranded(&[], &attached), None);
+        assert_eq!(
+            stranded(
+                &[],
+                &View::new(
+                    Device::new("u", "iPad (A16)", Platform::Simulator),
+                    Reach::Off
+                )
+            ),
+            None
+        );
+
+        assert!(
+            unattached(&Device::new("avd:x", "pixel_7-api36", Platform::Emulator))
+                .contains("`phone device boot pixel_7-api36`")
+        );
+    }
 
     fn peer(ip: &str, online: bool) -> tailscale::Peer {
         tailscale::Peer {

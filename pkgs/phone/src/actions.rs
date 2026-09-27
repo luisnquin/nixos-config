@@ -7,7 +7,7 @@ use anyhow::{anyhow, bail, Context, Result};
 
 use crate::a11y::Bounds;
 use crate::adb::{self, Server};
-use crate::connect::{attached_serial, Reporter};
+use crate::connect::{attached_serial, serial_of, Reporter};
 use crate::model::{Device, Platform, Reach, View};
 use crate::registry::Registry;
 use crate::ssh::Where;
@@ -282,9 +282,7 @@ pub async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result
             simctl::screenshot(&where_of(device), simctl::udid(device)?).await?
         }
         _ => {
-            let serial = attached_serial(server, device)
-                .await
-                .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+            let serial = serial_of(server, device).await?;
 
             let display = adb::active_display(server, &serial).await;
 
@@ -471,9 +469,7 @@ pub async fn logs_command(
         _ => {}
     }
 
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     let pid = adb::pidof(server, &serial, app)
         .await
@@ -517,9 +513,7 @@ pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<
         );
     }
 
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     let verb: Vec<String> = match what {
         Reverse::Open { device, host } => {
@@ -569,9 +563,7 @@ pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<
 /// Opening one that is already open is harmless, but asking first is what lets
 /// `up` say a device was already ready instead of reporting work it did not do.
 pub async fn reversed(server: &Server, device: &Device) -> Result<Vec<(u16, u16)>> {
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     let out = adb::run_timeout(
         server,
@@ -729,9 +721,7 @@ async fn unsettled<'a>(
         word(value, "value")?;
     }
 
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     let reads: Vec<String> = want
         .iter()
@@ -801,9 +791,7 @@ pub async fn mirror(server: &Server, device: &Device) -> Result<String> {
         bail!("scrcpy cannot mirror {}", device.platform);
     }
 
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     let mut cmd = tokio::process::Command::new("scrcpy");
 
@@ -843,9 +831,7 @@ pub async fn install(
         return Ok(format!("installed on {}", device.label));
     }
 
-    let serial = attached_serial(server, device)
-        .await
-        .ok_or_else(|| anyhow!("{} is not attached", device.label))?;
+    let serial = serial_of(server, device).await?;
 
     rep.try_(format!("install {}", bundle.display()));
 
