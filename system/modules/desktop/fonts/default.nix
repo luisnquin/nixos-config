@@ -5,7 +5,7 @@
     } ''
       mkdir -p $out/share/fonts/truetype
 
-      for font in ${pkgs.ioskeley-mono.normal-NF}/share/fonts/truetype/*.ttf; do
+      for font in ${pkgs.ioskeley-mono.nf}/share/fonts/truetype/*.ttf; do
         output="$out/share/fonts/truetype/$(basename "$font")"
         fontforge -lang=py -script ${./patch-custom-glyphs.py} \
           "$font" ${./tailscale.svg} ${./memory.svg} \
