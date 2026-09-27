@@ -61,16 +61,23 @@ pub fn url(raw: &str) -> Result<&str> {
 /// app whose launchable activity is not declared the usual way answers that
 /// with an error and exit 0 alike, so the fallback asks the package manager
 /// which component to name and starts it outright.
-fn launch_script(app: &str) -> String {
+fn launch_script(app: &str, extras: &[(String, String)]) -> String {
+    let with: String = match extras {
+        [] => String::new(),
+        _ => std::iter::once(" -S".to_string())
+            .chain(extras.iter().map(|(k, v)| format!(" --es '{k}' '{v}'")))
+            .collect(),
+    };
+
     format!(
-        r#"out=$(am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p {app} 2>&1)
+        r#"out=$(am start{with} -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p {app} 2>&1)
 case "$out" in
   *Error*) ;;
   *) echo "$out"; exit 0 ;;
 esac
 comp=$(cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER {app} 2>/dev/null | tail -1)
 case "$comp" in
-  */*) exec am start -n "$comp" 2>&1 ;;
+  */*) exec am start{with} -n "$comp" 2>&1 ;;
   *) echo "$out"; exit 1 ;;
 esac"#
     )
@@ -86,6 +93,7 @@ pub async fn launch(
     device: &Device,
     app: &str,
     args: &[String],
+    extras: &[(String, String)],
 ) -> Result<String> {
     let app = app_id(app)?;
 
@@ -94,16 +102,25 @@ pub async fn launch(
     }
 
     if device.platform == Platform::Simulator {
-        let mut argv = vec![simctl::udid(device)?, app];
+        let mut argv = match extras {
+            [] => vec![],
+            _ => vec!["--terminate-running-process".to_string()],
+        };
 
-        argv.extend(args.iter().map(String::as_str));
+        argv.extend([simctl::udid(device)?.to_string(), app.to_string()]);
+        argv.extend(args.iter().cloned());
+        argv.extend(
+            extras
+                .iter()
+                .flat_map(|(k, v)| [format!("-{k}"), v.clone()]),
+        );
 
         let ran = crate::actions::where_of(device)
             .exec(
                 // `"$@"` rather than a fixed `"$1" "$2"`, so that however many
                 // arguments the manifest declares arrive as that many words
                 r#"xcrun simctl launch "$@""#,
-                &argv,
+                &argv.iter().map(String::as_str).collect::<Vec<_>>(),
                 LAUNCH_TIMEOUT,
             )
             .await?;
@@ -126,7 +143,7 @@ pub async fn launch(
     }
 
     let serial = attached(server, device).await?;
-    let script = launch_script(app);
+    let script = launch_script(app, extras);
 
     let out = adb::run_timeout(server, &["-s", &serial, "shell", &script], LAUNCH_TIMEOUT).await?;
 
@@ -434,12 +451,27 @@ mod tests {
     /// second `am start` would relaunch an app already in front.
     #[test]
     fn the_launcher_intent_is_tried_before_the_package_manager_is_asked() {
-        let script = launch_script("com.example.app");
+        let script = launch_script("com.example.app", &[]);
         let (first, rest) = script.split_once("resolve-activity").unwrap();
 
         assert!(first.contains("category.LAUNCHER -p com.example.app"));
         assert!(first.contains("exit 0"), "a clean start must stop there");
         assert!(rest.contains("am start -n"));
+    }
+
+    #[test]
+    fn extras_restart_the_app_and_ride_both_starts() {
+        let script = launch_script("com.example.app", &[("dev_sub".into(), "ana b".into())]);
+        let (first, rest) = script.split_once("resolve-activity").unwrap();
+
+        assert!(
+            first.contains("am start -S --es 'dev_sub' 'ana b' -a"),
+            "{first}"
+        );
+        assert!(
+            rest.contains("am start -S --es 'dev_sub' 'ana b' -n"),
+            "{rest}"
+        );
     }
 
     /// A simulator identifies both failures by a number and says nothing else

@@ -923,7 +923,7 @@ async fn prepared(
 
     eprintln!(
         "phone: {}",
-        apps::launch(&view.server, &view.device, &build.app, &build.args).await?
+        apps::launch(&view.server, &view.device, &build.app, &build.args, &[]).await?
     );
 
     // after the launch and not instead of it: a simulator delivers a url to a

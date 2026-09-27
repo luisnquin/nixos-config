@@ -346,65 +346,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             }
         }
 
-        Some(Command::App { action }) => match action {
-            AppAction::Install { apk } => {
-                let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-                let (rep, drain) = reporter();
-                let res = actions::install(&view.server, &view.device, &apk, &rep).await;
-
-                drop(rep);
-                drain.await;
-
-                eprintln!("phone: {}", res?);
-
-                pids::forget(&view.device.id);
-
-                Ok(())
-            }
-            AppAction::Launch { app } => {
-                let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-                eprintln!(
-                    "phone: {}",
-                    apps::launch(&view.server, &view.device, &app, &[]).await?
-                );
-
-                pids::forget(&view.device.id);
-
-                Ok(())
-            }
-            AppAction::Stop { app } => {
-                let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-                eprintln!(
-                    "phone: {}",
-                    apps::stop(&view.server, &view.device, &app).await?
-                );
-
-                pids::forget(&view.device.id);
-
-                Ok(())
-            }
-            AppAction::Open { url } => {
-                let view = driving(&mut reg, want(None).as_deref(), true).await?;
-
-                eprintln!(
-                    "phone: {}",
-                    apps::open(&view.server, &view.device, &url).await?
-                );
-
-                Ok(())
-            }
-            AppAction::Logs { app } => {
-                let view = driving(&mut reg, want(None).as_deref(), true).await?;
-                let err = actions::logs_command(&view.server, &view.device, &app)
-                    .await?
-                    .exec();
-
-                bail!("{err}");
-            }
-        },
+        Some(Command::App { action }) => apps_cmd(&mut reg, want(None), action).await,
 
         Some(Command::Host { action }) => hosts_cmd(&mut reg, action).await,
 
@@ -464,6 +406,41 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
 /// Lists or toggles the ssh hosts a survey reaches into. The names come from
 /// ssh, and how to reach one is already answered by the user's `ssh_config`.
+async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -> Result<()> {
+    let view = driving(reg, want.as_deref(), true).await?;
+    let (server, device) = (&view.server, &view.device);
+
+    let said = match action {
+        AppAction::Install { apk } => {
+            let (rep, drain) = reporter();
+            let res = actions::install(server, device, &apk, &rep).await;
+
+            drop(rep);
+            drain.await;
+
+            res?
+        }
+        AppAction::Launch { app, extras } => {
+            apps::launch(server, device, &app, &[], &extras).await?
+        }
+        AppAction::Stop { app } => apps::stop(server, device, &app).await?,
+        AppAction::Open { url } => {
+            eprintln!("phone: {}", apps::open(server, device, &url).await?);
+
+            return Ok(());
+        }
+        AppAction::Logs { app } => {
+            bail!("{}", actions::logs_command(server, device, &app).await?.exec())
+        }
+    };
+
+    eprintln!("phone: {said}");
+
+    pids::forget(&device.id);
+
+    Ok(())
+}
+
 async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()> {
     let found = hosts::discover().await;
     let names: Vec<String> = found.iter().map(|h| h.name.clone()).collect();

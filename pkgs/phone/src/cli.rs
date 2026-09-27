@@ -805,14 +805,25 @@ machine is what it wants. `phone app launch <app>` starts what was installed."#)
     #[command(after_help = r#"Examples:
   phone app launch com.example.app
   phone app launch -t "iPhone 17 Pro Max" com.example.app
+  phone app launch com.example.app --extra dev_sub=ana
 
 Sends the intent the launcher icon sends, so the app comes up the way a person
 starting it would find it. Returns once the process exists, which is what makes
 the next `snapshot` a snapshot of the app rather than of whatever was in front.
 
 A package name on Android, a bundle id on a simulator. The app has to be
-installed already — `phone app install` puts it there."#)]
-    Launch { app: String },
+installed already — `phone app install` puts it there.
+
+--extra hands the app a string: an intent extra on Android, read with
+getStringExtra, and a `-KEY VALUE` argument on a simulator, read from
+UserDefaults. A running app is stopped first so it starts with them."#)]
+    Launch {
+        app: String,
+
+        /// KEY=VALUE, repeatable
+        #[arg(long = "extra", value_name = "KEY=VALUE", value_parser = parse_extra)]
+        extras: Vec<(String, String)>,
+    },
     /// Force-stop an app, leaving the device up
     #[command(after_help = r#"Examples:
   phone app stop com.example.app
@@ -949,6 +960,26 @@ pub fn parse_point(s: &str) -> Result<(i32, i32), String> {
         x.trim().parse().map_err(|_| "bad x")?,
         y.trim().parse().map_err(|_| "bad y")?,
     ))
+}
+
+pub fn parse_extra(s: &str) -> Result<(String, String), String> {
+    let (key, value) = s
+        .split_once('=')
+        .ok_or_else(|| format!("{s} is not KEY=VALUE"))?;
+
+    if key.is_empty()
+        || !key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_'))
+    {
+        return Err(format!("invalid extra key: {key}"));
+    }
+
+    if value.contains('\'') {
+        return Err(format!("an extra value cannot hold single quotes: {value}"));
+    }
+
+    Ok((key.to_string(), value.to_string()))
 }
 
 pub fn parse_duration(s: &str) -> Result<Duration, String> {
