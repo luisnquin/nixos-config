@@ -74,6 +74,21 @@ impl Platform {
         }
     }
 
+    pub fn os(self) -> &'static str {
+        match self {
+            Platform::Android | Platform::Emulator => "android",
+            Platform::Ios | Platform::Simulator => "ios",
+        }
+    }
+
+    pub fn kind(self) -> &'static str {
+        match self {
+            Platform::Android | Platform::Ios => "phys",
+            Platform::Emulator => "emu",
+            Platform::Simulator => "sim",
+        }
+    }
+
     pub fn is_adb(self) -> bool {
         matches!(self, Platform::Android | Platform::Emulator)
     }

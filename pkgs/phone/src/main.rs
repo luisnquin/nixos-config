@@ -1600,11 +1600,7 @@ fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Op
         // beside the emulator named after it. The id is what a command can be
         // pointed at without a picker, so it is printed where a name is not
         // enough on its own.
-        let name = if views.iter().filter(|v| v.device.label == d.label).count() > 1 {
-            d.id.clone()
-        } else {
-            d.label.clone()
-        };
+        let name = listed_name(views, d);
 
         let endpoint = d
             .ranked_endpoints()
@@ -1623,8 +1619,8 @@ fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Op
             .unwrap_or_else(|| "-".into());
 
         let row = format!(
-            "{:<9} {:<28} {:<20} {:<16} {:<24} {:<10} {}",
-            d.platform.as_str(),
+            "{:<12} {:<28} {:<20} {:<16} {:<24} {:<10} {}",
+            format!("{} {}", d.platform.os(), d.platform.kind()),
             truncate(&name, 28),
             truncate(&d.model, 20),
             view.reach.label(),
@@ -1642,6 +1638,21 @@ fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Op
     }
 }
 
+fn listed_name(views: &[View], d: &model::Device) -> String {
+    if views.iter().filter(|v| v.device.label == d.label).count() <= 1 {
+        return d.label.clone();
+    }
+
+    if d.platform != Platform::Simulator {
+        return d.id.clone();
+    }
+
+    let udid = d.id.rsplit('/').next().unwrap_or(&d.id);
+    let short: String = udid.chars().take(8).collect();
+
+    format!("{} {short}", truncate(&d.label, 19))
+}
+
 fn print_json(views: &[View], holds: &BTreeMap<String, lease::Holder>) -> Result<()> {
     let rows: Vec<serde_json::Value> = views
         .iter()
@@ -1652,6 +1663,8 @@ fn print_json(views: &[View], holds: &BTreeMap<String, lease::Holder>) -> Result
                 "label": v.device.label,
                 "model": v.device.model,
                 "platform": v.device.platform.as_str(),
+                "os": v.device.platform.os(),
+                "kind": v.device.platform.kind(),
                 "reach": v.reach.label(),
                 "serial": v.reach.serial(),
                 "host": v.device.host,
@@ -1842,6 +1855,28 @@ mod tests {
     fn a_name_that_needs_quoting_is_handed_back_ready_to_paste() {
         assert_eq!(quoted("iPhone 17 Pro Max"), "\"iPhone 17 Pro Max\"");
         assert_eq!(quoted("pixel-9"), "pixel-9");
+    }
+
+    #[test]
+    fn a_simulator_sharing_its_name_keeps_it_and_adds_a_typeable_udid() {
+        let sim = |id: &str| {
+            View::new(
+                Device::new(id, "iPad (A16)", Platform::Simulator),
+                Reach::Off,
+            )
+        };
+
+        let views = vec![
+            sim("rose/E6A29D48-6AD8-4F4B-9C6B-0A1B2C3D4E5F"),
+            sim("rose/11111111-2222-3333-4444-555555555555"),
+            emu("android_id:1111aaaa", "pixel_7-api36", Reach::Known),
+            emu("avd:mac/pixel_7-api36", "pixel_7-api36", Reach::Off),
+            emu("avd:mac/pixel_7-api36-c", "pixel_7-api36-c", Reach::Off),
+        ];
+
+        assert_eq!(listed_name(&views, &views[0].device), "iPad (A16) E6A29D48");
+        assert_eq!(listed_name(&views, &views[2].device), "android_id:1111aaaa");
+        assert_eq!(listed_name(&views, &views[4].device), "pixel_7-api36-c");
     }
 
     #[test]
