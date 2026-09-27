@@ -31,8 +31,8 @@
       warn-dirty = false;
       download-attempts = 3;
       experimental-features = ["nix-command" "flakes"];
-      trusted-users = ["root" "${user.alias}"];
-      allowed-users = trusted-users;
+      trusted-users = ["root"];
+      allowed-users = ["root" "${user.alias}"];
       # Defines the maximum number of jobs that Nix will try to build in parallel.
       max-jobs = 6;
       # When free disk space in /nix/store drops below min-free during a build, Nix performs a garbage-collection.
