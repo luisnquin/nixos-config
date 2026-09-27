@@ -562,6 +562,45 @@ pub async fn reverse(server: &Server, device: &Device, what: Reverse) -> Result<
 /// `reverse` formats them for a reader; converging on them needs the numbers.
 /// Opening one that is already open is harmless, but asking first is what lets
 /// `up` say a device was already ready instead of reporting work it did not do.
+pub async fn net(
+    server: &Server,
+    device: &Device,
+    on: bool,
+    only: Option<crate::cli::Radio>,
+) -> Result<String> {
+    if device.platform.is_hosted() {
+        bail!("{} shares its host's network; there is no radio to turn off", device.label);
+    }
+
+    let serial = serial_of(server, device).await?;
+    let verb = if on { "enable" } else { "disable" };
+
+    let radios: &[&str] = match only {
+        Some(crate::cli::Radio::Wifi) => &["wifi"],
+        Some(crate::cli::Radio::Data) => &["data"],
+        None => &["wifi", "data"],
+    };
+
+    let script = radios
+        .iter()
+        .map(|r| format!("svc {r} {verb}"))
+        .collect::<Vec<_>>()
+        .join(" && ");
+
+    let out = adb::run_timeout(server, &["-s", &serial, "shell", &script], REVERSE_TIMEOUT).await?;
+
+    if !out.ok() {
+        bail!("{}", first_line(&out.stderr).unwrap_or("svc refused the change"));
+    }
+
+    Ok(format!(
+        "{}: {} {}",
+        device.label,
+        radios.join(" and "),
+        if on { "on" } else { "off" }
+    ))
+}
+
 pub async fn reversed(server: &Server, device: &Device) -> Result<Vec<(u16, u16)>> {
     let serial = serial_of(server, device).await?;
 

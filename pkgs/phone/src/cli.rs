@@ -57,7 +57,7 @@ The commands
 
   project  up down status
   screen   snapshot shot size tap press swipe type fill key wait do
-  device   list connect disconnect pair pin use forget boot shutdown reverse
+  device   list connect disconnect pair pin use forget boot shutdown reverse net
   app      install launch stop open logs notifications
   host     list enable disable budget
   this     mirror record doctor hook
@@ -788,6 +788,20 @@ up` opens them."#)]
         #[arg(long)]
         clear: bool,
     },
+    #[command(about = "Turn wifi and mobile data off or on", after_help = r#"Examples:
+  phone device net off
+  phone device net on
+  phone device net off --only wifi
+
+Off then on drops every open socket, which is how an app that holds a stale
+connection, a push channel that stopped delivering, is made to reconnect.
+Android only; a simulator shares its host's network."#)]
+    Net {
+        state: Switch,
+
+        #[arg(long, value_enum, help = "Only this radio")]
+        only: Option<Radio>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -940,6 +954,18 @@ impl Command {
                 | Command::Key { .. }
         )
     }
+}
+
+#[derive(Copy, Clone, ValueEnum)]
+pub enum Switch {
+    On,
+    Off,
+}
+
+#[derive(Copy, Clone, ValueEnum)]
+pub enum Radio {
+    Wifi,
+    Data,
 }
 
 #[derive(Copy, Clone, ValueEnum)]

@@ -218,24 +218,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     Ok(())
                 }
                 DeviceAction::Disconnect { target, all } => {
-                    if all {
-                        adb::run(&Server::Local, &["disconnect"]).await?;
-                        eprintln!("phone: dropped every wireless transport");
-
-                        return Ok(());
-                    }
-
-                    let view =
-                        resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
-
-                    let Some(serial) = view.reach.serial().filter(|s| s.contains(':')) else {
-                        bail!("{} has no wireless transport", view.device.label);
-                    };
-
-                    adb::disconnect(&view.server, serial).await?;
-                    eprintln!("phone: disconnected {serial}");
-
-                    Ok(())
+                    disconnect(&mut reg, want(target), all).await
                 }
                 DeviceAction::Pair { code, addr } => {
                     let (rep, drain) = reporter();
@@ -272,44 +255,12 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
                     Ok(())
                 }
-                DeviceAction::Forget { target } => {
-                    let matches = reg.find(&target);
-
-                    let Some(id) = matches.first().map(|d| d.id.clone()) else {
-                        bail!("nothing in the registry matches '{target}'");
-                    };
-
-                    if matches.len() > 1 {
-                        bail!(
-                            "'{target}' matches {} devices; be more specific",
-                            matches.len()
-                        );
-                    }
-
-                    reg.remove(&id);
-                    reg.save()?;
-
-                    eprintln!("phone: forgot {id}");
-
-                    Ok(())
-                }
+                DeviceAction::Forget { target } => forget(&mut reg, &target),
                 DeviceAction::Boot {
                     target,
                     over_budget,
                     timeout,
-                } => {
-                    let views = survey(&mut reg).await;
-                    reg.save()?;
-
-                    let view =
-                        choose(&views, &reg, want(target).as_deref(), true, Aim::Bootable).await?;
-
-                    if !actions::running(&view.reach) {
-                        memory::admit(&reg, &views, &[&view.device], over_budget).await?;
-                    }
-
-                    boot(&mut reg, view, timeout).await
-                }
+                } => boot_device(&mut reg, want(target), over_budget, timeout).await,
                 DeviceAction::Shutdown { target } => {
                     let view =
                         resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
@@ -321,6 +272,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
                     Ok(())
                 }
+                DeviceAction::Net { state, only } => net(&mut reg, want(None), state, only).await,
                 DeviceAction::Reverse { ports, list, clear } => {
                     let view = driving(&mut reg, want(None).as_deref(), true).await?;
 
@@ -406,6 +358,82 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
 /// Lists or toggles the ssh hosts a survey reaches into. The names come from
 /// ssh, and how to reach one is already answered by the user's `ssh_config`.
+async fn disconnect(reg: &mut Registry, want: Option<String>, all: bool) -> Result<()> {
+    if all {
+        adb::run(&Server::Local, &["disconnect"]).await?;
+        eprintln!("phone: dropped every wireless transport");
+
+        return Ok(());
+    }
+
+    let view =
+        resolve(reg, want.as_deref(), true, Aim::Running).await?;
+
+    let Some(serial) = view.reach.serial().filter(|s| s.contains(':')) else {
+        bail!("{} has no wireless transport", view.device.label);
+    };
+
+    adb::disconnect(&view.server, serial).await?;
+    eprintln!("phone: disconnected {serial}");
+
+    Ok(())
+}
+
+fn forget(reg: &mut Registry, target: &str) -> Result<()> {
+    let matches = reg.find(target);
+
+    let Some(id) = matches.first().map(|d| d.id.clone()) else {
+        bail!("nothing in the registry matches '{target}'");
+    };
+
+    if matches.len() > 1 {
+        bail!(
+            "'{target}' matches {} devices; be more specific",
+            matches.len()
+        );
+    }
+
+    reg.remove(&id);
+    reg.save()?;
+
+    eprintln!("phone: forgot {id}");
+
+    Ok(())
+}
+
+async fn boot_device(
+    reg: &mut Registry,
+    want: Option<String>,
+    over_budget: bool,
+    timeout: std::time::Duration,
+) -> Result<()> {
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let view =
+        choose(&views, reg, want.as_deref(), true, Aim::Bootable).await?;
+
+    if !actions::running(&view.reach) {
+        memory::admit(reg, &views, &[&view.device], over_budget).await?;
+    }
+
+    boot(reg, view, timeout).await
+}
+
+async fn net(
+    reg: &mut Registry,
+    want: Option<String>,
+    state: cli::Switch,
+    only: Option<cli::Radio>,
+) -> Result<()> {
+    let view = driving(reg, want.as_deref(), true).await?;
+    let on = matches!(state, cli::Switch::On);
+
+    eprintln!("phone: {}", actions::net(&view.server, &view.device, on, only).await?);
+
+    Ok(())
+}
+
 async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -> Result<()> {
     let view = driving(reg, want.as_deref(), true).await?;
     let (server, device) = (&view.server, &view.device);
