@@ -49,10 +49,6 @@
           mode = "0700";
         }
         {
-          directory = "/var/lib/docker";
-          mode = "0710";
-        }
-        {
           directory = "/var/lib/caddy";
           user = "caddy";
           group = "caddy";

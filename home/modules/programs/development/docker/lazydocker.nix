@@ -2,9 +2,12 @@
   nixosConfig,
   lib,
   ...
-}: {
+}:
+lib.mkIf nixosConfig.virtualisation.podman.enable {
+  home.sessionVariables.DOCKER_HOST = "unix://$XDG_RUNTIME_DIR/podman/podman.sock";
+
   # https://github.com/jesseduffield/lazydocker/blob/master/docs/Config.md
-  programs.lazydocker = lib.mkIf nixosConfig.virtualisation.docker.enable {
+  programs.lazydocker = {
     enable = true;
     settings = {
       gui = {
