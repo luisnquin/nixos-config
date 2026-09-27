@@ -49,7 +49,7 @@ safe to repeat. `phone status` checks without changing anything.
 
 ```
 phone snapshot                      # elements on screen, as text with @index
-phone tap "Log in" | @3 | X,Y       # name, snapshot row, or coordinate
+phone tap "Log in" | @3 | X,Y       # whole name, snapshot row, or coordinate
 phone press <what> --hold 2s        # long press
 phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]
 phone type "text"                   # into whatever has focus
@@ -61,7 +61,9 @@ phone size                          # panel size and scale
 phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
 phone record -s 5 --frames changed
 phone device list|boot|shutdown|connect|reverse 8081
-phone app install app.apk | launch <id> | stop <id> | open <url> | logs <id>
+phone device net off|on [--only wifi|data]   # off then on resets stale sockets
+phone app install app.apk | stop <id> | open <url> | logs <id> | notifications [<id>]
+phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extras
 ```
 
 `-t <device>` and `--focus X,Y` work on any verb; with `do` they go on `do`, not inside a step.
@@ -75,14 +77,16 @@ phone app install app.apk | launch <id> | stop <id> | open <url> | logs <id>
 - An `@index` is refused once its element moved, so take a new snapshot after
   the screen changes rather than guessing.
 - Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
+- `wait` passes at once when its target is already on screen, and says so.
+  Wait for something the action creates, not for something already there.
 
 ## What phone does not cover
 
 - iOS taps and bounds are in points and screenshots in pixels. A coordinate read
   off an image is divided by the `scale` from `phone size`. `--crop` already
   converts.
-- In split screen, snapshots and keys go to the focused half. `--focus X,Y`
-  presses a point first. A coordinate `tap` always goes where it points.
+- In split screen, a snapshot shows both halves but keys go to the focused
+  one. `--focus X,Y` presses a point first. A coordinate `tap` always goes where it points.
 - Creating a new AVD or simulator: `avdmanager` or `xcrun simctl create` on its
   host, by hand. `device boot` only starts one that exists.
 - Folding a foldable:
