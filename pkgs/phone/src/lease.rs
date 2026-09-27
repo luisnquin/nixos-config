@@ -357,7 +357,7 @@ pub async fn check(view: &View) -> Result<()> {
         None => Caller::Nowhere,
     };
 
-    anyhow::bail!("{}", refusal(&view.device.label, holder, &caller))
+    Err(crate::Refused(refusal(&view.device.label, holder, &caller)).into())
 }
 
 /// What a refused agent reads. It has to say whose the device is, why the

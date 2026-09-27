@@ -75,7 +75,8 @@ What to know before scripting it
   A host short of memory takes taps and never acts on them. `phone status` and
   `phone device list` end with each host's memory and what may be booted there;
   follow that line rather than guessing. A boot it has no room for is refused
-  with exit status 3, which means "not now", not "broken".
+  with exit status 3, which means "not now", not "broken"; so is a
+  device another project or agent session holds.
 
 Naming things
 

@@ -651,7 +651,7 @@ async fn claim(
     }
 
     if !refused.is_empty() {
-        bail!("{}", refused.join("\n"));
+        return Err(crate::Refused(refused.join("\n")).into());
     }
 
     for (_, leases) in &hosts {
