@@ -299,6 +299,12 @@ impl Node {
             .iter()
             .any(|field| field.to_lowercase().contains(&needle))
     }
+
+    pub fn answers(&self, needle: &str) -> bool {
+        [&self.text, &self.desc, &self.res_id]
+            .iter()
+            .any(|field| field.eq_ignore_ascii_case(needle))
+    }
 }
 
 /// The elements that can be read or pressed. The rest of the hierarchy is
@@ -573,21 +579,19 @@ pub fn pick_in<'a>(
     }
 
     let hits: Vec<&Node> = nodes.iter().filter(|n| n.matches(needle)).collect();
+    let exact: Vec<&Node> = hits.iter().copied().filter(|n| n.answers(needle)).collect();
 
-    match hits.as_slice() {
-        [] => bail!("nothing on screen matches '{needle}'"),
-        [one] => Ok(one),
-        many => {
-            let exact: Vec<&Node> = many
-                .iter()
-                .copied()
-                .filter(|n| n.name().eq_ignore_ascii_case(needle))
-                .collect();
-
-            if let [one] = exact.as_slice() {
-                return Ok(one);
-            }
-
+    match (hits.as_slice(), exact.as_slice()) {
+        ([], _) => bail!("nothing on screen matches '{needle}'"),
+        // a name that used to be on screen reads as part of a longer one that
+        // still is, and pressing that one is pressing the wrong thing
+        (partial, []) => Err(Ambiguous(format!(
+            "nothing on screen is named '{needle}', it is only part of {}; use a whole name or its @index",
+            listed(partial)
+        ))
+        .into()),
+        (_, [one]) => Ok(one),
+        (many, _) => {
             // a pressable and the label drawn inside it both carry the name,
             // and pressing either presses the same thing
             if let Some(outer) = outermost(many).or_else(|| outermost(&exact)) {
@@ -604,19 +608,22 @@ pub fn pick_in<'a>(
                 return Ok(one);
             }
 
-            let listed = many
-                .iter()
-                .map(|n| format!("@{} {}", n.index, n.label()))
-                .collect::<Vec<_>>()
-                .join(", ");
-
             Err(Ambiguous(format!(
-                "'{needle}' matches {} elements: {listed}",
-                many.len()
+                "'{needle}' matches {} elements: {}",
+                many.len(),
+                listed(many)
             ))
             .into())
         }
     }
+}
+
+fn listed(nodes: &[&Node]) -> String {
+    nodes
+        .iter()
+        .map(|n| format!("@{} {}", n.index, n.label()))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn outermost<'a>(hits: &[&'a Node]) -> Option<&'a Node> {
@@ -1056,11 +1063,20 @@ mod tests {
         let nodes = parse(SAMPLE).unwrap();
         let err = pick(&nodes, "i").unwrap_err().to_string();
 
-        assert!(err.contains("matches 3 elements"), "{err}");
+        assert!(err.contains("only part of"), "{err}");
         assert!(
             err.contains("@0"),
             "the alternatives must be addressable: {err}"
         );
+    }
+
+    #[test]
+    fn a_name_that_is_only_part_of_one_element_is_refused() {
+        let xml = SAMPLE.replace(r#"text="Log in""#, r#"text="Log in with Google""#);
+        let err = pick(&parse(&xml).unwrap(), "Log in").unwrap_err();
+
+        assert!(err.is::<Ambiguous>(), "{err}");
+        assert!(err.to_string().contains("@"), "{err}");
     }
 
     #[test]
