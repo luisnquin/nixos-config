@@ -60,7 +60,7 @@ The commands
   device   list connect disconnect pair pin use forget boot shutdown reverse
   app      install launch stop open logs
   host     list enable disable budget
-  this     mirror record doctor
+  this     mirror record doctor hook
 
 What to know before scripting it
 
@@ -589,6 +589,17 @@ clipboard, the ssh hosts that answer and what each one still offers. Run it when
 a command fails in a way that looks like a tool is absent, not when a device
 will not respond."#)]
     Doctor,
+    /// Print one line pointing an agent at phone when a harness is about to run raw adb, emulator or simctl
+    #[command(after_help = r#"Examples:
+  phone hook --harness claude
+
+Reads the payload a harness hands its pre-shell hook on stdin. The command always
+runs: nothing is denied and no permission is granted. Exit status is 0 whatever
+was sent."#)]
+    Hook {
+        #[arg(long, value_enum)]
+        harness: crate::hook::Harness,
+    },
     /// Print a shell completion script. Hidden: `default.nix` calls it in
     /// postInstall to generate the completion files, and nothing else does.
     #[command(hide = true)]

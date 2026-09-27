@@ -7,6 +7,7 @@ mod cli;
 mod connect;
 mod discover;
 mod help;
+mod hook;
 mod hosts;
 mod ios;
 mod lease;
@@ -50,7 +51,15 @@ async fn main() -> ExitCode {
     // read, and it must end the run quietly rather than in a backtrace.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
 
-    match dispatch(help::parse()).await {
+    let cli = help::parse();
+
+    if let Some(Command::Hook { harness }) = cli.command {
+        hook::run(harness);
+
+        return ExitCode::SUCCESS;
+    }
+
+    match dispatch(cli).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             // the alternate form walks the context chain; without it a failure
@@ -446,7 +455,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Doctor) => doctor(&mut reg).await,
 
-        Some(Command::Completions { .. }) => unreachable!("handled above"),
+        Some(Command::Completions { .. } | Command::Hook { .. }) => unreachable!("handled above"),
 
         // every screen verb returned above, where it was given a device
         Some(_) => unreachable!("a screen verb reached dispatch"),
