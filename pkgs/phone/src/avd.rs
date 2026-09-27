@@ -19,23 +19,54 @@ const EXIT: Duration = Duration::from_secs(60);
 /// The SDK roots are a fallback rather than an override: an `emulator` already
 /// on PATH may be a wrapper that supplies the libraries the bare SDK binary
 /// cannot find on its own, and putting the SDK first would shadow it.
-const SDK: &str = r#"PATH="$($SHELL -l -c 'printf %s "$PATH"' 2>/dev/null):$PATH"
+const SDK: &str = r#"login=$($SHELL -l -c 'printf "%s\n%s" "$ANDROID_AVD_HOME" "$PATH"' 2>/dev/null)
+PATH="$(printf '%s\n' "$login" | tail -n 1):$PATH"
+avd_home=$(printf '%s\n' "$login" | tail -n 2 | head -n 1)
+[ -n "$avd_home" ] || avd_home="${ANDROID_AVD_HOME:-${ANDROID_USER_HOME:-$HOME/.android}/avd}"
 command -v emulator >/dev/null 2>&1 || for dir in \
   "$ANDROID_HOME" "$ANDROID_SDK_ROOT" "$HOME/Library/Android/sdk" "$HOME/Android/Sdk"; do
   [ -x "$dir/emulator/emulator" ] && { PATH="$dir/emulator:$PATH"; break; }
 done
 export PATH"#;
 
-/// Every AVD defined on `at`, booted or not.
-pub async fn list(at: &Where) -> Vec<String> {
-    let script = format!("{SDK}\nexec emulator -list-avds 2>/dev/null");
+const LIST: &str = r#"read_key() { sed -n "s/^$1 *= *//p" "$dir/config.ini" 2>/dev/null | head -n 1; }
+emulator -list-avds 2>/dev/null | while IFS= read -r avd; do
+  dir=$(sed -n 's/^path=//p' "$avd_home/$avd.ini" 2>/dev/null)
+  [ -d "$dir" ] || dir="$avd_home/$avd.avd"
+  printf '%s\t%s\t%s\n' "$avd" "$(read_key 'hw\.device\.name')" "$(read_key 'image\.sysdir\.1')"
+done"#;
 
-    at.text(&script, &[], Duration::from_secs(25))
-        .await
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.contains(' '))
-        .map(str::to_string)
+/// Every AVD defined on `at`, booted or not.
+pub async fn list(at: &Where) -> Vec<(String, String)> {
+    let script = format!("{SDK}\n{LIST}");
+
+    parse_list(&at.text(&script, &[], Duration::from_secs(25)).await)
+}
+
+fn parse_list(text: &str) -> Vec<(String, String)> {
+    text.lines()
+        .filter_map(|line| {
+            let mut fields = line.split('\t').map(str::trim);
+            let name = fields
+                .next()
+                .filter(|n| !n.is_empty() && !n.contains(' '))?;
+            let device = fields.next().unwrap_or_default();
+            let api = fields
+                .next()
+                .unwrap_or_default()
+                .split(['/', ';'])
+                .find_map(|part| part.strip_prefix("android-"))
+                .map(|n| format!("API {n}"));
+
+            let model = [Some(device.to_string()), api]
+                .into_iter()
+                .flatten()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            Some((name.to_string(), model))
+        })
         .collect()
 }
 
@@ -151,4 +182,27 @@ adb devices 2>/dev/null | awk -v want="$1" '$1 == want { print "listed" }'"#;
         "{serial} was still listed {}s after being asked to exit",
         EXIT.as_secs()
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn names_what_an_avd_emulates_from_its_config() {
+        let text =
+            "pixel_7-api36\tpixel_7\tsystem-images/android-36/google_apis_playstore/arm64-v8a/\n\
+                    tablet\t\t\n\
+                    INFO    | Storing crashdata in: /tmp\n\
+                    legacy\tpixel_4\tsystem-images;android-30;default;x86_64\n";
+
+        assert_eq!(
+            parse_list(text),
+            vec![
+                ("pixel_7-api36".to_string(), "pixel_7 API 36".to_string()),
+                ("tablet".to_string(), String::new()),
+                ("legacy".to_string(), "pixel_4 API 30".to_string()),
+            ]
+        );
+    }
 }

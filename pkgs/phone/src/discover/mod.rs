@@ -99,10 +99,23 @@ async fn probe_server(server: Server) -> (Server, Vec<Attach>) {
     (server, rows.into_iter().map(|(_, row)| row).collect())
 }
 
-fn avd_device(host: Option<&str>, name: String) -> Device {
+fn model_or_remembered(reg: &Registry, model: String, label: &str) -> String {
+    if !model.is_empty() {
+        return model;
+    }
+
+    reg.devices
+        .iter()
+        .find(|d| d.platform == Platform::Emulator && d.is(label))
+        .map(|d| d.model.clone())
+        .unwrap_or_default()
+}
+
+fn avd_device(host: Option<&str>, (name, model): (String, String)) -> Device {
     let mut device = Device::new(avd_id(host, &name), name, Platform::Emulator);
 
     device.host = host.map(str::to_string);
+    device.model = model;
 
     device
 }
@@ -408,16 +421,9 @@ fn merge(reg: &mut Registry, found: &Findings, settled: bool) -> Vec<View> {
             continue;
         }
 
-        // the SDK names an AVD but says nothing about what it emulates, and the
-        // row it supersedes was written while the thing was running and adb
-        // could be asked
-        if let Some(seen) = reg
-            .devices
-            .iter()
-            .find(|d| d.platform == Platform::Emulator && d.is(&device.label))
-        {
-            device.model = seen.model.clone();
-        }
+        // an AVD whose config.ini could not be read falls back to the row written
+        // while it ran and adb could be asked
+        device.model = model_or_remembered(reg, std::mem::take(&mut device.model), &device.label);
 
         off.push(device.label.clone());
         claimed.insert(device.id.clone());
