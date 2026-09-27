@@ -418,31 +418,40 @@ pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
     )
 }
 
-pub async fn holds(views: &[View]) -> BTreeMap<String, Holder> {
-    let mut found = BTreeMap::new();
-    let mut read: Vec<(Where, Leases)> = Vec::new();
+pub async fn ledgers(views: &[View]) -> Vec<(Where, Leases)> {
+    let mut hosts: Vec<Where> = Vec::new();
 
-    for view in views.iter().filter(|v| actions::running(&v.reach)) {
+    for view in views {
         let at = actions::where_of(&view.device);
 
-        let leases = match read.iter().position(|(known, _)| *known == at) {
-            Some(i) => &read[i].1,
-            None => match Leases::open(&at).await {
-                Ok(leases) => {
-                    read.push((at, leases));
-
-                    &read.last().expect("just pushed").1
-                }
-                Err(_) => continue,
-            },
-        };
-
-        if let Some(holder) = leases.holder(key(&view.device)) {
-            found.insert(view.device.id.clone(), holder.clone());
+        if !hosts.contains(&at) {
+            hosts.push(at);
         }
     }
 
-    found
+    let opened = hosts
+        .into_iter()
+        .map(|at| async move { Leases::open(&at).await.ok().map(|leases| (at, leases)) });
+
+    futures_util::future::join_all(opened)
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+pub fn holds(views: &[View], ledgers: &[(Where, Leases)]) -> BTreeMap<String, Holder> {
+    views
+        .iter()
+        .filter(|v| actions::running(&v.reach))
+        .filter_map(|view| {
+            let at = actions::where_of(&view.device);
+            let (_, leases) = ledgers.iter().find(|(known, _)| *known == at)?;
+            let holder = leases.holder(key(&view.device))?;
+
+            Some((view.device.id.clone(), holder.clone()))
+        })
+        .collect()
 }
 
 pub async fn mine() -> Option<Holder> {

@@ -1,11 +1,14 @@
+use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
 use serde::Serialize;
 
-use crate::model::{self, Device, Unix};
+use crate::actions;
+use crate::lease::{self, Leases};
+use crate::model::{self, Device, Unix, View};
 use crate::project::Project;
-use crate::{actions, lease};
+use crate::ssh::Where;
 
 const TIMEOUT: Duration = Duration::from_secs(6);
 
@@ -33,6 +36,16 @@ impl Use {
             at: self.at.max(other.at),
             count: self.count + other.count,
         }
+    }
+
+    pub fn label(&self) -> String {
+        let ago = model::ago(self.at);
+
+        format!(
+            "{} · {}×",
+            ago.strip_suffix(" ago").unwrap_or("now"),
+            self.count
+        )
     }
 }
 
@@ -86,6 +99,43 @@ pub struct Driven {
     pub all: Option<Use>,
 }
 
+impl Driven {
+    fn rank(&self) -> (u8, Reverse<u64>, Reverse<Unix>) {
+        match (self.project, self.all) {
+            (Some(mine), _) => (0, Reverse(mine.count), Reverse(mine.at)),
+            (None, Some(all)) => (1, Reverse(all.count), Reverse(all.at)),
+            (None, None) => (2, Reverse(0), Reverse(0)),
+        }
+    }
+
+    pub fn label(&self) -> String {
+        self.all
+            .map(|all| all.label())
+            .unwrap_or_else(|| "-".into())
+    }
+}
+
+/// Device id -> how much it was driven, by the project at `tree` and by anyone.
+pub fn driven(
+    views: &[View],
+    ledgers: &[(Where, Leases)],
+    tree: Option<&str>,
+) -> BTreeMap<String, Driven> {
+    views
+        .iter()
+        .filter_map(|view| {
+            let at = actions::where_of(&view.device);
+            let (_, leases) = ledgers.iter().find(|(known, _)| *known == at)?;
+
+            Some((view.device.id.clone(), leases.usage.of(&view.device, tree)))
+        })
+        .collect()
+}
+
+pub fn rank<T>(items: &mut [T], driven: impl Fn(&T) -> Driven) {
+    items.sort_by_key(|item| driven(item).rank());
+}
+
 pub async fn stamp(device: &Device) {
     let tree = match Project::here().ok().flatten() {
         Some(project) => match lease::tree(&project).await {
@@ -107,7 +157,6 @@ pub async fn stamp(device: &Device) {
 mod tests {
     use super::*;
     use crate::model::Platform;
-    use crate::ssh::Where;
 
     fn avd(name: &str) -> Device {
         let mut device = Device::new(format!("avd:rose/{name}"), name, Platform::Emulator);
@@ -128,6 +177,43 @@ mod tests {
         assert_eq!(driven.all, Some(Use { at: 300, count: 5 }));
         assert_eq!(usage.of(&avd("tab"), Some("/b")), Driven::default());
         assert_eq!(usage.of(&avd("pixel"), None).project, None);
+    }
+
+    #[test]
+    fn this_project_first_then_everyone_then_the_rest() {
+        let used = |project: Option<u64>, all: Option<u64>| Driven {
+            project: project.map(|count| Use { at: 1, count }),
+            all: all.map(|count| Use { at: 1, count }),
+        };
+
+        let mut rows = vec![
+            ("never", used(None, None)),
+            ("theirs", used(None, Some(90))),
+            ("mine-once", used(Some(1), Some(1))),
+            ("also-never", used(None, None)),
+            ("mine", used(Some(8), Some(9))),
+        ];
+
+        rank(&mut rows, |(_, driven)| *driven);
+
+        assert_eq!(
+            rows.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+            ["mine", "mine-once", "theirs", "never", "also-never"]
+        );
+    }
+
+    #[test]
+    fn a_label_reads_as_how_long_ago_and_how_often() {
+        let driven = Driven {
+            project: None,
+            all: Some(Use {
+                at: model::now() - 7200,
+                count: 41,
+            }),
+        };
+
+        assert_eq!(driven.label(), "2h · 41×");
+        assert_eq!(Driven::default().label(), "-");
     }
 
     #[tokio::test]

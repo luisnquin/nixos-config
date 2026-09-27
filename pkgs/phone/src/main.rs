@@ -182,20 +182,22 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Device { action }) => {
             match action.unwrap_or(DeviceAction::List { json: false }) {
                 DeviceAction::List { json } => {
-                    let views = survey(&mut reg).await;
+                    let mut views = survey(&mut reg).await;
                     reg.save()?;
 
-                    let holds = lease::holds(&views).await;
+                    let (ledgers, mine) = tokio::join!(lease::ledgers(&views), lease::mine());
+                    let holds = lease::holds(&views, &ledgers);
+                    let driven =
+                        usage::driven(&views, &ledgers, mine.as_ref().map(|m| m.tree.as_str()));
+
+                    usage::rank(&mut views, |v| {
+                        driven.get(&v.device.id).copied().unwrap_or_default()
+                    });
 
                     if json {
-                        print_json(&views, &holds)?;
+                        print_json(&views, &holds, &driven)?;
                     } else {
-                        let mine = match holds.is_empty() {
-                            true => None,
-                            false => lease::mine().await,
-                        };
-
-                        print_table(&views, &holds, mine.as_ref());
+                        print_table(&views, &holds, &driven, mine.as_ref());
 
                         let hosts = memory::hosts_of(&views);
 
@@ -1591,7 +1593,12 @@ fn whose(holder: &lease::Holder, mine: Option<&lease::Holder>) -> String {
     }
 }
 
-fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Option<&lease::Holder>) {
+fn print_table(
+    views: &[View],
+    holds: &BTreeMap<String, lease::Holder>,
+    driven: &BTreeMap<String, usage::Driven>,
+    mine: Option<&lease::Holder>,
+) {
     if views.is_empty() {
         eprintln!("phone: nothing reachable or remembered");
 
@@ -1624,15 +1631,13 @@ fn print_table(views: &[View], holds: &BTreeMap<String, lease::Holder>, mine: Op
             .unwrap_or_else(|| "-".into());
 
         let row = format!(
-            "{:<12} {:<28} {:<20} {:<16} {:<24} {:<10} {}",
+            "{:<12} {:<28} {:<20} {:<16} {:<24} {:<12} {}",
             format!("{} {}", d.platform.os(), d.platform.kind()),
             truncate(&name, 28),
             truncate(&d.model, 20),
             view.reach.label(),
             endpoint,
-            d.last_connected
-                .map(model::ago)
-                .unwrap_or_else(|| "never".into()),
+            driven.get(&d.id).copied().unwrap_or_default().label(),
             holds
                 .get(&d.id)
                 .map(|holder| whose(holder, mine))
@@ -1658,12 +1663,17 @@ fn listed_name(views: &[View], d: &model::Device) -> String {
     format!("{} {short}", truncate(&d.label, 19))
 }
 
-fn print_json(views: &[View], holds: &BTreeMap<String, lease::Holder>) -> Result<()> {
+fn print_json(
+    views: &[View],
+    holds: &BTreeMap<String, lease::Holder>,
+    driven: &BTreeMap<String, usage::Driven>,
+) -> Result<()> {
     let rows: Vec<serde_json::Value> = views
         .iter()
         .map(|v| {
             serde_json::json!({
                 "hold": holds.get(&v.device.id),
+                "driven": driven.get(&v.device.id),
                 "id": v.device.id,
                 "label": v.device.label,
                 "model": v.device.model,
