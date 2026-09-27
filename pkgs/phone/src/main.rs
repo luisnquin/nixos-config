@@ -181,33 +181,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         // a bare `phone device` is the question the list answers
         Some(Command::Device { action }) => {
             match action.unwrap_or(DeviceAction::List { json: false }) {
-                DeviceAction::List { json } => {
-                    let mut views = survey(&mut reg).await;
-                    reg.save()?;
-
-                    let (ledgers, mine) = tokio::join!(lease::ledgers(&views), lease::mine());
-                    let holds = lease::holds(&views, &ledgers);
-                    let driven =
-                        usage::driven(&views, &ledgers, mine.as_ref().map(|m| m.tree.as_str()));
-
-                    usage::rank(&mut views, |v| {
-                        driven.get(&v.device.id).copied().unwrap_or_default()
-                    });
-
-                    if json {
-                        print_json(&views, &holds, &driven)?;
-                    } else {
-                        print_table(&views, &holds, &driven, mine.as_ref());
-
-                        let hosts = memory::hosts_of(&views);
-
-                        for line in memory::report(&reg, &views, &hosts).await {
-                            println!("{line}");
-                        }
-                    }
-
-                    Ok(())
-                }
+                DeviceAction::List { json } => list(&mut reg, json).await,
                 DeviceAction::Connect {
                     target,
                     no_sweep,
@@ -587,6 +561,44 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
             Ok(())
         }
     }
+}
+
+async fn list(reg: &mut Registry, json: bool) -> Result<()> {
+    let mut views = survey(reg).await;
+    reg.save()?;
+
+    let hosts = memory::hosts_of(&views);
+    let (ledgers, mine, rooms) = tokio::join!(lease::ledgers(&views), lease::mine(), async {
+        match json {
+            true => Vec::new(),
+            false => memory::rooms(reg, &views, &hosts).await,
+        }
+    });
+    let holds = lease::holds(&views, &ledgers);
+    let driven = usage::driven(&views, &ledgers, mine.as_ref().map(|m| m.tree.as_str()));
+
+    usage::rank(&mut views, |v| {
+        driven.get(&v.device.id).copied().unwrap_or_default()
+    });
+
+    if json {
+        return print_json(&views, &holds, &driven);
+    }
+
+    for (at, room) in &rooms {
+        println!(
+            "{}",
+            usage::summary(at, &views, &driven, room.as_ref().ok())
+        );
+    }
+
+    print_table(&views, &holds, &driven, mine.as_ref());
+
+    for line in memory::lines(&rooms, memory::Room::advice) {
+        println!("{line}");
+    }
+
+    Ok(())
 }
 
 /// The manifest the project verbs act on. Not finding one is the mistake that

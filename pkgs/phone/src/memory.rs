@@ -308,6 +308,14 @@ impl Room {
     }
 
     pub fn invite(&self) -> Vec<String> {
+        let mut out = self.advice();
+
+        out.extend(self.boots());
+
+        out
+    }
+
+    pub fn advice(&self) -> Vec<String> {
         let host = self.at.label();
         let mut out = Vec::new();
 
@@ -320,23 +328,27 @@ impl Room {
 
         out.extend(self.idle());
 
+        out
+    }
+
+    fn boots(&self) -> Option<String> {
+        let host = self.at.label();
+
         if self.pressed() {
-            return out;
+            return None;
         }
 
-        let left = self.left().max(0.0);
-        let mut fits = Vec::new();
-
-        if let Some(cost) = self.emulator {
-            fits.push(count((left / cost) as usize, "emulator"));
-        }
-
-        if self.simulators {
-            fits.push(count((left / self.budget.simulator) as usize, "simulator"));
-        }
+        let fits: Vec<(usize, String)> = self
+            .fits()
+            .into_iter()
+            .map(|(platform, n)| match platform {
+                Platform::Simulator => count(n, "simulator"),
+                _ => count(n, "emulator"),
+            })
+            .collect();
 
         match fits.iter().any(|(n, _)| *n > 0) {
-            true => out.push(format!(
+            true => Some(format!(
                 "you may boot {} on {host}",
                 fits.iter()
                     .filter(|(n, _)| *n > 0)
@@ -344,13 +356,47 @@ impl Room {
                     .collect::<Vec<_>>()
                     .join(" or ")
             )),
-            false if !fits.is_empty() => out.push(format!(
+            false if !fits.is_empty() => Some(format!(
                 "no room on {host} for another device: wait for a `phone down`, or ask a holder above to release theirs"
             )),
-            false => {}
+            false => None,
+        }
+    }
+
+    fn fits(&self) -> Vec<(Platform, usize)> {
+        let left = self.left().max(0.0);
+        let mut fits = Vec::new();
+
+        if let Some(cost) = self.emulator {
+            fits.push((Platform::Emulator, (left / cost) as usize));
         }
 
-        out
+        if self.simulators {
+            fits.push((Platform::Simulator, (left / self.budget.simulator) as usize));
+        }
+
+        fits
+    }
+
+    pub fn brief(&self) -> String {
+        if self.pressed() {
+            return format!(
+                "memory pressure {}, boot nothing",
+                self.memory.level.as_str()
+            );
+        }
+
+        let fits: Vec<String> = self
+            .fits()
+            .into_iter()
+            .filter(|(_, n)| *n > 0)
+            .map(|(platform, n)| format!("{n} {}", platform.as_str()))
+            .collect();
+
+        match fits.is_empty() {
+            true => "no room to boot".to_string(),
+            false => format!("room to boot {}", fits.join(" or ")),
+        }
     }
 
     fn admits(&self, need: f64) -> Option<String> {
@@ -465,13 +511,19 @@ async fn room(budget: Budget, at: &Where, views: &[&View]) -> Result<Room> {
 }
 
 pub async fn report(reg: &Registry, views: &[View], hosts: &[Where]) -> Vec<String> {
+    let rooms = rooms(reg, views, hosts).await;
+
+    lines(&rooms, Room::invite)
+}
+
+pub fn lines(rooms: &[(Where, Result<Room>)], after: fn(&Room) -> Vec<String>) -> Vec<String> {
     let mut out = Vec::new();
 
-    for (at, room) in rooms(reg, views, hosts).await {
+    for (at, room) in rooms {
         match room {
             Ok(room) => {
                 out.push(room.line());
-                out.extend(room.invite());
+                out.extend(after(room));
             }
             Err(e) => out.push(format!("{}: memory unread ({e:#})", at.label())),
         }
@@ -813,6 +865,25 @@ SwapFree:              0 kB
 
         assert!(said[0].starts_with("no room on rose: this needs 2.5 GB"));
         assert!(said[1].starts_with("pixel_7-api36 is running and nobody holds it"));
+    }
+
+    #[test]
+    fn the_brief_form_carries_the_same_figures_as_the_invitation() {
+        let open = room(&[("iPhone 17", 3.7, Some("dazzle"))], Level::Normal);
+
+        assert_eq!(open.brief(), "room to boot 2 emu or 1 sim");
+        assert_eq!(open.advice(), Vec::<String>::new());
+
+        let full = room(
+            &[("a", 5.0, Some("x")), ("b", 5.0, Some("y"))],
+            Level::Normal,
+        );
+
+        assert_eq!(full.brief(), "no room to boot");
+
+        let pressed = room(&[], Level::Warn);
+
+        assert_eq!(pressed.brief(), "memory pressure warn, boot nothing");
     }
 
     #[test]

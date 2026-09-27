@@ -6,7 +6,8 @@ use serde::Serialize;
 
 use crate::actions;
 use crate::lease::{self, Leases};
-use crate::model::{self, Device, Unix, View};
+use crate::memory::Room;
+use crate::model::{self, Device, Platform, Unix, View};
 use crate::project::Project;
 use crate::ssh::Where;
 
@@ -136,6 +137,66 @@ pub fn rank<T>(items: &mut [T], driven: impl Fn(&T) -> Driven) {
     items.sort_by_key(|item| driven(item).rank());
 }
 
+pub fn usual<'a>(
+    views: &[&'a View],
+    driven: &BTreeMap<String, Driven>,
+) -> Option<(&'a View, bool)> {
+    let used = |v: &View| driven.get(&v.device.id).copied().unwrap_or_default();
+
+    let mut ranked = views.to_vec();
+    rank(&mut ranked, |v| used(v));
+
+    let top = *ranked.first()?;
+
+    match used(top).rank().0 {
+        0 => Some((top, true)),
+        1 => Some((top, false)),
+        _ => None,
+    }
+}
+
+pub fn summary(
+    at: &Where,
+    views: &[View],
+    driven: &BTreeMap<String, Driven>,
+    room: Option<&Room>,
+) -> String {
+    let here: Vec<&View> = views
+        .iter()
+        .filter(|v| matches!(v.device.platform, Platform::Emulator | Platform::Simulator))
+        .filter(|v| actions::where_of(&v.device) == *at)
+        .collect();
+
+    let mut parts = Vec::new();
+
+    for platform in [Platform::Emulator, Platform::Simulator] {
+        let of: Vec<&&View> = here
+            .iter()
+            .filter(|v| v.device.platform == platform)
+            .collect();
+
+        if of.is_empty() {
+            continue;
+        }
+
+        let up = of.iter().filter(|v| actions::running(&v.reach)).count();
+
+        parts.push(format!("{} {} ({up} up)", of.len(), platform.as_str()));
+    }
+
+    match usual(&here, driven) {
+        Some((view, true)) => parts.push(format!("this project drives {}", view.device.label)),
+        Some((view, false)) => parts.push(format!("most driven {}", view.device.label)),
+        None => {}
+    }
+
+    if let Some(room) = room {
+        parts.push(room.brief());
+    }
+
+    format!("{}: {}", at.label(), parts.join(" · "))
+}
+
 pub async fn stamp(device: &Device) {
     let tree = match Project::here().ok().flatten() {
         Some(project) => match lease::tree(&project).await {
@@ -156,7 +217,59 @@ pub async fn stamp(device: &Device) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Platform;
+    use crate::model::Reach;
+
+    fn on_rose(id: &str, label: &str, platform: Platform, reach: Reach) -> View {
+        let mut device = Device::new(id, label, platform);
+        device.host = Some("rose".into());
+
+        View::new(device, reach)
+    }
+
+    #[test]
+    fn a_host_is_summed_up_with_what_this_project_drives_there() {
+        let views = [
+            on_rose("avd:rose/pixel", "pixel", Platform::Emulator, Reach::Off),
+            on_rose("avd:rose/tab", "tab", Platform::Emulator, Reach::Off),
+            on_rose("AAAA", "iPhone 17", Platform::Simulator, Reach::Online),
+            View::new(
+                Device::new("SERIAL", "handset", Platform::Android),
+                Reach::Off,
+            ),
+        ];
+
+        let once = Use { at: 1, count: 1 };
+        let driven = BTreeMap::from([
+            (
+                "avd:rose/tab".to_string(),
+                Driven {
+                    project: None,
+                    all: Some(Use { at: 1, count: 50 }),
+                },
+            ),
+            (
+                "avd:rose/pixel".to_string(),
+                Driven {
+                    project: Some(once),
+                    all: Some(once),
+                },
+            ),
+        ]);
+
+        let rose = Where::On("rose".into());
+
+        assert_eq!(
+            summary(&rose, &views, &driven, None),
+            "rose: 2 emu (0 up) · 1 sim (1 up) · this project drives pixel"
+        );
+
+        let theirs = BTreeMap::from([("avd:rose/tab".to_string(), driven["avd:rose/tab"])]);
+
+        assert_eq!(
+            summary(&rose, &views, &theirs, None),
+            "rose: 2 emu (0 up) · 1 sim (1 up) · most driven tab"
+        );
+    }
 
     fn avd(name: &str) -> Device {
         let mut device = Device::new(format!("avd:rose/{name}"), name, Platform::Emulator);
