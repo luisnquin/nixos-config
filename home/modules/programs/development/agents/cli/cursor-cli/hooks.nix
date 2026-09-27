@@ -5,6 +5,7 @@
   ...
 }: let
   jq = lib.getExe pkgs.jq;
+  phone = lib.getExe pkgs.phone;
   # Not in kit.images: generated set can skip files depending on flake source filter.
 
   mkHookScript = body: ''
@@ -105,6 +106,12 @@ in {
         {
           matcher = "UserPromptSubmit";
           command = "./hooks/submit-prompt-audio.sh";
+        }
+      ];
+      preToolUse = [
+        {
+          matcher = "^Shell$";
+          command = "${phone} hook --harness cursor";
         }
       ];
       postToolUseFailure = [

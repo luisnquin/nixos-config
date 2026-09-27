@@ -7,6 +7,7 @@
 }: let
   kit = mkAgentKit {};
   cbm = lib.getExe pkgs.codebase-memory-mcp;
+  phone = lib.getExe pkgs.phone;
   herdrSession = kit.mkHerdrSessionCmd "claude";
 in {
   programs.claude-code.settings.hooks = {
@@ -95,6 +96,10 @@ in {
       (kit.mkCmdEntry {
         matcher = "Bash";
         commands = [config.programs.claude-code.hooks."rtk-rewrite.sh"];
+      })
+      (kit.mkCmdEntry {
+        matcher = "Bash";
+        commands = ["${phone} hook --harness claude"];
       })
       # Injects codebase-memory-mcp graph context into Grep/Glob calls.
       # Never blocks: forced exit 0 even when the project is unindexed.

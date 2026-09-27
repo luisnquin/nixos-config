@@ -1,9 +1,11 @@
 {
   mkAgentKit,
   pkgs,
+  lib,
   ...
 }: let
   kit = mkAgentKit {};
+  phone = lib.getExe pkgs.phone;
   herdrSession = kit.mkHerdrSessionCmd "codex";
 in {
   home.file = {
@@ -23,7 +25,10 @@ in {
           PreToolUse = [
             (kit.mkCmdEntry {
               matcher = "Bash";
-              commands = [(kit.mkAudioCmd [kit.sounds.ifrtho])];
+              commands = [
+                (kit.mkAudioCmd [kit.sounds.ifrtho])
+                "${phone} hook --harness codex"
+              ];
             })
           ];
           PostToolUse = [
