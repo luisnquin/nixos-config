@@ -21,7 +21,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::model::{self, Device, Unix, View};
+use crate::model::{self, Device, Platform, Unix, View, AVD_PREFIX};
 use crate::project::Project;
 use crate::ssh::Where;
 use crate::{actions, up};
@@ -90,12 +90,54 @@ impl Holder {
 /// A simulator on the mac is `3F83…` in the mac's own registry and `mac/AAAA1111…`
 /// in a laptop's, and both registries have to land on the one entry in the
 /// mac's file. An emulator's `android_id:…` is already the same everywhere.
-pub fn key(device: &Device) -> &str {
+pub fn key(device: &Device) -> Key {
+    let legacy = match device.platform == Platform::Emulator && device.id.starts_with(AVD_PREFIX) {
+        true => device
+            .aliases
+            .iter()
+            .filter(|a| a.starts_with("android_id:"))
+            .cloned()
+            .collect(),
+        false => Vec::new(),
+    };
+
+    Key {
+        id: filed_as(device),
+        legacy,
+    }
+}
+
+fn filed_as(device: &Device) -> String {
     let id = device.id.as_str();
 
-    match &device.host {
-        Some(host) => id.strip_prefix(&format!("{host}/")).unwrap_or(id),
-        None => id,
+    let Some(host) = &device.host else {
+        return id.to_string();
+    };
+
+    let scope = format!("{host}/");
+
+    if let Some(name) = id
+        .strip_prefix(AVD_PREFIX)
+        .and_then(|rest| rest.strip_prefix(&scope))
+    {
+        return format!("{AVD_PREFIX}{name}");
+    }
+
+    id.strip_prefix(&scope).unwrap_or(id).to_string()
+}
+
+#[derive(Debug)]
+pub struct Key {
+    pub id: String,
+    legacy: Vec<String>,
+}
+
+impl From<&str> for Key {
+    fn from(id: &str) -> Self {
+        Key {
+            id: id.to_string(),
+            legacy: Vec::new(),
+        }
     }
 }
 
@@ -137,29 +179,39 @@ impl Leases {
         }
     }
 
-    pub fn holder(&self, id: &str) -> Option<&Holder> {
-        self.held.get(id)
+    pub fn holder(&self, key: impl Into<Key>) -> Option<&Holder> {
+        let key = key.into();
+
+        self.held
+            .get(&key.id)
+            .or_else(|| key.legacy.iter().find_map(|id| self.held.get(id)))
     }
 
     /// Who holds `id`, if it is not the project at `tree`.
-    pub fn other(&self, id: &str, tree: &str) -> Option<&Holder> {
-        self.holder(id).filter(|holder| holder.tree != tree)
+    pub fn other(&self, key: impl Into<Key>, tree: &str) -> Option<&Holder> {
+        self.holder(key).filter(|holder| holder.tree != tree)
     }
 
     /// Puts `holder`'s name on `id`. A project already holding it keeps its
     /// original `since`: the hold began when it began, not when it was last
     /// renewed.
-    pub fn take(&mut self, id: &str, holder: Holder) {
-        match self.held.get(id) {
-            Some(had) if had.tree == holder.tree => {}
-            _ => {
-                self.held.insert(id.to_string(), holder);
-            }
-        }
+    pub fn take(&mut self, key: impl Into<Key>, holder: Holder) {
+        let key = key.into();
+        let had = self.remove(&key).filter(|had| had.tree == holder.tree);
+
+        self.held.insert(key.id, had.unwrap_or(holder));
     }
 
-    pub fn release(&mut self, id: &str) -> Option<Holder> {
-        self.held.remove(id)
+    pub fn release(&mut self, key: impl Into<Key>) -> Option<Holder> {
+        self.remove(&key.into())
+    }
+
+    fn remove(&mut self, key: &Key) -> Option<Holder> {
+        let had = self.held.remove(&key.id);
+
+        key.legacy
+            .iter()
+            .fold(had, |had, id| had.or(self.held.remove(id)))
     }
 
     pub async fn save(&self) -> Result<()> {
@@ -520,9 +572,45 @@ mod tests {
 
         let local = Device::new("android_id:4444", "pixel", Platform::Emulator);
 
-        assert_eq!(key(&sim), "AAAA1111");
-        assert_eq!(key(&emu), "android_id:3333");
-        assert_eq!(key(&local), "android_id:4444");
+        let mut avd = Device::new("avd:mac/pixel", "pixel", Platform::Emulator);
+        avd.host = Some("mac".to_string());
+
+        assert_eq!(key(&avd).id, "avd:pixel");
+
+        assert_eq!(key(&sim).id, "AAAA1111");
+        assert_eq!(key(&emu).id, "android_id:3333");
+        assert_eq!(key(&local).id, "android_id:4444");
+    }
+
+    #[test]
+    fn a_hold_under_the_android_id_follows_the_row_to_its_avd() {
+        let mut leases = Leases::default();
+
+        leases.take("android_id:dc3f6e59", Holder::of("/a", "alpha"));
+
+        let mut pixel = Device::new("avd:rose/pixel", "pixel", Platform::Emulator);
+        pixel.host = Some("rose".to_string());
+        pixel.add_alias("android_id:dc3f6e59");
+
+        let mut clone = Device::new("avd:rose/pixel-c", "pixel-c", Platform::Emulator);
+        clone.host = Some("rose".to_string());
+
+        assert_eq!(
+            leases.other(key(&pixel), "/b").map(|h| h.project.as_str()),
+            Some("alpha")
+        );
+        assert!(
+            leases.other(key(&clone), "/b").is_none(),
+            "a clone does not own its source's android_id"
+        );
+
+        leases.take(key(&pixel), Holder::of("/a", "alpha"));
+
+        assert!(leases.holder("android_id:dc3f6e59").is_none());
+        assert_eq!(
+            leases.holder("avd:pixel").map(|h| h.project.as_str()),
+            Some("alpha")
+        );
     }
 
     #[tokio::test]

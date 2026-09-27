@@ -8,8 +8,8 @@ use std::time::Duration;
 use crate::adb::{self, Server};
 use crate::hosts::{self, HostState};
 use crate::model::{
-    discovered_id, is_transport_alias, Device, Endpoint, Pin, Platform, Reach, View,
-    PLACEHOLDER_PREFIX,
+    avd_id, discovered_id, is_transport_alias, Device, Endpoint, Pin, Platform, Reach, View,
+    EMULATOR_SERIAL_PREFIX, PLACEHOLDER_PREFIX,
 };
 use crate::registry::Registry;
 use crate::ssh::Where;
@@ -19,12 +19,6 @@ use crate::ssh::Where;
 const TAILSCALE: &str = "tailscale";
 
 const LOCAL: &str = "local";
-
-/// Key prefix for an AVD read off a host's SDK. It is not a hardware id — the
-/// row is rebuilt from the host on every survey and never stored, because an
-/// AVD that is deleted should stop being offered rather than linger as a name
-/// nothing can boot.
-const AVD_PREFIX: &str = "avd:";
 
 struct Attach {
     dev: adb::Attached,
@@ -106,12 +100,7 @@ async fn probe_server(server: Server) -> (Server, Vec<Attach>) {
 }
 
 fn avd_device(host: Option<&str>, name: String) -> Device {
-    let id = match host {
-        Some(host) => format!("{AVD_PREFIX}{host}/{name}"),
-        None => format!("{AVD_PREFIX}{name}"),
-    };
-
-    let mut device = Device::new(id, name, Platform::Emulator);
+    let mut device = Device::new(avd_id(host, &name), name, Platform::Emulator);
 
     device.host = host.map(str::to_string);
 
@@ -309,6 +298,15 @@ pub async fn scan(reg: &mut Registry, mut on: impl FnMut(Snapshot)) -> Vec<View>
 fn merge(reg: &mut Registry, found: &Findings, settled: bool) -> Vec<View> {
     let mut views: Vec<View> = Vec::new();
     let mut claimed: HashSet<String> = HashSet::new();
+
+    for (_, server, rows) in &found.fleet {
+        let live: HashSet<String> = rows
+            .iter()
+            .map(|row| scoped(server, &row.dev.serial))
+            .collect();
+
+        reg.drop_gone_emulator_ports(server.host(), &live);
+    }
 
     for (_, server, rows) in &found.fleet {
         for row in rows {
@@ -541,14 +539,41 @@ fn resolve_attached(reg: &mut Registry, server: &Server, row: &Attach) -> Option
         dev.platform()
     };
 
-    // an emulator keyed by its serial is a different device per adb server, and
-    // the one forwarded from a mac answers on both
-    let id = ident.best_id().unwrap_or_else(|| key.clone());
+    let avd = (platform == Platform::Emulator && !ident.avd.is_empty()).then_some(&ident.avd);
+
+    let avd_key = avd
+        .filter(|_| dev.serial.starts_with(EMULATOR_SERIAL_PREFIX))
+        .map(|name| avd_id(server.host(), name));
 
     // a row already carrying this id as an alias is the same device under a
     // weaker key; filing it again would leave both standing
+    let known = match avd {
+        Some(name) => avd_key
+            .as_deref()
+            .and_then(|k| reg.by_alias(k))
+            .or_else(|| reg.same_avd(name, &ident.settings_id()?)),
+        None => reg.by_alias(&ident.best_id().unwrap_or_else(|| key.clone())),
+    }
+    .map(|d| d.id.clone());
+
+    let id = match (avd_key, known) {
+        (Some(new), Some(old)) => {
+            if new != old {
+                reg.rekey(&old, &new);
+            }
+
+            new
+        }
+        (Some(new), None) => new,
+        (None, Some(old)) => old,
+        (None, None) => ident
+            .best_id()
+            .filter(|id| avd.is_none() || reg.by_alias(id).is_none())
+            .unwrap_or_else(|| key.clone()),
+    };
+
     let mut device = reg
-        .by_alias(&id)
+        .get(&id)
         .cloned()
         .unwrap_or_else(|| Device::new(id.clone(), String::new(), platform));
 
@@ -586,8 +611,10 @@ fn resolve_attached(reg: &mut Registry, server: &Server, row: &Attach) -> Option
 
     device.add_alias(key);
 
-    if !ident.android_id.is_empty() {
-        device.add_alias(format!("android_id:{}", ident.android_id));
+    if let Some(settings_id) = ident.settings_id() {
+        if reg.by_alias(&settings_id).is_none_or(|d| d.id == device.id) {
+            device.add_alias(settings_id);
+        }
     }
 
     if let Some((host, port)) = split_addr(&dev.serial) {
@@ -692,5 +719,136 @@ mod tests {
 
         assert_eq!(views.len(), 2);
         assert_eq!(reg.devices.len(), 2);
+    }
+
+    fn emulator(serial: &str, avd: &str, android_id: &str) -> Attach {
+        Attach {
+            dev: adb::Attached {
+                serial: serial.into(),
+                state: "device".into(),
+                model: "sdk_gphone64_arm64".into(),
+                product: String::new(),
+            },
+            ident: adb::Identity {
+                serialno: "EMULATOR36X6X11X0".into(),
+                android_id: android_id.into(),
+                model: "sdk_gphone64_arm64".into(),
+                avd: avd.into(),
+            },
+        }
+    }
+
+    fn on_rose(rows: Vec<Attach>) -> Findings {
+        let rose = Server::Remote {
+            host: "rose".into(),
+            port: 5038,
+        };
+
+        Findings {
+            fleet: vec![(1, rose, rows)],
+            ..Findings::default()
+        }
+    }
+
+    #[test]
+    fn a_clone_of_an_avd_is_not_folded_into_its_source() {
+        let mut reg = Registry::default();
+
+        let found = on_rose(vec![
+            emulator("emulator-5554", "pixel_7-api36", "dc3f6e59"),
+            emulator("emulator-5556", "pixel_7-api36-c", "dc3f6e59"),
+        ]);
+
+        let views = merge(&mut reg, &found, true);
+
+        let labels: Vec<&str> = views.iter().map(|v| v.device.label.as_str()).collect();
+
+        assert_eq!(labels, ["pixel_7-api36", "pixel_7-api36-c"]);
+        assert!(views.iter().all(|v| v.reach.is_attached()));
+        assert_eq!(
+            reg.by_alias("android_id:dc3f6e59").unwrap().id,
+            "avd:rose/pixel_7-api36",
+            "a shared android_id stays with the row that had it first"
+        );
+        assert_eq!(
+            reg.by_alias("rose/emulator-5556").unwrap().id,
+            "avd:rose/pixel_7-api36-c"
+        );
+
+        let swapped = on_rose(vec![
+            emulator("emulator-5556", "pixel_7-api36-c", "dc3f6e59"),
+            emulator("emulator-5554", "pixel_7-api36", "dc3f6e59"),
+        ]);
+
+        let again = merge(&mut reg, &swapped, true);
+
+        assert_eq!(again.len(), 2);
+        assert_eq!(
+            reg.get("avd:rose/pixel_7-api36").unwrap().label,
+            "pixel_7-api36",
+            "the label does not follow whichever instance answered last"
+        );
+    }
+
+    #[test]
+    fn a_row_filed_under_the_android_id_moves_to_its_avd_and_keeps_the_old_name() {
+        let mut legacy = Device::new("android_id:dc3f6e59", "pixel_7-api36", Platform::Emulator);
+
+        legacy.host = Some("rose".into());
+        legacy.add_alias("rose/emulator-5554");
+        legacy.add_alias("rose/emulator-5558");
+
+        let mut reg = Registry::default();
+
+        reg.upsert(legacy);
+        reg.current = Some("android_id:dc3f6e59".into());
+
+        let found = on_rose(vec![
+            emulator("emulator-5554", "pixel_7-api36", "dc3f6e59"),
+            emulator("emulator-5556", "pixel_7-api36-c", "dc3f6e59"),
+        ]);
+
+        merge(&mut reg, &found, true);
+
+        assert_eq!(reg.devices.len(), 2);
+        assert_eq!(reg.current.as_deref(), Some("avd:rose/pixel_7-api36"));
+        assert_eq!(
+            reg.by_alias("android_id:dc3f6e59").unwrap().id,
+            "avd:rose/pixel_7-api36",
+            "the old id stays resolvable"
+        );
+        assert!(
+            reg.by_alias("rose/emulator-5558").is_none(),
+            "a port the host no longer lists names nothing"
+        );
+    }
+
+    #[test]
+    fn a_port_an_emulator_left_does_not_name_it_once_its_host_answers() {
+        let mut gone = Device::new(
+            "avd:rose/pixel_7-api36-b",
+            "pixel_7-api36-b",
+            Platform::Emulator,
+        );
+
+        gone.host = Some("rose".into());
+        gone.add_alias("rose/emulator-5556");
+
+        let mut local = Device::new("avd:pixel_9", "pixel_9", Platform::Emulator);
+
+        local.add_alias("emulator-5556");
+
+        let mut reg = Registry::default();
+
+        reg.upsert(gone);
+        reg.upsert(local);
+
+        merge(&mut reg, &on_rose(Vec::new()), false);
+
+        assert!(reg.by_alias("rose/emulator-5556").is_none());
+        assert!(
+            reg.by_alias("emulator-5556").is_some(),
+            "another host's ports are that host's survey to settle"
+        );
     }
 }

@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::adb::EMULATOR_BUILD_SERIAL;
 use crate::hosts::HostState;
-use crate::model::{discovered_id, is_transport_alias, now, Device, Platform, PLACEHOLDER_PREFIX};
+use crate::model::{
+    discovered_id, is_transport_alias, now, Device, Platform, EMULATOR_SERIAL_PREFIX,
+    PLACEHOLDER_PREFIX,
+};
 
 /// The id prefix placeholders carried before discovery sources were named.
 const LEGACY_PLACEHOLDER_PREFIX: &str = "tailnet:";
@@ -135,6 +138,43 @@ impl Registry {
         self.devices
             .iter()
             .find(|d| d.id == alias || d.aliases.iter().any(|a| a == alias))
+    }
+
+    pub fn same_avd(&self, name: &str, settings_id: &str) -> Option<&Device> {
+        self.devices.iter().find(|d| {
+            d.platform == Platform::Emulator
+                && d.label == name
+                && (d.id == settings_id || d.aliases.iter().any(|a| a == settings_id))
+        })
+    }
+
+    pub fn rekey(&mut self, old: &str, new: &str) {
+        let Some(device) = self.get_mut(old) else {
+            return;
+        };
+
+        device.id = new.to_string();
+        device.aliases.retain(|a| a != new);
+        device.add_alias(old);
+
+        if self.current.as_deref() == Some(old) {
+            self.current = Some(new.to_string());
+        }
+    }
+
+    pub fn drop_gone_emulator_ports(&mut self, host: Option<&str>, live: &HashSet<String>) {
+        let gone = |alias: &String| {
+            let (scope, serial) = match alias.split_once('/') {
+                Some((scope, serial)) => (Some(scope), serial),
+                None => (None, alias.as_str()),
+            };
+
+            scope == host && serial.starts_with(EMULATOR_SERIAL_PREFIX) && !live.contains(alias)
+        };
+
+        for device in &mut self.devices {
+            device.aliases.retain(|a| !gone(a));
+        }
     }
 
     pub fn by_discovered_id(&self, discovered: &str) -> Option<&Device> {

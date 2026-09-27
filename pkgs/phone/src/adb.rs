@@ -158,18 +158,19 @@ impl Identity {
     /// vendors; the settings-provider id is the fallback key. For an emulator it
     /// is the only key, `ro.serialno` being the same for all of them.
     pub fn best_id(&self) -> Option<String> {
-        let settings_id =
-            || (!self.android_id.is_empty()).then(|| format!("android_id:{}", self.android_id));
-
         if self.is_emulator() {
-            return settings_id();
+            return self.settings_id();
         }
 
         if !self.serialno.is_empty() {
             return Some(self.serialno.clone());
         }
 
-        settings_id()
+        self.settings_id()
+    }
+
+    pub fn settings_id(&self) -> Option<String> {
+        (!self.android_id.is_empty()).then(|| format!("android_id:{}", self.android_id))
     }
 }
 

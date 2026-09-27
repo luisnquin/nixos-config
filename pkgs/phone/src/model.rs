@@ -10,6 +10,15 @@ pub const PLACEHOLDER_PREFIX: &str = "peer:";
 
 pub const EMULATOR_SERIAL_PREFIX: &str = "emulator-";
 
+pub const AVD_PREFIX: &str = "avd:";
+
+pub fn avd_id(host: Option<&str>, name: &str) -> String {
+    match host {
+        Some(host) => format!("{AVD_PREFIX}{host}/{name}"),
+        None => format!("{AVD_PREFIX}{name}"),
+    }
+}
+
 /// Whether a name says where a device answered rather than which device it is.
 /// An adb serial, a `host/serial` pair and a `host:port` are all leases: the
 /// port an emulator frees is handed to the next one to boot, so a row may hold
