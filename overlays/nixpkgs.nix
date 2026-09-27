@@ -44,17 +44,6 @@
         ];
     });
   })
-  (_final: prev: let
-    packageSource = builtins.readFile "${prev.path}/pkgs/by-name/da/davinci-resolve/package.nix";
-    oldHash = "sha256-bQ4Yag4xfIF9Fs0UVKaYFhObMsAof5n+Sy4osw35a9g=";
-    package = builtins.toFile "davinci-resolve-package.nix" (
-      assert prev.lib.assertMsg (prev.lib.hasInfix oldHash packageSource) "davinci-resolve source hash override is stale";
-        builtins.replaceStrings [oldHash] ["sha256-+3SB32EHpH9/0hM3h8CrO6f7V4ZAmxUFh3P8m6QDeO0="] packageSource
-    );
-  in {
-    # Blackmagic replaced the 21.1 archive without changing its version or URL.
-    davinci-resolve = prev.callPackage package {};
-  })
   (final: _prev: {
     rtk = final.llm-agents.rtk.overrideAttrs (_oldAttrs: {
       postInstall = ''
