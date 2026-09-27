@@ -4,6 +4,7 @@
 pkgs: {
   herdr-pluck = pkgs.callPackage ./herdr-pluck {};
   herdr-sesh = pkgs.callPackage ./herdr-sesh {};
+  knots = pkgs.callPackage ./knots {};
   linear-tui = pkgs.callPackage ./linear-tui {};
   px0 = pkgs.callPackage ./px0 {};
   vimix-gtk-themes = pkgs.callPackage ./vimix-gtk-themes {};

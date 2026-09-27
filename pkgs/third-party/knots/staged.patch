@@ -1,0 +1,403 @@
+diff --git a/src/main.rs b/src/main.rs
+index f7ba54a..6b0c576 100755
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -22,6 +22,7 @@ mod config;
+ mod duplicate_diff;
+ mod duplicates;
+ mod output;
++mod staged;
+ use config::KnotsToml;
+ use knots::{
+     collect_function_metrics, is_parseable_extension, is_source_extension,
+@@ -54,7 +55,7 @@ struct Args {
+     /// Path(s) to source files or directories to analyze
+     #[arg(
+         value_name = "FILE",
+-        required_unless_present_any = ["compile_commands", "explain", "supported_languages", "diff_duplicates"],
++        required_unless_present_any = ["compile_commands", "explain", "supported_languages", "diff_duplicates", "staged"],
+         num_args = 1..
+     )]
+     files: Vec<PathBuf>,
+@@ -164,6 +165,15 @@ struct Args {
+     #[arg(long)]
+     changed: bool,
+ 
++    /// Judge the git index instead of files on disk, as a pre-commit hook.
++    /// Staged content is ratcheted against HEAD (an in-memory baseline), and
++    /// with --find-duplicates a staged function joining a clone group fails too.
++    #[arg(
++        long,
++        conflicts_with_all = ["files", "compile_commands", "since", "changed", "baseline", "write_baseline"]
++    )]
++    staged: bool,
++
+     /// Explain what a metric measures and how to lower it, then exit. No files
+     /// needed. E.g. `knots --explain aird`.
+     #[arg(long, value_name = "METRIC", value_enum)]
+@@ -1115,7 +1125,9 @@ fn main() -> Result<()> {
+         .collect();
+     let language_filter = resolve_language_filter(&args.languages)?;
+ 
+-    let files = if let Some(cc) = &args.compile_commands {
++    let files = if args.staged {
++        Vec::new()
++    } else if let Some(cc) = &args.compile_commands {
+         load_compile_commands(cc, &include_rules, &exclude_rules)?
+     } else if !args.files.is_empty() {
+         let mut collected = Vec::new();
+@@ -1134,7 +1146,7 @@ fn main() -> Result<()> {
+         anyhow::bail!("Either FILE or --compile-commands must be specified");
+     };
+ 
+-    if files.is_empty() {
++    if files.is_empty() && !args.staged {
+         return Ok(());
+     }
+ 
+@@ -1158,6 +1170,16 @@ fn main() -> Result<()> {
+         .map(|c| c.filter.exclude.clone())
+         .unwrap_or_default();
+     let thresholds = EffectiveThresholds::new(cli_thresholds, &knots_toml);
++    if args.staged {
++        let filters = staged::Filters {
++            include: include_rules,
++            exclude: exclude_rules,
++            exclude_paths: exclude_path_patterns,
++            languages: language_filter,
++            toml_exclude,
++        };
++        return staged::run(&args, thresholds, filters);
++    }
+ 
+     // Write-baseline mode: snapshot every analyzed function and exit without
+     // gating. Handled before format/mode dispatch so `--write-baseline` behaves
+diff --git a/src/staged.rs b/src/staged.rs
+new file mode 100644
+index 0000000..6b649c2
+--- /dev/null
++++ b/src/staged.rs
+@@ -0,0 +1,323 @@
++use super::*;
++use duplicates::DuplicateMember;
++use std::io::Write as _;
++use std::process::{Command, Stdio};
++
++const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
++
++pub(crate) struct Filters {
++    pub include: Option<FilterRules>,
++    pub exclude: Option<FilterRules>,
++    pub exclude_paths: Vec<regex::Regex>,
++    pub languages: Option<HashSet<&'static str>>,
++    pub toml_exclude: Vec<config::FilterExclude>,
++}
++
++struct Scope {
++    exclude_paths: Vec<regex::Regex>,
++    languages: Option<HashSet<&'static str>>,
++}
++
++struct Scratch(PathBuf);
++
++impl Drop for Scratch {
++    fn drop(&mut self) {
++        let _ = fs::remove_dir_all(&self.0);
++    }
++}
++
++struct Repo {
++    root: PathBuf,
++    index: Option<PathBuf>,
++}
++
++impl Repo {
++    fn open() -> Result<Self> {
++        let root = PathBuf::from(git_output(&["rev-parse", "--show-toplevel"])?.trim());
++        let cwd = std::env::current_dir()?;
++        let index = std::env::var_os("GIT_INDEX_FILE").map(|p| cwd.join(p));
++        Ok(Self { root, index })
++    }
++
++    fn git(&self, args: &[&str], index: Option<&Path>, input: Option<&[u8]>) -> Result<Vec<u8>> {
++        let mut cmd = Command::new("git");
++        cmd.args(args)
++            .current_dir(&self.root)
++            .stdin(if input.is_some() {
++                Stdio::piped()
++            } else {
++                Stdio::null()
++            })
++            .stdout(Stdio::piped())
++            .stderr(Stdio::piped());
++        if let Some(index) = index.or(self.index.as_deref()) {
++            cmd.env("GIT_INDEX_FILE", index);
++        }
++        let mut child = cmd.spawn().context("failed to run git")?;
++        if let Some(input) = input {
++            child
++                .stdin
++                .take()
++                .expect("stdin is piped")
++                .write_all(input)?;
++        }
++        let out = child.wait_with_output()?;
++        if !out.status.success() {
++            anyhow::bail!(
++                "git {} failed: {}",
++                args.join(" "),
++                String::from_utf8_lossy(&out.stderr).trim()
++            );
++        }
++        Ok(out.stdout)
++    }
++
++    fn paths(&self, args: &[&str], index: Option<&Path>) -> Result<Vec<String>> {
++        Ok(self
++            .git(args, index, None)?
++            .split(|b| *b == 0)
++            .filter(|s| !s.is_empty())
++            .map(|s| String::from_utf8_lossy(s).into_owned())
++            .collect())
++    }
++
++    fn export(
++        &self,
++        index: Option<&Path>,
++        dest: &Path,
++        keep: impl Fn(&str) -> bool,
++    ) -> Result<Vec<PathBuf>> {
++        let paths: Vec<String> = self
++            .paths(&["ls-files", "-z", "--cached"], index)?
++            .into_iter()
++            .filter(|p| keep(p))
++            .collect();
++        if paths.is_empty() {
++            return Ok(Vec::new());
++        }
++        let input: Vec<u8> = paths
++            .iter()
++            .flat_map(|p| [p.as_bytes(), b"\0"])
++            .flatten()
++            .copied()
++            .collect();
++        let prefix = format!("--prefix={}/", dest.display());
++        self.git(
++            &["checkout-index", "-z", "--stdin", &prefix],
++            index,
++            Some(&input),
++        )?;
++        Ok(paths
++            .iter()
++            .map(|p| PathBuf::from(format!("./{p}")))
++            .collect())
++    }
++}
++
++#[derive(Default)]
++struct Snapshot {
++    metrics: Vec<FunctionMetrics>,
++    groups: Vec<Vec<DuplicateMember>>,
++}
++
++fn analyze(dir: &Path, files: &[PathBuf], ctx: &RunContext) -> Result<Snapshot> {
++    if files.is_empty() {
++        return Ok(Snapshot::default());
++    }
++    let back = std::env::current_dir()?;
++    std::env::set_current_dir(dir)?;
++    let (mut metrics, _) = collect_all_metrics(
++        files,
++        &ctx.include_rules,
++        &ctx.exclude_rules,
++        &ctx.toml_exclude,
++        ctx.count_anonymous_closures,
++    );
++    compute_and_apply_file_coupling(files, ctx, &mut metrics);
++    let groups = if ctx.find_duplicates {
++        let fingerprints = collect_corpus_fingerprints(files, ctx.duplicate_tier);
++        duplicates::find_duplicate_groups(&fingerprints, ctx.duplicate_filters).groups
++    } else {
++        Vec::new()
++    };
++    std::env::set_current_dir(back)?;
++    Ok(Snapshot { metrics, groups })
++}
++
++fn relevant(path: &str, scope: &Scope, ctx: &RunContext) -> bool {
++    let Some(ext) = Path::new(path).extension() else {
++        return false;
++    };
++    let dotted = format!("./{path}");
++    is_parseable_extension(ext)
++        && scope
++            .languages
++            .as_ref()
++            .is_none_or(|set| ext.to_str().is_some_and(|e| set.contains(e)))
++        && !path_is_excluded(&dotted, &scope.exclude_paths)
++        && should_process_file(&dotted, &ctx.include_rules, &ctx.exclude_rules)
++}
++
++fn identity(member: &DuplicateMember) -> (&str, &str) {
++    (
++        member.file_path.as_str(),
++        member.name.as_deref().unwrap_or(member.kind),
++    )
++}
++
++fn introduced_clones(
++    head: &[Vec<DuplicateMember>],
++    next: &[Vec<DuplicateMember>],
++    staged: &HashSet<String>,
++    renames: &HashMap<String, String>,
++) -> Vec<String> {
++    let known: HashMap<String, HashSet<(&str, &str)>> = head
++        .iter()
++        .map(|group| {
++            let members = group
++                .iter()
++                .map(|m| {
++                    let (file, name) = identity(m);
++                    (renames.get(file).map_or(file, String::as_str), name)
++                })
++                .collect();
++            (duplicates::group_id(group), members)
++        })
++        .collect();
++
++    next.iter()
++        .filter_map(|group| {
++            let id = duplicates::group_id(group);
++            let fresh = |m: &DuplicateMember| {
++                staged.contains(&m.file_path)
++                    && !known.get(&id).is_some_and(|k| k.contains(&identity(m)))
++            };
++            if !group.iter().any(fresh) {
++                return None;
++            }
++            let mut report = format!("  [{id}]\n");
++            for m in group {
++                let mark = if fresh(m) { "+" } else { " " };
++                let (file, name) = identity(m);
++                report += &format!("  {mark} {file}:{}-{} {name}\n", m.start_line, m.end_line);
++            }
++            Some(report)
++        })
++        .collect()
++}
++
++pub(crate) fn run(args: &Args, thresholds: EffectiveThresholds, filters: Filters) -> Result<()> {
++    let scope = Scope {
++        exclude_paths: filters.exclude_paths,
++        languages: filters.languages,
++    };
++    let mut ctx = build_run_context(
++        args,
++        thresholds,
++        filters.include,
++        filters.exclude,
++        filters.toml_exclude,
++    )?;
++    ctx.recursive = true;
++    let keep = |p: &str| relevant(p, &scope, &ctx);
++
++    let repo = Repo::open()?;
++    let tree = repo
++        .git(&["rev-parse", "-q", "--verify", "HEAD^{tree}"], None, None)
++        .ok()
++        .map(|out| String::from_utf8_lossy(&out).trim().to_owned());
++    let base = tree.as_deref().unwrap_or(EMPTY_TREE);
++
++    let staged: HashSet<String> = repo
++        .paths(
++            &[
++                "diff",
++                "--cached",
++                "-z",
++                "--name-only",
++                "--diff-filter=ACMR",
++                base,
++            ],
++            None,
++        )?
++        .into_iter()
++        .filter(|p| keep(p))
++        .map(|p| format!("./{p}"))
++        .collect();
++    if staged.is_empty() {
++        return Ok(());
++    }
++    let renames: HashMap<String, String> = repo
++        .paths(
++            &[
++                "diff",
++                "--cached",
++                "-z",
++                "--name-status",
++                "-M",
++                "--diff-filter=R",
++                base,
++            ],
++            None,
++        )?
++        .as_chunks::<3>()
++        .0
++        .iter()
++        .map(|[_, old, new]| (format!("./{old}"), format!("./{new}")))
++        .collect();
++
++    let scratch =
++        Scratch(std::env::temp_dir().join(format!("knots-staged-{}", std::process::id())));
++    let head_dir = scratch.0.join("head");
++    let next_dir = scratch.0.join("next");
++    fs::create_dir_all(&scratch.0)?;
++
++    let head_files = match &tree {
++        Some(tree) => {
++            let index = scratch.0.join("head.index");
++            repo.git(&["read-tree", tree], Some(&index), None)?;
++            repo.export(Some(&index), &head_dir, keep)?
++        }
++        None => Vec::new(),
++    };
++    let next_files = repo.export(None, &next_dir, keep)?;
++
++    let head = analyze(&head_dir, &head_files, &ctx)?;
++    let mut baseline = baseline_from_metrics(&head.metrics);
++    for entry in &mut baseline.functions {
++        if let Some(new) = renames.get(&entry.file) {
++            entry.file = new.clone();
++        }
++    }
++    ctx.baseline = Some(baseline);
++
++    let next = analyze(&next_dir, &next_files, &ctx)?;
++    let gated: Vec<FunctionMetrics> = next
++        .metrics
++        .into_iter()
++        .filter(|f| staged.contains(&f.file_path))
++        .collect();
++
++    let mut failed = false;
++    if check_thresholds(&gated, &ctx.thresholds, ctx.baseline.as_ref(), None).is_err() {
++        eprintln!(
++            "\nSplit or flatten these functions; only new or worsened ones versus HEAD block."
++        );
++        failed = true;
++    }
++
++    let clones = introduced_clones(&head.groups, &next.groups, &staged, &renames);
++    if !clones.is_empty() {
++        eprintln!("Staged code repeats the shape of existing code (+ marks the new copies):");
++        for report in clones {
++            eprint!("{report}");
++        }
++        eprintln!("\nCall or extract the existing function instead of copying it.");
++        failed = true;
++    }
++
++    if failed {
++        anyhow::bail!("staged changes rejected");
++    }
++    Ok(())
++}
