@@ -8,8 +8,10 @@ use crate::adb::{self, Server};
 use crate::simctl;
 
 /// uiautomator will not write to stdout on every vendor build, so the dump goes
-/// to a file that is read and removed in the same shell.
-const DUMP: &str = "said=$(uiautomator dump /sdcard/.phone-a11y.xml 2>&1); \
+/// to a file that is read and removed in the same shell. `--windows`, absent from
+/// its usage text, dumps every window rather than the focused one, which is
+/// where an overlay or a popup the app draws in a window of its own lives.
+const DUMP: &str = "said=$(uiautomator dump --windows /sdcard/.phone-a11y.xml 2>&1); \
      case \"$said\" in *'could not get idle state'*) echo phone:not-idle;; esac";
 
 const READ: &str = "cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phone-a11y.xml";
@@ -315,9 +317,32 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
 
     // walked rather than iterated flat, because a kept element needs the boxes
     // it sits inside and most of those are containers that are dropped
-    walk(doc.root_element(), &[], &mut nodes);
+    for hierarchy in doc
+        .descendants()
+        .filter(|e| e.has_tag_name("hierarchy"))
+        .filter(|e| {
+            e.ancestors()
+                .find(|a| a.has_tag_name("window"))
+                .is_none_or(readable)
+        })
+    {
+        walk(hierarchy, &[], &mut nodes);
+    }
 
     Ok(nodes)
+}
+
+fn readable(window: roxmltree::Node) -> bool {
+    let bar = window
+        .attribute("bounds")
+        .and_then(Bounds::parse)
+        .is_some_and(|b| b.x1 == 0 && b.height() * 6 < b.width());
+
+    match window.attribute("type") {
+        Some("TYPE_INPUT_METHOD") => false,
+        Some("TYPE_SYSTEM") => !bar,
+        _ => true,
+    }
 }
 
 fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
@@ -979,6 +1004,33 @@ mod tests {
   <node class="android.view.View" bounds="[40,700][1040,800]" clickable="true" text="" content-desc="" resource-id=""/>
  </node>
 </hierarchy>"#;
+
+    #[test]
+    fn every_window_is_read_but_the_bars_and_the_keyboard() {
+        let xml = r#"<displays><display id="0">
+<window index="0" bounds="[0,2037][686,2352]" focused="false" type="TYPE_SYSTEM"><hierarchy rotation="0">
+ <node class="android.widget.TextView" bounds="[40,2100][600,2200]" clickable="false" text="6TEAB" content-desc="" resource-id=""/>
+</hierarchy></window>
+<window index="1" bounds="[0,0][1080,136]" focused="false" type="TYPE_SYSTEM"><hierarchy rotation="0">
+ <node class="android.widget.TextView" bounds="[40,20][200,120]" clickable="false" text="4:02" content-desc="" resource-id=""/>
+</hierarchy></window>
+<window index="2" bounds="[0,1500][1080,2400]" focused="false" type="TYPE_INPUT_METHOD"><hierarchy rotation="0">
+ <node class="android.view.View" bounds="[0,1600][100,1700]" clickable="true" text="q" content-desc="" resource-id=""/>
+</hierarchy></window>
+<window index="3" title="Repbit" bounds="[0,0][1080,2400]" focused="true" type="TYPE_APPLICATION"><hierarchy rotation="0">
+ <node class="android.widget.Button" bounds="[40,500][1040,600]" clickable="true" text="EMPEZAR" content-desc="" resource-id=""/>
+</hierarchy></window>
+</display></displays>"#;
+
+        let nodes = parse(xml).unwrap();
+        let labels: Vec<String> = nodes.iter().map(|n| n.label()).collect();
+
+        assert_eq!(labels, ["6TEAB", "EMPEZAR"]);
+        assert!(
+            nodes[1].ancestors.is_empty(),
+            "a window is not a box around its rows"
+        );
+    }
 
     #[test]
     fn keeps_only_what_can_be_read_or_pressed() {
