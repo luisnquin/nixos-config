@@ -7,6 +7,12 @@
   ...
 }: let
   encore = inputs.encore.packages.${system}.encore;
+  resolve = pkgs.davinci-resolve.davinci;
+  resolveLibraries = lib.makeLibraryPath [
+    pkgs.util-linux.lib
+    pkgs.libxkbcommon
+    pkgs.libx11
+  ];
 
   isSkillFile = name: lib.any (p: lib.hasPrefix p name) [".agents/skills/" ".claude/skills/"];
   skillStoreRoots =
@@ -56,6 +62,16 @@ in {
         name = "codebase-memory-mcp";
         package = pkgs.codebase-memory-mcp;
         scope = "workspace";
+      }
+      {
+        name = "davinci-resolve";
+        package = pkgs.davinci-resolve-mcp;
+        environment = {
+          LD_LIBRARY_PATH = "${resolve}/libs:${resolveLibraries}";
+          RESOLVE_SCRIPT_API = "${resolve}/Developer/Scripting";
+          RESOLVE_SCRIPT_LIB = "${resolve}/libs/Fusion/fusionscript.so";
+        };
+        reapWhenIdle = true;
       }
       {
         name = "firefox-devtools";
