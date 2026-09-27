@@ -41,7 +41,7 @@
 
       permissionSourceLines = builtins.filter (line: !(isBashPrefix line)) baseLines;
 
-      mkPrefixedBashRule = prefix: line: let
+      mkPrefixedBashRules = prefix: line: let
         sign = builtins.substring 0 1 line;
         body = lib.strings.trim (
           builtins.substring 1 ((builtins.stringLength line) - 1) line
@@ -49,12 +49,21 @@
 
         match = builtins.match "Bash\\((.*)\\)" body;
         command = builtins.elemAt match 0;
-        prefixedCommand = "${prefix} ${command}";
-      in "${sign} Bash(${prefixedCommand})";
+        colonStem = builtins.match "(.*):\\*" command;
+
+        # Claude treats `:*` as a literal prefix once the rule holds another `*`.
+        commands =
+          if lib.hasInfix "*" prefix && colonStem != null
+          then let
+            stem = builtins.elemAt colonStem 0;
+          in [stem "${stem} *"]
+          else [command];
+      in
+        map (c: "${sign} Bash(${prefix} ${c})") commands;
 
       expandLine = line:
         if isBashRule line
-        then [line] ++ map (prefix: mkPrefixedBashRule prefix line) bashPrefixes
+        then [line] ++ map (prefix: mkPrefixedBashRules prefix line) bashPrefixes
         else [line];
     in
       lib.unique (lib.flatten (map expandLine permissionSourceLines));
