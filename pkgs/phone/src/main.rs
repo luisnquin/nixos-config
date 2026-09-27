@@ -11,6 +11,7 @@ mod ios;
 mod lease;
 mod model;
 mod picker;
+mod pids;
 mod project;
 mod record;
 mod registry;
@@ -336,6 +337,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
                 eprintln!("phone: {}", res?);
 
+                pids::forget(&view.device.id);
+
                 Ok(())
             }
             AppAction::Launch { app } => {
@@ -346,6 +349,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     apps::launch(&view.server, &view.device, &app, &[]).await?
                 );
 
+                pids::forget(&view.device.id);
+
                 Ok(())
             }
             AppAction::Stop { app } => {
@@ -355,6 +360,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     "phone: {}",
                     apps::stop(&view.server, &view.device, &app).await?
                 );
+
+                pids::forget(&view.device.id);
 
                 Ok(())
             }
@@ -1346,7 +1353,13 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         );
     }
 
-    lease::check(&view).await?;
+    let (held, looked) = tokio::join!(lease::check(&view), pids::look(&view));
+
+    held?;
+
+    if let Some(looked) = looked {
+        looked.settle();
+    }
 
     Ok(view)
 }

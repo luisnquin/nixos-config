@@ -28,6 +28,7 @@ use crate::connect;
 use crate::discover::{self, survey};
 use crate::lease::{self, Holder, Leases};
 use crate::model::{self, Device, Platform, Reach, View};
+use crate::pids;
 use crate::project::{Build, Level, Project, Spec, Task};
 use crate::registry::Registry;
 use crate::ssh::{Status, Where};
@@ -647,6 +648,10 @@ async fn claim(
 
     for (_, leases) in &hosts {
         leases.save().await?;
+    }
+
+    for (_, _, view) in wanted {
+        pids::forget(&view.device.id);
     }
 
     Ok(())
