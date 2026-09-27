@@ -338,10 +338,15 @@ tap on the same element does something else entirely."#)]
   phone swipe left --duration 800ms  # slow enough to drag rather than fling
   phone swipe 540,1800 540,700       # between two points
   phone swipe Photos Trash           # or between two elements
+  phone swipe 980,200 540,1200 --hold 1500ms  # long-press, then drag
 
 --amount is a fraction of the panel and belongs to a directional swipe only. A
 directional swipe stays clear of the edges, because a drag begun at the very
-edge is a system gesture and never reaches the app."#)]
+edge is a system gesture and never reaches the app.
+
+--hold keeps the touch still at the start before it moves, which is what a
+floating bubble, a reorderable row or a home screen icon waits for. Android only;
+the drag then takes at least --duration rather than exactly that."#)]
     Swipe {
         /// X,Y, an element, or a direction (up, down, left, right)
         from: String,
@@ -352,6 +357,13 @@ edge is a system gesture and never reaches the app."#)]
         /// How long the drag takes, with its unit: 300ms, 1s
         #[arg(long, default_value = "300ms", value_parser = parse_gesture_time)]
         duration: Duration,
+
+        #[arg(
+            long,
+            value_parser = parse_gesture_time,
+            help = "How long to hold still before moving, with its unit: 1500ms, 2s"
+        )]
+        hold: Option<Duration>,
 
         /// How much of the panel a directional swipe crosses
         #[arg(long, default_value_t = DEFAULT_AMOUNT)]
@@ -1070,6 +1082,8 @@ mod tests {
 
         assert!(Cli::try_parse_from(["phone", "swipe", "up", "--duration", "800"]).is_err());
         assert!(Cli::try_parse_from(["phone", "press", "OK", "--hold", "2"]).is_err());
+        assert!(Cli::try_parse_from(["phone", "swipe", "1,2", "3,4", "--hold", "1500"]).is_err());
+        assert!(Cli::try_parse_from(["phone", "swipe", "1,2", "3,4", "--hold", "1500ms"]).is_ok());
         assert!(
             Cli::try_parse_from(["phone", "wait", "Inbox", "--timeout", "10"]).is_ok(),
             "a timeout keeps its bare seconds"

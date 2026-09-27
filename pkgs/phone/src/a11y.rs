@@ -664,14 +664,15 @@ async fn input(a: &Adb, args: &str) -> Result<()> {
     shell(a, &format!("{} {args}", a.input())).await
 }
 
+const SHELL_TIMEOUT: Duration = Duration::from_secs(20);
+
 async fn shell(a: &Adb, script: &str) -> Result<()> {
+    shell_within(a, script, SHELL_TIMEOUT).await
+}
+
+async fn shell_within(a: &Adb, script: &str, limit: Duration) -> Result<()> {
     let remote = format!("{}{script}", a.prefix());
-    let out = adb::run_timeout(
-        &a.server,
-        &["-s", &a.serial, "shell", &remote],
-        Duration::from_secs(20),
-    )
-    .await?;
+    let out = adb::run_timeout(&a.server, &["-s", &a.serial, "shell", &remote], limit).await?;
 
     if out.ok() {
         Ok(())
@@ -698,6 +699,53 @@ pub async fn swipe(t: &Target, from: (i32, i32), to: (i32, i32), hold: Duration)
         Target::Adb(a) => input(a, &format!("swipe {x1} {y1} {x2} {y2} {ms}")).await,
         Target::Simulator(s) => simctl::swipe(&s.at, &s.udid, from, to, ms as u64).await,
     }
+}
+
+/// `input swipe` moves at once and `input draganddrop` holds only for the
+/// system's long-press timeout, so the hold is spelled out in motionevents.
+pub async fn drag(
+    t: &Target,
+    from: (i32, i32),
+    to: (i32, i32),
+    hold: Duration,
+    over: Duration,
+) -> Result<()> {
+    let Target::Adb(a) = t else {
+        bail!("a held swipe needs Android; a simulator only takes one that moves at once");
+    };
+
+    let script = drag_script(&a.input(), from, to, hold, over);
+
+    shell_within(a, &script, SHELL_TIMEOUT + hold + over).await
+}
+
+fn drag_script(
+    input: &str,
+    (x1, y1): (i32, i32),
+    (x2, y2): (i32, i32),
+    hold: Duration,
+    over: Duration,
+) -> String {
+    let steps = (over.as_millis() / 100).clamp(1, 10) as i32;
+    let pause = over.as_secs_f64() / f64::from(steps);
+
+    let mut script = format!(
+        "{input} motionevent DOWN {x1} {y1}; sleep {:.3}",
+        hold.as_secs_f64()
+    );
+
+    for i in 1..=steps {
+        let x = x1 + (x2 - x1) * i / steps;
+        let y = y1 + (y2 - y1) * i / steps;
+
+        script.push_str(&format!(
+            "; {input} motionevent MOVE {x} {y}; sleep {pause:.3}"
+        ));
+    }
+
+    script.push_str(&format!("; {input} motionevent UP {x2} {y2}"));
+
+    script
 }
 
 /// Where a swipe in `direction` starts and ends. It runs through the middle of
@@ -1373,5 +1421,39 @@ mod tests {
             "{script}"
         );
         assert!(script.contains("keyevent MOVE_END DEL DEL DEL"), "{script}");
+    }
+
+    #[test]
+    fn a_held_drag_stays_down_before_it_moves_and_lifts_at_the_end() {
+        let script = drag_script(
+            "input -d 2",
+            (100, 1000),
+            (100, 400),
+            Duration::from_millis(1500),
+            Duration::from_millis(300),
+        );
+
+        assert_eq!(
+            script,
+            "input -d 2 motionevent DOWN 100 1000; sleep 1.500; \
+             input -d 2 motionevent MOVE 100 800; sleep 0.100; \
+             input -d 2 motionevent MOVE 100 600; sleep 0.100; \
+             input -d 2 motionevent MOVE 100 400; sleep 0.100; \
+             input -d 2 motionevent UP 100 400"
+        );
+    }
+
+    #[test]
+    fn a_long_held_drag_moves_in_a_bounded_number_of_steps() {
+        let script = drag_script(
+            "input",
+            (0, 0),
+            (1000, 0),
+            Duration::from_secs(1),
+            Duration::from_secs(10),
+        );
+
+        assert_eq!(script.matches("MOVE").count(), 10);
+        assert!(script.contains("MOVE 1000 0; sleep 1.000; input motionevent UP 1000 0"));
     }
 }

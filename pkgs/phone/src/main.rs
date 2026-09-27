@@ -746,6 +746,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             from,
             to,
             duration,
+            hold,
             amount,
             force,
         } => {
@@ -771,9 +772,17 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                 }
             };
 
-            a11y::swipe(t, from, to, duration).await?;
+            match hold {
+                Some(hold) => a11y::drag(t, from, to, hold, duration).await?,
+                None => a11y::swipe(t, from, to, duration).await?,
+            }
+
+            let held = hold
+                .map(|h| format!(" after holding {}ms", h.as_millis()))
+                .unwrap_or_default();
+
             eprintln!(
-                "phone: swiped {},{} to {},{} over {}ms",
+                "phone: swiped {},{} to {},{} over {}ms{held}",
                 from.0,
                 from.1,
                 to.0,
