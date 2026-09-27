@@ -629,7 +629,7 @@ async fn claim(
                 true => eprintln!("phone: {name} taken from {}", holder.label()),
                 false if holder.tree == site.key => {
                     refused.push(format!(
-                        "{name} is held by {}, another agent session in this same checkout; its `phone down` releases it, `phone up --take` takes it",
+                        "{name} is held from this same checkout under a different session id: {}; usually another agent, or this one after a `/clear` or resume; its `phone down` releases it, `phone up --take` takes it",
                         holder.label()
                     ));
 

@@ -376,10 +376,10 @@ pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
         }
         Caller::Beside => {
             return format!(
-                "{label} is held by {}: another agent session in this same checkout, and driving it from here would put your screens in front of theirs\n\
-                 its reinstalls and restarts would land in the middle of your run and yours in theirs, with nothing on either side saying why\n\
-                 pick a device nobody holds (`phone device list` names every holder), or wait for that session's `phone down`\n\
-                 `phone up --take` here moves the hold to this session; ask before using it",
+                "{label} is held from this same checkout under a different session id: {}\n\
+                 usually another agent working here, whose reinstalls and restarts would land in the middle of your run; but a session id is a best guess, and a `/clear` or a resume gives this same agent a new one\n\
+                 if you took this device earlier in this conversation, it is yours: `phone up --take` moves the hold to this session id\n\
+                 otherwise pick a device nobody holds (`phone device list` names every holder), or wait for its `phone down`; ask before taking it",
                 holder.label()
             );
         }
@@ -578,9 +578,9 @@ mod tests {
             &Caller::Beside,
         );
 
-        assert!(said.starts_with("Pixel 9 is held by hotline, session 5dac5f28 ("));
-        assert!(said.contains("another agent session in this same checkout"));
-        assert!(said.ends_with("ask before using it"));
+        assert!(said.contains("under a different session id: hotline, session 5dac5f28 ("));
+        assert!(said.contains("a `/clear` or a resume"));
+        assert!(said.ends_with("ask before taking it"));
     }
 
     fn elsewhere(project: &str, tree: &str) -> Caller {
