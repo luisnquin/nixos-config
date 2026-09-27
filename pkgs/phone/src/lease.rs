@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::model::{self, Device, Platform, Unix, View, AVD_PREFIX};
 use crate::project::Project;
 use crate::ssh::Where;
+use crate::usage::{self, Usage};
 use crate::{actions, up};
 
 const TIMEOUT: Duration = Duration::from_secs(20);
@@ -34,6 +35,8 @@ const TIMEOUT: Duration = Duration::from_secs(20);
 const OPEN: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
 printf '%s\n' "$state"
 cat "$state/leases.json" 2>/dev/null
+printf '\n@usage\n'
+cat "$state/usage.tsv" 2>/dev/null
 exit 0"#;
 
 /// A rename rather than a truncate-and-fill, for the reason the registry gives:
@@ -191,6 +194,8 @@ pub struct Leases {
     /// The directory holding the file, as that host spells it. Empty means
     /// nothing was read and nothing will be written.
     dir: String,
+
+    pub usage: Usage,
 }
 
 impl Leases {
@@ -204,10 +209,17 @@ impl Leases {
             .await
             .with_context(|| format!("reading the leases on {}", at.label()))?;
 
-        let text = ran.text();
-        let (dir, body) = text.split_once('\n').unwrap_or((&text, ""));
+        Ok(Self::opened(at.clone(), &ran.text()))
+    }
 
-        Ok(Self::read(at.clone(), dir.trim(), body.as_bytes()))
+    fn opened(at: Where, text: &str) -> Self {
+        let (dir, rest) = text.split_once('\n').unwrap_or((text, ""));
+        let (body, used) = rest.split_once(usage::MARK).unwrap_or((rest, ""));
+
+        let mut leases = Self::read(at, dir.trim(), body.as_bytes());
+        leases.usage = Usage::parse(used);
+
+        leases
     }
 
     pub fn read(at: Where, dir: &str, body: &[u8]) -> Self {
@@ -215,6 +227,7 @@ impl Leases {
             held: serde_json::from_slice(body).unwrap_or_default(),
             at,
             dir: dir.to_string(),
+            usage: Usage::default(),
         }
     }
 
@@ -501,6 +514,48 @@ mod tests {
         assert_eq!(read.holder("emu:2"), None);
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    async fn opened(state: &str) -> Leases {
+        let ran = Where::Here
+            .exec(&format!("XDG_STATE_HOME='{state}'\n{OPEN}"), &[], TIMEOUT)
+            .await
+            .unwrap();
+
+        Leases::opened(Where::Here, &ran.text())
+    }
+
+    #[tokio::test]
+    async fn one_read_brings_back_the_holds_and_the_usage_beside_them() {
+        let state = temp("usage");
+        let pixel = Device::new("avd:pixel", "pixel", Platform::Emulator);
+
+        let empty = opened(&state).await;
+
+        assert!(empty.holder("avd:pixel").is_none());
+        assert_eq!(empty.usage.of(&pixel, None).all, None);
+
+        std::fs::create_dir_all(format!("{state}/phone")).unwrap();
+        std::fs::write(
+            format!("{state}/phone/leases.json"),
+            r#"{"avd:pixel":{"tree":"/a","project":"alpha","since":1}}"#,
+        )
+        .unwrap();
+
+        assert!(opened(&state).await.holder("avd:pixel").is_some());
+
+        std::fs::write(format!("{state}/phone/usage.tsv"), "avd:pixel\t/a\t5\t7\n").unwrap();
+
+        let both = opened(&state).await;
+
+        assert_eq!(both.dir, format!("{state}/phone"));
+        assert!(both.holder("avd:pixel").is_some());
+        assert_eq!(
+            both.usage.of(&pixel, Some("/a")).project.map(|u| u.count),
+            Some(7)
+        );
+
+        std::fs::remove_dir_all(&state).unwrap();
     }
 
     #[test]

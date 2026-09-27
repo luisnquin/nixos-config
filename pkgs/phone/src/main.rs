@@ -22,6 +22,7 @@ mod ssh;
 mod stamps;
 mod tui;
 mod up;
+mod usage;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -1423,7 +1424,11 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
         bail!(why);
     }
 
-    let (held, looked) = tokio::join!(lease::check(&view), pids::look(&view));
+    let (held, looked, ()) = tokio::join!(
+        lease::check(&view),
+        pids::look(&view),
+        usage::stamp(&view.device)
+    );
 
     held?;
 
