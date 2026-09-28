@@ -688,7 +688,11 @@ pub fn pick_in<'a>(
     let exact: Vec<&Node> = hits.iter().copied().filter(|n| n.answers(needle)).collect();
 
     match (hits.as_slice(), exact.as_slice()) {
-        ([], _) => Err(Missing(format!("nothing on screen matches '{needle}'")).into()),
+        ([], _) => Err(Missing(format!(
+            "nothing on screen matches '{needle}'{}",
+            near(nodes, needle)
+        ))
+        .into()),
         // a name that used to be on screen reads as part of a longer one that
         // still is, and pressing that one is pressing the wrong thing
         (partial, []) => Err(Ambiguous(format!(
@@ -746,6 +750,54 @@ fn moved(nodes: &[Node], index: usize, row: &Signature) -> anyhow::Error {
             ))
         ),
     }
+}
+
+/// Names on screen a typo or an accent away from `needle`. Only near spellings:
+/// the nearest of unrelated names would send a retry at a different control.
+pub fn near(nodes: &[Node], needle: &str) -> String {
+    let want: Vec<char> = folded(needle).chars().collect();
+    let limit = want.len() / 4;
+    let digits = |s: &str| s.chars().filter(char::is_ascii_digit).collect::<String>();
+
+    let mut close: Vec<(usize, &str)> = nodes
+        .iter()
+        .flat_map(|n| [&n.text, &n.desc, &n.res_id])
+        .filter(|name| !name.is_empty() && digits(name) == digits(needle))
+        .map(|name| (distance(&want, &folded(name)), name.as_str()))
+        .filter(|(d, _)| *d <= limit)
+        .collect();
+
+    close.sort_unstable();
+    close.dedup();
+
+    match close
+        .iter()
+        .take(3)
+        .map(|(_, name)| format!("'{name}'"))
+        .collect::<Vec<_>>()
+    {
+        names if names.is_empty() => String::new(),
+        names => format!("; close: {}", names.join(", ")),
+    }
+}
+
+fn distance(a: &[char], b: &str) -> usize {
+    let mut row: Vec<usize> = (0..=a.len()).collect();
+
+    for (j, cb) in b.chars().enumerate() {
+        let mut diagonal = row[0];
+        row[0] = j + 1;
+
+        for (i, ca) in a.iter().enumerate() {
+            let next = (row[i + 1] + 1)
+                .min(row[i] + 1)
+                .min(diagonal + usize::from(*ca != cb));
+            diagonal = row[i + 1];
+            row[i + 1] = next;
+        }
+    }
+
+    row[a.len()]
 }
 
 fn listed(nodes: &[&Node]) -> String {
@@ -1601,6 +1653,27 @@ mod tests {
         let err = pick(&parse(FORM).unwrap(), "Checkout").unwrap_err();
 
         assert!(err.is::<Missing>(), "{err}");
+    }
+
+    #[test]
+    fn a_name_that_matches_nothing_offers_only_near_spellings() {
+        let nodes = parse(&SAMPLE.replace(r#"text="Sign in""#, r#"text="Configuración""#)).unwrap();
+        let err = |needle| pick(&nodes, needle).unwrap_err().to_string();
+
+        assert_eq!(
+            err("configuracion"),
+            "nothing on screen matches 'configuracion'; close: 'Configuración'"
+        );
+        assert_eq!(
+            err("Login"),
+            "nothing on screen matches 'Login'; close: 'Log in'"
+        );
+        assert_eq!(err("Volver"), "nothing on screen matches 'Volver'");
+
+        let steps = parse(&SAMPLE.replace(r#"text="Sign in""#, r#"text="Step 2""#)).unwrap();
+        let err = pick(&steps, "Step 1").unwrap_err().to_string();
+
+        assert_eq!(err, "nothing on screen matches 'Step 1'");
     }
 
     #[test]

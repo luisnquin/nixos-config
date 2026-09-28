@@ -1518,11 +1518,14 @@ async fn wait(
     loop {
         // a dump that fails mid-transition is not an answer either way, but one
         // that never goes idle will not answer by the timeout either
-        let present = match a11y::dump(t).await {
-            Ok(screen) => a11y::present(&screen.nodes, what),
+        let screen = match a11y::dump(t).await {
+            Ok(screen) => Some(screen),
             Err(e) if e.is::<a11y::NotIdle>() => return Err(e),
-            Err(_) => gone,
+            Err(_) => None,
         };
+        let present = screen
+            .as_ref()
+            .map_or(gone, |s| a11y::present(&s.nodes, what));
 
         if present != gone {
             let state = if gone { "gone" } else { "on screen" };
@@ -1546,9 +1549,12 @@ async fn wait(
 
         if started.elapsed() >= timeout {
             bail!(
-                "'{what}' was still {} after {:.0}s",
+                "'{what}' was still {} after {:.0}s{}",
                 if gone { "there" } else { "missing" },
-                timeout.as_secs_f64()
+                timeout.as_secs_f64(),
+                screen
+                    .filter(|_| !gone)
+                    .map_or_else(String::new, |s| a11y::near(&s.nodes, what))
             );
         }
 
