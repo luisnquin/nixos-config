@@ -59,6 +59,10 @@ pub struct Holder {
     pub host: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session: Option<String>,
+    /// Where `up` was typed, which is where a refused agent has to go: `tree` is
+    /// the host's spelling and may name nothing on the agent's machine.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkout: Option<String>,
 }
 
 impl Holder {
@@ -69,6 +73,7 @@ impl Holder {
             since: model::now(),
             host: None,
             session: None,
+            checkout: None,
         }
     }
 
@@ -82,6 +87,16 @@ impl Holder {
         self.session = session.filter(|s| !s.is_empty()).map(str::to_string);
 
         self
+    }
+
+    pub fn typed_in(mut self, checkout: &std::path::Path) -> Self {
+        self.checkout = Some(checkout.display().to_string());
+
+        self
+    }
+
+    fn go_to(&self) -> String {
+        self.checkout.clone().unwrap_or_else(|| self.at())
     }
 
     /// A side naming no session is let in by its tree alone: a hold stamped
@@ -259,6 +274,10 @@ impl Leases {
                     had.session = holder.session;
                 }
 
+                if holder.checkout.is_some() {
+                    had.checkout = holder.checkout;
+                }
+
                 had
             }
             None => holder,
@@ -384,7 +403,7 @@ pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
                  a verb typed outside any checkout is nobody, and nobody is not the holder, so the hold refuses it even when the hold is its own\n\
                  run it from {}, or pick a device nobody holds (`phone device list` names every holder)",
                 holder.label(),
-                holder.at()
+                holder.go_to()
             );
         }
         Caller::Beside => {
@@ -403,9 +422,10 @@ pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
         return format!(
             "{label} is held by {}, which is another checkout of {project} and not this one\n\
              the hold is on {}, this is {tree}\n\
-             run it from there, or `phone up --take` here to move the hold; ask before using it",
+             run it from {}, or `phone up --take` here to move the hold; ask before using it",
             holder.label(),
-            holder.at()
+            holder.at(),
+            holder.go_to()
         );
     }
 
@@ -414,7 +434,7 @@ pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
          pick a device nobody holds (`phone device list` names every holder), or have that agent release it with `phone down` in {}\n\
          `phone up --take` there overrides the hold; ask before using it",
         holder.label(),
-        holder.at()
+        holder.go_to()
     )
 }
 
@@ -458,7 +478,11 @@ pub async fn mine() -> Option<Holder> {
     let project = Project::here().ok().flatten()?;
     let tree = tree(&project).await.ok()?;
 
-    Some(Holder::of(&tree, &project.name()).by(session().as_deref()))
+    Some(
+        Holder::of(&tree, &project.name())
+            .by(session().as_deref())
+            .typed_in(&project.root),
+    )
 }
 
 /// Drops whatever hold a device this process just booted carried: the session
@@ -676,6 +700,19 @@ mod tests {
         );
 
         assert!(said.contains("`phone down` in /ext/projects/hotline on rose"));
+    }
+
+    #[test]
+    fn a_refused_agent_is_sent_to_the_checkout_up_ran_in() {
+        let said = refusal(
+            "Pixel 9",
+            &Holder::of("/ext/projects/hotline", "hotline")
+                .on(Some("rose"))
+                .typed_in(std::path::Path::new("/home/x/hotline")),
+            &Caller::Nowhere,
+        );
+
+        assert!(said.contains("run it from /home/x/hotline,"));
     }
 
     #[test]

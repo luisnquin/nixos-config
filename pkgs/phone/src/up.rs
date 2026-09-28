@@ -604,6 +604,7 @@ async fn claim(
     let session = lease::session();
     let mine = Holder::of(&site.key, &project.name())
         .on(site.at.host())
+        .typed_in(&project.root)
         .by(session.as_deref());
     let mut hosts: Vec<(Where, Leases)> = Vec::new();
     let mut refused = Vec::new();
