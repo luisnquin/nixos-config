@@ -1401,9 +1401,29 @@ fn print_elements(screen: &a11y::Screen) {
         println!(
             "@{:<3} {press}  {:<40} {x},{y}{under}",
             node.index,
-            node.label()
+            row_label(&node.label())
         );
     }
+}
+
+const ROW_LIMIT: usize = 100;
+
+/// A stack trace or a paragraph is one element and would otherwise be a screenful.
+fn row_label(label: &str) -> String {
+    let lines = label.lines().count();
+    let first = label.lines().next().unwrap_or_default();
+
+    let mut row: String = first.chars().take(ROW_LIMIT).collect();
+
+    if row.len() < first.len() {
+        row.push('…');
+    }
+
+    if lines > 1 {
+        row.push_str(&format!(" (+{} lines)", lines - 1));
+    }
+
+    row
 }
 
 fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
@@ -2405,5 +2425,14 @@ mod tests {
             stranded("rose", &everyone, &BTreeMap::new(), None),
             "everything up on rose is held by another project; `phone device list` ranks what rose has"
         );
+    }
+
+    #[test]
+    fn a_stack_trace_is_one_row() {
+        let trace = "java.net.ConnectException: Failed\n at okhttp3.a\n at okhttp3.b";
+
+        assert_eq!(row_label(trace), "java.net.ConnectException: Failed (+2 lines)");
+        assert_eq!(row_label(&"x".repeat(150)), format!("{}…", "x".repeat(100)));
+        assert_eq!(row_label("Inicio"), "Inicio");
     }
 }
