@@ -122,8 +122,8 @@ pub async fn screenshot_after(
 const MOVE_LIMIT: Duration = Duration::from_secs(3);
 
 /// Frames until two running are the same. Compared whole rather than by a hash
-/// of part of them: a PNG of an unchanged screen is byte-identical, and any
-/// cheaper comparison would have to guess where the change would be.
+/// of part of them, since any cheaper comparison would have to guess where the
+/// change would be.
 async fn settle(
     server: &Server,
     device: &Device,
@@ -148,7 +148,12 @@ async fn settle(
                      this is the screen as it was",
                     MOVE_LIMIT.as_secs()
                 ));
-                strained(server, device, rep).await;
+                if !strained(server, device, rep).await {
+                    rep.note(
+                        "the device is not short of memory, so the step most likely hit nothing \
+                         that reacts; check where it landed with `shot --grid`",
+                    );
+                }
 
                 return Ok(png);
             }
@@ -162,15 +167,19 @@ async fn settle(
     }
 }
 
-async fn strained(server: &Server, device: &Device, rep: &Reporter) {
+async fn strained(server: &Server, device: &Device, rep: &Reporter) -> bool {
     let serial = match device.platform {
         Platform::Emulator => attached_serial(server, device).await,
         _ => None,
     };
 
-    for said in memory::strain(server, device, serial.as_deref()).await {
-        rep.note(said);
+    let said = memory::strain(server, device, serial.as_deref()).await;
+
+    for note in &said {
+        rep.note(note);
     }
+
+    !said.is_empty()
 }
 
 enum Settled {
@@ -188,7 +197,7 @@ struct Settling {
 
 impl Settling {
     fn new(before: Option<Vec<u8>>, first: Vec<u8>) -> Self {
-        let moved = before.as_ref().is_none_or(|b| *b != first);
+        let moved = before.as_ref().is_none_or(|b| !same(b, &first));
 
         Settling {
             before,
@@ -198,9 +207,9 @@ impl Settling {
     }
 
     fn see(&mut self, next: Vec<u8>, elapsed: Duration) -> Settled {
-        self.moved |= self.before.as_ref().is_some_and(|b| *b != next);
+        self.moved |= self.before.as_ref().is_some_and(|b| !same(b, &next));
 
-        let still = next == self.previous;
+        let still = same(&next, &self.previous);
         self.previous = next;
 
         match (still, self.moved) {
@@ -212,6 +221,33 @@ impl Settling {
             _ => Settled::Still,
         }
     }
+}
+
+/// Share of a frame a looping spinner may change while it is still the same
+/// screen; the smallest control a tap changes covers several times this.
+const STILL_SHARE: f64 = 0.0025;
+
+fn same(a: &[u8], b: &[u8]) -> bool {
+    if a == b {
+        return true;
+    }
+
+    let (Ok(a), Ok(b)) = (image::load_from_memory(a), image::load_from_memory(b)) else {
+        return false;
+    };
+
+    if a.width() != b.width() || a.height() != b.height() {
+        return false;
+    }
+
+    let (a, b) = (a.to_rgb8(), b.to_rgb8());
+    let changed = a
+        .pixels()
+        .zip(b.pixels())
+        .filter(|(p, q)| p.0.iter().zip(q.0).any(|(x, y)| x.abs_diff(y) > 16))
+        .count();
+
+    (changed as f64) < STILL_SHARE * f64::from(a.width() * a.height())
 }
 
 pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
@@ -1196,5 +1232,25 @@ mod tests {
             settling.see(b"c".to_vec(), SETTLE_LIMIT),
             Settled::Restless(png) if png == b"c"
         ));
+    }
+
+    fn png_with_block(side: u32) -> Vec<u8> {
+        let mut frame = image::RgbImage::from_pixel(100, 100, image::Rgb([255, 255, 255]));
+
+        for y in 0..side {
+            for x in 0..side {
+                frame.put_pixel(x, y, image::Rgb([0, 0, 0]));
+            }
+        }
+
+        let mut out = std::io::Cursor::new(Vec::new());
+        frame.write_to(&mut out, image::ImageFormat::Png).unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn a_pulsing_dot_does_not_count_as_the_screen_changing() {
+        assert!(same(&png_with_block(0), &png_with_block(4)));
+        assert!(!same(&png_with_block(0), &png_with_block(10)));
     }
 }
