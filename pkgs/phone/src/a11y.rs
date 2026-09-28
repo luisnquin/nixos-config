@@ -295,18 +295,35 @@ impl Node {
     }
 
     pub fn matches(&self, needle: &str) -> bool {
-        let needle = needle.to_lowercase();
+        let needle = folded(needle);
 
         [&self.text, &self.desc, &self.res_id]
             .iter()
-            .any(|field| field.to_lowercase().contains(&needle))
+            .any(|field| folded(field).contains(&needle))
     }
 
     pub fn answers(&self, needle: &str) -> bool {
+        let needle = folded(needle);
+
         [&self.text, &self.desc, &self.res_id]
             .iter()
-            .any(|field| field.eq_ignore_ascii_case(needle))
+            .any(|field| folded(field) == needle)
     }
+}
+
+/// Apps typeset their labels ("Wi‑Fi" has a non-breaking hyphen, "Don’t" a curly
+/// apostrophe) and nobody types those.
+fn folded(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '\u{2010}'..='\u{2015}' | '\u{2212}' => '-',
+            '\u{00a0}' | '\u{2007}' | '\u{2009}' | '\u{202f}' => ' ',
+            '\u{2018}' | '\u{2019}' => '\'',
+            '\u{201c}' | '\u{201d}' => '"',
+            c => c,
+        })
+        .collect::<String>()
+        .to_lowercase()
 }
 
 /// The elements that can be read or pressed. The rest of the hierarchy is
@@ -1572,5 +1589,18 @@ mod tests {
 
         assert_eq!(script.matches("MOVE").count(), 10);
         assert!(script.contains("MOVE 1000 0; sleep 1.000; input motionevent UP 1000 0"));
+    }
+
+    #[test]
+    fn a_typeset_label_answers_to_the_plain_spelling() {
+        let nodes = parse(
+            "<hierarchy><node text=\"Wi\u{2011}Fi\" class=\"android.widget.TextView\" bounds=\"[0,0][10,10]\"/>\
+             <node text=\"Don\u{2019}t allow\" class=\"android.widget.Button\" bounds=\"[0,10][10,20]\"/></hierarchy>",
+        )
+        .unwrap();
+
+        assert!(nodes[0].answers("wi-fi"));
+        assert!(nodes[1].answers("Don't allow"));
+        assert!(present(&nodes, "Don't"));
     }
 }
