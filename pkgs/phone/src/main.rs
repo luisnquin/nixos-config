@@ -25,7 +25,7 @@ mod stamps;
 mod tui;
 mod up;
 mod usage;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -681,6 +681,8 @@ struct Session {
     target: a11y::Target,
     focus: Option<(i32, i32)>,
     before: RefCell<Option<Vec<u8>>>,
+    read: RefCell<Option<Vec<a11y::Node>>>,
+    acted: Cell<bool>,
 }
 
 impl Session {
@@ -697,6 +699,8 @@ impl Session {
             target,
             focus,
             before: RefCell::new(None),
+            read: RefCell::new(None),
+            acted: Cell::new(false),
         })
     }
 
@@ -815,6 +819,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             let screen = a11y::dump(&s.target).await?;
 
             s.remember(&screen.nodes);
+            *s.read.borrow_mut() = Some(screen.nodes.clone());
 
             if json {
                 print_elements_json(&screen)?;
@@ -913,7 +918,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 
             let t = &s.target;
 
-            wait(t, &what, gone, timeout).await
+            wait(t, &what, gone, timeout, s.read.take().as_deref()).await
         }
 
         Command::Type { text } => {
@@ -976,9 +981,13 @@ async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
             *s.before.borrow_mut() = frame.ok();
         }
 
+        let acts = command.acts();
+
         Box::pin(step(s, command))
             .await
             .map_err(|e| anyhow::anyhow!("step {} ({raw}): {e}", n + 1))?;
+
+        s.acted.set(s.acted.get() || acts);
     }
 
     Ok(())
@@ -1070,14 +1079,37 @@ async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<
         return Ok((point, None));
     }
 
-    let screen = a11y::dump(&s.target).await?;
-    let node = s.pick(&screen, what)?;
+    let (screen, node) = find(s, what).await?;
 
     if !force {
-        refuse_covered(&screen, node)?;
+        refuse_covered(&screen, &node)?;
     }
 
     Ok((node.bounds.center(), Some(node.label())))
+}
+
+const APPEAR_GRACE: Duration = Duration::from_secs(2);
+
+/// Right after an act the next screen may still be drawing or sliding in, and a
+/// touch mid-transition is dropped: a name is read until it is there and still.
+async fn find(s: &Session, what: &str) -> Result<(a11y::Screen, a11y::Node)> {
+    let began = std::time::Instant::now();
+    let mut seen = None;
+
+    loop {
+        let screen = a11y::dump(&s.target).await?;
+        *s.read.borrow_mut() = Some(screen.nodes.clone());
+        let late = began.elapsed() >= APPEAR_GRACE;
+
+        match s.pick(&screen, what).cloned() {
+            Ok(node) if !s.acted.get() || seen == Some(node.bounds) || late => {
+                return Ok((screen, node));
+            }
+            Ok(node) => seen = Some(node.bounds),
+            Err(e) if e.is::<a11y::Missing>() && !late => {}
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 fn refuse_covered(screen: &a11y::Screen, node: &a11y::Node) -> Result<()> {
@@ -1113,8 +1145,7 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
 
     a11y::sendable(text)?;
 
-    let screen = a11y::dump(t).await?;
-    let target = s.pick(&screen, what)?.clone();
+    let (screen, target) = find(s, what).await?;
 
     let already = screen.focused().filter(|f| related(f, &target)).cloned();
 
@@ -1334,6 +1365,7 @@ async fn wait(
     what: &str,
     gone: bool,
     timeout: std::time::Duration,
+    prior: Option<&[a11y::Node]>,
 ) -> Result<()> {
     let started = std::time::Instant::now();
     let mut first = true;
@@ -1348,17 +1380,20 @@ async fn wait(
         };
 
         if present != gone {
-            if first {
-                eprintln!(
-                    "phone: '{what}' was already {} before the wait; nothing changed",
-                    if gone { "gone" } else { "on screen" }
-                );
-            } else {
-                eprintln!(
+            let state = if gone { "gone" } else { "on screen" };
+
+            match (first, prior.map(|p| a11y::present(p, what) != gone)) {
+                (true, Some(true)) => {
+                    eprintln!("phone: '{what}' was already {state} before the last step; nothing changed")
+                }
+                (true, None) => eprintln!(
+                    "phone: '{what}' is {state} at the first look, so this wait cannot tell whether your last action did it"
+                ),
+                _ => eprintln!(
                     "phone: '{what}' {} after {:.1}s",
                     if gone { "left" } else { "appeared" },
                     started.elapsed().as_secs_f64()
-                );
+                ),
             }
 
             return Ok(());

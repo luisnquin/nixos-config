@@ -635,6 +635,17 @@ impl std::fmt::Display for Ambiguous {
 
 impl std::error::Error for Ambiguous {}
 
+#[derive(Debug)]
+pub struct Missing(String);
+
+impl std::fmt::Display for Missing {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for Missing {}
+
 pub fn pick_in<'a>(
     nodes: &'a [Node],
     needle: &str,
@@ -673,7 +684,7 @@ pub fn pick_in<'a>(
     let exact: Vec<&Node> = hits.iter().copied().filter(|n| n.answers(needle)).collect();
 
     match (hits.as_slice(), exact.as_slice()) {
-        ([], _) => bail!("nothing on screen matches '{needle}'"),
+        ([], _) => Err(Missing(format!("nothing on screen matches '{needle}'")).into()),
         // a name that used to be on screen reads as part of a longer one that
         // still is, and pressing that one is pressing the wrong thing
         (partial, []) => Err(Ambiguous(format!(
@@ -1473,10 +1484,14 @@ mod tests {
     }
 
     #[test]
-    fn matches_side_by_side_stay_ambiguous() {
+    fn side_by_side_matches_are_ambiguous_and_no_match_is_missing() {
         let err = pick(&parse(FORM).unwrap(), "e").unwrap_err();
 
         assert!(err.is::<Ambiguous>(), "{err}");
+
+        let err = pick(&parse(FORM).unwrap(), "Checkout").unwrap_err();
+
+        assert!(err.is::<Missing>(), "{err}");
     }
 
     #[test]
