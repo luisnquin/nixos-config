@@ -6,6 +6,7 @@
 }: let
   kit = mkAgentKit {};
   phone = lib.getExe pkgs.phone;
+  rtk = lib.getExe pkgs.rtk;
   herdrSession = kit.mkHerdrSessionCmd "codex";
 in {
   home.file = {
@@ -28,6 +29,7 @@ in {
               commands = [
                 (kit.mkAudioCmd [kit.sounds.ifrtho])
                 "${phone} hook --harness codex"
+                "${rtk} hook codex"
               ];
             })
           ];
