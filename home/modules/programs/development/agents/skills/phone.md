@@ -13,8 +13,9 @@ This page is enough to work without `phone --help`. Reach for
 
 A call costs about a second; the tool round trip costs more. So:
 
-- Run `phone device list` once, then `export PHONE_TARGET=<name>`. Every later
-  call skips the choice.
+- In a repo with `phone.toml`, pass no target: its `default` applies. Elsewhere,
+  `export PHONE_TARGET=<name>` from `phone device list`, in this shell only,
+  never in a shell rc file.
 - Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
   call. A step is parsed like a command line, so quote multi-word names
   inside it: `"wait 'Order history'"`.
@@ -45,7 +46,8 @@ usually reusing a device that is already running. Do not pass `--take` or
 In a repo with `phone.toml`, run `phone up` first. It boots, forwards ports,
 installs a fresh build and opens the app, doing only what is missing, and is
 safe to repeat. It returns once the app itself is on screen, or fails with the
-dev client's error. `phone status` checks without changing anything.
+dev client's error. `phone status` checks without changing anything: exit 2 is
+drift on your device, 4 only on other declared ones.
 
 ## Verbs
 
@@ -56,7 +58,7 @@ phone press <what> --hold 2s        # long press
 phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]
 phone type "text"                   # into whatever has focus
 phone fill <field> "text"           # focus, clear, type, read back
-phone key back|home|enter|tab|…
+phone key back|home|enter|tab|…     # go back with `key back`, not a named arrow; none on iOS
 phone wait <what> [--gone] [--timeout 15s]
 phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle] [--grid]
 phone size                          # panel size and scale
