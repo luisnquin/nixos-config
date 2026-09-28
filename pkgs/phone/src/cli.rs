@@ -292,6 +292,9 @@ When nothing moves within 3s it hands over what is there and says so."#)]
         /// Capture until the screen stops changing
         #[arg(long)]
         settle: bool,
+
+        #[arg(long, help = "Draw lines labelled in the coordinates tap takes")]
+        grid: bool,
     },
     /// The panel, in the space taps and element bounds use
     #[command(after_help = r#"Examples:

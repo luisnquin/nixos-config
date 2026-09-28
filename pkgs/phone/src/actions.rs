@@ -68,11 +68,12 @@ pub struct Shot {
     /// Capture until two frames running are identical, so a tap's result is
     /// read rather than the frame that was still on screen when it landed.
     pub settle: bool,
+    pub grid: Option<f64>,
 }
 
 impl Shot {
     fn touches_the_image(&self) -> bool {
-        self.crop.is_some() || self.scale.is_some() || self.jpeg.is_some()
+        self.crop.is_some() || self.scale.is_some() || self.jpeg.is_some() || self.grid.is_some()
     }
 
     fn mime(&self) -> &'static str {
@@ -257,6 +258,7 @@ pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
     }
 
     let mut image = image::load_from_memory(&png).context("decoding the frame")?;
+    let mut origin = (0, 0);
 
     if let Some(bounds) = shot.crop {
         let (w, h) = (image.width(), image.height());
@@ -267,6 +269,7 @@ pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
             bail!("the crop starts outside a {w}x{h} frame");
         }
 
+        origin = (x, y);
         image = image.crop_imm(
             x,
             y,
@@ -283,6 +286,21 @@ pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
             at(image.height()),
             image::imageops::FilterType::Lanczos3,
         );
+    }
+
+    if let Some(per_unit) = shot.grid {
+        let by = shot.scale.unwrap_or(1.0);
+        let mut frame = image.to_rgba8();
+
+        crate::grid::draw(
+            &mut frame,
+            crate::grid::Grid {
+                per_unit: per_unit * by,
+                origin: (f64::from(origin.0) / per_unit, f64::from(origin.1) / per_unit),
+            },
+        );
+
+        image = frame.into();
     }
 
     let mut out = std::io::Cursor::new(Vec::new());

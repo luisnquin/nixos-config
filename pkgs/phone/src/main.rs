@@ -6,6 +6,7 @@ mod avd;
 mod cli;
 mod connect;
 mod discover;
+mod grid;
 mod help;
 mod hook;
 mod hosts;
@@ -728,6 +729,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             scale,
             jpeg,
             settle,
+            grid,
         } => {
             let _ = target;
 
@@ -739,10 +741,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 
             // reading the frame and reading the elements in it are two calls to
             // the same device, so the crop is worked out off this one view
-            let crop = match &crop {
-                Some(spec) => Some(crop_bounds(s, spec, expand, pad).await?),
-                None => None,
-            };
+            let crop = crop_of(s, crop.as_deref(), expand, pad).await?;
 
             let sink = Sink::from_opt(out.as_deref());
             let shot = actions::Shot {
@@ -750,6 +749,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                 scale,
                 jpeg,
                 settle,
+                grid: grid_scale(s, grid).await?,
             };
 
             let before = s.before.take();
@@ -1216,6 +1216,25 @@ fn aim(point: (i32, i32), name: Option<String>) -> String {
         Some(name) => format!("{name} at {},{}", point.0, point.1),
         None => format!("{},{}", point.0, point.1),
     }
+}
+
+async fn grid_scale(s: &Session, grid: bool) -> Result<Option<f64>> {
+    Ok(match grid {
+        true => Some(a11y::size(&s.target).await?.scale),
+        false => None,
+    })
+}
+
+async fn crop_of(
+    s: &Session,
+    spec: Option<&str>,
+    expand: Option<u8>,
+    pad: i32,
+) -> Result<Option<a11y::Bounds>> {
+    Ok(match spec {
+        Some(spec) => Some(crop_bounds(s, spec, expand, pad).await?),
+        None => None,
+    })
 }
 
 /// The part of the frame to keep, in pixels. An element is padded because a
