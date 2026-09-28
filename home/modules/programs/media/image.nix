@@ -42,10 +42,7 @@ in {
     chromiumDesktop = "chromium-browser.desktop";
 
     defaultApps = {
-      "image/svg+xml" = [feh.desktopFile];
-      "image/png" = [feh.desktopFile];
-      "image/jpg" = [feh.desktopFile];
-      "image/jpeg" = [feh.desktopFile];
+      "image/*" = [feh.desktopFile];
       "image/gif" = [sxiv.desktopFile];
     };
 
