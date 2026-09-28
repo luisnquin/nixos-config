@@ -1,0 +1,10 @@
+--- a/cli/src/main.rs
++++ b/cli/src/main.rs
+@@ -2380,6 +2380,7 @@
+     remote_auth_token_env: Option<String>,
+     arg0_paths: Arg0DispatchPaths,
+ ) -> std::io::Result<AppExitInfo> {
++    interactive.no_daemon |= !interactive.agents_overview && remote.is_none();
+     if interactive.no_daemon {
+         if interactive.agents_overview {
+             return Ok(AppExitInfo::fatal(
