@@ -520,16 +520,22 @@ fn reader() -> Option<Reader> {
 const NO_READER: &str = "phone:no-reader";
 
 async fn dump_once(a: &Adb) -> Result<Screen> {
+    let mut unread = None;
+
     if let Some(reader) = reader().filter(|_| a.display.is_none_or(|d| d.logical == 0)) {
-        if let Ok(screen) = read_with(a, &reader).await {
-            return Ok(screen);
+        match read_with(a, &reader).await {
+            Ok(screen) => return Ok(screen),
+            Err(e) => unread = Some(e),
         }
     }
 
     let remote = format!("{}{DUMP}; {KEYBOARD}; {READ}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
 
-    read_dump(ok, &String::from_utf8_lossy(&bytes))
+    match read_dump(ok, &String::from_utf8_lossy(&bytes)) {
+        Err(e) if e.is::<NotIdle>() => Err(unread.unwrap_or(e)),
+        read => read,
+    }
 }
 
 async fn read_with(a: &Adb, reader: &Reader) -> Result<Screen> {
