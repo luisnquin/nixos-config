@@ -1,6 +1,64 @@
+diff --git a/core/src/config/edit.rs b/core/src/config/edit.rs
+index 82ad54d..348c01a 100644
+--- a/core/src/config/edit.rs
++++ b/core/src/config/edit.rs
+@@ -743,6 +743,9 @@ fn apply_blocking_to_resolved_file(
+     }
+ 
+     let write_paths = resolve_symlink_write_paths(resolved_config_file)?;
++    if write_paths.write_path.starts_with("/nix/store") {
++        return record_pending_edits(resolved_config_file, edits);
++    }
+     let serialized = match write_paths.read_path {
+         Some(path) => match std::fs::read_to_string(&path) {
+             Ok(contents) => contents,
+@@ -779,6 +782,41 @@ fn apply_blocking_to_resolved_file(
+     Ok(())
+ }
+ 
++const PENDING_CONFIG_FILE: &str = "config.pending.toml";
++const PENDING_CONFIG_HEADER: &str = "# Codex tried to write these to config.toml, which Nix owns.\n# Declare them in programs.codex.settings, then delete this file.\n\n";
++
++fn record_pending_edits(config_file: &Path, edits: &[ConfigEdit]) -> anyhow::Result<()> {
++    let pending_path = config_file.with_file_name(PENDING_CONFIG_FILE);
++    let serialized = match std::fs::read_to_string(&pending_path) {
++        Ok(contents) => contents,
++        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
++        Err(err) => return Err(err.into()),
++    };
++
++    let mut document = ConfigDocument::new(serialized.parse::<DocumentMut>()?);
++    let mut mutated = false;
++    for edit in edits {
++        mutated |= document.apply(edit)?;
++    }
++    if !mutated {
++        return Ok(());
++    }
++
++    let body = document.doc.to_string();
++    let contents = if body.starts_with(PENDING_CONFIG_HEADER) {
++        body
++    } else {
++        format!("{PENDING_CONFIG_HEADER}{body}")
++    };
++    write_atomically(&pending_path, &contents)
++        .with_context(|| format!("failed to record pending config at {}", pending_path.display()))?;
++    tracing::warn!(
++        path = %pending_path.display(),
++        "config.toml is owned by Nix; recorded the edit as pending"
++    );
++    Ok(())
++}
++
+ /// Fluent builder to batch config edits and apply them atomically.
+ #[derive(Default)]
+ pub struct ConfigEditsBuilder {
+diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
+index 7a50e6d..293ea77 100644
 --- a/tui/src/config_update.rs
 +++ b/tui/src/config_update.rs
-@@ -18,6 +18,8 @@
+@@ -18,6 +18,8 @@ use codex_app_server_protocol::MergeStrategy;
  use codex_app_server_protocol::RequestId;
  use codex_app_server_protocol::SkillsConfigWriteParams;
  use codex_app_server_protocol::SkillsConfigWriteResponse;
@@ -9,8 +67,7 @@
  use codex_config::default_project_root_markers;
  use codex_config::loader::find_project_root;
  use codex_config::loader::normalized_project_trust_keys;
-@@ -28,7 +30,8 @@
- use codex_git_utils::resolve_root_git_project_for_trust;
+@@ -29,14 +31,19 @@ use codex_git_utils::resolve_root_git_project_for_trust;
  use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
  use codex_protocol::config_types::TrustLevel;
  use codex_utils_absolute_path::AbsolutePathBuf;
@@ -18,15 +75,68 @@
  use codex_utils_path_uri::LegacyAppPathString;
  use codex_utils_path_uri::PathConvention;
  use color_eyre::eyre::Result;
-@@ -144,10 +147,36 @@
+ use color_eyre::eyre::WrapErr;
++use crate::legacy_core::config::edit::ConfigEdit as CoreConfigEdit;
++use crate::legacy_core::config::edit::ConfigEditsBuilder;
+ use serde_json::Value as JsonValue;
+ use std::fmt::Display;
+ use std::path::Path;
+ use std::path::PathBuf;
++use toml_edit::DocumentMut;
++use toml_edit::Item as TomlItem;
+ use uuid::Uuid;
+ 
+ #[derive(Clone, Copy, PartialEq, Eq)]
+@@ -151,10 +158,79 @@ pub(crate) fn build_oss_provider_edit(provider: &str) -> ConfigEdit {
      replace_config_value("oss_provider", serde_json::json!(provider))
  }
  
 +// Disabled: `config.toml` is a read-only symlink into the Nix store, so every
 +// TUI-initiated `config/batchWrite` fails and surfaces a red error banner instead of
 +// applying the setting. Reporting the write as applied keeps the change alive for the
-+// session; durable changes belong in the home-manager module.
++// session, and the edit lands in `config.pending.toml` until it is declared in Nix.
 +const CONFIG_WRITES_ENABLED: bool = false;
++
++fn key_path_segments(key_path: &str) -> Option<Vec<String>> {
++    let document = format!("{key_path} = 0").parse::<DocumentMut>().ok()?;
++    let mut table = document.as_table();
++    let mut segments = Vec::new();
++    loop {
++        let (key, item) = table.iter().next()?;
++        segments.push(key.to_string());
++        match item {
++            TomlItem::Table(inner) => table = inner,
++            _ => return Some(segments),
++        }
++    }
++}
++
++fn json_to_toml_item(value: &JsonValue) -> Option<TomlItem> {
++    let mut wrapper = toml::Table::new();
++    wrapper.insert("v".to_string(), toml::Value::try_from(value).ok()?);
++    let document = toml::to_string(&wrapper).ok()?.parse::<DocumentMut>().ok()?;
++    document.get("v").cloned()
++}
++
++fn pending_config_edit(edit: &ConfigEdit) -> Option<CoreConfigEdit> {
++    let segments = key_path_segments(&edit.key_path)?;
++    if edit.value.is_null() {
++        return Some(CoreConfigEdit::ClearPath { segments });
++    }
++    let value = json_to_toml_item(&edit.value)?;
++    Some(CoreConfigEdit::SetPath { segments, value })
++}
++
++async fn record_pending_config_edits(config_path: &Path, edits: &[ConfigEdit]) {
++    let pending: Vec<CoreConfigEdit> = edits.iter().filter_map(pending_config_edit).collect();
++    if let Err(err) = ConfigEditsBuilder::for_config_path(config_path)
++        .with_edits(pending)
++        .apply()
++        .await
++    {
++        tracing::error!(error = %err, "failed to record pending config edits");
++    }
++}
 +
 +fn skipped_config_write_response() -> Result<ConfigWriteResponse> {
 +    let file_path = find_codex_home()
@@ -49,7 +159,9 @@
 +            edit_count = edits.len(),
 +            "skipping config/batchWrite; config.toml is read-only"
 +        );
-+        return skipped_config_write_response();
++        let response = skipped_config_write_response()?;
++        record_pending_config_edits(response.file_path.as_path(), &edits).await;
++        return Ok(response);
 +    }
 +
      let request_id = RequestId::String(format!("tui-config-write-{}", Uuid::new_v4()));
