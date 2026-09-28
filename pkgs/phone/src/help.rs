@@ -1,3 +1,4 @@
+use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{CommandFactory, FromArgMatches};
 
 use crate::cli::Cli;
@@ -13,9 +14,49 @@ const GROUPS: &[(&str, &[&str])] = &[
 ];
 
 pub fn parse() -> Cli {
-    let mut matches = command().get_matches();
+    let mut matches = command().try_get_matches().unwrap_or_else(|mut e| {
+        if let Some(tip) = misplaced(&e) {
+            e.remove(ContextKind::SuggestedArg);
+            e.insert(
+                ContextKind::Suggested,
+                ContextValue::StyledStrs(vec![tip.into()]),
+            );
+        }
+
+        e.exit()
+    });
 
     Cli::from_arg_matches_mut(&mut matches).unwrap_or_else(|e| e.format(&mut command()).exit())
+}
+
+/// A flag this verb does not take, named with the verbs that do. It replaces
+/// clap's tips: a fuzzy look-alike here, or passing it as the element's name.
+pub fn misplaced(e: &clap::Error) -> Option<String> {
+    if e.kind() != ErrorKind::UnknownArgument {
+        return None;
+    }
+
+    let Some(ContextValue::String(arg)) = e.get(ContextKind::InvalidArg) else {
+        return None;
+    };
+    let long = arg.strip_prefix("--")?.split('=').next()?;
+
+    let mut verbs = Vec::new();
+    owners(&Cli::command(), long, "", &mut verbs);
+
+    (!verbs.is_empty()).then(|| format!("--{long} belongs to {}", verbs.join(", ")))
+}
+
+fn owners(cmd: &clap::Command, long: &str, path: &str, out: &mut Vec<String>) {
+    for sub in cmd.get_subcommands().filter(|s| !s.is_hide_set()) {
+        let name = format!("{path}{}", sub.get_name());
+
+        if sub.get_arguments().any(|a| a.get_long() == Some(long)) {
+            out.push(format!("`{name}`"));
+        }
+
+        owners(sub, long, &format!("{name} "), out);
+    }
 }
 
 pub fn command() -> clap::Command {

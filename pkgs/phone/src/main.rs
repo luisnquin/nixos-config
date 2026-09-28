@@ -1141,8 +1141,17 @@ fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
 fn parse_step(n: usize, raw: &str) -> Result<Command> {
     let words = shell_words::split(raw).map_err(|e| anyhow::anyhow!("step {}: {e}", n + 1))?;
 
-    let parsed = Cli::try_parse_from(std::iter::once("phone".to_string()).chain(words))
-        .map_err(|e| anyhow::anyhow!("step {} ({raw}): {}", n + 1, first_line(&e.to_string())))?;
+    let parsed =
+        Cli::try_parse_from(std::iter::once("phone".to_string()).chain(words)).map_err(|e| {
+            anyhow::anyhow!(
+                "step {} ({raw}): {}{}",
+                n + 1,
+                first_line(&e.to_string()),
+                help::misplaced(&e)
+                    .map(|t| format!("; {t}"))
+                    .unwrap_or_default()
+            )
+        })?;
 
     // the device and the window were settled before the first step ran, and a
     // step that names either would be describing a different session
@@ -2292,6 +2301,25 @@ fn which(bin: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_step_with_a_flag_of_another_verb_names_that_verb() {
+        let err = |raw| parse_step(0, raw).err().unwrap().to_string();
+
+        assert_eq!(
+            err("wait Inbox --settle"),
+            "step 1 (wait Inbox --settle): unexpected argument '--settle' found; --settle belongs to `shot`"
+        );
+        assert!(
+            err("swipe up --timeout 3")
+                .ends_with("; --timeout belongs to `up`, `wait`, `device boot`"),
+            "an exact flag elsewhere beats clap's look-alike on this verb"
+        );
+        assert_eq!(
+            err("tap OK --xyzzy"),
+            "step 1 (tap OK --xyzzy): unexpected argument '--xyzzy' found"
+        );
+    }
 
     #[test]
     fn a_name_that_needs_quoting_is_handed_back_ready_to_paste() {
