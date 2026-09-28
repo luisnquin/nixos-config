@@ -21,6 +21,8 @@ in {
     ./etc.nix
   ];
 
+  home.packages = [pkgs.knots];
+
   shared = {
     git = {
       enable = true;
