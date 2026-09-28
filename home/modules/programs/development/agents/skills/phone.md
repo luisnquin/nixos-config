@@ -81,6 +81,9 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
 - An `@index` is refused once its element moved, so take a new snapshot after
   the screen changes rather than guessing.
 - Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
+- A label inside a row that already reads it is not listed (the gaps in the
+  `@` numbers), and a nameless pressable around one label is listed by it. Tap
+  that name: it outlives the screen change that makes an `@index` stale.
 - Tap by name or `@index`. When only a coordinate works, take it from the
   labels `shot --grid` draws: the image you see is scaled, so a position
   estimated off it misses.

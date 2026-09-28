@@ -233,6 +233,11 @@ whether the keyboard is up and where. The keyboard is not part of the app's
 window and never appears as rows, so a row it is drawn over is marked
 `under keyboard` instead; a tap there would land on a key.
 
+A label drawn inside a row that already reads it out is folded into that row,
+which leaves gaps in the numbers, and a nameless pressable around a single
+label is listed by that label. Folded rows still answer to their name and
+`@index`; `--json` lists them all, each with the row it went `within`.
+
 A screen that animates without end cannot be read at all: uiautomator waits for
 it to go idle first. That is refused with the reason rather than retried."#)]
     Snapshot {

@@ -1439,7 +1439,8 @@ fn print_elements(screen: &a11y::Screen) {
         println!();
     }
 
-    for node in &screen.nodes {
+    for row in a11y::rows(&screen.nodes).iter().filter(|r| r.within.is_none()) {
+        let node = row.node;
         let (x, y) = node.bounds.center();
         let press = if node.clickable { "tap" } else { "   " };
         let under = if screen.covered(node) {
@@ -1451,41 +1452,21 @@ fn print_elements(screen: &a11y::Screen) {
         println!(
             "@{:<3} {press}  {:<40} {x},{y}{under}",
             node.index,
-            row_label(&node.label())
+            a11y::row_label(&row.label)
         );
     }
 }
 
-const ROW_LIMIT: usize = 100;
-
-/// A stack trace or a paragraph is one element and would otherwise be a screenful.
-fn row_label(label: &str) -> String {
-    let lines = label.lines().count();
-    let first = label.lines().next().unwrap_or_default();
-
-    let mut row: String = first.chars().take(ROW_LIMIT).collect();
-
-    if row.len() < first.len() {
-        row.push('…');
-    }
-
-    if lines > 1 {
-        row.push_str(&format!(" (+{} lines)", lines - 1));
-    }
-
-    row
-}
-
 fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
-    let rows: Vec<serde_json::Value> = screen
-        .nodes
-        .iter()
-        .map(|node| {
+    let rows: Vec<serde_json::Value> = a11y::rows(&screen.nodes)
+        .into_iter()
+        .map(|row| {
+            let node = row.node;
             let (x, y) = node.bounds.center();
 
             serde_json::json!({
                 "ref": format!("@{}", node.index),
-                "label": node.label(),
+                "label": row.label,
                 "text": node.text,
                 "desc": node.desc,
                 "id": node.res_id,
@@ -1493,6 +1474,7 @@ fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
                 "focused": node.focused,
                 "covered": screen.covered(node),
                 "at": [x, y],
+                "within": row.within.map(|p| format!("@{p}")),
             })
         })
         .collect();
@@ -2475,14 +2457,5 @@ mod tests {
             stranded("rose", &everyone, &BTreeMap::new(), None),
             "everything up on rose is held by another project; `phone device list` ranks what rose has"
         );
-    }
-
-    #[test]
-    fn a_stack_trace_is_one_row() {
-        let trace = "java.net.ConnectException: Failed\n at okhttp3.a\n at okhttp3.b";
-
-        assert_eq!(row_label(trace), "java.net.ConnectException: Failed (+2 lines)");
-        assert_eq!(row_label(&"x".repeat(150)), format!("{}…", "x".repeat(100)));
-        assert_eq!(row_label("Inicio"), "Inicio");
     }
 }

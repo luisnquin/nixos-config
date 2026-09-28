@@ -187,6 +187,8 @@ pub struct Node {
     pub hint: String,
     #[serde(default)]
     pub password: bool,
+    #[serde(default)]
+    pub parent: Option<usize>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -343,7 +345,7 @@ pub fn parse(xml: &str) -> Result<Vec<Node>> {
                 .is_none_or(readable)
         })
     {
-        walk(hierarchy, &[], &mut nodes);
+        walk(hierarchy, &[], None, &mut nodes);
     }
 
     Ok(nodes)
@@ -362,7 +364,12 @@ fn readable(window: roxmltree::Node) -> bool {
     }
 }
 
-fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
+fn walk(
+    element: roxmltree::Node,
+    enclosing: &[Bounds],
+    mut parent: Option<usize>,
+    out: &mut Vec<Node>,
+) {
     let attr = |name| element.attribute(name).unwrap_or_default().to_string();
     let bounds = element.attribute("bounds").and_then(Bounds::parse);
 
@@ -387,7 +394,10 @@ fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
                 focused,
                 hint: attr("hint"),
                 password: element.attribute("password") == Some("true"),
+                parent,
             });
+
+            parent = Some(out.len() - 1);
         }
     }
 
@@ -403,7 +413,7 @@ fn walk(element: roxmltree::Node, enclosing: &[Bounds], out: &mut Vec<Node>) {
     };
 
     for child in element.children().filter(|c| c.has_tag_name("node")) {
-        walk(child, enclosing, out);
+        walk(child, enclosing, parent, out);
     }
 }
 
@@ -764,6 +774,87 @@ fn found<'a>(nodes: &'a [Node], row: &Signature) -> Option<&'a Node> {
 /// dump, so across two it answers about the length of a list, not about a thing.
 pub fn present(nodes: &[Node], needle: &str) -> bool {
     nodes.iter().any(|n| n.matches(needle))
+}
+
+pub struct Row<'a> {
+    pub node: &'a Node,
+    pub label: String,
+    pub within: Option<usize>,
+}
+
+/// A folded row and a borrowed name both stay reachable by name and by their own
+/// `@index`; only the table leaves them out.
+pub fn rows(nodes: &[Node]) -> Vec<Row<'_>> {
+    let mut kids = vec![Vec::new(); nodes.len()];
+
+    for (i, n) in nodes.iter().enumerate() {
+        if let Some(p) = n.parent.filter(|p| *p < i) {
+            kids[p].push(i);
+        }
+    }
+
+    let names: Vec<&str> = nodes
+        .iter()
+        .zip(&kids)
+        .map(|(n, kids)| match kids.as_slice() {
+            [only] if n.clickable && n.name().is_empty() && loose(&nodes[*only]) => {
+                nodes[*only].name()
+            }
+            _ => n.name(),
+        })
+        .collect();
+
+    let mut within: Vec<Option<usize>> = Vec::with_capacity(nodes.len());
+
+    for (i, n) in nodes.iter().enumerate() {
+        let host = n.parent.filter(|p| {
+            *p < i && loose(n) && !names[*p].is_empty() && first_line(names[*p]).contains(n.name())
+        });
+
+        within.push(host.map(|p| within[p].unwrap_or(p)));
+    }
+
+    nodes
+        .iter()
+        .zip(names)
+        .zip(within)
+        .map(|((node, name), within)| Row {
+            node,
+            label: match name {
+                "" => node.label(),
+                name => name.to_string(),
+            },
+            within,
+        })
+        .collect()
+}
+
+fn loose(n: &Node) -> bool {
+    !n.clickable && !n.focused && !n.name().is_empty()
+}
+
+const ROW_LIMIT: usize = 100;
+
+pub fn row_label(label: &str) -> String {
+    let lines = label.lines().count();
+    let mut row = first_line(label);
+
+    if lines > 1 {
+        row.push_str(&format!(" (+{} lines)", lines - 1));
+    }
+
+    row
+}
+
+fn first_line(label: &str) -> String {
+    let first = label.lines().next().unwrap_or_default();
+    let mut row: String = first.chars().take(ROW_LIMIT).collect();
+
+    if row.len() < first.len() {
+        row.push('…');
+    }
+
+    row
 }
 
 /// Sent as one device-side command, because `input text` reads the rest of the
@@ -1617,5 +1708,100 @@ mod tests {
         assert!(nodes[0].answers("wi-fi"));
         assert!(nodes[1].answers("Don't allow"));
         assert!(present(&nodes, "Don't"));
+    }
+
+    const CARDS: &str = r#"<?xml version='1.0' encoding='UTF-8'?>
+<hierarchy rotation="0">
+ <node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" clickable="false" text="" content-desc="" resource-id="">
+  <node class="android.view.View" bounds="[0,330][1080,452]" clickable="true" text="" content-desc="Activa las notificaciones. Activar" resource-id="">
+   <node class="android.widget.TextView" bounds="[40,340][800,440]" clickable="false" text="Activa las notificaciones." content-desc="" resource-id=""/>
+   <node class="android.widget.TextView" bounds="[840,360][940,420]" clickable="false" text="Activar" content-desc="" resource-id=""/>
+  </node>
+  <node class="android.view.View" bounds="[800,160][900,260]" clickable="true" text="" content-desc="" resource-id="">
+   <node class="android.view.View" bounds="[800,160][900,260]" clickable="false" text="" content-desc="Ver notificaciones" resource-id=""/>
+  </node>
+  <node class="android.view.View" bounds="[40,1700][520,2080]" clickable="true" text="" content-desc="" resource-id="com.app:id/newFixedFundCard">
+   <node class="android.view.View" bounds="[40,1700][520,2080]" clickable="false" text="" content-desc="Con meta fija. Ideal para eventos." resource-id="">
+    <node class="android.widget.TextView" bounds="[60,1720][500,1800]" clickable="false" text="Con meta fija" content-desc="" resource-id=""/>
+    <node class="android.widget.TextView" bounds="[60,1900][500,2060]" clickable="false" text="Ideal para eventos." content-desc="" resource-id=""/>
+   </node>
+  </node>
+  <node class="android.view.View" bounds="[560,1700][1040,2080]" clickable="true" text="" content-desc="" resource-id="">
+   <node class="android.view.View" bounds="[560,1700][1040,2080]" clickable="false" text="" content-desc="Pozo libre. Sin límite." resource-id="">
+    <node class="android.widget.TextView" bounds="[580,1720][1020,1800]" clickable="false" text="Pozo libre" content-desc="" resource-id=""/>
+    <node class="android.widget.TextView" bounds="[580,1900][1020,2060]" clickable="false" text="Sin límite." content-desc="" resource-id=""/>
+   </node>
+  </node>
+  <node class="android.view.View" bounds="[40,1000][1040,1100]" clickable="true" text="" content-desc="" resource-id="">
+   <node class="android.widget.TextView" bounds="[60,1010][600,1090]" clickable="false" text="Olivia Owner" content-desc="" resource-id=""/>
+   <node class="android.widget.Button" bounds="[800,1010][1020,1090]" clickable="true" text="Eliminar" content-desc="" resource-id=""/>
+  </node>
+  <node class="android.view.View" bounds="[0,0][1080,2400]" clickable="true" text="" content-desc="" resource-id=""/>
+  <node class="android.widget.TextView" bounds="[300,1200][780,1300]" clickable="false" text="¿Seguro?" content-desc="" resource-id=""/>
+ </node>
+</hierarchy>"#;
+
+    fn listed_rows(nodes: &[Node]) -> Vec<String> {
+        rows(nodes)
+            .iter()
+            .filter(|r| r.within.is_none())
+            .map(|r| format!("@{} {}", r.node.index, r.label))
+            .collect()
+    }
+
+    #[test]
+    fn a_label_its_row_already_reads_is_folded_into_it() {
+        let nodes = parse(CARDS).unwrap();
+
+        assert_eq!(
+            listed_rows(&nodes),
+            [
+                "@0 Activa las notificaciones. Activar",
+                "@3 Ver notificaciones",
+                "@5 newFixedFundCard",
+                "@6 Con meta fija. Ideal para eventos.",
+                "@9 Pozo libre. Sin límite.",
+                "@13 <View>",
+                "@14 Olivia Owner",
+                "@15 Eliminar",
+                "@16 <View>",
+                "@17 ¿Seguro?",
+            ]
+        );
+
+        let within: Vec<Option<usize>> = rows(&nodes).iter().map(|r| r.within).collect();
+        assert_eq!(within[11], Some(9), "folded through a folded row to the one listed");
+        assert_eq!(within[7], Some(6));
+    }
+
+    #[test]
+    fn a_folded_row_still_answers_to_its_name_and_index() {
+        let nodes = parse(CARDS).unwrap();
+        let bell = pick(&nodes, "Ver notificaciones").unwrap();
+
+        assert!(nodes[3].bounds.holds(bell.bounds.center()));
+        assert_eq!(pick(&nodes, "Activar").unwrap().index, 2);
+        assert_eq!(pick(&nodes, "@12").unwrap().text, "Sin límite.");
+        assert!(present(&nodes, "Con meta fija"));
+    }
+
+    #[test]
+    fn a_label_cut_off_its_row_is_not_folded() {
+        let long = "x".repeat(ROW_LIMIT);
+        let xml = CARDS.replace(
+            r#"content-desc="Activa las notificaciones. Activar""#,
+            &format!(r#"content-desc="{long} Activar""#),
+        );
+
+        assert!(listed_rows(&parse(&xml).unwrap()).contains(&"@2 Activar".to_string()));
+    }
+
+    #[test]
+    fn a_stack_trace_is_one_row() {
+        let trace = "java.net.ConnectException: Failed\n at okhttp3.a\n at okhttp3.b";
+
+        assert_eq!(row_label(trace), "java.net.ConnectException: Failed (+2 lines)");
+        assert_eq!(row_label(&"x".repeat(150)), format!("{}…", "x".repeat(100)));
+        assert_eq!(row_label("Inicio"), "Inicio");
     }
 }
