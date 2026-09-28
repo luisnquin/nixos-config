@@ -23,7 +23,7 @@ in {
     '';
 
     settings = {
-      model = "gpt-5.6-sol";
+      model = "gpt-6-sol";
       model_reasoning_effort = "medium";
 
       analytics.enabled = true;
@@ -104,9 +104,6 @@ in {
           "five-hour-limit"
           "weekly-limit"
         ];
-        model_availability_nux = {
-          "gpt-5.5" = 1;
-        };
       };
 
       features = {
@@ -122,14 +119,12 @@ in {
 
     profiles = {
       coding = {
-        personality = "pragmatic";
         features = {
           code_mode = true;
           apply_patch_freeform = true;
         };
       };
       creative = {
-        personality = "friendly";
         model_verbosity = "high";
       };
     };
