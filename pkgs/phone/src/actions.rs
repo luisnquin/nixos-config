@@ -86,7 +86,7 @@ impl Shot {
 
 /// How long a screen is given to stop changing. Past this the frames are handed
 /// over anyway: a video, a spinner or a caret blinking never settles.
-const SETTLE_LIMIT: Duration = Duration::from_secs(6);
+pub const SETTLE_LIMIT: Duration = Duration::from_secs(6);
 const SETTLE_STEP: Duration = Duration::from_millis(350);
 
 /// `screencap` and pymobiledevice3 both exit 0 on some failures, so a capture
@@ -120,7 +120,7 @@ pub async fn screenshot_after(
     deliver(device, sink, png, shot).await
 }
 
-const MOVE_LIMIT: Duration = Duration::from_secs(3);
+pub const MOVE_LIMIT: Duration = Duration::from_secs(3);
 
 /// Frames until two running are the same. Compared whole rather than by a hash
 /// of part of them, since any cheaper comparison would have to guess where the
@@ -183,31 +183,41 @@ async fn strained(server: &Server, device: &Device, rep: &Reporter) -> bool {
     !said.is_empty()
 }
 
-enum Settled {
+pub enum Settled<T> {
     Still,
-    Done(Vec<u8>),
-    Unmoved(Vec<u8>),
-    Restless(Vec<u8>),
+    Done(T),
+    Unmoved(T),
+    Restless(T),
 }
 
-struct Settling {
-    before: Option<Vec<u8>>,
-    previous: Vec<u8>,
+pub struct Settling<T> {
+    before: Option<T>,
+    previous: T,
     moved: bool,
+    same: fn(&T, &T) -> bool,
 }
 
-impl Settling {
+impl Settling<Vec<u8>> {
     fn new(before: Option<Vec<u8>>, first: Vec<u8>) -> Self {
+        Settling::with(before, first, |a, b| same(a, b))
+    }
+}
+
+impl<T: Default> Settling<T> {
+    pub fn with(before: Option<T>, first: T, same: fn(&T, &T) -> bool) -> Self {
         let moved = before.as_ref().is_none_or(|b| !same(b, &first));
 
         Settling {
             before,
             previous: first,
             moved,
+            same,
         }
     }
 
-    fn see(&mut self, next: Vec<u8>, elapsed: Duration) -> Settled {
+    pub fn see(&mut self, next: T, elapsed: Duration) -> Settled<T> {
+        let same = self.same;
+
         self.moved |= self.before.as_ref().is_some_and(|b| !same(b, &next));
 
         let still = same(&next, &self.previous);

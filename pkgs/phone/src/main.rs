@@ -1,6 +1,7 @@
 mod a11y;
 mod actions;
 mod adb;
+mod answer;
 mod apps;
 mod avd;
 mod cli;
@@ -141,7 +142,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         let want = want(positional.map(str::to_string));
         let session = Session::open(&mut reg, want.as_deref(), focus).await?;
 
-        return step(&session, command.expect("classified as a screen verb")).await;
+        return answered(&session, command.expect("classified as a screen verb")).await;
     }
 
     match command {
@@ -696,7 +697,7 @@ struct Session {
     target: a11y::Target,
     focus: Option<(i32, i32)>,
     before: RefCell<Option<Vec<u8>>>,
-    read: RefCell<Option<Vec<a11y::Node>>>,
+    read: RefCell<Option<a11y::Screen>>,
     acted: Cell<bool>,
 }
 
@@ -834,7 +835,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             let screen = a11y::dump(&s.target).await?;
 
             s.remember(&screen.nodes);
-            *s.read.borrow_mut() = Some(screen.nodes.clone());
+            *s.read.borrow_mut() = Some(screen.clone());
 
             if json {
                 print_elements_json(&screen)?;
@@ -933,7 +934,16 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 
             let t = &s.target;
 
-            wait(t, &what, gone, timeout, s.read.take().as_deref()).await
+            let prior = s.read.take();
+
+            wait(
+                t,
+                &what,
+                gone,
+                timeout,
+                prior.as_ref().map(|p| p.nodes.as_slice()),
+            )
+            .await
         }
 
         Command::Type { text } => {
@@ -997,15 +1007,135 @@ async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
         }
 
         let acts = command.acts();
+        let last = n + 1 == steps.len();
 
-        Box::pin(step(s, command))
-            .await
-            .map_err(|e| anyhow::anyhow!("step {} ({raw}): {e}", n + 1))?;
+        Box::pin(async move {
+            match last {
+                true => answered(s, command).await,
+                false => step(s, command).await,
+            }
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("step {} ({raw}): {e}", n + 1))?;
 
         s.acted.set(s.acted.get() || acts);
     }
 
     Ok(())
+}
+
+async fn answered(s: &Session, command: Command) -> Result<()> {
+    if !command.acts() {
+        return step(s, command).await;
+    }
+
+    s.read.take();
+
+    let early = match reads_first(&command) {
+        true => None,
+        false => a11y::dump(&s.target).await.ok(),
+    };
+
+    step(s, command).await?;
+
+    let Some(before) = early.or_else(|| s.read.take()) else {
+        return Ok(());
+    };
+
+    match answer::after(&s.target, &before).await {
+        Ok(change) => print_change(s, &before, &change),
+        Err(e) => eprintln!(
+            "phone: the act went through, but the screen after it could not be read: {e:#}"
+        ),
+    }
+
+    Ok(())
+}
+
+fn reads_first(command: &Command) -> bool {
+    let named = |what: &str| cli::parse_point(what).is_err();
+
+    match command {
+        Command::Tap { what, .. } | Command::Press { what, .. } => named(what),
+        Command::Swipe {
+            from, to: Some(to), ..
+        } => named(from) || named(to),
+        Command::Fill { .. } => true,
+        _ => false,
+    }
+}
+
+const APPEARED_SHOWN: usize = 15;
+const GONE_SHOWN: usize = 3;
+
+fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
+    let screen = &change.screen;
+
+    if change.how == answer::How::Unmoved {
+        println!(
+            "unchanged  no row changed within {}s; a slow result still shows up with `wait`, and `shot --grid` shows what the act hit",
+            actions::MOVE_LIMIT.as_secs()
+        );
+        return;
+    }
+
+    let still = match change.how {
+        answer::How::Restless => {
+            format!(", still changing at {}s", actions::SETTLE_LIMIT.as_secs())
+        }
+        _ => String::new(),
+    };
+
+    println!(
+        "changed    {} new, {} gone{still}",
+        change.appeared.len(),
+        change.gone.len()
+    );
+
+    if let Some(keyboard) = screen.keyboard.filter(|k| Some(*k) != before.keyboard) {
+        println!("keyboard   {}", keyboard.describe());
+    }
+
+    let all = a11y::rows(&screen.nodes);
+    let rows: Vec<&a11y::Row> = change
+        .appeared
+        .iter()
+        .take(APPEARED_SHOWN)
+        .map(|&i| &all[i])
+        .collect();
+    let nodes: Vec<&a11y::Node> = rows.iter().map(|r| r.node).collect();
+
+    let mut shown = a11y::recall(&s.view.device.id).unwrap_or_default();
+
+    for (row, index) in rows.iter().zip(answer::number(&mut shown, &nodes)) {
+        print_row(screen, row, index);
+    }
+
+    if let Err(e) = a11y::remember_rows(&s.view.device.id, &shown) {
+        eprintln!("phone: could not keep these rows for @index: {e:#}");
+    }
+
+    let more = change.appeared.len().saturating_sub(APPEARED_SHOWN);
+
+    if more > 0 {
+        println!("…          {more} more new; `phone snapshot` lists them");
+    }
+
+    let rest = match change.gone.len().saturating_sub(GONE_SHOWN) {
+        0 => String::new(),
+        n => format!(" (+{n} more)"),
+    };
+
+    if !change.gone.is_empty() {
+        let names: Vec<String> = change
+            .gone
+            .iter()
+            .take(GONE_SHOWN)
+            .map(|l| a11y::row_label(l))
+            .collect();
+
+        println!("gone       {}{rest}", names.join(" | "));
+    }
 }
 
 fn parse_step(n: usize, raw: &str) -> Result<Command> {
@@ -1113,7 +1243,7 @@ async fn find(s: &Session, what: &str) -> Result<(a11y::Screen, a11y::Node)> {
 
     loop {
         let screen = a11y::dump(&s.target).await?;
-        *s.read.borrow_mut() = Some(screen.nodes.clone());
+        *s.read.borrow_mut() = Some(screen.clone());
         let late = began.elapsed() >= APPEAR_GRACE;
 
         match s.pick(&screen, what).cloned() {
@@ -1440,21 +1570,25 @@ fn print_elements(screen: &a11y::Screen) {
     }
 
     for row in a11y::rows(&screen.nodes).iter().filter(|r| r.within.is_none()) {
-        let node = row.node;
-        let (x, y) = node.bounds.center();
-        let press = if node.clickable { "tap" } else { "   " };
-        let under = if screen.covered(node) {
-            "  under keyboard"
-        } else {
-            ""
-        };
-
-        println!(
-            "@{:<3} {press}  {:<40} {x},{y}{under}",
-            node.index,
-            a11y::row_label(&row.label)
-        );
+        print_row(screen, row, row.node.index);
     }
+}
+
+fn print_row(screen: &a11y::Screen, row: &a11y::Row, index: usize) {
+    let node = row.node;
+    let (x, y) = node.bounds.center();
+    let press = if node.clickable { "tap" } else { "   " };
+    let under = if screen.covered(node) {
+        "  under keyboard"
+    } else {
+        ""
+    };
+
+    println!(
+        "@{:<3} {press}  {:<40} {x},{y}{under}",
+        index,
+        a11y::row_label(&row.label)
+    );
 }
 
 fn print_elements_json(screen: &a11y::Screen) -> Result<()> {

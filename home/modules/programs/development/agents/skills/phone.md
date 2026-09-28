@@ -19,6 +19,12 @@ A call costs about a second; the tool round trip costs more. So:
 - Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
   call. A step is parsed like a command line, so quote multi-word names
   inside it: `"wait 'Order history'"`.
+- An act (`tap`, `press`, `swipe`, `key`, `type`, `fill`), alone or as the
+  last step of a `do`, waits for the screen to settle and prints what changed:
+  `changed N new, M gone`, the new rows with an `@index` you can use, then
+  what went; or `unchanged`. Do not follow it with `snapshot` or `wait` to
+  check. `wait` is for something slower than the settle, like a network
+  result still loading.
 - Never `sleep` between an act and a read. `wait <what>` and `shot --settle`
   return as soon as the screen catches up.
 
@@ -62,7 +68,7 @@ phone key back|home|enter|tab|…     # go back with `key back`, not a named arr
 phone wait <what> [--gone] [--timeout 15s]
 phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle] [--grid]
 phone size                          # panel size and scale
-phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
+phone do "fill Email a@b.co" "tap 'Log in'"  # the last act prints what changed
 phone record -s 5 --frames changed
 phone device list|boot|shutdown|connect|reverse 8081
 phone device net off|on [--only wifi|data]   # off then on resets stale sockets
@@ -79,7 +85,8 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
 - `snapshot` is text and usually answers the question. A full `shot` costs about
   1500 tokens; `--crop` one element, or `--scale 0.3 --jpeg 60`, costs a fraction.
 - An `@index` is refused once its element moved, so take a new snapshot after
-  the screen changes rather than guessing.
+  the screen changes rather than guessing. Rows an act printed keep the
+  numbers it gave them, alongside the last snapshot's.
 - Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
 - A label inside a row that already reads it is not listed (the gaps in the
   `@` numbers), and a nameless pressable around one label is listed by it. Tap
@@ -87,8 +94,9 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
 - Tap by name or `@index`. When only a coordinate works, take it from the
   labels `shot --grid` draws: the image you see is scaled, so a position
   estimated off it misses.
-- An act whose screen did not change says so. If the device is not short of
-  memory, the tap hit nothing; check with `shot --grid` instead of retrying.
+- `unchanged` means no row moved within 3s: the act hit nothing, or its result
+  is slow (network, low memory). Never repeat the act on that alone; `wait`
+  for the result or check with `shot --grid`.
 - `wait` passes at once when its target is already on screen, and says so.
   Wait for something the action creates, not for something already there.
 

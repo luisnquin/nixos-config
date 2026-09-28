@@ -337,7 +337,12 @@ last snapshot or refusal shown for this device, found again by what was on it;
 if that element has moved or gone the tap is refused.
 
 An element the keyboard is drawn over is refused too, since the keyboard would
-take the tap: close it with `phone key hide_keyboard`, or pass --force."#)]
+take the tap: close it with `phone key hide_keyboard`, or pass --force.
+
+Then it waits for the screen to settle and prints what changed: the rows that
+came, each with an @index a later tap takes, and the ones that went; or
+`unchanged` when nothing moved within 3s. press, swipe, type, fill and key do
+the same."#)]
     Tap {
         what: String,
 
@@ -474,8 +479,9 @@ returns the frame that was already up. Takes a name, not an @index."#)]
     },
     /// Run several screen verbs against one device, surveying once
     #[command(after_help = r#"Examples:
+  phone do "fill Email ana@example.com" "tap 'Log in'"
   phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
-  phone do -t pixel_7-api36 "swipe up --amount 0.5" "wait Calendar" "snapshot"
+  phone do -t pixel_7-api36 "swipe up --amount 0.5" "snapshot"
 
 Every invocation of `phone` surveys the hosts before it acts. `do` pays that
 once and runs each step against the same device, in one process.
@@ -483,7 +489,8 @@ once and runs each step against the same device, in one process.
 Each step is a whole command, quoted, and takes the flags it takes on its own.
 Steps run in order and stop at the first failure, which is reported with its
 number. Only verbs that read or press a screen can be sequenced, and -t/--focus
-belong on `do` rather than on a step."#)]
+belong on `do` rather than on a step. Only a last step that acts prints what it
+changed, as `tap` does; earlier ones leave that to the step after them."#)]
     Do {
         /// Each a whole command, quoted: `phone do "tap Login" "wait Inbox"`
         #[arg(required = true)]

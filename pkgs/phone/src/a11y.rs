@@ -453,7 +453,7 @@ impl Keyboard {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Screen {
     pub nodes: Vec<Node>,
     pub keyboard: Option<Keyboard>,
@@ -593,14 +593,20 @@ fn record_path(device: &str) -> PathBuf {
 }
 
 pub fn remember(device: &str, nodes: &[Node]) -> Result<()> {
+    remember_rows(
+        device,
+        &nodes.iter().map(Node::signature).collect::<Vec<_>>(),
+    )
+}
+
+pub fn remember_rows(device: &str, rows: &[Signature]) -> Result<()> {
     let path = record_path(device);
-    let rows: Vec<Signature> = nodes.iter().map(Node::signature).collect();
 
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
 
-    std::fs::write(&path, serde_json::to_vec(&rows)?)?;
+    std::fs::write(&path, serde_json::to_vec(rows)?)?;
 
     Ok(())
 }
