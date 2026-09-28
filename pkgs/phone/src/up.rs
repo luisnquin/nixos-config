@@ -102,6 +102,24 @@ impl Report {
             .chain(&self.devices)
             .all(Row::in_place)
     }
+
+    /// What `status` exits with: 0 converged, 2 drifted, 4 when every step and
+    /// `ours`, the device this shell drives, are in place and only others drifted.
+    pub fn exit(&self, ours: Option<&str>) -> i32 {
+        if self.converged() {
+            return 0;
+        }
+
+        let ready = |name: &str| {
+            self.steps.iter().all(Row::in_place)
+                && self.devices.iter().any(|r| r.name == name && r.in_place())
+        };
+
+        match ours {
+            Some(name) if ready(name) => 4,
+            _ => 2,
+        }
+    }
 }
 
 /// The level a device is at without asking the project anything: how far up the
@@ -1775,6 +1793,31 @@ mod tests {
         report.devices.push(row_of("iphone", "ready", "off"));
 
         assert!(!report.converged());
+    }
+
+    #[test]
+    fn drift_only_beside_the_driven_device_exits_apart_from_drift_on_it() {
+        let mut report = Report {
+            strays: Vec::new(),
+            memory: Vec::new(),
+            project: "p".to_string(),
+            host: None,
+            steps: vec![row_of("deps", "current", "current")],
+            devices: vec![row_of("pixel", "prepared", "prepared")],
+        };
+
+        assert_eq!(report.exit(Some("pixel")), 0);
+
+        report.devices.push(row_of("iphone", "prepared", "off"));
+
+        assert_eq!(report.exit(Some("pixel")), 4);
+        assert_eq!(report.exit(Some("iphone")), 2);
+        assert_eq!(report.exit(Some("elsewhere")), 2);
+        assert_eq!(report.exit(None), 2);
+
+        report.steps.push(row_of("bundler", "up", "down"));
+
+        assert_eq!(report.exit(Some("pixel")), 2);
     }
 
     fn shown(report: &Report) -> String {

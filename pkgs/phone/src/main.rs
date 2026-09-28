@@ -86,6 +86,23 @@ impl std::fmt::Display for Refused {
 
 impl std::error::Error for Refused {}
 
+fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
+    use std::io::Write;
+
+    let code = report.exit(ours);
+
+    if code == 0 {
+        return;
+    }
+
+    if let Some(ours) = ours.filter(|_| code == 4) {
+        eprintln!("phone: {ours} is in place; only other declared devices drifted (`status -t {ours}` checks it alone)");
+    }
+
+    std::io::stdout().flush().ok();
+    std::process::exit(code);
+}
+
 async fn dispatch(cli: Cli) -> Result<()> {
     if let Some(Command::Completions { shell }) = cli.command {
         let mut cmd = Cli::command();
@@ -176,14 +193,12 @@ async fn dispatch(cli: Cli) -> Result<()> {
                 false => up::print(&report),
             }
 
-            // this verb exists to be branched on — `phone status || phone up` —
-            // so drift has to leave through the exit code rather than the report
-            if !report.converged() {
-                use std::io::Write;
+            let ours = want(None)
+                .or_else(|| std::env::var("PHONE_TARGET").ok())
+                .filter(|s| !s.is_empty())
+                .or(project.manifest.default);
 
-                std::io::stdout().flush().ok();
-                std::process::exit(2);
-            }
+            exit_on_drift(&report, ours.as_deref());
 
             Ok(())
         }

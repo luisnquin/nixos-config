@@ -190,10 +190,13 @@ goes straight to the app."#)]
   phone status
   phone status --json
   phone status --profile e2e
+  phone status -t pixel_7-api36   # that device and the project steps alone
 
 Reads and changes nothing. Exits 0 when everything declared is where it was
 declared to be and non-zero when anything has drifted, which is what lets a test
-script gate on one command: `phone status || phone up`.
+script gate on one command: `phone status || phone up`. Exit 2 is drift on the
+device commands here drive (-t, PHONE_TARGET, else the phone.toml default) or on
+a step; exit 4 means that device is in place and only other declared ones are not.
 
 A `!` in the first column marks the rows that differ, and a device running that
 the manifest never declared is listed under them.
