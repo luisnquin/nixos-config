@@ -1470,7 +1470,24 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 /// and none names the fix. The survey that finds the device already knows, so
 /// it is answered here once, in the name it was asked in.
 async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
-    let views = survey(reg).await;
+    let named = want
+        .map(str::to_string)
+        .or_else(|| std::env::var("PHONE_TARGET").ok())
+        .filter(|s| !s.is_empty())
+        .or_else(preferred);
+
+    let views = match &named {
+        Some(w) => {
+            discover::survey_until(reg, |views| {
+                views
+                    .iter()
+                    .any(|v| v.device.is(w) && actions::running(&v.reach))
+            })
+            .await
+        }
+        None => survey(reg).await,
+    };
+
     reg.save()?;
 
     let view = choose(&views, reg, want, prefer_recent, Aim::Running).await?;

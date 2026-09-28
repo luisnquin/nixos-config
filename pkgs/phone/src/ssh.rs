@@ -23,7 +23,7 @@ pub fn command(host: &str) -> Command {
     let mut cmd = Command::new("ssh");
 
     cmd.args(["-o", "BatchMode=yes", "-o", "ConnectTimeout=5"]);
-    cmd.args(["-o", "ControlMaster=auto", "-o", "ControlPersist=60"]);
+    cmd.args(["-o", "ControlMaster=auto", "-o", "ControlPersist=600"]);
     cmd.arg("-o")
         .arg(format!("ControlPath={}", control_path().display()));
     cmd.arg(host);

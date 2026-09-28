@@ -217,6 +217,12 @@ pub async fn survey(reg: &mut Registry) -> Vec<View> {
     scan(reg, |_| {}).await
 }
 
+/// Stops at the first answer `enough` accepts: once the named device is found,
+/// the other hosts only matter to a picker.
+pub async fn survey_until(reg: &mut Registry, enough: impl Fn(&[View]) -> bool) -> Vec<View> {
+    scan_until(reg, |_| {}, enough).await
+}
+
 const ARRIVAL: Duration = Duration::from_secs(20);
 
 pub async fn arrived(reg: &mut Registry, booted: &[Device]) -> Vec<View> {
@@ -252,7 +258,15 @@ pub fn landed(view: &View, booted: &Device) -> bool {
     }
 }
 
-pub async fn scan(reg: &mut Registry, mut on: impl FnMut(Snapshot)) -> Vec<View> {
+pub async fn scan(reg: &mut Registry, on: impl FnMut(Snapshot)) -> Vec<View> {
+    scan_until(reg, on, |_| false).await
+}
+
+async fn scan_until(
+    reg: &mut Registry,
+    mut on: impl FnMut(Snapshot),
+    enough: impl Fn(&[View]) -> bool,
+) -> Vec<View> {
     let states: Vec<HostState> = reg.enabled_hosts().into_iter().cloned().collect();
 
     let mut pending: Vec<String> = std::iter::once(LOCAL.to_string())
@@ -299,6 +313,10 @@ pub async fn scan(reg: &mut Registry, mut on: impl FnMut(Snapshot)) -> Vec<View>
             views: views.clone(),
             pending: pending.clone(),
         });
+
+        if enough(&views) {
+            return views;
+        }
     }
 
     views
