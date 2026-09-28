@@ -681,19 +681,7 @@ pub fn pick_in<'a>(
             .get(index)
             .ok_or_else(|| anyhow!("no element @{index} in the last snapshot"))?;
 
-        return found(nodes, row).ok_or_else(|| {
-            let name = [&row.text, &row.desc, &row.res_id]
-                .into_iter()
-                .find(|s| !s.is_empty())
-                .cloned()
-                .unwrap_or_else(|| {
-                    format!("<{}>", row.class.rsplit('.').next().unwrap_or_default())
-                });
-
-            anyhow!(
-                "@{index} ({name}) is no longer where the last snapshot saw it; take a new snapshot"
-            )
-        });
+        return found(nodes, row).ok_or_else(|| moved(nodes, index, row));
     }
 
     let hits: Vec<&Node> = nodes.iter().filter(|n| n.matches(needle)).collect();
@@ -733,6 +721,30 @@ pub fn pick_in<'a>(
             ))
             .into())
         }
+    }
+}
+
+/// Pointed at by name rather than by a fresh `@index`: renumbering the kept rows
+/// here would silently re-aim every other index the caller still holds.
+fn moved(nodes: &[Node], index: usize, row: &Signature) -> anyhow::Error {
+    let same = |n: &Node| {
+        (&n.res_id, &n.class, &n.text, &n.desc) == (&row.res_id, &row.class, &row.text, &row.desc)
+    };
+
+    match [&row.text, &row.desc, &row.res_id]
+        .into_iter()
+        .find(|s| !s.is_empty())
+    {
+        Some(name) if pick_in(nodes, name, None).is_ok_and(same) => {
+            anyhow!("@{index} ({name}) moved; it is still on screen, name it '{name}' instead")
+        }
+        name => anyhow!(
+            "@{index} ({}) is no longer where the last snapshot saw it; take a new snapshot",
+            name.cloned().unwrap_or_else(|| format!(
+                "<{}>",
+                row.class.rsplit('.').next().unwrap_or_default()
+            ))
+        ),
     }
 }
 
@@ -1644,6 +1656,22 @@ mod tests {
         let err = pick_in(&scrolled, "@3", Some(&shown))
             .unwrap_err()
             .to_string();
+        assert_eq!(
+            err,
+            "@3 (Continue) moved; it is still on screen, name it 'Continue' instead"
+        );
+
+        let twice = parse(
+            &FORM
+                .replace("[80,1820][600,1930]", "[80,1620][600,1730]")
+                .replace(
+                    r#"text="Continue" "#,
+                    r#"text="Continue"/><node class="android.widget.TextView" bounds="[80,2000][600,2100]" text="Continue" "#,
+                ),
+        )
+        .unwrap();
+
+        let err = pick_in(&twice, "@3", Some(&shown)).unwrap_err().to_string();
         assert!(err.contains("@3 (Continue) is no longer where"), "{err}");
 
         let err = pick_in(&scrolled, "@7", Some(&shown))
