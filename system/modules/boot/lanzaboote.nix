@@ -5,6 +5,8 @@
 }: {
   environment.systemPackages = [pkgs.sbctl];
 
+  systemd.services.systemd-bless-boot.enable = false;
+
   # lanzaboote installs its own copy of systemd-boot; the stock installer
   # would race it for the ESP. consoleMode still flows into its loader.conf
   boot.loader.systemd-boot = {
