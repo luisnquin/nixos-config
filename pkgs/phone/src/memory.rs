@@ -601,11 +601,16 @@ pub struct Guest {
     pub ram: u64,
     pub swap_total: u64,
     pub swap_used: u64,
+    pub paged_in: u64,
 }
+
+/// Pages read back from swap in the second sampled: swap in use stays after a
+/// shortage has passed, pages coming back mean the guest is short now.
+const THRASHING: u64 = 256;
 
 impl Guest {
     pub fn heavy(&self) -> bool {
-        self.swap_total > 0 && self.swap_used * 2 >= self.swap_total
+        self.paged_in >= THRASHING
     }
 }
 
@@ -617,14 +622,27 @@ fn guest_of(text: &str) -> Option<Guest> {
         ram: f.get("MemTotal")? * 1024,
         swap_total,
         swap_used: swap_total.saturating_sub(f.get("SwapFree")? * 1024),
+        paged_in: match text
+            .lines()
+            .filter_map(|l| l.strip_prefix("pswpin ")?.trim().parse::<u64>().ok())
+            .collect::<Vec<_>>()[..]
+        {
+            [first, second] => second.saturating_sub(first),
+            _ => 0,
+        },
     })
 }
 
 pub async fn guest(server: &Server, serial: &str) -> Option<Guest> {
     let out = adb::run_timeout(
         server,
-        &["-s", serial, "shell", "cat", "/proc/meminfo"],
-        Duration::from_secs(6),
+        &[
+            "-s",
+            serial,
+            "shell",
+            "cat /proc/meminfo; grep pswpin /proc/vmstat; sleep 1; grep pswpin /proc/vmstat",
+        ],
+        Duration::from_secs(7),
     )
     .await
     .ok()?;
@@ -634,7 +652,8 @@ pub async fn guest(server: &Server, serial: &str) -> Option<Guest> {
 
 pub fn swapping(label: &str, guest: &Guest) -> String {
     format!(
-        "{label} is swapping: {:.1} of {:.1} GB of guest swap in use on {:.1} GB of RAM; it takes taps and may never act on them",
+        "{label} is thrashing: {:.1} MB/s paged back in from swap, {:.1} of {:.1} GB of guest swap in use on {:.1} GB of RAM; it takes taps and may never act on them",
+        guest.paged_in as f64 * 4096.0 / 1e6,
         gb(guest.swap_used),
         gb(guest.swap_total),
         gb(guest.ram)
@@ -755,17 +774,18 @@ SwapFree:              0 kB
     }
 
     #[test]
-    fn a_guest_half_way_into_its_swap_is_heavy() {
-        let text = "MemTotal: 2014000 kB\nSwapTotal: 1510000 kB\nSwapFree: 250000 kB\n";
+    fn a_guest_paging_swap_back_in_is_heavy() {
+        let text = "MemTotal: 2014000 kB\nSwapTotal: 1510000 kB\nSwapFree: 250000 kB\npswpin 1000\npswpin 3000\n";
         let guest = guest_of(text).unwrap();
 
         assert_eq!(guest.swap_used, 1_260_000 * 1024);
+        assert_eq!(guest.paged_in, 2000);
         assert!(guest.heavy());
 
-        let light = "MemTotal: 2014000 kB\nSwapTotal: 1510000 kB\nSwapFree: 1400000 kB\n";
+        let settled = "MemTotal: 2014000 kB\nSwapTotal: 1510000 kB\nSwapFree: 250000 kB\npswpin 1000\npswpin 1004\n";
         let none = "MemTotal: 2014000 kB\nSwapTotal: 0 kB\nSwapFree: 0 kB\n";
 
-        assert!(!guest_of(light).unwrap().heavy());
+        assert!(!guest_of(settled).unwrap().heavy());
         assert!(!guest_of(none).unwrap().heavy());
     }
 
