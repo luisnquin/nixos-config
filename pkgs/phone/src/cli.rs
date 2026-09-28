@@ -467,10 +467,8 @@ returns the frame that was already up. Takes a name, not an @index."#)]
   phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
   phone do -t pixel_7-api36 "swipe up --amount 0.5" "wait Calendar" "snapshot"
 
-Every invocation of `phone` surveys the hosts before it acts, which costs around
-eight seconds whatever the verb is. `do` pays that once and runs each step
-against the same device, so three steps cost eight seconds rather than
-twenty-four.
+Every invocation of `phone` surveys the hosts before it acts. `do` pays that
+once and runs each step against the same device, in one process.
 
 Each step is a whole command, quoted, and takes the flags it takes on its own.
 Steps run in order and stop at the first failure, which is reported with its

@@ -9,14 +9,15 @@ a hand-rolled `nohup emulator &` does not.
 This page is enough to work without `phone --help`. Reach for
 `phone help <verb>` only when a flag below is not enough.
 
-## Every call costs ~8 s
+## Keep calls few
 
-Each invocation surveys all hosts before acting. So:
+A call costs about a second; the tool round trip costs more. So:
 
 - Run `phone device list` once, then `export PHONE_TARGET=<name>`. Every later
   call skips the choice.
 - Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
-  call.
+  call. A step is parsed like a command line, so quote multi-word names
+  inside it: `"wait 'Order history'"`.
 - Never `sleep` between an act and a read. `wait <what>` and `shot --settle`
   return as soon as the screen catches up.
 
@@ -43,7 +44,8 @@ usually reusing a device that is already running. Do not pass `--take` or
 
 In a repo with `phone.toml`, run `phone up` first. It boots, forwards ports,
 installs a fresh build and opens the app, doing only what is missing, and is
-safe to repeat. `phone status` checks without changing anything.
+safe to repeat. It returns once the app itself is on screen, or fails with the
+dev client's error. `phone status` checks without changing anything.
 
 ## Verbs
 
@@ -56,7 +58,7 @@ phone type "text"                   # into whatever has focus
 phone fill <field> "text"           # focus, clear, type, read back
 phone key back|home|enter|tab|…
 phone wait <what> [--gone] [--timeout 15s]
-phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle]
+phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle] [--grid]
 phone size                          # panel size and scale
 phone do "tap 'Log in'" "wait Inbox" "shot --settle --crop Inbox"
 phone record -s 5 --frames changed
@@ -77,6 +79,11 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
 - An `@index` is refused once its element moved, so take a new snapshot after
   the screen changes rather than guessing.
 - Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
+- Tap by name or `@index`. When only a coordinate works, take it from the
+  labels `shot --grid` draws: the image you see is scaled, so a position
+  estimated off it misses.
+- An act whose screen did not change says so. If the device is not short of
+  memory, the tap hit nothing; check with `shot --grid` instead of retrying.
 - `wait` passes at once when its target is already on screen, and says so.
   Wait for something the action creates, not for something already there.
 
