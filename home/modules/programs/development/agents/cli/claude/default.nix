@@ -77,7 +77,7 @@ in {
         "Reminder: you're in solo mode"
       ];
 
-      includeCoAuthoredBy = false;
+      attribution = false;
       skipDangerousModePermissionPrompt = true;
 
       statusLine = {
