@@ -169,7 +169,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             json,
         }) => {
             let project = declared()?;
-            let report = up::status(&mut reg, &project, profile.as_deref()).await?;
+            let report = up::status(&mut reg, &project, profile.as_deref(), want(None).as_deref()).await?;
 
             match json {
                 true => println!("{}", serde_json::to_string_pretty(&report)?),

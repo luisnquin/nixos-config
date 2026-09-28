@@ -936,7 +936,102 @@ async fn prepared(
         );
     }
 
-    Ok(())
+    loaded(view, name).await
+}
+
+/// What a development client shows in place of the app when the bundle does not
+/// arrive; the launch and the link both succeed either way.
+const FAILED: [&str; 5] = [
+    "There was a problem loading the project",
+    "Could not connect to development server",
+    "Unable to load script",
+    "Unable to resolve module",
+    "Development servers",
+];
+const LOADING: [&str; 3] = ["Bundling", "Downloading", "Loading from"];
+const LOAD_LIMIT: Duration = Duration::from_secs(120);
+const STUCK_LIMIT: Duration = Duration::from_secs(10);
+
+#[derive(Debug, PartialEq)]
+enum Front {
+    Loading,
+    Shown,
+    Failed(String),
+}
+
+fn front(nodes: &[crate::a11y::Node]) -> Front {
+    let named = |marks: &[&str]| {
+        nodes
+            .iter()
+            .map(|n| n.name())
+            .find(|name| marks.iter().any(|m| name.contains(m)))
+            .map(str::to_string)
+    };
+
+    match (named(&FAILED), named(&LOADING)) {
+        (Some(said), _) => Front::Failed(said),
+        (None, Some(_)) => Front::Loading,
+        (None, None) => Front::Shown,
+    }
+}
+
+async fn loaded(view: &View, name: &str) -> Result<()> {
+    if view.device.platform.is_hosted() {
+        return Ok(());
+    }
+
+    let t = crate::target_of(view, None).await?;
+    let began = std::time::Instant::now();
+    let mut failing = None;
+    let mut shown = false;
+
+    loop {
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+
+        let now = crate::a11y::dump(&t)
+            .await
+            .map_or(Front::Loading, |screen| front(&screen.nodes));
+
+        match &now {
+            Front::Shown if shown => {
+                eprintln!("phone: {name} is showing the app");
+                return Ok(());
+            }
+            Front::Failed(said) => {
+                if failing.get_or_insert_with(std::time::Instant::now).elapsed() >= STUCK_LIMIT {
+                    bail!(
+                        "{name} is not showing the app, it is stuck on \"{said}\"; \
+                         is the bundler up and reachable from the device?"
+                    );
+                }
+            }
+            _ => failing = None,
+        }
+
+        shown = now == Front::Shown;
+
+        if began.elapsed() >= LOAD_LIMIT {
+            bail!("{name} did not finish loading the app in {}s", LOAD_LIMIT.as_secs());
+        }
+    }
+}
+
+fn declared_only<'a>(
+    project: &'a Project,
+    profile: Option<&str>,
+    only: Option<&str>,
+) -> Result<Vec<(&'a str, &'a Spec)>> {
+    let mut declared = project.devices(profile)?;
+
+    if let Some(only) = only {
+        declared.retain(|(name, _)| *name == only);
+
+        if declared.is_empty() {
+            bail!("{only} is not among the devices {} declares", crate::project::FILE);
+        }
+    }
+
+    Ok(declared)
 }
 
 /// Reads what is there against what was declared, without changing any of it.
@@ -944,10 +1039,10 @@ pub async fn status(
     reg: &mut Registry,
     project: &Project,
     profile: Option<&str>,
+    only: Option<&str>,
 ) -> Result<Report> {
     let (site, stamps) = Site::of(Where::of(project.host()), project.dir()).await?;
-    let declared = project.devices(profile)?;
-
+    let declared = declared_only(project, profile, only)?;
     let mut steps = Vec::new();
 
     if let Some(task) = &project.manifest.deps {
@@ -1032,7 +1127,10 @@ pub async fn status(
         host: project.host().map(str::to_string),
         steps,
         devices,
-        strays: strays(&views, project),
+        strays: match only {
+            Some(_) => Vec::new(),
+            None => strays(&views, project),
+        },
         memory,
     })
 }
@@ -1762,5 +1860,25 @@ mod tests {
 
         assert_eq!(project.devices(Some("android")).unwrap().len(), 1);
         assert!(strays(&views, &project).is_empty());
+    }
+
+    fn screen(texts: &[&str]) -> Vec<crate::a11y::Node> {
+        let nodes: String = texts
+            .iter()
+            .map(|t| format!(r#"<node text="{t}" class="android.widget.TextView" bounds="[0,0][10,10]"/>"#))
+            .collect();
+
+        crate::a11y::parse(&format!("<hierarchy>{nodes}</hierarchy>")).unwrap()
+    }
+
+    #[test]
+    fn a_dev_client_that_never_got_its_bundle_is_not_the_app() {
+        assert_eq!(
+            front(&screen(&["Could not connect to development server."])),
+            Front::Failed("Could not connect to development server.".into())
+        );
+        assert_eq!(front(&screen(&["Development servers"])), Front::Failed("Development servers".into()));
+        assert_eq!(front(&screen(&["Bundling 42%"])), Front::Loading);
+        assert_eq!(front(&screen(&["Operaciones en curso"])), Front::Shown);
     }
 }
