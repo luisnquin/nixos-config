@@ -93,7 +93,7 @@ fn ambiguity(views: &[View]) -> String {
 
     format!(
         "{} devices match, and there is no terminal to choose on; \
-         name one by the id on the left, or set PHONE_TARGET:\n{}",
+         pass -t with the id on the left:\n{}",
         views.len(),
         rows.join("\n")
     )

@@ -84,7 +84,9 @@ Naming things
   `default` a project's phone.toml names, and that beats the machine-wide
   default set by `phone device use`. A name matches on text, model, host or
   alias, and an ambiguous one is refused with the candidates listed rather than
-  guessed at.
+  guessed at. Inside a project whose phone.toml names a default, pass nothing.
+  Export PHONE_TARGET in the running shell only, never in a shell rc file: it
+  would outlive the task and retarget every later session.
 
   @index names a row of the last snapshot printed for that device. It is found
   again by what was on that row, and refused once the element has moved or gone,
