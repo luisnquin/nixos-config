@@ -54,6 +54,8 @@ in
 
     cargoLock.lockFile = ./Cargo.lock;
 
+    PHONE_DUMP_DEX = callPackage ./dump {};
+
     nativeBuildInputs = [installShellFiles makeWrapper];
 
     postInstall = ''

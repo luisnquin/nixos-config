@@ -472,9 +472,58 @@ pub async fn dump(t: &Target) -> Result<Screen> {
     Err(last.expect("the loop runs at least once"))
 }
 
+struct Reader {
+    local: &'static str,
+    remote: String,
+}
+
+fn reader() -> Option<Reader> {
+    let local = option_env!("PHONE_DUMP_DEX")?;
+    let sum = std::fs::read(local)
+        .ok()?
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3));
+
+    Some(Reader {
+        local,
+        remote: format!("/data/local/tmp/phone-dump-{sum:016x}.dex"),
+    })
+}
+
+const NO_READER: &str = "phone:no-reader";
+
 async fn dump_once(a: &Adb) -> Result<Screen> {
+    if let Some(reader) = reader().filter(|_| a.display.is_none_or(|d| d.logical == 0)) {
+        if let Ok(screen) = read_with(a, &reader).await {
+            return Ok(screen);
+        }
+    }
+
     let remote = format!("{}{DUMP}; {KEYBOARD}; {READ}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
+
+    read_dump(ok, &String::from_utf8_lossy(&bytes))
+}
+
+async fn read_with(a: &Adb, reader: &Reader) -> Result<Screen> {
+    let run = |prefix: String| {
+        format!(
+            "{prefix}{KEYBOARD}; if [ -f {0} ]; then CLASSPATH={0} app_process /system/bin PhoneDump 2>/dev/null; \
+             else echo {NO_READER}; fi",
+            reader.remote
+        )
+    };
+
+    let (mut ok, mut bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(a.prefix())]).await?;
+
+    if String::from_utf8_lossy(&bytes).contains(NO_READER) {
+        let pushed = adb::run(&a.server, &["-s", &a.serial, "push", reader.local, &reader.remote]).await?;
+        if !pushed.ok() {
+            bail!("pushing the screen reader: {}", pushed.stderr.trim());
+        }
+
+        (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(String::new())]).await?;
+    }
 
     read_dump(ok, &String::from_utf8_lossy(&bytes))
 }
