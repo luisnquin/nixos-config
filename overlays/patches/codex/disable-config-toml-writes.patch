@@ -1,42 +1,96 @@
 diff --git a/core/src/config/edit.rs b/core/src/config/edit.rs
-index 82ad54d..348c01a 100644
+index 82ad54d..3468e6b 100644
 --- a/core/src/config/edit.rs
 +++ b/core/src/config/edit.rs
-@@ -743,6 +743,9 @@ fn apply_blocking_to_resolved_file(
+@@ -743,6 +743,10 @@ fn apply_blocking_to_resolved_file(
      }
  
      let write_paths = resolve_symlink_write_paths(resolved_config_file)?;
 +    if write_paths.write_path.starts_with("/nix/store") {
-+        return record_pending_edits(resolved_config_file, edits);
++        let owned_config = write_paths.read_path.as_deref().unwrap_or(&write_paths.write_path);
++        return record_pending_edits(resolved_config_file, owned_config, edits);
 +    }
      let serialized = match write_paths.read_path {
          Some(path) => match std::fs::read_to_string(&path) {
              Ok(contents) => contents,
-@@ -779,6 +782,41 @@ fn apply_blocking_to_resolved_file(
+@@ -779,6 +783,94 @@ fn apply_blocking_to_resolved_file(
      Ok(())
  }
  
 +const PENDING_CONFIG_FILE: &str = "config.pending.toml";
 +const PENDING_CONFIG_HEADER: &str = "# Codex tried to write these to config.toml, which Nix owns.\n# Declare them in programs.codex.settings, then delete this file.\n\n";
 +
-+fn record_pending_edits(config_file: &Path, edits: &[ConfigEdit]) -> anyhow::Result<()> {
-+    let pending_path = config_file.with_file_name(PENDING_CONFIG_FILE);
-+    let serialized = match std::fs::read_to_string(&pending_path) {
-+        Ok(contents) => contents,
-+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
-+        Err(err) => return Err(err.into()),
-+    };
++fn read_toml_or_empty(path: &Path) -> anyhow::Result<DocumentMut> {
++    match std::fs::read_to_string(path) {
++        Ok(contents) => Ok(contents.parse::<DocumentMut>()?),
++        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(DocumentMut::new()),
++        Err(err) => Err(err.into()),
++    }
++}
 +
-+    let mut document = ConfigDocument::new(serialized.parse::<DocumentMut>()?);
++fn normalized_item(item: &TomlItem) -> Option<toml::Value> {
++    let mut doc = DocumentMut::new();
++    doc.insert("v", item.clone());
++    toml::from_str::<toml::Table>(&doc.to_string()).ok()?.remove("v")
++}
++
++fn diff_tables(base: &TomlTable, next: &TomlTable, delta: &mut TomlTable) {
++    for (key, item) in next.iter() {
++        match (base.get(key), item) {
++            (Some(TomlItem::Table(base_table)), TomlItem::Table(next_table)) => {
++                let mut nested = TomlTable::new();
++                nested.set_implicit(true);
++                diff_tables(base_table, next_table, &mut nested);
++                if !nested.is_empty() {
++                    delta.insert(key, TomlItem::Table(nested));
++                }
++            }
++            (Some(base_item), _) if normalized_item(base_item) == normalized_item(item) => {}
++            _ => {
++                delta.insert(key, item.clone());
++            }
++        }
++    }
++}
++
++fn merge_tables(target: &mut TomlTable, delta: &TomlTable) {
++    for (key, item) in delta.iter() {
++        if let TomlItem::Table(delta_table) = item
++            && let Some(TomlItem::Table(target_table)) = target.get_mut(key)
++        {
++            merge_tables(target_table, delta_table);
++            continue;
++        }
++        target.insert(key, item.clone());
++    }
++}
++
++fn record_pending_edits(
++    config_file: &Path,
++    owned_config: &Path,
++    edits: &[ConfigEdit],
++) -> anyhow::Result<()> {
++    let owned = read_toml_or_empty(owned_config)?;
++    let mut next = ConfigDocument::new(owned.clone());
 +    let mut mutated = false;
 +    for edit in edits {
-+        mutated |= document.apply(edit)?;
++        mutated |= next.apply(edit)?;
 +    }
 +    if !mutated {
 +        return Ok(());
 +    }
 +
-+    let body = document.doc.to_string();
++    let mut delta = TomlTable::new();
++    diff_tables(owned.as_table(), next.doc.as_table(), &mut delta);
++    if delta.is_empty() {
++        return Ok(());
++    }
++
++    let pending_path = config_file.with_file_name(PENDING_CONFIG_FILE);
++    let mut pending = read_toml_or_empty(&pending_path)?;
++    merge_tables(pending.as_table_mut(), &delta);
++
++    let body = pending.to_string();
 +    let contents = if body.starts_with(PENDING_CONFIG_HEADER) {
 +        body
 +    } else {
