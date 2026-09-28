@@ -81,9 +81,10 @@ What to know before scripting it
 Naming things
 
   -t <name> targets one command and PHONE_TARGET a whole shell; both beat the
-  default set by `phone device use`, and that beats the `default` a project's
-  phone.toml names. A name matches on text, model, host or alias, and an
-  ambiguous one is refused with the candidates listed rather than guessed at.
+  `default` a project's phone.toml names, and that beats the machine-wide
+  default set by `phone device use`. A name matches on text, model, host or
+  alias, and an ambiguous one is refused with the candidates listed rather than
+  guessed at.
 
   @index names a row of the last snapshot printed for that device. It is found
   again by what was on that row, and refused once the element has moved or gone,
@@ -700,8 +701,8 @@ sweep on every later connect. Does not survive a reboot of the device."#)]
   phone device use                # settle on the default already in force
 
 Set once at the start of a session rather than passing -t to every command. A
--t or PHONE_TARGET on a single command still wins over it, and this wins over
-the `default` a project's phone.toml names."#)]
+-t or PHONE_TARGET on a single command still wins over it, and so does the
+`default` a project's phone.toml names, inside that project."#)]
     Use {
         #[arg(id = "device")]
         target: Option<String>,

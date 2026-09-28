@@ -636,10 +636,10 @@ fn declared() -> Result<Project> {
     })
 }
 
-/// The device a project would rather have, for when nothing typed and nothing
-/// remembered names one. A manifest that does not parse reads as no preference
-/// at all: `phone up` is where that is reported, and a broken file has no
-/// business taking the screen verbs down with it.
+/// The device a project would rather have, for when nothing typed names one. A
+/// manifest that does not parse reads as no preference at all: `phone up` is
+/// where that is reported, and a broken file has no business taking the screen
+/// verbs down with it.
 fn preferred() -> Option<String> {
     Project::here().ok().flatten()?.manifest.default
 }
@@ -1604,8 +1604,8 @@ fn untargeted(candidates: &[View], reg: &Registry, prefer_recent: bool) -> Optio
         .as_ref()
         .and_then(|id| candidates.iter().find(|v| v.device.id == *id));
 
-    // the weakest claim of the four: a project names a device it prefers,
-    // and anything typed or anything remembered overrules it
+    // a project names the device it prefers, and only a typed name overrules
+    // it: what is remembered is one machine-wide choice every agent shares
     let named = || preferred().and_then(|name| candidates.iter().find(|v| v.device.is(&name)));
 
     let recent = || {
@@ -1616,7 +1616,7 @@ fn untargeted(candidates: &[View], reg: &Registry, prefer_recent: bool) -> Optio
             .max_by_key(|v| v.device.last_connected.unwrap_or(0))
     };
 
-    current.or_else(named).or_else(recent).cloned()
+    named().or(current).or_else(recent).cloned()
 }
 
 fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
