@@ -20,7 +20,6 @@ args @ {
   '';
 
   startupBody = ''
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("${waybarRestart}")
     ${tmuxDrop.startupBody}
   '';
