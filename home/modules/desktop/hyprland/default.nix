@@ -10,7 +10,7 @@ args @ {
   tmuxDrop = import ./drop.nix {inherit pkgs lib;} {
     name = "ghostty-tmux";
     class = "ghostty.tmux";
-    command = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux";
+    command = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux -e ${lib.getExe pkgs.tmux} new-session -A -s drop";
   };
 
   waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''

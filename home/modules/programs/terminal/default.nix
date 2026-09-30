@@ -22,7 +22,7 @@
   # gateway).
   programs.zsh.initContent = lib.mkOrder 510 ''
     if [[ -z "$TMUX" && -z "''${HERDR_ENV:-}" && -z "''${SSH_CONNECTION:-}" && "$TERM_PROGRAM" != "vscode" && "$USER" != "root" ]]; then
-      orphan=$(${lib.getExe pkgs.tmux} list-sessions -f '#{==:#{session_attached},0}' -F '#{session_name}' 2>/dev/null | head -1)
+      orphan=$(${lib.getExe pkgs.tmux} list-sessions -f '#{&&:#{==:#{session_attached},0},#{!=:#{session_name},drop}}' -F '#{session_name}' 2>/dev/null | head -1)
       if [[ -n "$orphan" ]]; then
         exec ${lib.getExe pkgs.tmux} attach-session -t "$orphan"
       else
