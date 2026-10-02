@@ -32,7 +32,7 @@ rustPlatform.buildRustPackage {
     # The name the controlling host looks for. `phone` on that host is the
     # CLI itself now, which is what drives this one.
     mainProgram = "phone-receiver";
-    license = lib.licenses.asl20;
+    license = with lib.licenses; [asl20 mit];
     platforms = ["aarch64-darwin"];
     sourceProvenance = [lib.sourceTypes.fromSource];
   };
