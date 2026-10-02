@@ -1,21 +1,44 @@
+diff --git a/tui/src/lib.rs b/tui/src/lib.rs
+--- a/tui/src/lib.rs
++++ b/tui/src/lib.rs
+@@ -180,6 +180,7 @@
+ mod named_session_lookup;
+ mod notifications;
+ #[cfg(any(not(debug_assertions), test))]
++#[allow(dead_code)]
+ mod npm_registry;
+ pub(crate) mod onboarding;
+ mod oss_selection;
+@@ -243,7 +244,9 @@
+ #[cfg(not(debug_assertions))]
+ pub use update_action::get_update_action;
+ mod update_prompt;
++#[allow(dead_code)]
+ mod update_versions;
++#[allow(dead_code)]
+ mod updates;
+ #[cfg(any(not(debug_assertions), test))]
+ mod updates_cache;
 diff --git a/tui/src/updates.rs b/tui/src/updates.rs
 --- a/tui/src/updates.rs
 +++ b/tui/src/updates.rs
-@@ -6,55 +6,22 @@ use crate::npm_registry::NpmPackageInfo;
- use crate::update_action;
+@@ -3,15 +3,10 @@
+ use crate::legacy_core::config::Config;
+ use crate::npm_registry;
+ use crate::npm_registry::NpmPackageInfo;
+-use crate::update_action;
  use crate::update_action::UpdateAction;
  use crate::update_versions::extract_version_from_latest_tag;
 -use crate::update_versions::is_newer;
 -use crate::update_versions::is_source_build_version;
  use crate::updates_cache::VersionInfo;
  use crate::updates_cache::read_version_info;
- use crate::updates_cache::version_filepath;
+-use crate::updates_cache::version_filepath;
 -use chrono::Duration;
  use chrono::Utc;
  use codex_http_client::ClientRouteClass;
  use codex_http_client::HttpClientFactory;
- use codex_http_client::RouteAwareClientPool;
- use codex_login::default_client::default_headers;
+@@ -20,41 +15,11 @@
  use serde::Deserialize;
  use std::path::Path;
  
@@ -59,7 +82,7 @@ diff --git a/tui/src/updates.rs b/tui/src/updates.rs
  }
  
  // We use the latest version from the cask if installation is via homebrew - homebrew does not immediately pick up the latest release and can lag behind.
-@@ -128,17 +96,6 @@ async fn fetch_latest_github_release_version() -> anyhow::Result<String> {
+@@ -150,17 +115,6 @@
  /// Returns the latest version to show in a popup, if it should be shown.
  /// This respects the user's dismissal choice for the current latest version.
  pub fn get_upgrade_version_for_popup(config: &Config) -> Option<String> {

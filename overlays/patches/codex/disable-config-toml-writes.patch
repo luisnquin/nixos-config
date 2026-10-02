@@ -1,8 +1,7 @@
 diff --git a/core/src/config/edit.rs b/core/src/config/edit.rs
-index 82ad54d..3468e6b 100644
 --- a/core/src/config/edit.rs
 +++ b/core/src/config/edit.rs
-@@ -743,6 +743,10 @@ fn apply_blocking_to_resolved_file(
+@@ -737,6 +737,10 @@
      }
  
      let write_paths = resolve_symlink_write_paths(resolved_config_file)?;
@@ -13,7 +12,7 @@ index 82ad54d..3468e6b 100644
      let serialized = match write_paths.read_path {
          Some(path) => match std::fs::read_to_string(&path) {
              Ok(contents) => contents,
-@@ -779,6 +783,94 @@ fn apply_blocking_to_resolved_file(
+@@ -773,6 +777,94 @@
      Ok(())
  }
  
@@ -109,19 +108,18 @@ index 82ad54d..3468e6b 100644
  #[derive(Default)]
  pub struct ConfigEditsBuilder {
 diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
-index 7a50e6d..293ea77 100644
 --- a/tui/src/config_update.rs
 +++ b/tui/src/config_update.rs
-@@ -18,6 +18,8 @@ use codex_app_server_protocol::MergeStrategy;
+@@ -18,6 +18,8 @@
  use codex_app_server_protocol::RequestId;
  use codex_app_server_protocol::SkillsConfigWriteParams;
  use codex_app_server_protocol::SkillsConfigWriteResponse;
 +use codex_app_server_protocol::WriteStatus;
 +use codex_config::CONFIG_TOML_FILE;
  use codex_config::default_project_root_markers;
- use codex_config::loader::find_project_root;
+ use codex_config::loader::discover_project_root;
  use codex_config::loader::normalized_project_trust_keys;
-@@ -29,14 +31,19 @@ use codex_git_utils::resolve_root_git_project_for_trust;
+@@ -29,14 +31,19 @@
  use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
  use codex_protocol::config_types::TrustLevel;
  use codex_utils_absolute_path::AbsolutePathBuf;
@@ -141,7 +139,7 @@ index 7a50e6d..293ea77 100644
  use uuid::Uuid;
  
  #[derive(Clone, Copy, PartialEq, Eq)]
-@@ -151,10 +158,79 @@ pub(crate) fn build_oss_provider_edit(provider: &str) -> ConfigEdit {
+@@ -151,10 +158,79 @@
      replace_config_value("oss_provider", serde_json::json!(provider))
  }
  

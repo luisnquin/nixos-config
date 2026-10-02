@@ -1,7 +1,27 @@
+diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
+--- a/tui/src/config_update.rs
++++ b/tui/src/config_update.rs
+@@ -73,6 +73,7 @@
+     format!("{err:#}")
+ }
+ 
++#[allow(dead_code)]
+ fn trusted_project_edit(project_path: &Path) -> ConfigEdit {
+     let project_key = project_trust_key(project_path)
+         .replace('\\', "\\\\")
+@@ -170,6 +171,7 @@
+         .wrap_err("config/batchWrite failed in TUI")
+ }
+ 
++#[allow(dead_code)]
+ pub(crate) async fn write_trusted_project(
+     request_handle: AppServerRequestHandle,
+     project_path: &Path,
 diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboarding_screen.rs
 --- a/tui/src/onboarding/onboarding_screen.rs
 +++ b/tui/src/onboarding/onboarding_screen.rs
-@@ -13,8 +13,5 @@
+@@ -12,9 +12,6 @@
+ 
  use codex_app_server_client::AppServerEvent;
  use codex_app_server_client::AppServerRequestHandle;
 -use codex_app_server_protocol::ClientRequest;
@@ -10,32 +30,45 @@ diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboar
  use codex_app_server_protocol::ServerNotification;
  use codex_exec_server::LOCAL_FS;
  use codex_git_utils::resolve_root_git_project_for_trust;
-@@ -34,8 +31,5 @@ use codex_protocol::config_types::ForcedLoginMethod;
- use crate::LoginStatus;
- use crate::app_server_session::AppServerSession;
+@@ -36,9 +33,6 @@
+ use crate::clipboard_copy::CopyFormat;
+ use crate::clipboard_copy::CopyStatus;
  use crate::config_update::RemoteProjectTrust;
 -use crate::config_update::format_config_error;
 -use crate::config_update::replace_config_value;
 -use crate::config_update::write_trusted_project;
  use crate::empty_state_animation::Presentation;
  use crate::key_hint::KeyBindingListExt;
-@@ -54,7 +48,5 @@ use crate::tui::TuiEvent;
+ use crate::legacy_core::config::Config;
+@@ -54,10 +48,8 @@
+ use crate::tui::Tui;
+ use crate::tui::TuiEvent;
  use color_eyre::eyre::Result;
 -use color_eyre::eyre::WrapErr;
  use std::sync::Arc;
  use std::sync::RwLock;
 -use uuid::Uuid;
--
-+
- #[allow(clippy::large_enum_variant)]
-@@ -641,5 +633,5 @@ async fn persist_selected_trust(
+ 
+ #[path = "directory_trust.rs"]
+ mod directory_trust;
+@@ -90,6 +82,7 @@
+ pub(crate) struct OnboardingScreen {
+     request_frame: FrameRequester,
+     steps: Vec<Step>,
++    #[allow(dead_code)]
+     remote_trust_key: Option<String>,
+     is_done: bool,
+     should_exit: bool,
+@@ -766,7 +759,7 @@
+ 
+ async fn persist_selected_trust(
      onboarding_screen: &mut OnboardingScreen,
 -    request_handle: Option<AppServerRequestHandle>,
 +    _request_handle: Option<AppServerRequestHandle>,
  ) -> bool {
      let Some((trust_step_index, trust_target)) = onboarding_screen
          .steps
-@@ -658,56 +650,14 @@ async fn persist_selected_trust(
+@@ -785,56 +778,14 @@
          return false;
      };
  
@@ -99,7 +132,8 @@ diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboar
  }
  
  #[cfg(test)]
-@@ -841,6 +798,6 @@ mod tests {
+@@ -1003,7 +954,7 @@
+     }
  
      #[tokio::test]
 -    async fn trust_persistence_failure_keeps_trust_step_in_progress() {
@@ -107,7 +141,7 @@ diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboar
          let mut onboarding_screen = OnboardingScreen {
              request_frame: FrameRequester::test_dummy(),
              steps: vec![Step::TrustDirectory(TrustDirectoryWidget {
-@@ -861,17 +818,12 @@ mod tests {
+@@ -1026,17 +977,12 @@
          let persisted =
              persist_selected_trust(&mut onboarding_screen, /*request_handle*/ None).await;
  
