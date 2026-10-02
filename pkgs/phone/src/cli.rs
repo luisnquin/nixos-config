@@ -60,7 +60,7 @@ The commands
   device   list connect disconnect pair pin use forget boot shutdown reverse net
   app      install launch stop open logs notifications
   host     list enable disable budget
-  this     mirror record doctor hook
+  this     mirror stream record doctor hook
 
 What to know before scripting it
 
@@ -546,6 +546,42 @@ or `shot`."#)]
     Mirror {
         #[arg(id = "device")]
         target: Option<String>,
+    },
+    #[command(
+        about = "Print the screen as a live run of small raw RGB frames",
+        after_help = r#"Examples:
+  phone stream --size 40x90 --base64
+  phone stream --size 108x240
+  phone stream --size 432x960 --shm emu
+
+Each frame is WIDTH*HEIGHT*3 bytes of rgb24, or that as one base64 line with
+`--base64`, or a shared-memory object with `--shm`. Frames arrive only when the picture changes, so an idle screen
+prints nothing. It runs until the reader goes away.
+
+Android only."#)]
+    Stream {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        #[arg(
+            long,
+            help = "Frame size in pixels, WIDTHxHEIGHT",
+            default_value = "40x90",
+            value_parser = parse_size
+        )]
+        size: crate::stream::Size,
+
+        #[arg(long, help = "One base64 line per frame instead of raw bytes")]
+        base64: bool,
+
+        #[arg(
+            long,
+            help = "Write each frame to /dev/shm/NAME-N and print /NAME-N; the reader unlinks it",
+            value_name = "NAME",
+            conflicts_with = "base64",
+            value_parser = parse_shm
+        )]
+        shm: Option<String>,
     },
     /// Record the screen, and pull stills out of the clip
     #[command(after_help = r#"Examples:
@@ -1079,6 +1115,22 @@ fn parse_scale(s: &str) -> Result<f64, String> {
     }
 
     Ok(by)
+}
+
+fn parse_size(s: &str) -> Result<crate::stream::Size, String> {
+    let side = |raw: &str| raw.trim().parse::<u32>().ok().filter(|n| (1..=1024).contains(n));
+
+    match s.split_once('x').map(|(w, h)| (side(w), side(h))) {
+        Some((Some(width), Some(height))) => Ok(crate::stream::Size { width, height }),
+        _ => Err(format!("{s} is not WIDTHxHEIGHT, each side 1 to 1024")),
+    }
+}
+
+fn parse_shm(s: &str) -> Result<String, String> {
+    match !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        true => Ok(s.to_owned()),
+        false => Err(format!("{s} is not a shared-memory name: letters, digits, - and _")),
+    }
 }
 
 /// `--frames 4` is four evenly spaced stills, `--frames changed` however many

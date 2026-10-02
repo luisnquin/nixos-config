@@ -23,6 +23,7 @@ mod registry;
 mod simctl;
 mod ssh;
 mod stamps;
+mod stream;
 mod tui;
 mod up;
 mod usage;
@@ -182,12 +183,15 @@ async fn dispatch(cli: Cli) -> Result<()> {
             up::down(&mut reg, &project).await
         }
 
-        Some(Command::Status {
-            profile,
-            json,
-        }) => {
+        Some(Command::Status { profile, json }) => {
             let project = declared()?;
-            let report = up::status(&mut reg, &project, profile.as_deref(), want(None).as_deref()).await?;
+            let report = up::status(
+                &mut reg,
+                &project,
+                profile.as_deref(),
+                want(None).as_deref(),
+            )
+            .await?;
 
             match json {
                 true => println!("{}", serde_json::to_string_pretty(&report)?),
@@ -319,6 +323,21 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Host { action }) => hosts_cmd(&mut reg, action).await,
 
+        Some(Command::Stream {
+            target,
+            size,
+            base64,
+            shm,
+        }) => {
+            stream_cmd(
+                &mut reg,
+                want(target),
+                size,
+                stream::Output::new(shm, base64),
+            )
+            .await
+        }
+
         Some(Command::Mirror { target }) => {
             let view = driving(&mut reg, want(target).as_deref(), true).await?;
 
@@ -383,8 +402,7 @@ async fn disconnect(reg: &mut Registry, want: Option<String>, all: bool) -> Resu
         return Ok(());
     }
 
-    let view =
-        resolve(reg, want.as_deref(), true, Aim::Running).await?;
+    let view = resolve(reg, want.as_deref(), true, Aim::Running).await?;
 
     let Some(serial) = view.reach.serial().filter(|s| s.contains(':')) else {
         bail!("{} has no wireless transport", view.device.label);
@@ -427,8 +445,7 @@ async fn boot_device(
     let views = survey(reg).await;
     reg.save()?;
 
-    let view =
-        choose(&views, reg, want.as_deref(), true, Aim::Bootable).await?;
+    let view = choose(&views, reg, want.as_deref(), true, Aim::Bootable).await?;
 
     if !actions::running(&view.reach) {
         memory::admit(reg, &views, &[&view.device], over_budget).await?;
@@ -446,7 +463,10 @@ async fn net(
     let view = driving(reg, want.as_deref(), true).await?;
     let on = matches!(state, cli::Switch::On);
 
-    eprintln!("phone: {}", actions::net(&view.server, &view.device, on, only).await?);
+    eprintln!(
+        "phone: {}",
+        actions::net(&view.server, &view.device, on, only).await?
+    );
 
     Ok(())
 }
@@ -475,12 +495,18 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
             return Ok(());
         }
         AppAction::Notifications { app } => {
-            println!("{}", apps::notifications(server, device, app.as_deref()).await?);
+            println!(
+                "{}",
+                apps::notifications(server, device, app.as_deref()).await?
+            );
 
             return Ok(());
         }
         AppAction::Logs { app } => {
-            bail!("{}", actions::logs_command(server, device, &app).await?.exec())
+            bail!(
+                "{}",
+                actions::logs_command(server, device, &app).await?.exec()
+            )
         }
     };
 
@@ -489,6 +515,17 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
     pids::forget(&device.id);
 
     Ok(())
+}
+
+async fn stream_cmd(
+    reg: &mut Registry,
+    want: Option<String>,
+    size: stream::Size,
+    output: stream::Output,
+) -> Result<()> {
+    let view = driving(reg, want.as_deref(), true).await?;
+
+    stream::stream(&view.server, &view.device, size, output).await
 }
 
 async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()> {
@@ -1584,7 +1621,10 @@ fn print_elements(screen: &a11y::Screen) {
         println!();
     }
 
-    for row in a11y::rows(&screen.nodes).iter().filter(|r| r.within.is_none()) {
+    for row in a11y::rows(&screen.nodes)
+        .iter()
+        .filter(|r| r.within.is_none())
+    {
         print_row(screen, row, row.node.index);
     }
 }
@@ -1780,7 +1820,11 @@ async fn choose(
         });
     }
 
-    if let Some(view) = want.is_none().then(|| untargeted(&candidates, reg, prefer_recent)).flatten() {
+    if let Some(view) = want
+        .is_none()
+        .then(|| untargeted(&candidates, reg, prefer_recent))
+        .flatten()
+    {
         return Ok(view);
     }
 
