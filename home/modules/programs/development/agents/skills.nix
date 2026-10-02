@@ -39,13 +39,13 @@ in {
           plugins = ["ee-workbench"];
         })
       (mkInlineSkill {
-          "phone" = {
+          "phone-skill" = {
             description = "Drive Android phones, emulators (AVDs) and iOS simulators, local or on a remote Mac like rose, with the `phone` CLI instead of raw adb, emulator, avdmanager, xcrun simctl or ssh. Boot, pick a device, snapshot the screen, tap, swipe, type, wait, screenshot, record, install, launch, open deep links, reverse ports.";
             tags = ["mobile"];
             content = builtins.readFile ./skills/phone.md;
           };
         } {
-          plugins = ["phone"];
+          plugins = ["phone-skill"];
         })
       (anthropics.skills {
         prefix = "anthropics-";

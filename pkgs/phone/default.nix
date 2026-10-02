@@ -73,5 +73,14 @@ in
     # not carry a mac-only dependency on linux.
     passthru.receiver = callPackage ./receiver {};
 
+    passthru.claudePlugin = lib.fileset.toSource {
+      root = ./plugin;
+      fileset = lib.fileset.unions [
+        ./plugin/.claude-plugin/plugin.json
+        ./plugin/hooks
+        ./plugin/types
+      ];
+    };
+
     meta.mainProgram = "phone";
   }

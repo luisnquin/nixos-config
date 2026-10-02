@@ -1,5 +1,6 @@
 {
   mkAgentKit,
+  config,
   pkgs,
   lib,
   ...
@@ -9,6 +10,10 @@ in {
   imports = [
     ./hooks.nix
   ];
+
+  # not `programs.claude-code.plugins`: its per-entry links put mod files
+  # outside the plugin directory, which claude refuses
+  home.file."${config.programs.claude-code.configDir}/skills/phone".source = pkgs.phone.claudePlugin;
 
   xdg.configFile."ccstatusline/settings.json" = let
     settingsJson = builtins.fromJSON (builtins.readFile ./ccstatusline-settings.json);

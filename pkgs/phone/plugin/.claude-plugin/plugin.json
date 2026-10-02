@@ -1,0 +1,6 @@
+{
+  "name": "phone",
+  "version": "0.1.0",
+  "description": "Watch and drive a phone, emulator or simulator in a pane, through the phone CLI",
+  "types": "./types/index.d.ts"
+}
