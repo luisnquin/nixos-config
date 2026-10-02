@@ -186,11 +186,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790872829,
-        "narHash": "sha256-I7eXcok6gQn7kncc2+71DxpjA9puvUEbQGLN8MKM0JE=",
+        "lastModified": 1790958458,
+        "narHash": "sha256-za3vuHpEY8VLp/Gyo/pZOSJRAXT96ImwCPC7vSYTzqM=",
         "ref": "refs/heads/main",
-        "rev": "8ba0a230a5d7d454a591cbaf8858f39cb3a86682",
-        "revCount": 452,
+        "rev": "3a1144cf6dfc0f173b16271654ff3793648d6442",
+        "revCount": 473,
         "type": "git",
         "url": "ssh://git@github.com/0xc000022070/dazzle"
       },
