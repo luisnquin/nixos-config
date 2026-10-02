@@ -17,4 +17,6 @@
     ./shell.nix
     ./skills.nix
   ];
+
+  services.dazzle-engine.enable = true;
 }

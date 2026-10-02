@@ -134,6 +134,10 @@
       url = "github:0xc000022070/techdebt-cli";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    dazzle = {
+      url = "git+ssh://git@github.com/0xc000022070/dazzle";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
     "3mf2stl" = {
       url = "github:0xc000118128/3mf2stl";
@@ -222,6 +226,7 @@
       inputs."3mf2stl".homeModules.default
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
+      inputs.dazzle.homeModules.default
       ./pkgs/hm-modules
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")

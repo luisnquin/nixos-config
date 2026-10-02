@@ -179,6 +179,26 @@
         "type": "github"
       }
     },
+    "dazzle": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790872829,
+        "narHash": "sha256-I7eXcok6gQn7kncc2+71DxpjA9puvUEbQGLN8MKM0JE=",
+        "ref": "refs/heads/main",
+        "rev": "8ba0a230a5d7d454a591cbaf8858f39cb3a86682",
+        "revCount": 452,
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/dazzle"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/dazzle"
+      }
+    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -1211,6 +1231,7 @@
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
         "bun2nix": "bun2nix",
+        "dazzle": "dazzle",
         "disko": "disko",
         "encore": "encore",
         "flake-parts": "flake-parts",
