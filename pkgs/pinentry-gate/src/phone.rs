@@ -11,10 +11,10 @@ use base64::Engine;
 pub const OSC: u32 = 7771;
 
 /// What may hold a marked pty: the ssh session the terminal came in on, or
-/// the Mosh server that terminal left running, which lets go of its ssh
-/// session the moment it is up and outlives every one that follows.
+/// the Mosh server or Dazzle engine that terminal left running, which lets go
+/// of its ssh session the moment it is up and outlives every one that follows.
 fn holds_a_pty(comm: &str) -> bool {
-    comm.starts_with("sshd") || comm == "mosh-server"
+    comm.starts_with("sshd") || comm == "mosh-server" || comm == "dazzle-engine"
 }
 
 fn alive(pid: i32) -> bool {
@@ -121,13 +121,13 @@ mod tests {
     }
 
     #[test]
-    fn an_ssh_session_or_a_mosh_server_holds_a_pty() {
-        assert!(holds_a_pty("sshd"));
-        assert!(holds_a_pty("sshd-session"));
-        assert!(holds_a_pty("mosh-server"));
-        assert!(!holds_a_pty("mosh-client"));
-        assert!(!holds_a_pty("tmux: server"));
-        assert!(!holds_a_pty("zsh"));
+    fn an_ssh_session_a_mosh_server_or_a_dazzle_engine_holds_a_pty() {
+        for comm in ["sshd", "sshd-session", "mosh-server", "dazzle-engine"] {
+            assert!(holds_a_pty(comm), "{comm}");
+        }
+        for comm in ["dazzle", "mosh-client", "tmux: server", "zsh"] {
+            assert!(!holds_a_pty(comm), "{comm}");
+        }
     }
 
     #[test]
