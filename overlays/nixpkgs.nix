@@ -44,6 +44,15 @@
         ];
     });
   })
+  (_final: prev: {
+    lsyncd = prev.lsyncd.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ [
+          ./patches/lsyncd/invocation-registry.patch
+        ];
+    });
+  })
   (final: _prev: {
     rtk = final.llm-agents.rtk.overrideAttrs (_oldAttrs: {
       postInstall = ''

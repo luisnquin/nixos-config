@@ -1,0 +1,200 @@
+diff --git a/lsyncd.c b/lsyncd.c
+--- a/lsyncd.c
++++ b/lsyncd.c
+@@ -1975,6 +1975,29 @@
+ 
+ 
+ static int l_jiffies_fromseconds(lua_State *L);
++static int
++l_getpid( lua_State *L )
++{
++	lua_pushinteger( L, getpid( ) );
++
++	return 1;
++}
++
++static int
++l_getcwd( lua_State *L )
++{
++	char buf[ PATH_MAX ];
++
++	if( !getcwd( buf, sizeof( buf ) ) )
++	{
++		return 0;
++	}
++
++	lua_pushstring( L, buf );
++
++	return 1;
++}
++
+ /*
+ | The Lsnycd's core library
+ */
+@@ -1986,6 +2009,8 @@
+ 	{ "now",                  l_now           },
+ 	{ "jiffies_from_seconds", l_jiffies_fromseconds},
+ 	{ "kill",                 l_kill          },
++	{ "getcwd",               l_getcwd        },
++	{ "getpid",               l_getpid        },
+ 	{ "get_free_port",        l_free_port     },
+ 	{ "nonobserve_fd",        l_nonobserve_fd },
+ 	{ "observe_fd",           l_observe_fd    },
+diff --git a/lsyncd.lua b/lsyncd.lua
+--- a/lsyncd.lua
++++ b/lsyncd.lua
+@@ -5709,6 +5709,116 @@
+ --
+ -- terminates on invalid arguments.
+ --
++--
++-- Records every invocation in $XDG_STATE_HOME/lsyncd/<key>.reg so a status
++-- bar can list past syncs and relaunch them with the same argv and cwd.
++-- 'running' with a dead pid means the process died without a TERM or INT.
++--
++local registry = { version = 1 }
++
++local function registryQuote( s )
++	return "'" .. s:gsub( "'", "'\\''" ) .. "'"
++end
++
++local function registryTarget( config )
++	if config.host and config.targetdir
++	then
++		return config.host .. ':' .. config.targetdir
++	end
++
++	return tostring( config.target or '?' )
++end
++
++function registry.capture( args, config )
++	registry.cwd = lsyncd.getcwd( ) or '/'
++	registry.config = config
++	registry.args = { }
++
++	for i = 1, #args
++	do
++		registry.args[ i ] = args[ i ]
++	end
++end
++
++function registry.write( state )
++	if not registry.args then return end
++
++	local base = os.getenv( 'XDG_STATE_HOME' )
++
++	if not base or base == ''
++	then
++		local home = os.getenv( 'HOME' )
++
++		if not home or home == '' then return end
++
++		base = home .. '/.local/state'
++	end
++
++	local dir = base .. '/lsyncd'
++
++	if not registry.key
++	then
++		local seed = registry.config
++
++		if seed and seed:sub( 1, 1 ) ~= '/'
++		then
++			seed = registry.cwd .. '/' .. seed
++		end
++
++		if not seed
++		then
++			for _, s in Syncs.iwalk( )
++			do
++				seed = s.source .. '>' .. registryTarget( s.config )
++				break
++			end
++		end
++
++		seed = seed or 'unknown'
++
++		local hash = 5381
++
++		for i = 1, #seed
++		do
++			hash = ( hash * 33 + seed:byte( i ) ) % 4294967296
++		end
++
++		registry.key = seed:sub( -48 ):gsub( '[^%w%.%-]', '_' )
++			.. string.format( '-%08x', hash )
++	end
++
++	os.execute( 'mkdir -p ' .. registryQuote( dir ) )
++
++	local path = dir .. '/' .. registry.key .. '.reg'
++	local f = io.open( path .. '.tmp', 'w' )
++
++	if not f then return end
++
++	f:write( 'version=', registry.version, '\n' )
++	f:write( 'state=', state, '\n' )
++	f:write( 'pid=', lsyncd.getpid( ), '\n' )
++	f:write( 'updated=', os.time( ), '\n' )
++	f:write( 'cwd=', registry.cwd, '\n' )
++
++	if registry.config
++	then
++		f:write( 'config=', registry.config, '\n' )
++	end
++
++	for _, a in ipairs( registry.args )
++	do
++		f:write( 'arg=', a, '\n' )
++	end
++
++	for _, s in Syncs.iwalk( )
++	do
++		f:write( 'sync=', s.source, '\t', registryTarget( s.config ), '\n' )
++	end
++
++	f:close( )
++	os.rename( path .. '.tmp', path )
++end
++
+ function runner.configure( args, monitors )
+ 
+ 	Monitors.initialize( monitors )
+@@ -5887,6 +5997,7 @@
+ 			function
+ 			( )
+ 				io.stdout:write( 'Version: ', lsyncd_version, '\n' )
++				io.stdout:write( 'Registry: ', registry.version, '\n' )
+ 
+ 				os.exit( 0 )
+ 			end
+@@ -5966,6 +6077,8 @@
+ 		end
+ 	end
+ 
++	registry.capture( args, #nonopts == 1 and nonopts[ 1 ] or nil )
++
+ 	if clSettings.syncs
+ 	then
+ 		if #nonopts ~= 0
+@@ -6123,6 +6236,11 @@
+ 
+ 	lsyncd.configure( 'running' );
+ 
++	if firstTime
++	then
++		registry.write( 'running' )
++	end
++
+ 	local ufuncs =
+ 	{
+ 		'onAttrib',
+@@ -6318,6 +6436,8 @@
+ 
+ 	lsyncdStatus = 'fade'
+ 
++	registry.write( 'stopped' )
++
+ end
+ 
+ --
