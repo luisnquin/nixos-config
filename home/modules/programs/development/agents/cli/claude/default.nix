@@ -49,7 +49,11 @@ in {
       };
     };
 
-    context = kit.memories;
+    context = ''
+      ${kit.memories}
+
+      ${kit.claudeMemories}
+    '';
 
     # https://code.claude.com/docs/en/settings#available-settings
     settings = {
@@ -60,7 +64,6 @@ in {
 
       model = "opus";
       effortLevel = "high";
-      outputStyle = "Explanatory";
       language = "english";
       cleanupPeriodDays = 20;
       tui = "fullscreen";

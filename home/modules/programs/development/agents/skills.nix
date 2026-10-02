@@ -13,7 +13,7 @@ in {
     skills = with pkgs.agent-skills; [
       (mkInlineSkill {
           "nixgrep" = {
-            description = "Search nix derivations from the /nix/store";
+            description = "Find /nix/store paths by name with `nixgrep <search-term>`: a package's outputs, its .drv files and companion derivations such as go-modules. Use it instead of `ls /nix/store | grep`. Prints store basenames, one per line, without the /nix/store/ prefix.";
             tags = ["utils"];
             content = ''
               # Quick Reference

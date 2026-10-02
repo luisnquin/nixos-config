@@ -250,10 +250,9 @@ which parameters lose their last slot.
   `feature remove` only ever shrinks one body's own chain, never a body
   itself.
 
-**There is no undo**, and none is coming until the session question is settled:
-an idle session retires and the next verb starts a fresh one, so an undo stack
-would be discarded silently at exactly the moment it was wanted. Save before a
-removal you are unsure of, and `--dry-run` first — it costs nothing.
+**There is no undo.** An idle session retires and the next verb starts a fresh
+one, so save before a removal you are unsure of, and `--dry-run` first — it
+costs nothing.
 
 ### Seeing what you built
 
@@ -378,12 +377,8 @@ zero `--taper` already means "no taper" elsewhere; any other angle switches to
 FreeCAD's "Distance and Angle" mode. `document inspect --tree` reports each
 dressup's own `radius`/`size` (`chamfer` also shows `angle` when it is in
 angled mode) and `edges`, the edge count it resolved to. There is no
-`--convex`/`--concave` predicate — geometry-only selection covers the
-straightforward cases (a part's outer edges, one face's rim, everything
-longer than X); convexity needs comparing adjacent-face normals per edge, a
-different and heavier piece of OCCT plumbing than the bounding-box and
-direction checks the rest of this uses, so it was left out rather than rushed
-in.
+`--convex`/`--concave` predicate; geometry selection covers a part's outer
+edges, one face's rim, and everything longer than X.
 
 ### Booleans between bodies
 

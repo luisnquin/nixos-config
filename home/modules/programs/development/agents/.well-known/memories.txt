@@ -24,8 +24,6 @@ No superfluous comments. Explain only non-obvious behavior. Put broader reasonin
 
 Do not bypass denied commands with equivalent alternatives. Use narrower allowed commands only when they respect the restriction. Otherwise stop and explain.
 
-Built-in Read/Grep and shell `sed`/`cat`/`read`/`head`/`tail` are not ideal for inspecting code — they burn context and miss structure. Prefer the MCPs, switching by need: codebase-memory-mcp for structural questions (see below), filesystem MCP for raw reads and searches. Reach for built-ins only when neither MCP fits, or to fill a gap they cannot answer. Shell stays allowed for all other tooling.
-
 ## git
 
 No `git add -A`, `git add .`, or `git add --all`. Stage specific files.
@@ -64,10 +62,9 @@ Use Context7 for external or dynamic data. Skip it for trivial questions.
 
 Code intelligence over a tree-sitter knowledge graph. One graph query replaces dozens of grep/read cycles.
 
-Its tools are deferred — they fail if called before loading. So before your FIRST code search of a session (any Grep/Glob, or Read used to locate code):
+Prefer it over grep and whole-file reads for structural questions. Before your first code search of a session:
 
-1. ToolSearch keyword "codebase-memory graph" to load search_graph, get_code_snippet, get_architecture, trace_path.
-2. Resolve the project: list_projects, match the working directory to its slug.
-3. search_graph({ project, query }).
+1. Resolve the project: list_projects, match the working directory to its slug.
+2. search_graph({ project, query }).
 
-Then Grep/Read only to fill gaps the graph cannot answer (top-level wiring, exact full-file context) — or when search_graph returns nothing, or the project is not indexed. Trust results; do not re-verify with grep.
+Then plain reads and searches only to fill gaps the graph cannot answer (top-level wiring, exact full-file context) — or when search_graph returns nothing, or the project is not indexed. Trust results; do not re-verify with grep.

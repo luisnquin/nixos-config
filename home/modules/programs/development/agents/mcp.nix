@@ -13,12 +13,6 @@
     pkgs.libxkbcommon
     pkgs.libx11
   ];
-
-  isSkillFile = name: lib.any (p: lib.hasPrefix p name) [".agents/skills/" ".claude/skills/"];
-  skillStoreRoots =
-    lib.unique
-    (lib.mapAttrsToList (_: v: builtins.dirOf (toString v.source))
-      (lib.filterAttrs (name: _: isSkillFile name) config.home.file));
 in {
   home.packages = [pkgs.codebase-memory-mcp];
 
@@ -27,19 +21,6 @@ in {
   services.mcp-gateway = {
     enable = true;
     servers = [
-      {
-        name = "filesystem";
-        package = pkgs.mcp-server-filesystem;
-        args =
-          [
-            "."
-            "/tmp"
-            "${config.home.homeDirectory}/.agents/skills"
-            "${config.home.homeDirectory}/.claude/skills"
-          ]
-          ++ skillStoreRoots;
-        scope = "workspace";
-      }
       {
         name = "techdebt-mcp";
         package = config.programs.techdebt.package;

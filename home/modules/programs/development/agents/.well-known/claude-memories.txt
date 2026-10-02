@@ -1,0 +1,5 @@
+## claude code
+
+Inspect code with Read/Grep/Glob, not shell `sed`/`cat`/`head`/`tail`. Shell stays allowed for all other tooling.
+
+The codebase-memory-mcp tools are deferred and fail until loaded: run ToolSearch with keyword "codebase-memory graph" before list_projects.

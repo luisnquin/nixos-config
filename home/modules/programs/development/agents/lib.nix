@@ -14,6 +14,7 @@
       );
 
     memories = builtins.readFile ./.well-known/memories.txt;
+    claudeMemories = builtins.readFile ./.well-known/claude-memories.txt;
 
     permissionLines = let
       f = builtins.readFile ./.well-known/ai-tool-permissions.txt;
@@ -204,7 +205,7 @@
       '';
   in {
     inherit (import ./assets {inherit lib;}) sounds images;
-    inherit memories allowedDomains;
+    inherit memories claudeMemories allowedDomains;
     inherit mkAgentPermissions;
 
     mkAudioCmd = files:
@@ -224,38 +225,38 @@
         else "${lib.removeSuffix "/" host}/${topic}";
     in
       if isScheduled
-        then
-          lib.concatStringsSep " " (
-            [
-              (lib.getExe agentNotify)
-              "schedule"
-              "--id"
-              (lib.escapeShellArg ntfy.sequenceId)
-              "--delay"
-              (lib.escapeShellArg ntfy.delay)
-              "--title"
-              (lib.escapeShellArg title)
-              "--message"
-              (lib.escapeShellArg message)
-              "--image"
-              (lib.escapeShellArg image)
-            ]
-            ++ lib.optionals (ntfyUrl != "") [
-              "--ntfy-url"
-              (lib.escapeShellArg ntfyUrl)
-            ]
-          )
-        else
-          libx.notify.send {
-            desktop = {
-              inherit image title message;
-            };
-            ntfy =
-              {
-                inherit host topic;
-              }
-              // builtins.removeAttrs ntfy ["delay" "sequenceId"];
+      then
+        lib.concatStringsSep " " (
+          [
+            (lib.getExe agentNotify)
+            "schedule"
+            "--id"
+            (lib.escapeShellArg ntfy.sequenceId)
+            "--delay"
+            (lib.escapeShellArg ntfy.delay)
+            "--title"
+            (lib.escapeShellArg title)
+            "--message"
+            (lib.escapeShellArg message)
+            "--image"
+            (lib.escapeShellArg image)
+          ]
+          ++ lib.optionals (ntfyUrl != "") [
+            "--ntfy-url"
+            (lib.escapeShellArg ntfyUrl)
+          ]
+        )
+      else
+        libx.notify.send {
+          desktop = {
+            inherit image title message;
           };
+          ntfy =
+            {
+              inherit host topic;
+            }
+            // builtins.removeAttrs ntfy ["delay" "sequenceId"];
+        };
 
     mkCancelNotificationCmd = {sequenceId, ...}:
       lib.concatStringsSep " " [
