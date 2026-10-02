@@ -142,5 +142,9 @@ in {
   programs.zsh.initContent = lib.mkAfter ''
     source ${pkgs.herdr-autoname}/shell/hook.zsh
     source ${pkgs.herdr-recall}/shell/hook.zsh
+
+    # herdr relays kitty graphics (placeholders, shm) but answers XTVERSION as
+    # itself, and Claude Code only trusts kitty or ghostty there.
+    [[ -n "''${HERDR_ENV:-}" ]] && export CLAUDE_CODE_FORCE_TERMINAL_IMAGES=1
   '';
 }
