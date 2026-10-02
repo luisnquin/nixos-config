@@ -35,3 +35,42 @@ diff --git a/config/src/loader/mod.rs b/config/src/loader/mod.rs
      if let Some(trust_level) = projects_trust.get(lookup_key).copied() {
          return Some((lookup_key.to_string(), trust_level));
      }
+diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
+--- a/tui/src/config_update.rs
++++ b/tui/src/config_update.rs
+@@ -263,19 +263,22 @@
+     };
+     let project_entry = |key: &str| {
+         let projects = projects?;
+-        projects
+-            .get_key_value(key)
+-            .filter(|(_, project)| project["trust_level"].as_str().is_some())
+-            .or_else(|| {
+-                projects
+-                    .iter()
+-                    .filter(|(path, project)| {
+-                        windows_path
+-                            && path.eq_ignore_ascii_case(key)
+-                            && project["trust_level"].as_str().is_some()
+-                    })
+-                    .min_by_key(|(path, _)| *path)
+-            })
++        Path::new(key).ancestors().find_map(|ancestor| {
++            let key = ancestor.to_str()?;
++            projects
++                .get_key_value(key)
++                .filter(|(_, project)| project["trust_level"].as_str().is_some())
++                .or_else(|| {
++                    projects
++                        .iter()
++                        .filter(|(path, project)| {
++                            windows_path
++                                && path.eq_ignore_ascii_case(key)
++                                && project["trust_level"].as_str().is_some()
++                        })
++                        .min_by_key(|(path, _)| *path)
++                })
++        })
+     };
+     let mut projectless = false;
+     let local_roots = if host == ProjectTrustHost::Local && project_layers.is_empty() {
