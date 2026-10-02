@@ -8,9 +8,11 @@ use openh264::formats::YUVSource;
 use tokio::io::AsyncReadExt;
 use tokio::time::timeout;
 
+use crate::actions::where_of;
 use crate::adb::Server;
 use crate::connect::serial_of;
-use crate::model::Device;
+use crate::model::{Device, Platform};
+use crate::simctl;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Size {
@@ -87,38 +89,14 @@ pub async fn stream(
     size: Size,
     mut output: Output,
 ) -> Result<()> {
-    if !device.platform.is_adb() {
-        bail!(
-            "cannot stream {} yet; only Android screens",
-            device.platform
-        );
-    }
+    let mut source = source(server, device, size).await?;
+    source
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
 
-    let serial = serial_of(server, device).await?;
-    let encoded = encoded(size);
-
-    let mut adb = tokio::process::Command::from(server.command());
-    adb.args([
-        "-s",
-        &serial,
-        "exec-out",
-        "screenrecord",
-        "--output-format=h264",
-        "--time-limit",
-        "0",
-        "--bit-rate",
-        "2000000",
-        "--size",
-        &format!("{}x{}", encoded.width, encoded.height),
-        "-",
-    ])
-    .stdin(Stdio::null())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::null())
-    .kill_on_drop(true);
-
-    let mut adb = adb.spawn().context("running adb")?;
-    let mut h264 = adb.stdout.take().context("adb gave no stdout")?;
+    let mut source = source.spawn().context("starting the screen encoder")?;
+    let mut h264 = source.stdout.take().context("the encoder gave no stdout")?;
 
     let mut decoder = Decoder::new().context("starting the h264 decoder")?;
     let mut pending = Vec::new();
@@ -161,6 +139,41 @@ pub async fn stream(
     }
 
     bail!("the stream from {} ended", device.label)
+}
+
+async fn source(server: &Server, device: &Device, size: Size) -> Result<tokio::process::Command> {
+    if device.platform == Platform::Simulator {
+        let mut receiver = simctl::stream(&where_of(device), simctl::udid(device)?, ENCODED_WIDTH)?;
+        receiver.stdin(Stdio::piped());
+
+        return Ok(receiver);
+    }
+
+    if !device.platform.is_adb() {
+        bail!("cannot stream {}", device.platform);
+    }
+
+    let serial = serial_of(server, device).await?;
+    let encoded = encoded(size);
+
+    let mut adb = tokio::process::Command::from(server.command());
+    adb.args([
+        "-s",
+        &serial,
+        "exec-out",
+        "screenrecord",
+        "--output-format=h264",
+        "--time-limit",
+        "0",
+        "--bit-rate",
+        "2000000",
+        "--size",
+        &format!("{}x{}", encoded.width, encoded.height),
+        "-",
+    ])
+    .stdin(Stdio::null());
+
+    Ok(adb)
 }
 
 fn last_start(stream: &[u8]) -> usize {

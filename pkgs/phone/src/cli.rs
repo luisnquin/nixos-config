@@ -558,7 +558,8 @@ Each frame is WIDTH*HEIGHT*3 bytes of rgb24, or that as one base64 line with
 `--base64`, or a shared-memory object with `--shm`. Frames arrive only when the picture changes, so an idle screen
 prints nothing. It runs until the reader goes away.
 
-Android only."#)]
+Android devices and iOS Simulators, local or on an ssh host; not a physical
+iPhone."#)]
     Stream {
         #[arg(id = "device")]
         target: Option<String>,

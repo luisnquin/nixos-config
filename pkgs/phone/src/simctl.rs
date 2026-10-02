@@ -117,6 +117,12 @@ fn check(udid: &str) -> Result<()> {
 /// ssh session, which for a device that is merely off means waiting out the
 /// timeout and then blaming the host — and on a failure that did not hang, an
 /// empty `cat` that read as a screenshot.
+pub fn stream(at: &Where, udid: &str, width: u32) -> Result<tokio::process::Command> {
+    check(udid)?;
+
+    Ok(at.run(CALL, &["stream", udid, &width.to_string()]))
+}
+
 pub async fn screenshot(at: &Where, udid: &str) -> Result<Vec<u8>> {
     check(udid)?;
 
