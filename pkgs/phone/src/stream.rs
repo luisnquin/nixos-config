@@ -1,7 +1,8 @@
+use std::collections::VecDeque;
 use std::io::Write;
 use std::path::Path;
 use std::process::Stdio;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use openh264::decoder::Decoder;
@@ -9,9 +10,9 @@ use openh264::formats::YUVSource;
 use tokio::io::AsyncReadExt;
 use tokio::time::timeout;
 
-use crate::actions::where_of;
+use crate::actions::{capture, where_of};
 use crate::adb::Server;
-use crate::connect::serial_of;
+use crate::connect::{serial_of, Reporter};
 use crate::model::{Device, Platform};
 use crate::simctl;
 
@@ -25,6 +26,12 @@ const ENCODED_WIDTH: u32 = 432;
 
 const PAUSE: Duration = Duration::from_millis(40);
 
+const STALL: Duration = Duration::from_secs(3);
+
+// hardware encoders hold the last change back until the next one, so a
+// screencap stands in for it once the stream goes quiet
+const SETTLE: Duration = Duration::from_millis(300);
+
 pub enum Output {
     Raw,
     Base64,
@@ -34,9 +41,12 @@ pub enum Output {
 pub struct Frames {
     name: String,
     shown: u64,
+    kept: VecDeque<(u64, Instant)>,
 }
 
-const KEEP: u64 = 8;
+const KEEP: usize = 8;
+
+const LINGER: Duration = Duration::from_secs(1);
 
 const SHM: &str = "/dev/shm";
 
@@ -58,7 +68,11 @@ fn sweep_orphans(dir: &Path) {
 impl Frames {
     pub fn new(name: String) -> Self {
         sweep_orphans(Path::new(SHM));
-        Self { name: format!("phone.{}.{name}", std::process::id()), shown: 0 }
+        Self {
+            name: format!("phone.{}.{name}", std::process::id()),
+            shown: 0,
+            kept: VecDeque::new(),
+        }
     }
 
     fn path(&self, n: u64) -> String {
@@ -66,18 +80,24 @@ impl Frames {
     }
 
     fn put(&mut self, frame: &[u8]) -> std::io::Result<String> {
-        self.shown += 1;
-        if let Some(old) = self.shown.checked_sub(KEEP) {
-            let _ = std::fs::remove_file(self.path(old));
+        while let Some(&(n, at)) = self.kept.front() {
+            if self.kept.len() < KEEP || at.elapsed() < LINGER {
+                break;
+            }
+            let _ = std::fs::remove_file(self.path(n));
+            self.kept.pop_front();
         }
+
+        self.shown += 1;
         std::fs::write(self.path(self.shown), frame)?;
+        self.kept.push_back((self.shown, Instant::now()));
         Ok(format!("/{}-{}", self.name, self.shown))
     }
 }
 
 impl Drop for Frames {
     fn drop(&mut self) {
-        for n in self.shown.saturating_sub(KEEP - 1)..=self.shown {
+        for &(n, _) in &self.kept {
             let _ = std::fs::remove_file(self.path(n));
         }
     }
@@ -102,55 +122,75 @@ impl Output {
     }
 }
 
+enum Fed {
+    Closed,
+    Stalled,
+}
+
 pub async fn stream(
     server: &Server,
     device: &Device,
     size: Size,
     mut output: Output,
 ) -> Result<()> {
-    let mut source = source(server, device, size).await?;
-    source
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .kill_on_drop(true);
+    let mut frame = vec![0u8; (size.width * size.height * 3) as usize];
+    let mut out = std::io::stdout().lock();
 
-    let mut source = source.spawn().context("starting the screen encoder")?;
+    while let Fed::Stalled = feed(server, device, size, &mut output, &mut out, &mut frame).await? {}
+
+    Ok(())
+}
+
+async fn feed(
+    server: &Server,
+    device: &Device,
+    size: Size,
+    output: &mut Output,
+    out: &mut impl Write,
+    frame: &mut [u8],
+) -> Result<Fed> {
+    let mut source = spawned(server, device, size).await?;
     let mut h264 = source.stdout.take().context("the encoder gave no stdout")?;
 
     let mut decoder = Decoder::new().context("starting the h264 decoder")?;
     let mut pending = Vec::new();
     let mut chunk = vec![0u8; 64 * 1024];
     let mut full = Vec::new();
-    let mut frame = vec![0u8; (size.width * size.height * 3) as usize];
-    let mut out = std::io::stdout().lock();
+    let mut undecoded: Option<Instant> = None;
+    let mut unsettled = false;
 
     loop {
-        let wait = match pending.is_empty() {
-            true => Duration::MAX,
-            false => PAUSE,
-        };
-
-        let whole = match timeout(wait, h264.read(&mut chunk)).await {
+        let whole = match timeout(wait(&pending, unsettled), h264.read(&mut chunk)).await {
             Ok(Ok(0) | Err(_)) => break,
             Ok(Ok(n)) => {
                 pending.extend_from_slice(&chunk[..n]);
                 last_start(&pending)
             }
+            Err(_) if pending.is_empty() => {
+                unsettled = false;
+                if !settle(server, device, size, output, out, frame).await {
+                    return Ok(Fed::Closed);
+                }
+                continue;
+            }
             Err(_) => pending.len(),
         };
+
+        if undecoded.get_or_insert_with(Instant::now).elapsed() > STALL {
+            return Ok(Fed::Stalled);
+        }
 
         if whole == 0 {
             continue;
         }
 
-        if let Ok(Some(yuv)) = decoder.decode(&pending[..whole]) {
-            let (width, height) = yuv.dimensions();
-            full.resize(yuv.rgb8_len(), 0);
-            yuv.write_rgb8(&mut full);
-            shrink(&full, width, height, &mut frame, size);
+        if let Some((width, height)) = decode(&mut decoder, &pending[..whole], &mut full) {
+            shrink(&full, width, height, frame, size);
+            undecoded = None;
+            unsettled = device.platform.is_adb();
 
-            if output.write(&mut out, &frame).is_err() {
-                return Ok(());
+            if output.write(out, frame).is_err() {
+                return Ok(Fed::Closed);
             }
         }
 
@@ -158,6 +198,68 @@ pub async fn stream(
     }
 
     bail!("the stream from {} ended", device.label)
+}
+
+fn wait(pending: &[u8], unsettled: bool) -> Duration {
+    match (pending.is_empty(), unsettled) {
+        (false, _) => PAUSE,
+        (true, true) => SETTLE,
+        (true, false) => Duration::MAX,
+    }
+}
+
+async fn spawned(server: &Server, device: &Device, size: Size) -> Result<tokio::process::Child> {
+    let mut source = source(server, device, size).await?;
+    source
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+
+    // SAFETY: runs in the forked child before exec; the closure captures nothing
+    // and only issues prctl, which is async-signal-safe (no allocation, no locks)
+    #[cfg(target_os = "linux")]
+    unsafe {
+        source.pre_exec(|| {
+            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+            Ok(())
+        });
+    }
+
+    source.spawn().context("starting the screen encoder")
+}
+
+fn decode(decoder: &mut Decoder, stream: &[u8], full: &mut Vec<u8>) -> Option<(usize, usize)> {
+    let mut decoded = None;
+    for unit in units(stream) {
+        if let Ok(Some(yuv)) = decoder.decode(unit) {
+            full.resize(yuv.rgb8_len(), 0);
+            yuv.write_rgb8(full);
+            decoded = Some(yuv.dimensions());
+        }
+    }
+    decoded
+}
+
+async fn settle(
+    server: &Server,
+    device: &Device,
+    size: Size,
+    output: &mut Output,
+    out: &mut impl Write,
+    frame: &mut [u8],
+) -> bool {
+    let Some((rgb, width, height)) = settled(server, device).await else {
+        return true;
+    };
+    shrink(&rgb, width, height, frame, size);
+    output.write(out, frame).is_ok()
+}
+
+async fn settled(server: &Server, device: &Device) -> Option<(Vec<u8>, usize, usize)> {
+    let png = capture(server, device, &Reporter::default()).await.ok()?;
+    let rgb = image::load_from_memory(&png).ok()?.to_rgb8();
+    let (width, height) = (rgb.width() as usize, rgb.height() as usize);
+    Some((rgb.into_raw(), width, height))
 }
 
 async fn source(server: &Server, device: &Device, size: Size) -> Result<tokio::process::Command> {
@@ -204,6 +306,22 @@ fn last_start(stream: &[u8]) -> usize {
         true => at - 1,
         false => at,
     }
+}
+
+fn units(stream: &[u8]) -> impl Iterator<Item = &[u8]> {
+    let mut rest = stream;
+    std::iter::from_fn(move || {
+        if rest.is_empty() {
+            return None;
+        }
+        let end = match rest.windows(3).skip(3).position(|w| w == [0, 0, 1]) {
+            Some(at) => last_start(&rest[..at + 6]),
+            None => rest.len(),
+        };
+        let (unit, tail) = rest.split_at(end);
+        rest = tail;
+        Some(unit)
+    })
 }
 
 fn shrink(rgb: &[u8], width: usize, height: usize, into: &mut [u8], size: Size) {
@@ -311,6 +429,16 @@ mod tests {
         assert_eq!(last_start(&[0, 0, 0, 1, 7, 9]), 0);
         assert_eq!(last_start(&[0, 0, 0, 1, 7, 9, 0, 0, 0, 1, 8]), 6);
         assert_eq!(last_start(&[0, 0, 1, 7, 9, 0, 0, 1, 8]), 5);
+    }
+
+    #[test]
+    fn each_unit_keeps_its_start_code() {
+        let stream = [0, 0, 0, 1, 7, 9, 0, 0, 1, 8, 0, 0, 0, 1, 5, 4];
+        let units: Vec<&[u8]> = units(&stream).collect();
+        assert_eq!(
+            units,
+            [&[0, 0, 0, 1, 7, 9][..], &[0, 0, 1, 8], &[0, 0, 0, 1, 5, 4]]
+        );
     }
 
     #[test]

@@ -18,7 +18,7 @@ pub enum Step {
     Progress { done: usize, total: usize },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Reporter(Option<UnboundedSender<Step>>);
 
 impl Reporter {
