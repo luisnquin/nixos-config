@@ -142,6 +142,20 @@ impl NativeBridge {
         }
     }
 
+    pub fn stream_h264(&self, udid: &str, width: u32) -> Result<(), AppError> {
+        let udid = CString::new(udid).map_err(|e| AppError::bad_request(e.to_string()))?;
+
+        // SAFETY: udid outlives the call, and error is a valid out-pointer the
+        // bridge leaves null or fills with a malloc'd string take_error frees.
+        unsafe {
+            let mut error = ptr::null_mut();
+            if ffi::xcw_native_stream_h264(udid.as_ptr(), width, &mut error) {
+                return Ok(());
+            }
+            Err(take_error(error).unwrap_or_else(|| AppError::native("Unknown native error.")))
+        }
+    }
+
     pub fn accessibility_snapshot(
         &self,
         udid: &str,

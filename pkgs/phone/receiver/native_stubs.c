@@ -108,3 +108,10 @@ bool xcw_native_input_send_touch(void *handle, double x, double y,
 void xcw_native_free_string(char *value) { free(value); }
 
 void xcw_native_free_bytes(xcw_native_owned_bytes bytes) { free(bytes.data); }
+
+bool xcw_native_stream_h264(const char *udid, uint32_t width,
+                            char **error_message) {
+  (void)udid;
+  (void)width;
+  return xcw_unsupported(error_message);
+}

@@ -38,6 +38,7 @@ usage: phone <verb> [args]
   text <udid> <string>  one key event per character
   key <udid> <name>     a named key or a hardware button
   shot <udid>           a PNG on stdout
+  stream <udid> <width> h264 on stdout until stdin closes
 
 keys:    enter escape delete tab space up down left right
 buttons: home app-switcher lock power side siri volume-up volume-down keyboard";
@@ -202,19 +203,8 @@ fn run(args: &[String]) -> Result<()> {
                 bridge.send_key(udid, key, modifiers)?;
             }
         }
-        "key" => {
-            let udid = udid(rest)?;
-            let name = rest
-                .get(1)
-                .ok_or_else(|| anyhow!("key: no name"))?
-                .to_lowercase();
-
-            match NAMED_KEYS.iter().find(|(known, _)| *known == name) {
-                Some((_, usage)) => bridge.send_key(udid, *usage, 0)?,
-                None if BUTTONS.contains(&name.as_str()) => bridge.press_button(udid, &name, 60)?,
-                None => return Err(anyhow!("unknown key: {name}")),
-            }
-        }
+        "key" => key(&bridge, rest)?,
+        "stream" => stream(&bridge, rest)?,
         "shot" => {
             let png = bridge.screenshot_png(udid(rest)?)?;
 
@@ -222,6 +212,38 @@ fn run(args: &[String]) -> Result<()> {
         }
         other => return Err(anyhow!("unknown verb: {other}\n\n{USAGE}")),
     }
+
+    Ok(())
+}
+
+fn key(bridge: &NativeBridge, rest: &[String]) -> Result<()> {
+    let udid = udid(rest)?;
+    let name = rest
+        .get(1)
+        .ok_or_else(|| anyhow!("key: no name"))?
+        .to_lowercase();
+
+    match NAMED_KEYS.iter().find(|(known, _)| *known == name) {
+        Some((_, usage)) => Ok(bridge.send_key(udid, *usage, 0)?),
+        None if BUTTONS.contains(&name.as_str()) => Ok(bridge.press_button(udid, &name, 60)?),
+        None => Err(anyhow!("unknown key: {name}")),
+    }
+}
+
+fn stream(bridge: &NativeBridge, rest: &[String]) -> Result<()> {
+    let udid = udid(rest)?;
+    let width: u32 = rest
+        .get(1)
+        .ok_or_else(|| anyhow!("no width"))?
+        .parse()
+        .map_err(|_| anyhow!("width is not a number"))?;
+
+    std::thread::spawn(|| {
+        let _ = std::io::copy(&mut std::io::stdin(), &mut std::io::sink());
+        std::process::exit(0);
+    });
+
+    bridge.stream_h264(udid, width)?;
 
     Ok(())
 }

@@ -61,6 +61,8 @@ bool xcw_native_input_send_key(void * _Nonnull handle, uint16_t key_code, uint32
 bool xcw_native_input_send_key_event(void * _Nonnull handle, uint16_t key_code, bool down, char * _Nullable * _Nullable error_message);
 
 
+bool xcw_native_stream_h264(const char * _Nonnull udid, uint32_t width, char * _Nullable * _Nullable error_message);
+
 void xcw_native_free_string(char * _Nullable value);
 void xcw_native_free_bytes(xcw_native_owned_bytes bytes);
 

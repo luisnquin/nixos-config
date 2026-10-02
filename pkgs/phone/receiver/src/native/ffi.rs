@@ -57,6 +57,12 @@ unsafe extern "C" {
         error_message: *mut *mut c_char,
     ) -> bool;
 
+    pub fn xcw_native_stream_h264(
+        udid: *const c_char,
+        width: u32,
+        error_message: *mut *mut c_char,
+    ) -> bool;
+
     pub fn xcw_native_free_string(value: *mut c_char);
     pub fn xcw_native_free_bytes(bytes: xcw_native_owned_bytes);
 }

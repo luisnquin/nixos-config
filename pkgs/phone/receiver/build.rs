@@ -24,6 +24,7 @@ fn main() {
         cli.join("XCWAccessibilityBridge.m"),
         cli.join("XCWSimctl.m"),
         native.join("XCWNativeBridge.m"),
+        native.join("XCWFrameStream.m"),
     ];
 
     let mut build = cc::Build::new();
@@ -56,10 +57,12 @@ fn main() {
         "Accelerate",
         "AppKit",
         "CoreImage",
+        "CoreMedia",
         "CoreGraphics",
         "CoreVideo",
         "ImageIO",
         "QuartzCore",
+        "VideoToolbox",
     ] {
         println!("cargo:rustc-link-lib=framework={framework}");
     }
