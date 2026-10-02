@@ -142,7 +142,9 @@ without anything saying so. `--take` overrides it. A device that had to be boote
 is nobody's whatever was written down, since the session holding it did not
 survive the shutdown. `phone device list` names the holder of every running
 device, and `phone status` says which of them this project is holding, so a hold
-can be read before it is what a refusal is about.
+can be read before it is what a refusal is about. Reading a held device is
+not refused: `shot`, `size`, `snapshot`, `wait` and `stream` change nothing on
+screen, so they pass any hold; a verb that presses, `--focus` included, does not.
 
 Devices on different platforms converge at once rather than in turn, so an iPhone
 does not wait out an android build. Two devices that would run the same build take
@@ -997,6 +999,16 @@ impl Command {
         };
 
         Some(positional)
+    }
+
+    pub fn reads(&self) -> bool {
+        matches!(
+            self,
+            Command::Shot { .. }
+                | Command::Size { .. }
+                | Command::Snapshot { .. }
+                | Command::Wait { .. }
+        )
     }
 
     pub fn acts(&self) -> bool {

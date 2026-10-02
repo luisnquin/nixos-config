@@ -141,7 +141,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
     // for it once and hand the same device to each step.
     if let Some(positional) = command.as_ref().and_then(Command::on_screen) {
         let want = want(positional.map(str::to_string));
-        let session = Session::open(&mut reg, want.as_deref(), focus).await?;
+        let hold = Hold::for_verb(command.as_ref(), focus);
+        let session = Session::open(&mut reg, want.as_deref(), focus, hold).await?;
 
         return answered(&session, command.expect("classified as a screen verb")).await;
     }
@@ -523,7 +524,7 @@ async fn stream_cmd(
     size: stream::Size,
     output: stream::Output,
 ) -> Result<()> {
-    let view = driving(reg, want.as_deref(), true).await?;
+    let view = reaching(reg, want.as_deref(), true, Hold::Ignored).await?;
 
     stream::stream(&view.server, &view.device, size, output).await
 }
@@ -743,8 +744,9 @@ impl Session {
         reg: &mut Registry,
         want: Option<&str>,
         focus: Option<(i32, i32)>,
+        hold: Hold,
     ) -> Result<Self> {
-        let view = driving(reg, want, true).await?;
+        let view = reaching(reg, want, true, hold).await?;
         let target = target_of(&view, focus).await?;
 
         Ok(Session {
@@ -1711,6 +1713,30 @@ async fn boot(reg: &mut Registry, view: View, timeout: Duration) -> Result<()> {
 /// and none names the fix. The survey that finds the device already knows, so
 /// it is answered here once, in the name it was asked in.
 async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) -> Result<View> {
+    reaching(reg, want, prefer_recent, Hold::Respected).await
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Hold {
+    Respected,
+    Ignored,
+}
+
+impl Hold {
+    fn for_verb(command: Option<&Command>, focus: Option<(i32, i32)>) -> Self {
+        match focus.is_none() && command.is_some_and(Command::reads) {
+            true => Hold::Ignored,
+            false => Hold::Respected,
+        }
+    }
+}
+
+async fn reaching(
+    reg: &mut Registry,
+    want: Option<&str>,
+    prefer_recent: bool,
+    hold: Hold,
+) -> Result<View> {
     let named = want
         .map(str::to_string)
         .or_else(|| std::env::var("PHONE_TARGET").ok())
@@ -1744,7 +1770,12 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
     }
 
     let (held, looked, ()) = tokio::join!(
-        lease::check(&view),
+        async {
+            match hold {
+                Hold::Respected => lease::check(&view).await,
+                Hold::Ignored => Ok(()),
+            }
+        },
         pids::look(&view),
         usage::stamp(&view.device)
     );
