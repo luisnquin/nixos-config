@@ -32,7 +32,7 @@
           enable = true;
           hideOnRemoteSsh = true;
         };
-        gitmux.enable = true;
+        git.enable = true;
       };
     };
     zoxide.enable = true;
