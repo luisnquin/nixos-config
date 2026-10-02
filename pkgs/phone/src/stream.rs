@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -37,13 +38,31 @@ pub struct Frames {
 
 const KEEP: u64 = 8;
 
+const SHM: &str = "/dev/shm";
+
+fn owner(file: &str) -> Option<u32> {
+    file.strip_prefix("phone.")?.split_once('.')?.0.parse().ok()
+}
+
+fn sweep_orphans(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let file = entry.file_name();
+        let Some(pid) = file.to_str().and_then(owner) else { continue };
+        if !Path::new("/proc").join(pid.to_string()).exists() {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 impl Frames {
     pub fn new(name: String) -> Self {
-        Self { name, shown: 0 }
+        sweep_orphans(Path::new(SHM));
+        Self { name: format!("phone.{}.{name}", std::process::id()), shown: 0 }
     }
 
     fn path(&self, n: u64) -> String {
-        format!("/dev/shm/{}-{n}", self.name)
+        format!("{SHM}/{}-{n}", self.name)
     }
 
     fn put(&mut self, frame: &[u8]) -> std::io::Result<String> {
@@ -255,6 +274,14 @@ pub fn encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_phone_frames_name_an_owner() {
+        assert_eq!(owner("phone.4242.emu-17-3-9"), Some(4242));
+        assert_eq!(owner("phone.x.emu-1"), None);
+        assert_eq!(owner("pulse-shm-4242"), None);
+        assert_eq!(owner("emu-1790957709674-3-1"), None);
+    }
 
     #[test]
     fn base64_pads_like_the_standard_alphabet() {

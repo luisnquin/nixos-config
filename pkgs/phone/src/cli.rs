@@ -577,7 +577,7 @@ iPhone."#)]
 
         #[arg(
             long,
-            help = "Write each frame to /dev/shm/NAME-N and print /NAME-N; the reader unlinks it",
+            help = "Write each frame to /dev/shm/phone.PID.NAME-N and print its name; the reader unlinks it, and the next --shm sweeps what a killed stream left",
             value_name = "NAME",
             conflicts_with = "base64",
             value_parser = parse_shm
