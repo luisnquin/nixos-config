@@ -57,7 +57,7 @@ The commands
 
   project  up down status
   screen   snapshot shot size tap press swipe type fill key wait do
-  device   list connect disconnect pair pin use forget boot clone shutdown reverse net
+  device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications
   host     list enable disable budget
   this     mirror stream record doctor hook
@@ -824,6 +824,23 @@ boot is a cold one. AVD names take only letters, digits, '.', '_' and '-'."#)]
 
         #[arg(value_name = "new", help = "Name for the copy")]
         new: String,
+    },
+    #[command(about = "Permanently remove a simulator or emulator that is off", after_help = r#"Examples:
+  phone device delete medium_phone-2
+  phone device delete "iPhone 17 Pro B" --yes
+
+Removes the device and everything on it from its host, and drops it from the
+registry. It has to be shut down first; handsets are refused.
+
+A simulator goes through `simctl delete`. An AVD loses its directory and its
+.ini in the AVD home, and nothing else. On a terminal it asks first; without
+one, `--yes` is required."#)]
+    Delete {
+        #[arg(id = "device")]
+        target: String,
+
+        #[arg(long, short, help = "Delete without asking")]
+        yes: bool,
     },
     /// Stop a running simulator or emulator
     #[command(after_help = r#"Examples:

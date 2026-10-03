@@ -285,6 +285,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     timeout,
                 } => boot_device(&mut reg, want(target), over_budget, timeout).await,
                 DeviceAction::Clone { target, new } => clone_device(&mut reg, &target, &new).await,
+                DeviceAction::Delete { target, yes } => delete_device(&mut reg, &target, yes).await,
                 DeviceAction::Shutdown { target } => {
                     let view =
                         resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
@@ -459,6 +460,21 @@ async fn clone_device(reg: &mut Registry, target: &str, new: &str) -> Result<()>
         "phone: {}",
         actions::clone(&view.device, &view.reach, new).await?
     );
+
+    Ok(())
+}
+
+async fn delete_device(reg: &mut Registry, target: &str, yes: bool) -> Result<()> {
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let view = choose(&views, reg, Some(target), false, Aim::Bootable).await?;
+    let said = actions::delete(&view.device, &view.reach, yes).await?;
+
+    reg.remove(&view.device.id);
+    reg.save()?;
+
+    eprintln!("phone: {said}");
 
     Ok(())
 }

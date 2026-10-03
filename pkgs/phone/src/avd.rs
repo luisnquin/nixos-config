@@ -184,11 +184,20 @@ adb devices 2>/dev/null | awk -v want="$1" '$1 == want { print "listed" }'"#;
     )
 }
 
-const LOCATE: &str = r#"ini="$avd_home/$1.ini"
+const FIND: &str = r#"ini="$avd_home/$1.ini"
 [ -f "$ini" ] || { echo "no AVD named $1 in $avd_home" >&2; exit 1; }
 dir=$(sed -n 's/^path=//p' "$ini" | head -n 1)
-[ -d "$dir" ] || dir="$avd_home/$1.avd"
-[ -f "$dir/config.ini" ] || { echo "$dir has no config.ini" >&2; exit 1; }
+[ -d "$dir" ] || dir="$avd_home/$1.avd""#;
+
+const REMOVE: &str = r#"home=$(cd "$avd_home" && pwd -P) || exit 1
+parent=$(cd "$(dirname "$dir")" 2>/dev/null && pwd -P)
+if [ "$parent" != "$home" ] || [ "$(basename "$dir")" != "$1.avd" ]; then
+  echo "$dir is not $1.avd in $avd_home; not deleting it" >&2
+  exit 1
+fi
+rm -rf "$home/$1.avd" && rm -f "$home/$1.ini""#;
+
+const LOCATE: &str = r#"[ -f "$dir/config.ini" ] || { echo "$dir has no config.ini" >&2; exit 1; }
 uname -s
 printf '%s\n%s\n' "$avd_home" "$dir"
 awk 1 "$ini"
@@ -229,7 +238,7 @@ struct Copy {
 pub async fn clone(at: &Where, name: &str, new: &str) -> Result<()> {
     valid(new)?;
 
-    let script = format!("{SDK}\n{LOCATE}");
+    let script = format!("{SDK}\n{FIND}\n{LOCATE}");
     let found = at
         .exec(&script, &[name, SPLIT], Duration::from_secs(25))
         .await?;
@@ -254,6 +263,18 @@ pub async fn clone(at: &Where, name: &str, new: &str) -> Result<()> {
         at,
         "copying the AVD",
         at.exec(COPY, &args, Duration::from_secs(600)).await?,
+    )
+}
+
+pub async fn delete(at: &Where, name: &str) -> Result<()> {
+    valid(name)?;
+
+    let script = format!("{SDK}\n{FIND}\n{REMOVE}");
+
+    landed(
+        at,
+        "deleting the AVD",
+        at.exec(&script, &[name], Duration::from_secs(120)).await?,
     )
 }
 
@@ -534,6 +555,49 @@ mod tests {
         assert!(!home.join("b.ini").exists());
 
         std::fs::remove_dir_all(&home).unwrap();
+    }
+
+    #[test]
+    fn deletes_only_the_named_avd_and_only_inside_its_home() {
+        let root = std::env::temp_dir().join(format!("phone-avd-delete-{}", std::process::id()));
+        let home = root.join("avd");
+        let away = root.join("elsewhere");
+
+        for dir in [home.join("a.avd"), home.join("b.avd"), away.join("d.avd")] {
+            std::fs::create_dir_all(dir.join("snapshots")).unwrap();
+        }
+
+        for (name, dir) in [("a", &home), ("b", &home), ("d", &away), ("e", &home)] {
+            let ini = format!("path={}\n", dir.join(format!("{name}.avd")).display());
+            std::fs::write(home.join(format!("{name}.ini")), ini).unwrap();
+        }
+
+        for (name, ok) in [("a", true), ("d", false), ("e", true), ("missing", false)] {
+            let out = std::process::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(format!("{FIND}\n{REMOVE}"))
+                .arg("sh")
+                .arg(name)
+                .env("avd_home", &home)
+                .output()
+                .unwrap();
+
+            assert_eq!(out.status.success(), ok, "{name}");
+        }
+
+        for (path, kept) in [
+            (home.join("a.avd"), false),
+            (home.join("a.ini"), false),
+            (home.join("e.ini"), false),
+            (home.join("b.avd"), true),
+            (home.join("b.ini"), true),
+            (home.join("d.ini"), true),
+            (away.join("d.avd/snapshots"), true),
+        ] {
+            assert_eq!(path.exists(), kept, "{}", path.display());
+        }
+
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use std::io::{BufRead, Write};
 use std::process::Stdio;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -99,9 +100,41 @@ fn ambiguity(views: &[View]) -> String {
     )
 }
 
+pub fn confirm(what: &str) -> Result<()> {
+    let Ok(mut tty) = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+    else {
+        bail!("there is no terminal to confirm on; pass --yes to {what}");
+    };
+
+    write!(tty, "phone: {what}? [y/N] ")?;
+
+    let mut answer = String::new();
+    std::io::BufReader::new(tty).read_line(&mut answer)?;
+
+    if !agreed(&answer) {
+        bail!("cancelled");
+    }
+
+    Ok(())
+}
+
+fn agreed(answer: &str) -> bool {
+    matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_yes_agrees() {
+        for (answer, ok) in [("y\n", true), (" YES \n", true), ("\n", false), ("n\n", false), ("yep\n", false), ("", false)] {
+            assert_eq!(agreed(answer), ok, "{answer:?}");
+        }
+    }
     use crate::adb::Server;
     use crate::model::{Device, Platform, Reach};
 

@@ -435,6 +435,21 @@ pub async fn clone(at: &Where, udid: &str, name: &str) -> Result<String> {
     Ok(copy)
 }
 
+pub async fn delete(at: &Where, udid: &str) -> Result<()> {
+    check(udid)?;
+
+    landed(
+        at,
+        "simctl delete",
+        at.exec(
+            r#"exec xcrun simctl delete "$1""#,
+            &[udid],
+            Duration::from_secs(120),
+        )
+        .await?,
+    )
+}
+
 /// A device that is already down is the state that was asked for, and simctl
 /// reports it as a failure to reach it. Now that its status is read at all, the
 /// refusal has to be recognised or `stop` starts failing on a stopped device.

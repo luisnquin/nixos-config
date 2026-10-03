@@ -1081,9 +1081,8 @@ pub async fn stop(device: &Device, reach: &Reach) -> Result<String> {
     Ok(format!("stopped {label}"))
 }
 
-pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> {
+fn idle(device: &Device, reach: &Reach, verb: &str) -> Result<()> {
     let label = &device.label;
-    let at = where_of(device);
 
     let kind = match device.platform {
         Platform::Android => Some("a handset"),
@@ -1092,7 +1091,7 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
     };
 
     if let Some(kind) = kind {
-        bail!("phone clones emulators and simulators; {label} is {kind}");
+        bail!("phone {verb} emulators and simulators; {label} is {kind}");
     }
 
     if running(reach) {
@@ -1101,6 +1100,36 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
             crate::quoted(label)
         );
     }
+
+    Ok(())
+}
+
+pub async fn delete(device: &Device, reach: &Reach, yes: bool) -> Result<String> {
+    let label = &device.label;
+    let at = where_of(device);
+
+    idle(device, reach, "deletes")?;
+
+    if !yes {
+        crate::picker::confirm(&format!(
+            "delete {label} on {} and everything on it",
+            at.label()
+        ))?;
+    }
+
+    match device.platform {
+        Platform::Simulator => simctl::delete(&at, simctl::udid(device)?).await?,
+        _ => avd::delete(&at, label).await?,
+    }
+
+    Ok(format!("deleted {label} on {}", at.label()))
+}
+
+pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> {
+    let label = &device.label;
+    let at = where_of(device);
+
+    idle(device, reach, "clones")?;
 
     match device.platform {
         Platform::Simulator => {
@@ -1119,6 +1148,32 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_an_idle_simulator_or_emulator_is_cloned_or_deleted() {
+        let attached = Reach::Attached {
+            serial: "emulator-5554".into(),
+            wireless: false,
+        };
+
+        for (platform, reach, refusal) in [
+            (Platform::Emulator, Reach::Off, None),
+            (Platform::Simulator, Reach::Off, None),
+            (Platform::Emulator, attached, Some("is running; stop it first with `phone device shutdown \"zz a\"`")),
+            (Platform::Simulator, Reach::Online, Some("is running")),
+            (Platform::Android, Reach::Off, Some("phone deletes emulators and simulators; zz a is a handset")),
+            (Platform::Ios, Reach::Online, Some("is an iPhone")),
+        ] {
+            let said = idle(&Device::new("x", "zz a", platform), &reach, "deletes")
+                .err()
+                .map(|e| e.to_string());
+
+            match refusal {
+                Some(want) => assert!(said.as_deref().is_some_and(|s| s.contains(want)), "{said:?}"),
+                None => assert_eq!(said, None),
+            }
+        }
+    }
 
     /// The transport column is a name this program invented for a forwarded
     /// server; printing it invites the reader to pass it back to something.
