@@ -1085,6 +1085,16 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
     let label = &device.label;
     let at = where_of(device);
 
+    let kind = match device.platform {
+        Platform::Android => Some("a handset"),
+        Platform::Ios => Some("an iPhone"),
+        _ => None,
+    };
+
+    if let Some(kind) = kind {
+        bail!("phone clones emulators and simulators; {label} is {kind}");
+    }
+
     if running(reach) {
         bail!(
             "{label} is running; stop it first with `phone device shutdown {}`",
@@ -1096,16 +1106,7 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
         Platform::Simulator => {
             simctl::clone(&at, simctl::udid(device)?, new).await?;
         }
-
-        Platform::Emulator => avd::clone(&at, label, new).await?,
-
-        other => bail!(
-            "phone clones emulators and simulators; {label} is {}",
-            match other {
-                Platform::Ios => "an iPhone",
-                _ => "a handset",
-            }
-        ),
+        _ => avd::clone(&at, label, new).await?,
     }
 
     Ok(format!(
