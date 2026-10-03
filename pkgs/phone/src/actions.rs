@@ -1081,6 +1081,40 @@ pub async fn stop(device: &Device, reach: &Reach) -> Result<String> {
     Ok(format!("stopped {label}"))
 }
 
+pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> {
+    let label = &device.label;
+    let at = where_of(device);
+
+    if running(reach) {
+        bail!(
+            "{label} is running; stop it first with `phone device shutdown {}`",
+            crate::quoted(label)
+        );
+    }
+
+    match device.platform {
+        Platform::Simulator => {
+            simctl::clone(&at, simctl::udid(device)?, new).await?;
+        }
+
+        Platform::Emulator => avd::clone(&at, label, new).await?,
+
+        other => bail!(
+            "phone clones emulators and simulators; {label} is {}",
+            match other {
+                Platform::Ios => "an iPhone",
+                _ => "a handset",
+            }
+        ),
+    }
+
+    Ok(format!(
+        "cloned {label} to {new} on {}; start it with `phone device boot {}`",
+        at.label(),
+        crate::quoted(new)
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

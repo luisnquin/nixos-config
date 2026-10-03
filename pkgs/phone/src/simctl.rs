@@ -5,7 +5,7 @@ use anyhow::{anyhow, bail, Result};
 use serde::Deserialize;
 
 use crate::model::{Device, Platform};
-use crate::ssh::{self, Where};
+use crate::ssh::{self, landed, Where};
 
 /// A simulator is the one device class that cannot be federated. adb has a
 /// server to point a client at and tunneld speaks HTTP, but CoreSimulator is
@@ -376,25 +376,6 @@ pub async fn key(at: &Where, udid: &str, name: &str) -> Result<()> {
     Ok(())
 }
 
-/// A `simctl` verb run for whether it worked rather than for what it printed.
-/// The reason the far side gave is the whole answer where there is one; the
-/// rest are for when it gave none, which is where a device that refused and a
-/// session that dropped stop looking alike.
-fn landed(at: &Where, what: &str, ran: ssh::Ran) -> Result<()> {
-    let host = at.label();
-
-    match ran.status {
-        ssh::Status::Code(0) => Ok(()),
-        ssh::Status::Code(_) if !ran.said.is_empty() => bail!("{}", ran.said),
-        ssh::Status::Code(code) => bail!("{what} on {host} exited {code}"),
-        ssh::Status::Garbled(said) => {
-            bail!("{host} ended {what} with '{said}' rather than a status")
-        }
-        ssh::Status::Missing if ran.said.is_empty() => bail!("{host} did not run {what}"),
-        ssh::Status::Missing => bail!("{}", ran.said),
-    }
-}
-
 /// Boots `udid` and returns once the system is up, not once the process is.
 /// `bootstatus` is what waits; `open` is only there so the window appears, and
 /// a headless boot is still a usable device without it.
@@ -434,6 +415,24 @@ pub async fn shutdown(at: &Where, udid: &str) -> Result<()> {
     }
 
     landed(at, "simctl shutdown", ran)
+}
+
+pub async fn clone(at: &Where, udid: &str, name: &str) -> Result<String> {
+    check(udid)?;
+
+    let ran = at
+        .exec(
+            r#"exec xcrun simctl clone "$1" "$2""#,
+            &[udid, name],
+            Duration::from_secs(300),
+        )
+        .await?;
+    let copy = ran.text();
+
+    landed(at, "simctl clone", ran)?;
+    check(&copy)?;
+
+    Ok(copy)
 }
 
 /// A device that is already down is the state that was asked for, and simctl

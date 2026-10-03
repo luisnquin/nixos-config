@@ -129,6 +129,21 @@ fn wrapped(script: &str) -> String {
     format!("(\n{script}\n)\nprintf '{STATUS}%s\\n' \"$?\" >&2")
 }
 
+pub fn landed(at: &Where, what: &str, ran: Ran) -> Result<()> {
+    let host = at.label();
+
+    match ran.status {
+        Status::Code(0) => Ok(()),
+        Status::Code(_) if !ran.said.is_empty() => bail!("{}", ran.said),
+        Status::Code(code) => bail!("{what} on {host} exited {code}"),
+        Status::Garbled(said) => {
+            bail!("{host} ended {what} with '{said}' rather than a status")
+        }
+        Status::Missing if ran.said.is_empty() => bail!("{host} did not run {what}"),
+        Status::Missing => bail!("{}", ran.said),
+    }
+}
+
 /// Splits a remote run's stderr into how the command ended and the reason it
 /// printed.
 fn outcome(stderr: &[u8]) -> (Status, String) {

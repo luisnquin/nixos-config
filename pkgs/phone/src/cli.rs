@@ -57,7 +57,7 @@ The commands
 
   project  up down status
   screen   snapshot shot size tap press swipe type fill key wait do
-  device   list connect disconnect pair pin use forget boot shutdown reverse net
+  device   list connect disconnect pair pin use forget boot clone shutdown reverse net
   app      install launch stop open logs notifications
   host     list enable disable budget
   this     mirror stream record doctor hook
@@ -803,6 +803,25 @@ them. `--over-budget` boots it anyway; ask before using it."#)]
         /// Give up if it is still not usable by then
         #[arg(long, default_value = "180s", value_parser = parse_duration)]
         timeout: Duration,
+    },
+    #[command(about = "Copy a simulator or emulator that is off into a new one", after_help = r#"Examples:
+  phone device clone medium_phone medium_phone-2
+  phone device clone "iPhone 17 Pro" "iPhone 17 Pro B"
+
+The copy lands on the same host as the source and starts out `off`; `phone
+device boot <new>` starts it. The source has to be shut down first, and a name
+already taken on that host is refused.
+
+A simulator is copied by `simctl clone`. An AVD is copied copy-on-write where
+the disk allows it, so it costs little space until the two diverge, and without
+its snapshots, which only load in the AVD they were taken in: the copy's first
+boot is a cold one. AVD names take only letters, digits, '.', '_' and '-'."#)]
+    Clone {
+        #[arg(id = "device")]
+        target: String,
+
+        #[arg(value_name = "new", help = "Name for the copy")]
+        new: String,
     },
     /// Stop a running simulator or emulator
     #[command(after_help = r#"Examples:

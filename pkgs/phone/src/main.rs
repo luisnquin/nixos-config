@@ -283,6 +283,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     over_budget,
                     timeout,
                 } => boot_device(&mut reg, want(target), over_budget, timeout).await,
+                DeviceAction::Clone { target, new } => clone_device(&mut reg, &target, &new).await,
                 DeviceAction::Shutdown { target } => {
                     let view =
                         resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
@@ -433,6 +434,30 @@ fn forget(reg: &mut Registry, target: &str) -> Result<()> {
     reg.save()?;
 
     eprintln!("phone: forgot {id}");
+
+    Ok(())
+}
+
+async fn clone_device(reg: &mut Registry, target: &str, new: &str) -> Result<()> {
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let view = choose(&views, reg, Some(target), false, Aim::Bootable).await?;
+
+    if views.iter().any(|v| {
+        v.device.host == view.device.host
+            && v.device.label.eq_ignore_ascii_case(new)
+    }) {
+        bail!(
+            "{} already has a device named {new}",
+            actions::where_of(&view.device).label()
+        );
+    }
+
+    eprintln!(
+        "phone: {}",
+        actions::clone(&view.device, &view.reach, new).await?
+    );
 
     Ok(())
 }
