@@ -89,10 +89,16 @@ pub fn not_idle(scales: Option<Scales>, pin: Option<&Pin>) -> String {
     };
 
     if transition != 0.0 {
-        let fix = match pin.filter(|p| nonzero(&p.value)) {
+        let fix = match pin {
+            Some(p) if !nonzero(&p.value) => format!(
+                "{} already pins it to 0 under [devices.\"{}\"] settings.global, so the device \
+                 drifted; `phone up` puts it back and restarts the app",
+                p.file.display(),
+                p.device
+            ),
             Some(p) => format!(
-                "{} pins it to {} under [devices.\"{}\"] settings.global; set it to 0 there, run \
-                 `phone up`, and restart the app",
+                "{} pins it to {} under [devices.\"{}\"] settings.global; set it to 0 there and \
+                 run `phone up`, which restarts the app",
                 p.file.display(),
                 p.value,
                 p.device
@@ -116,9 +122,10 @@ pub fn not_idle(scales: Option<Scales>, pin: Option<&Pin>) -> String {
     };
 
     format!(
-        "{head} Reduced motion is on, so the loop ignores it: a Reanimated animation \
-         set to ReduceMotion.Never, or one outside Reanimated (Lottie, a native view).{rest} \
-         `phone shot` shows what is on screen"
+        "{head} Reduced motion is on, so either the app started before it was and still \
+         reads it as off (`phone app stop`, then launch it again), or the loop ignores it: a \
+         Reanimated animation set to ReduceMotion.Never, or one outside Reanimated (Lottie, a \
+         native view).{rest} `phone shot` shows what is on screen"
     )
 }
 
@@ -194,10 +201,9 @@ mod tests {
         assert!(msg.contains(r#"[devices."pixel_7-api36"]"#), "{msg}");
 
         let msg = not_idle(Some(ON), Some(&pin("0")));
-        assert!(
-            !msg.contains("phone.toml"),
-            "a manifest that already asks for 0 is not the cause: {msg}"
-        );
+        assert!(msg.contains("already pins it to 0"), "{msg}");
+        assert!(msg.contains("`phone up` puts it back"), "{msg}");
+        assert!(!msg.contains("Developer options"), "{msg}");
     }
 
     #[test]
@@ -206,6 +212,7 @@ mod tests {
 
         assert!(msg.contains("Reduced motion is on"), "{msg}");
         assert!(msg.contains("ReduceMotion.Never"), "{msg}");
+        assert!(msg.contains("started before"), "{msg}");
         assert!(msg.contains("phone shot"), "{msg}");
         assert!(!msg.contains("set them to 0"), "{msg}");
 
