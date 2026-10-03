@@ -977,11 +977,21 @@ const FAILED: [&str; 5] = [
     "Could not connect to development server",
     "Unable to load script",
     "Unable to resolve module",
-    "Development servers",
+    LAUNCHER,
 ];
+/// The dev launcher's home, where a link sent before it was ready is dropped.
+const LAUNCHER: &str = "Development servers";
 const LOADING: [&str; 3] = ["Bundling", "Downloading", "Loading from"];
 const LOAD_LIMIT: Duration = Duration::from_secs(120);
 const STUCK_LIMIT: Duration = Duration::from_secs(10);
+
+fn patience(said: &str, resend: bool) -> Duration {
+    if resend && said.to_lowercase().contains(&LAUNCHER.to_lowercase()) {
+        Duration::ZERO
+    } else {
+        STUCK_LIMIT
+    }
+}
 
 #[derive(Debug, PartialEq)]
 enum Front {
@@ -1032,7 +1042,8 @@ async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
                 return Ok(());
             }
             Front::Failed(said)
-                if failing.get_or_insert_with(std::time::Instant::now).elapsed() >= STUCK_LIMIT =>
+                if failing.get_or_insert_with(std::time::Instant::now).elapsed()
+                    >= patience(said, open.is_some()) =>
             {
                 let Some(url) = open.take() else {
                     bail!(
@@ -1952,5 +1963,13 @@ mod tests {
         assert_eq!(front(&screen(&["DEVELOPMENT SERVERS"])), Front::Failed("DEVELOPMENT SERVERS".into()));
         assert_eq!(front(&screen(&["Bundling 42%"])), Front::Loading);
         assert_eq!(front(&screen(&["Operaciones en curso"])), Front::Shown);
+    }
+
+    #[test]
+    fn only_the_launcher_home_gets_the_link_again_at_once() {
+        assert_eq!(patience("DEVELOPMENT SERVERS", true), Duration::ZERO);
+        assert_eq!(patience("DEVELOPMENT SERVERS", false), STUCK_LIMIT);
+        assert_eq!(patience("Could not connect to development server.", true), STUCK_LIMIT);
+        assert_eq!(patience("Unable to load script", true), STUCK_LIMIT);
     }
 }
