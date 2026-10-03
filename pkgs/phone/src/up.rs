@@ -844,7 +844,7 @@ async fn raise(
         return Ok(());
     }
 
-    ready(view, spec, name).await?;
+    let restart = ready(view, spec, name).await?;
 
     if want < Level::Prepared {
         eprintln!("phone: {name} is ready");
@@ -852,13 +852,13 @@ async fn raise(
         return Ok(());
     }
 
-    prepared(project, site, name, view, stamps, tag).await
+    prepared(project, site, name, view, stamps, tag, restart).await
 }
 
 /// The forwards and the settings, which are what turn an attached device into
 /// one an app can be driven on. Both are Android's; a simulator shares its
 /// host's loopback already and takes its configuration from the host.
-async fn ready(view: &View, spec: &Spec, name: &str) -> Result<()> {
+async fn ready(view: &View, spec: &Spec, name: &str) -> Result<bool> {
     if !view.device.platform.is_adb() {
         if !spec.reverse.is_empty() || !spec.settings.is_empty() {
             eprintln!(
@@ -867,7 +867,7 @@ async fn ready(view: &View, spec: &Spec, name: &str) -> Result<()> {
             );
         }
 
-        return Ok(());
+        return Ok(false);
     }
 
     if !spec.reverse.is_empty() {
@@ -892,11 +892,13 @@ async fn ready(view: &View, spec: &Spec, name: &str) -> Result<()> {
 
     let want = spec.settings.each();
 
-    for changed in actions::settings(&view.server, &view.device, &want).await? {
-        eprintln!("phone: {name} {changed}");
+    let changed = actions::settings(&view.server, &view.device, &want).await?;
+
+    for setting in &changed {
+        eprintln!("phone: {name} {setting}");
     }
 
-    Ok(())
+    Ok(!changed.is_empty())
 }
 
 /// The build, and the app in front.
@@ -912,6 +914,7 @@ async fn prepared(
     view: &View,
     stamps: &Mutex<Stamps>,
     tag: Option<&str>,
+    restart: bool,
 ) -> Result<()> {
     let Some((platform, build)) = build_for(project, view.device.platform) else {
         bail!(
@@ -938,6 +941,15 @@ async fn prepared(
         );
 
         perform(site, Some(view), &step, &build.run, hash, stamps, tag).await?;
+    }
+
+    // an app reads some settings once at launch: Reanimated takes reduced motion
+    // from transition_animation_scale and keeps it until the process dies
+    if restart && here {
+        eprintln!(
+            "phone: {}, so it starts under the new settings",
+            apps::stop(&view.server, &view.device, &build.app).await?
+        );
     }
 
     eprintln!(
