@@ -94,7 +94,7 @@ fn ambiguity(views: &[View]) -> String {
 
     format!(
         "{} devices match, and there is no terminal to choose on; \
-         pass -t with the id on the left:\n{}",
+         name one by the id on the left:\n{}",
         views.len(),
         rows.join("\n")
     )
@@ -163,6 +163,7 @@ mod tests {
         let text = ambiguity(&views);
         let lines: Vec<&str> = text.lines().skip(1).collect();
 
+        assert!(text.contains("name one by the id on the left"), "{text}");
         assert!(lines[0].contains("attached/emu") && lines[0].ends_with("mac/emulator-5554"));
         assert!(lines[1].contains("known") && lines[1].ends_with(" -"));
     }
