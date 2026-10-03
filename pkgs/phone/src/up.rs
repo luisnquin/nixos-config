@@ -967,7 +967,7 @@ async fn prepared(
         );
     }
 
-    loaded(view, name).await
+    loaded(view, name, build.open.as_deref()).await
 }
 
 /// What a development client shows in place of the app when the bundle does not
@@ -995,7 +995,10 @@ fn front(nodes: &[crate::a11y::Node]) -> Front {
         nodes
             .iter()
             .map(|n| n.name())
-            .find(|name| marks.iter().any(|m| name.contains(m)))
+            .find(|name| {
+                let name = name.to_lowercase();
+                marks.iter().any(|m| name.contains(&m.to_lowercase()))
+            })
             .map(str::to_string)
     };
 
@@ -1006,7 +1009,7 @@ fn front(nodes: &[crate::a11y::Node]) -> Front {
     }
 }
 
-async fn loaded(view: &View, name: &str) -> Result<()> {
+async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
     if view.device.platform.is_hosted() {
         return Ok(());
     }
@@ -1019,30 +1022,42 @@ async fn loaded(view: &View, name: &str) -> Result<()> {
     loop {
         tokio::time::sleep(Duration::from_millis(1500)).await;
 
-        let now = crate::a11y::dump(&t)
-            .await
-            .map_or(Front::Loading, |screen| front(&screen.nodes));
+        let read = crate::a11y::dump(&t).await;
+        let now = read.as_ref().map_or(Front::Loading, |screen| front(&screen.nodes));
+        let unread = read.err().and_then(|e| e.downcast::<crate::a11y::NotIdle>().ok());
 
         match &now {
             Front::Shown if shown => {
                 eprintln!("phone: {name} is showing the app");
                 return Ok(());
             }
-            Front::Failed(said) => {
-                if failing.get_or_insert_with(std::time::Instant::now).elapsed() >= STUCK_LIMIT {
+            Front::Failed(said)
+                if failing.get_or_insert_with(std::time::Instant::now).elapsed() >= STUCK_LIMIT =>
+            {
+                let Some(url) = open.take() else {
                     bail!(
                         "{name} is not showing the app, it is stuck on \"{said}\"; \
                          is the bundler up and reachable from the device?"
                     );
-                }
+                };
+
+                eprintln!(
+                    "phone: {name} is on \"{said}\", sending the link again: {}",
+                    apps::open(&view.server, &view.device, url).await?
+                );
+                failing = None;
             }
+            Front::Failed(_) => {}
             _ => failing = None,
         }
 
         shown = now == Front::Shown;
 
         if began.elapsed() >= LOAD_LIMIT {
-            bail!("{name} did not finish loading the app in {}s", LOAD_LIMIT.as_secs());
+            match &unread {
+                Some(stuck) => bail!("{name} is up, but its screen cannot be read: {stuck}"),
+                None => bail!("{name} did not finish loading the app in {}s", LOAD_LIMIT.as_secs()),
+            }
         }
     }
 }
@@ -1934,6 +1949,7 @@ mod tests {
             Front::Failed("Could not connect to development server.".into())
         );
         assert_eq!(front(&screen(&["Development servers"])), Front::Failed("Development servers".into()));
+        assert_eq!(front(&screen(&["DEVELOPMENT SERVERS"])), Front::Failed("DEVELOPMENT SERVERS".into()));
         assert_eq!(front(&screen(&["Bundling 42%"])), Front::Loading);
         assert_eq!(front(&screen(&["Operaciones en curso"])), Front::Shown);
     }
