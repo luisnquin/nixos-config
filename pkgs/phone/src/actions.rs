@@ -890,8 +890,13 @@ fn forwards(stdout: &str, at: &str) -> Vec<String> {
 /// against a remote server unchanged: the encoder runs on the device and the
 /// stream rides the same adb connection.
 pub async fn mirror(server: &Server, device: &Device) -> Result<String> {
-    if device.platform.is_hosted() {
-        bail!("scrcpy cannot mirror {}", device.platform);
+    match device.platform {
+        Platform::Simulator => return window(device).await,
+        Platform::Ios => bail!(
+            "a physical iPhone has no screen this machine can read; use QuickTime or \
+             iPhone Mirroring on a mac"
+        ),
+        _ => {}
     }
 
     let serial = serial_of(server, device).await?;
@@ -911,6 +916,50 @@ pub async fn mirror(server: &Server, device: &Device) -> Result<String> {
         .context("running scrcpy")?;
 
     Ok(format!("mirroring {}", device.label))
+}
+
+const WINDOW_WIDTH: u32 = 660;
+
+async fn window(device: &Device) -> Result<String> {
+    let mut source = simctl::stream(&where_of(device), simctl::udid(device)?, WINDOW_WIDTH)?
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .context("starting the simulator stream")?;
+
+    let h264: Stdio = source
+        .stdout
+        .take()
+        .context("the stream gave no stdout")?
+        .try_into()?;
+
+    let shown = tokio::process::Command::new("ffplay")
+        .args(viewer(&device.label))
+        .stdin(h264)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .context("running ffplay")?;
+
+    let _ = source.kill().await;
+
+    if !shown.success() {
+        bail!("ffplay could not show {}", device.label);
+    }
+
+    Ok(format!("closed the window on {}", device.label))
+}
+
+fn viewer(title: &str) -> Vec<String> {
+    [
+        "-loglevel", "error", "-flags", "low_delay", "-framedrop", "-probesize", "32",
+        "-analyzeduration", "0", "-autoexit", "-f", "h264", "-window_title", title, "-i", "-",
+    ]
+    .map(String::from)
+    .to_vec()
 }
 
 pub async fn install(

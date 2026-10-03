@@ -7,7 +7,7 @@
   makeWrapper,
   android-tools,
   avahi,
-  ffmpeg-headless,
+  ffmpeg,
   fzf,
   libnotify,
   openssh,
@@ -22,8 +22,9 @@
     [
       android-tools
       # `record --frames` cuts the clip here, not on the host that holds
-      # the device: a mac running a simulator is not required to have ffmpeg
-      ffmpeg-headless
+      # the device: a mac running a simulator is not required to have ffmpeg.
+      # Not headless: `mirror` plays a simulator in ffplay
+      ffmpeg
       fzf
       openssh
       scrcpy

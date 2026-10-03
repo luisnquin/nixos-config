@@ -542,9 +542,13 @@ Enabling a host again re-probes what it can drive."#)]
     #[command(after_help = r#"Examples:
   phone mirror
 
-Opens a scrcpy window on this machine, so it needs a display and is for a person
+Opens a window on this machine, so it needs a display and is for a person
 watching rather than for a script. To see a screen without one, use `snapshot`
-or `shot`."#)]
+or `shot`.
+
+Android goes through scrcpy, which returns at once and takes input too. A
+Simulator plays in ffplay, view only, until the window is closed. A physical
+iPhone has no screen this machine can read."#)]
     Mirror {
         #[arg(id = "device")]
         target: Option<String>,
