@@ -638,14 +638,16 @@ Android and simulators; up to 180 seconds."#)]
         #[arg(long, requires = "frames", value_parser = clap::value_parser!(u8).range(1..=100))]
         jpeg: Option<u8>,
     },
-    /// Check the tools and daemons this depends on
+    /// Check the tools and daemons this depends on, and the project's phone.toml
     #[command(after_help = r#"Examples:
   phone doctor
 
 Reports what is missing rather than what is wrong with a device: adb, the
-clipboard, the ssh hosts that answer and what each one still offers. Run it when
-a command fails in a way that looks like a tool is absent, not when a device
-will not respond."#)]
+clipboard, the ssh hosts that answer and what each one still offers. Inside a
+project it also reads phone.toml for settings known to break screen reads, such
+as a transition_animation_scale pinned above 0; those are warnings, not
+failures. Run it when a command fails in a way that looks like a tool is absent,
+not when a device will not respond."#)]
     Doctor,
     /// Print one line pointing an agent at phone when a harness is about to run raw adb, emulator or simctl
     #[command(after_help = r#"Examples:

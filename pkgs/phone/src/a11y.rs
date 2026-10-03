@@ -5,6 +5,7 @@ use anyhow::{anyhow, bail, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::adb::{self, Server};
+use crate::doctor::motion::{not_idle, Pin, Scales};
 use crate::simctl;
 
 /// uiautomator will not write to stdout on every vendor build, so the dump goes
@@ -12,7 +13,10 @@ use crate::simctl;
 /// its usage text, dumps every window rather than the focused one, which is
 /// where an overlay or a popup the app draws in a window of its own lives.
 const DUMP: &str = "said=$(uiautomator dump --windows /sdcard/.phone-a11y.xml 2>&1); \
-     case \"$said\" in *'could not get idle state'*) echo phone:not-idle;; esac";
+     case \"$said\" in *'could not get idle state'*) echo phone:not-idle; \
+     echo \"phone:scales $(settings get global window_animation_scale) \
+     $(settings get global transition_animation_scale) \
+     $(settings get global animator_duration_scale)\";; esac";
 
 const READ: &str = "cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phone-a11y.xml";
 
@@ -22,15 +26,14 @@ const KEYBOARD: &str = "dumpsys input_method 2>/dev/null | grep -m1 mInputShown;
 const NOT_IDLE: &str = "phone:not-idle";
 
 #[derive(Debug)]
-pub struct NotIdle;
+pub struct NotIdle {
+    scales: Option<Scales>,
+    pin: Option<Pin>,
+}
 
 impl std::fmt::Display for NotIdle {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(
-            "the screen never went idle, so uiautomator would not read it: something on it \
-             animates without end. Turn on Remove animations, or set the animator, transition \
-             and window animation scales to 0 in Developer options",
-        )
+        f.write_str(&not_idle(self.scales, self.pin.as_ref()))
     }
 }
 
@@ -49,6 +52,7 @@ pub struct Adb {
     pub serial: String,
     pub display: Option<adb::Display>,
     pub focus: Option<(i32, i32)>,
+    pub device: Box<crate::model::Device>,
 }
 
 /// CoreSimulator is macOS-local, so the verbs run on the machine that owns the
@@ -489,10 +493,16 @@ pub async fn dump(t: &Target) -> Result<Screen> {
             tokio::time::sleep(Duration::from_millis(600)).await;
         }
 
-        match dump_once(a).await {
+        match dump_once(a).await.map_err(|e| e.downcast::<NotIdle>()) {
             Ok(screen) => return Ok(screen),
-            Err(e) if e.is::<NotIdle>() => return Err(e),
-            Err(e) => last = Some(e),
+            Err(Ok(stuck)) => {
+                return Err(NotIdle {
+                    pin: stuck.scales.and_then(|_| Pin::of(&a.device)),
+                    ..stuck
+                }
+                .into())
+            }
+            Err(Err(e)) => last = Some(e),
         }
     }
 
@@ -569,7 +579,11 @@ fn read_dump(ok: bool, out: &str) -> Result<Screen> {
     );
 
     if said.contains(NOT_IDLE) {
-        return Err(NotIdle.into());
+        return Err(NotIdle {
+            scales: Scales::parse(said),
+            pin: None,
+        }
+        .into());
     }
 
     if !ok || !xml.contains("<hierarchy") {
@@ -1539,6 +1553,23 @@ mod tests {
         let err = read_dump(true, "  mInputShown=false\n").unwrap_err();
         assert!(!err.is::<NotIdle>(), "{err}");
         assert!(err.to_string().contains("no hierarchy"), "{err}");
+    }
+
+    #[test]
+    fn the_scales_are_read_off_a_screen_that_never_went_idle() {
+        let err = read_dump(true, "phone:not-idle\nphone:scales null 1.0 0\n").unwrap_err();
+        let msg = err.to_string();
+
+        assert!(msg.contains("transition_animation_scale is 1"), "{msg}");
+
+        for garbled in [
+            "phone:scales 1 1\n",
+            "phone:scales 1 x 1\n",
+            "phone:scales\n",
+            "",
+        ] {
+            assert_eq!(Scales::parse(garbled), None, "{garbled:?}");
+        }
     }
 
     #[test]

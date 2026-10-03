@@ -7,6 +7,7 @@ mod avd;
 mod cli;
 mod connect;
 mod discover;
+mod doctor;
 mod grid;
 mod help;
 mod hook;
@@ -385,7 +386,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             Ok(())
         }
 
-        Some(Command::Doctor) => doctor(&mut reg).await,
+        Some(Command::Doctor) => doctor::run(&mut reg).await,
 
         Some(Command::Completions { .. } | Command::Hook { .. }) => unreachable!("handled above"),
 
@@ -1285,6 +1286,7 @@ async fn target_of(view: &View, focus: Option<(i32, i32)>) -> Result<a11y::Targe
         server: view.server.clone(),
         serial,
         focus,
+        device: Box::new(view.device.clone()),
     }))
 }
 
@@ -2240,162 +2242,6 @@ fn truncate(s: &str, width: usize) -> String {
         .take(width.saturating_sub(1))
         .chain(['…'])
         .collect()
-}
-
-async fn doctor(reg: &mut Registry) -> Result<()> {
-    let mut bad = 0;
-
-    let mut check = |ok: bool, name: &str, detail: String| {
-        if ok {
-            println!("  ✓ {name:<16} {detail}");
-        } else {
-            bad += 1;
-            println!("  ✗ {name:<16} {detail}");
-        }
-    };
-
-    let adb_version = adb::run(&Server::Local, &["version"]).await;
-
-    check(
-        adb_version.as_ref().is_ok_and(|o| o.ok()),
-        "adb",
-        adb_version
-            .as_ref()
-            .ok()
-            .and_then(|o| o.stdout.lines().next().map(str::to_string))
-            .unwrap_or_else(|| "not on PATH".into()),
-    );
-
-    let attached = adb::devices(&Server::Local).await.unwrap_or_default();
-
-    check(true, "transports", format!("{} attached", attached.len()));
-
-    let key = registry::state_dir()
-        .parent()
-        .map(|_| dirs_adbkey())
-        .unwrap_or_default();
-
-    check(
-        key.exists(),
-        "adbkey",
-        if key.exists() {
-            key.display().to_string()
-        } else {
-            "missing; adb will generate one on first use".into()
-        },
-    );
-
-    let peers = discover::tailscale::peers().await;
-
-    match &peers {
-        Ok(peers) => {
-            let android = peers.iter().filter(|p| p.is_android()).count();
-            let online = peers.iter().filter(|p| p.is_android() && p.online).count();
-
-            check(
-                true,
-                "tailscale",
-                format!("{android} android peer(s), {online} online"),
-            );
-        }
-        Err(e) => check(false, "tailscale", e.to_string()),
-    }
-
-    // adb from nixpkgs is built without the bundled mDNS responder, so wireless
-    // pairing depends entirely on the system's avahi
-    let mdns = adb::run(&Server::Local, &["mdns", "check"]).await;
-    let adb_mdns = mdns
-        .as_ref()
-        .is_ok_and(|o| !o.stderr.contains("not supported"));
-
-    check(
-        adb_mdns || which("avahi-browse"),
-        "mdns",
-        if adb_mdns {
-            "adb has its own responder".into()
-        } else if which("avahi-browse") {
-            "via avahi-browse (adb has no responder)".into()
-        } else {
-            "no adb responder and no avahi-browse; pairing needs a manual addr".into()
-        },
-    );
-
-    for tool in ["fzf", "scrcpy", "wl-copy", "notify-send"] {
-        check(
-            which(tool),
-            tool,
-            if which(tool) {
-                "ok".into()
-            } else {
-                "not on PATH".into()
-            },
-        );
-    }
-
-    let known = hosts::discover().await;
-    reg.sync_hosts(&known.iter().map(|h| h.name.clone()).collect::<Vec<_>>());
-
-    let enabled: Vec<String> = reg
-        .enabled_hosts()
-        .iter()
-        .map(|h| format!("{} ({})", h.name, h.caps.label()))
-        .collect();
-
-    check(
-        true,
-        "ssh hosts",
-        if enabled.is_empty() {
-            format!(
-                "{} in your ssh config, none enabled; `phone host enable NAME`",
-                known.len()
-            )
-        } else {
-            enabled.join(", ")
-        },
-    );
-
-    for state in reg
-        .hosts
-        .iter()
-        .filter(|h| h.enabled)
-        .cloned()
-        .collect::<Vec<_>>()
-    {
-        match hosts::probe(&state.name).await {
-            Some(caps) if caps == state.caps => {
-                check(true, &state.name, format!("still {}", caps.label()))
-            }
-            Some(caps) => check(
-                false,
-                &state.name,
-                format!("now {} (was {})", caps.label(), state.caps.label()),
-            ),
-            None => check(false, &state.name, "unreachable over ssh".into()),
-        }
-    }
-
-    reg.save()?;
-
-    if bad > 0 {
-        bail!("{bad} check(s) failed");
-    }
-
-    Ok(())
-}
-
-fn dirs_adbkey() -> std::path::PathBuf {
-    std::env::var_os("ANDROID_VENDOR_KEYS")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-                .join(".android/adbkey")
-        })
-}
-
-fn which(bin: &str) -> bool {
-    std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
-        .unwrap_or(false)
 }
 
 #[cfg(test)]
