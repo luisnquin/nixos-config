@@ -1,11 +1,10 @@
 use std::collections::HashSet;
-use std::ffi::CString;
 use std::fs;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 
 use crate::model::{Bytes, FsStat};
 
@@ -43,26 +42,20 @@ pub fn days_since(unix: i64) -> i64 {
 }
 
 pub fn statvfs(path: &str) -> Result<FsStat> {
-    let c_path = CString::new(path).context("path contains a NUL byte")?;
-    // SAFETY: c_path outlives the call and `st` is a plain POD struct that
-    // statvfs fully initialises when it returns 0.
-    let st = unsafe {
-        let mut st: libc::statvfs = std::mem::zeroed();
-        if libc::statvfs(c_path.as_ptr(), &mut st) != 0 {
-            bail!("statvfs({path}) failed: {}", std::io::Error::last_os_error());
-        }
-        st
+    let st = match rustix::fs::statvfs(path) {
+        Ok(st) => st,
+        Err(e) => bail!("statvfs({path}) failed: {}", std::io::Error::from(e)),
     };
 
     let unit = if st.f_frsize > 0 {
-        st.f_frsize as u64
+        st.f_frsize
     } else {
-        st.f_bsize as u64
+        st.f_bsize
     };
-    let total = st.f_blocks as u64 * unit;
-    let free = st.f_bavail as u64 * unit;
+    let total = st.f_blocks * unit;
+    let free = st.f_bavail * unit;
     // Match `df`: used counts reserved blocks, so used + avail < total.
-    let used = total - st.f_bfree as u64 * unit;
+    let used = total - st.f_bfree * unit;
 
     Ok(FsStat { total, used, free })
 }

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod collect;
 mod model;
 mod report;

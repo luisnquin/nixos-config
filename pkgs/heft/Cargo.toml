@@ -9,10 +9,10 @@ license = "MIT"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 clap = { version = "4", features = ["derive"] }
-libc = "0.2"
 # bundled: the nix store DB is the only consumer and it is read-only, so a
 # vendored SQLite keeps the build hermetic and drops a pkg-config dependency.
 rusqlite = { version = "0.32", features = ["bundled"] }
+rustix = { version = "1", features = ["fs"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
