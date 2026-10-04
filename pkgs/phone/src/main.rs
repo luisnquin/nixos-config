@@ -1114,10 +1114,16 @@ async fn answered(s: &Session, command: Command) -> Result<()> {
 
     s.read.take();
 
-    let early = match reads_first(&command) {
-        true => None,
-        false => a11y::dump(&s.target).await.ok(),
-    };
+    let first = reads_first(&command);
+    let (early, frame) = tokio::join!(
+        async {
+            match first {
+                true => None,
+                false => a11y::dump(&s.target).await.ok(),
+            }
+        },
+        frame(s),
+    );
 
     step(s, command).await?;
 
@@ -1126,6 +1132,9 @@ async fn answered(s: &Session, command: Command) -> Result<()> {
     };
 
     match answer::after(&s.target, &before).await {
+        Ok(change) if change.how == answer::How::Unmoved => {
+            println!("{}", unmoved(s, frame, &change.screen).await)
+        }
         Ok(change) => print_change(s, &before, &change),
         Err(e) => eprintln!(
             "phone: the act went through, but the screen after it could not be read: {e:#}"
@@ -1151,16 +1160,78 @@ fn reads_first(command: &Command) -> bool {
 const APPEARED_SHOWN: usize = 15;
 const GONE_SHOWN: usize = 3;
 
-fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
-    let screen = &change.screen;
+async fn frame(s: &Session) -> Option<Vec<u8>> {
+    let (rep, drain) = reporter();
+    let png = actions::capture(&s.view.server, &s.view.device, &rep).await;
 
-    if change.how == answer::How::Unmoved {
-        println!(
+    drop(rep);
+    drain.await;
+
+    png.ok()
+}
+
+fn decode(png: &[u8]) -> Option<image::RgbImage> {
+    Some(image::load_from_memory(png).ok()?.to_rgb8())
+}
+
+async fn unmoved(s: &Session, before: Option<Vec<u8>>, screen: &a11y::Screen) -> String {
+    let drawn = match before {
+        Some(before) => match (decode(&before), frame(s).await.as_deref().and_then(decode)) {
+            (Some(before), Some(after)) => Some(answer::drawn(&before, &after)),
+            _ => None,
+        },
+        None => None,
+    };
+
+    let scale = match (&drawn, &s.target) {
+        (Some(answer::Drawn::At(_)), a11y::Target::Simulator(_)) => {
+            a11y::size(&s.target).await.ok().map(|z| z.scale)
+        }
+        _ => Some(1.0),
+    };
+
+    match (drawn, scale) {
+        (None, _) => format!(
             "unchanged  no row changed within {}s; a slow result still shows up with `wait`, and `shot --grid` shows what the act hit",
             actions::MOVE_LIMIT.as_secs()
-        );
-        return;
+        ),
+        (Some(answer::Drawn::Still), _) => {
+            "unchanged  tree and pixels both still; the act most likely hit nothing that reacts, `shot --grid` shows where it landed".to_string()
+        }
+        (Some(answer::Drawn::At(px)), Some(scale)) => {
+            let at = answer::in_points(px, scale);
+            let rows = a11y::rows(&screen.nodes);
+            let inside = answer::holder(&rows, at)
+                .map(|r| {
+                    let index = a11y::recall(&s.view.device.id)
+                        .and_then(|shown| shown.iter().position(|v| *v == r.node.signature()))
+                        .map(|i| format!(" @{i}"))
+                        .unwrap_or_default();
+
+                    format!(" inside {}{index}", a11y::row_label(&r.label))
+                })
+                .unwrap_or_default();
+
+            format!(
+                "unchanged  tree still, but pixels changed at {},{}-{},{}{inside}; drawn content the tree cannot read: look with `shot --crop {},{},{},{}`",
+                at.x1,
+                at.y1,
+                at.x2,
+                at.y2,
+                at.x1,
+                at.y1,
+                at.width(),
+                at.height()
+            )
+        }
+        (Some(_), _) => {
+            "unchanged  tree still, but pixels changed; drawn content the tree cannot read: look with `shot`".to_string()
+        }
     }
+}
+
+fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
+    let screen = &change.screen;
 
     let still = match change.how {
         answer::How::Restless => {

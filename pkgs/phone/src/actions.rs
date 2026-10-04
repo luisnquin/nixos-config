@@ -236,7 +236,7 @@ impl<T: Default> Settling<T> {
 
 /// Share of a frame a looping spinner may change while it is still the same
 /// screen; the smallest control a tap changes covers several times this.
-const STILL_SHARE: f64 = 0.0025;
+pub const STILL_SHARE: f64 = 0.0025;
 
 fn same(a: &[u8], b: &[u8]) -> bool {
     if a == b {
