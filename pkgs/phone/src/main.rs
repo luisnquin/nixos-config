@@ -50,6 +50,7 @@ mod model;
 mod picker;
 mod pids;
 mod project;
+mod recent;
 mod record;
 mod registry;
 mod scroll;
@@ -2168,6 +2169,13 @@ async fn reaching(
         .filter(|s| !s.is_empty())
         .or_else(preferred);
 
+    if let Some(view) = match &named {
+        Some(w) => discover::known::attached(reg, w).await,
+        None => None,
+    } {
+        return admit(view, hold).await;
+    }
+
     let views = match &named {
         Some(w) => {
             discover::survey_until(reg, |views| {
@@ -2194,6 +2202,10 @@ async fn reaching(
         bail!(why);
     }
 
+    admit(view, hold).await
+}
+
+async fn admit(view: View, hold: Hold) -> Result<View> {
     let (held, looked, ()) = tokio::join!(
         async {
             match hold {
@@ -2210,6 +2222,8 @@ async fn reaching(
     if let Some(looked) = looked {
         looked.settle();
     }
+
+    connect::settle(&view);
 
     Ok(view)
 }

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::adb::EMULATOR_BUILD_SERIAL;
 use crate::hosts::HostState;
 use crate::model::{
-    discovered_id, is_transport_alias, now, Device, Platform, EMULATOR_SERIAL_PREFIX,
+    discovered_id, is_transport_alias, now, Device, Platform, Transport, EMULATOR_SERIAL_PREFIX,
     PLACEHOLDER_PREFIX,
 };
 
@@ -282,6 +282,25 @@ impl Registry {
     /// Takes every transport name this device now answers to off whatever row
     /// used to hold it. Those names are leases, and the device just seen
     /// answering is the one holding it.
+    fn claim_transport(&mut self, holder: usize, transport: Option<Transport>) {
+        let Some(held) = transport else {
+            return;
+        };
+
+        self.devices[holder].transport = Some(held.clone());
+
+        for (i, device) in self.devices.iter_mut().enumerate() {
+            let same = device
+                .transport
+                .as_ref()
+                .is_some_and(|t| t.serial == held.serial && t.host == held.host);
+
+            if i != holder && same {
+                device.transport = None;
+            }
+        }
+    }
+
     fn evict_stale_leases(&mut self, holder: usize) {
         let claimed: Vec<String> = self.devices[holder]
             .aliases
@@ -302,6 +321,7 @@ impl Registry {
     }
 
     pub fn upsert(&mut self, device: Device) -> &mut Device {
+        let transport = device.transport.clone();
         let at = match self.devices.iter().position(|d| d.id == device.id) {
             Some(i) => {
                 let existing = &mut self.devices[i];
@@ -344,6 +364,7 @@ impl Registry {
         };
 
         self.evict_stale_leases(at);
+        self.claim_transport(at, transport);
 
         &mut self.devices[at]
     }

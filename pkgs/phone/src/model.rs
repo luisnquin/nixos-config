@@ -178,6 +178,19 @@ pub struct Device {
     pub endpoints: Vec<Endpoint>,
     #[serde(default)]
     pub last_connected: Option<Unix>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport: Option<Transport>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Transport {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    pub serial: String,
+    pub id: String,
+    pub product: String,
+    pub model: String,
+    pub device: String,
 }
 
 impl Device {
@@ -192,6 +205,7 @@ impl Device {
             host: None,
             endpoints: Vec::new(),
             last_connected: None,
+            transport: None,
         }
     }
 

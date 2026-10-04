@@ -5,7 +5,8 @@ use anyhow::{anyhow, bail, Result};
 use tokio::process::Command;
 
 use crate::calls::{self, Cost};
-use crate::model::Platform;
+use crate::model::{Platform, Transport};
+use crate::recent::Recent;
 use crate::ssh;
 
 /// Which adb server a command talks to. Servers never speak to each other, but
@@ -56,15 +57,28 @@ impl Server {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Attached {
     pub serial: String,
     pub state: String,
     pub model: String,
     pub product: String,
+    pub device: String,
+    pub transport_id: String,
 }
 
 impl Attached {
+    pub fn transport(&self, host: Option<&str>) -> Transport {
+        Transport {
+            host: host.map(str::to_string),
+            serial: self.serial.clone(),
+            id: self.transport_id.clone(),
+            product: self.product.clone(),
+            model: self.model.clone(),
+            device: self.device.clone(),
+        }
+    }
+
     pub fn is_wireless(&self) -> bool {
         // USB and emulator serials never contain a colon
         self.serial.contains(':')
@@ -293,14 +307,15 @@ pub fn parse_devices(text: &str) -> Vec<Attached> {
         let mut dev = Attached {
             serial: serial.to_string(),
             state: state.to_string(),
-            model: String::new(),
-            product: String::new(),
+            ..Attached::default()
         };
 
         for kv in parts {
             match kv.split_once(':') {
                 Some(("model", v)) => dev.model = v.replace('_', " "),
                 Some(("product", v)) => dev.product = v.to_string(),
+                Some(("device", v)) => dev.device = v.to_string(),
+                Some(("transport_id", v)) => dev.transport_id = v.to_string(),
                 _ => {}
             }
         }
@@ -397,18 +412,62 @@ pub struct Display {
     pub logical: u32,
 }
 
-/// The panel that is live. Foldables expose several and both `screencap` and
-/// `input` otherwise fall to the first, as often as not the one that is closed.
-pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
-    let out = run_timeout(
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Panel {
+    pub display: Option<Display>,
+    pub size: Option<(i32, i32)>,
+}
+
+const PANEL: &str = concat!(
+    r#"v=$(dumpsys display | grep -F 'DisplayViewport{'); echo "$v"; "#,
+    r#"id=$(echo "$v" | tr '{' '\n' | grep -F isActive=true | grep -o 'displayId=[0-9]*' | head -n 1 | cut -d= -f2); "#,
+    r#"echo "@@size $id"; wm size ${id:+-d $id}"#,
+);
+
+static PANELS: Recent<(Server, String), Panel> = Recent::new(Duration::from_secs(20));
+
+fn known_panel(server: &Server, serial: &str) -> Option<Panel> {
+    PANELS.get(&(server.clone(), serial.to_string()))
+}
+
+pub async fn panel(server: &Server, serial: &str) -> Panel {
+    if let Some(panel) = known_panel(server, serial) {
+        return panel;
+    }
+
+    let Ok(out) = run_timeout(
         server,
-        &["-s", serial, "shell", "dumpsys", "display"],
+        &["-s", serial, "shell", PANEL],
         Duration::from_secs(8),
     )
     .await
-    .ok()?;
+    else {
+        return Panel::default();
+    };
 
-    active_viewport(&out.stdout)
+    let panel = parse_panel(&out.stdout);
+
+    PANELS.put((server.clone(), serial.to_string()), panel);
+
+    panel
+}
+
+pub fn parse_panel(text: &str) -> Panel {
+    let (viewports, sized) = text.split_once("@@size").unwrap_or((text, ""));
+    let display = active_viewport(viewports);
+    let (aimed, wm) = sized.split_once('\n').unwrap_or((sized, ""));
+    let want = display.map(|d| d.logical.to_string()).unwrap_or_default();
+
+    Panel {
+        display,
+        size: (aimed.trim() == want).then(|| parse_wm_size(wm)).flatten(),
+    }
+}
+
+/// The panel that is live. Foldables expose several and both `screencap` and
+/// `input` otherwise fall to the first, as often as not the one that is closed.
+pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
+    panel(server, serial).await.display
 }
 
 /// Read here rather than from SurfaceFlinger's `powerMode`: `isActive` is the
@@ -442,6 +501,13 @@ pub async fn screen_size(
     serial: &str,
     display: Option<Display>,
 ) -> Option<(i32, i32)> {
+    if let Some(size) = known_panel(server, serial)
+        .filter(|p| p.display == display)
+        .and_then(|p| p.size)
+    {
+        return Some(size);
+    }
+
     let aim = display
         .map(|d| format!(" -d {}", d.logical))
         .unwrap_or_default();
@@ -642,6 +708,23 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
             Some((1080, 2340))
         );
         assert_eq!(parse_wm_size("mumble\n"), None);
+    }
+
+    #[test]
+    fn one_shell_reads_the_live_panel_and_its_size() {
+        let open = parse_panel(&format!("{FOLD}\n@@size 0\nPhysical size: 2076x2152\n"));
+
+        assert_eq!(open.display.map(|d| d.logical), Some(0));
+        assert_eq!(open.size, Some((2076, 2152)));
+
+        let unnamed = parse_panel("@@size \nPhysical size: 1080x2400\n");
+
+        assert_eq!(unnamed.display, None);
+        assert_eq!(unnamed.size, Some((1080, 2400)));
+
+        let crossed = parse_panel(&format!("{FOLD}\n@@size 3\nPhysical size: 1080x2364\n"));
+
+        assert_eq!(crossed.size, None, "a size read off another panel is dropped");
     }
 
     #[test]

@@ -1,4 +1,5 @@
 pub mod avahi;
+pub mod known;
 pub mod sweep;
 pub mod tailscale;
 
@@ -8,8 +9,8 @@ use std::time::Duration;
 use crate::adb::{self, Server};
 use crate::hosts::{self, HostState};
 use crate::model::{
-    avd_id, discovered_id, is_transport_alias, Device, Endpoint, Pin, Platform, Reach, View,
-    EMULATOR_SERIAL_PREFIX, PLACEHOLDER_PREFIX,
+    avd_id, discovered_id, is_transport_alias, Device, Endpoint, Pin, Platform, Reach, Transport,
+    View, EMULATOR_SERIAL_PREFIX, PLACEHOLDER_PREFIX,
 };
 use crate::registry::Registry;
 use crate::ssh::Where;
@@ -652,6 +653,7 @@ fn resolve_attached(reg: &mut Registry, server: &Server, row: &Attach) -> Option
 
     // a live transport is a connection; "never" while attached cannot be right
     device.last_connected = Some(crate::model::now());
+    device.transport = identified(server, row);
 
     let stored = reg.upsert(device).clone();
 
@@ -662,6 +664,12 @@ fn resolve_attached(reg: &mut Registry, server: &Server, row: &Attach) -> Option
             wireless: dev.is_wireless(),
         },
     ))
+}
+
+fn identified(server: &Server, row: &Attach) -> Option<Transport> {
+    let answered = !row.ident.model.is_empty();
+
+    answered.then(|| row.dev.transport(server.host()))
 }
 
 pub fn split_addr(serial: &str) -> Option<(String, u16)> {
@@ -751,7 +759,7 @@ mod tests {
                 serial: serial.into(),
                 state: "device".into(),
                 model: "sdk_gphone64_arm64".into(),
-                product: String::new(),
+                ..adb::Attached::default()
             },
             ident: adb::Identity {
                 serialno: "EMULATOR36X6X11X0".into(),

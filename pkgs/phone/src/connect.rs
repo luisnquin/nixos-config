@@ -7,6 +7,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::adb::{self, Server};
 use crate::discover::{avahi, scoped, split_addr, sweep, tailscale};
 use crate::model::{Device, Pin, Platform, Reach, View};
+use crate::recent::Recent;
 use crate::registry::Registry;
 
 #[derive(Clone, Debug)]
@@ -124,7 +125,19 @@ pub async fn attached_serial(server: &Server, device: &Device) -> Option<String>
         .map(|a| a.serial)
 }
 
+static SETTLED: Recent<(Server, String), String> = Recent::new(Duration::from_secs(20));
+
+pub fn settle(view: &View) {
+    if let Reach::Attached { serial, .. } = &view.reach {
+        SETTLED.put((view.server.clone(), view.device.id.clone()), serial.clone());
+    }
+}
+
 pub async fn serial_of(server: &Server, device: &Device) -> Result<String> {
+    if let Some(serial) = SETTLED.get(&(server.clone(), device.id.clone())) {
+        return Ok(serial);
+    }
+
     attached_serial(server, device)
         .await
         .ok_or_else(|| anyhow!(unattached(device)))
