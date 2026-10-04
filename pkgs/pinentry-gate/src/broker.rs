@@ -3,11 +3,13 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-use std::os::unix::io::AsRawFd;
-use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
+
+use rustix::event::{PollFd, PollFlags, Timespec};
+use rustix::fs::{Access, Mode, OFlags};
+use rustix::process::{Pid, Signal};
 
 use crate::assuan::Request;
 use crate::config::Config;
@@ -18,8 +20,10 @@ use crate::{fifo, phone, seat};
 /// the request; it hands back the process, or None when it cannot start.
 pub type Surface = Box<dyn FnOnce(&Path, &Path) -> Option<Child>>;
 
+const POLL_TICK: Timespec = Timespec { tv_sec: 0, tv_nsec: 100_000_000 };
+
 pub fn runtime_dir() -> PathBuf {
-    let base = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| format!("/run/user/{}", unsafe { libc::getuid() }));
+    let base = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| format!("/run/user/{}", rustix::process::getuid().as_raw()));
     PathBuf::from(base).join("pinentry-gate")
 }
 
@@ -49,22 +53,13 @@ pub fn window_surface(config: &Config, runtime: &Path) -> Option<Surface> {
 
 pub fn vt_surface(config: &Config) -> Option<Surface> {
     let vt = config.vt?;
-    let device = std::ffi::CString::new(format!("/dev/tty{vt}")).ok()?;
-    if unsafe { libc::access(device.as_ptr(), libc::R_OK | libc::W_OK) } != 0 {
+    if rustix::fs::access(format!("/dev/tty{vt}"), Access::READ_OK | Access::WRITE_OK).is_err() {
         return None;
     }
     Some(Box::new(move |fifo, request_file| {
         let exe = std::env::current_exe().ok()?;
         let mut command = Command::new(exe);
         command.args(modal_args(fifo, request_file)).arg("--vt").arg(vt.to_string()).stdin(Stdio::null());
-        // Its own session, so the console can become its controlling tty and
-        // the switch ioctls are permitted without any capability.
-        unsafe {
-            command.pre_exec(|| {
-                libc::setsid();
-                Ok(())
-            });
-        }
         command.spawn().ok()
     }))
 }
@@ -95,7 +90,7 @@ fn stop(child: &mut Option<Child>) {
     if proc.try_wait().ok().flatten().is_some() {
         return;
     }
-    unsafe { libc::kill(proc.id() as i32, libc::SIGTERM) };
+    let _ = rustix::process::kill_process(Pid::from_child(&proc), Signal::TERM);
     let deadline = Instant::now() + Duration::from_secs(3);
     while Instant::now() < deadline {
         if proc.try_wait().ok().flatten().is_some() {
@@ -170,13 +165,10 @@ impl Broker {
         let id = random_id();
         let fifo = self.runtime.join(&id);
         let request_file = self.runtime.join(format!("{id}.json"));
-        let Ok(path) = std::ffi::CString::new(fifo.as_os_str().as_encoded_bytes()) else {
-            return None;
-        };
-        if unsafe { libc::mkfifo(path.as_ptr(), 0o600) } != 0 {
+        if rustix::fs::mkfifoat(rustix::fs::CWD, &fifo, Mode::from_raw_mode(0o600)).is_err() {
             return None;
         }
-        let reader = OpenOptions::new().read(true).write(true).custom_flags(libc::O_NONBLOCK).open(&fifo);
+        let reader = OpenOptions::new().read(true).write(true).custom_flags(OFlags::NONBLOCK.bits() as i32).open(&fifo);
         let Ok(mut reader) = reader else {
             let _ = fs::remove_file(&fifo);
             return None;
@@ -225,8 +217,8 @@ impl Broker {
         let mut buf = Vec::new();
         let deadline = Instant::now() + Duration::from_secs(self.config.timeout);
         while Instant::now() < deadline && !interrupted() {
-            let mut pfd = libc::pollfd { fd: reader.as_raw_fd(), events: libc::POLLIN, revents: 0 };
-            let ready = unsafe { libc::poll(&mut pfd, 1, 100) };
+            let mut pfd = [PollFd::new(&*reader, PollFlags::IN)];
+            let ready = rustix::event::poll(&mut pfd, Some(&POLL_TICK)).unwrap_or(0);
             if ready > 0 {
                 let mut chunk = [0u8; 4096];
                 if let Ok(n) = reader.read(&mut chunk) {
@@ -399,8 +391,7 @@ mod tests {
         let dir = scratch(name);
         std::fs::create_dir_all(&dir).unwrap();
         let pipe = dir.join("ae7fd1b08f6b0c89");
-        let path = std::ffi::CString::new(pipe.as_os_str().as_encoded_bytes()).unwrap();
-        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o600) }, 0);
+        rustix::fs::mkfifoat(rustix::fs::CWD, &pipe, Mode::from_raw_mode(0o600)).unwrap();
         std::fs::write(dir.join("ae7fd1b08f6b0c89.json"), "{}").unwrap();
         dir
     }
@@ -416,7 +407,7 @@ mod tests {
     fn a_request_still_held_survives_the_sweep() {
         let dir = stale("held");
         let pipe = dir.join("ae7fd1b08f6b0c89");
-        let _reader = OpenOptions::new().read(true).write(true).custom_flags(libc::O_NONBLOCK).open(&pipe).unwrap();
+        let _reader = OpenOptions::new().read(true).write(true).custom_flags(OFlags::NONBLOCK.bits() as i32).open(&pipe).unwrap();
         sweep(&dir);
         assert!(pipe.exists());
         assert!(dir.join("ae7fd1b08f6b0c89.json").exists());

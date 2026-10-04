@@ -3,18 +3,14 @@
 
 use std::fs::File;
 use std::io::Write;
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::FileTypeExt;
-use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::Path;
 
+use rustix::fs::{Mode, OFlags};
+
 fn open(fifo: &Path) -> Option<File> {
-    let path = std::ffi::CString::new(fifo.as_os_str().as_bytes()).ok()?;
-    let fd = unsafe { libc::open(path.as_ptr(), libc::O_WRONLY | libc::O_NONBLOCK | libc::O_NOFOLLOW) };
-    if fd < 0 {
-        return None;
-    }
-    let file = unsafe { File::from_raw_fd(fd) };
+    let fd = rustix::fs::open(fifo, OFlags::WRONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW, Mode::empty()).ok()?;
+    let file = File::from(fd);
     file.metadata().is_ok_and(|meta| meta.file_type().is_fifo()).then_some(file)
 }
 
@@ -26,7 +22,7 @@ pub fn deliver(fifo: &Path, line: &str) -> bool {
     let Some(mut file) = open(fifo) else {
         return false;
     };
-    unsafe { libc::fcntl(file.as_raw_fd(), libc::F_SETFL, 0) };
+    let _ = rustix::fs::fcntl_setfl(&file, OFlags::empty());
     file.write_all(line.as_bytes()).is_ok()
 }
 
@@ -47,12 +43,11 @@ mod tests {
     }
 
     fn mkfifo(path: &Path) {
-        let c = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
-        assert_eq!(unsafe { libc::mkfifo(c.as_ptr(), 0o600) }, 0);
+        rustix::fs::mkfifoat(rustix::fs::CWD, path, Mode::from_raw_mode(0o600)).unwrap();
     }
 
     fn reader(path: &Path) -> File {
-        OpenOptions::new().read(true).write(true).custom_flags(libc::O_NONBLOCK).open(path).unwrap()
+        OpenOptions::new().read(true).write(true).custom_flags(OFlags::NONBLOCK.bits() as i32).open(path).unwrap()
     }
 
     #[test]

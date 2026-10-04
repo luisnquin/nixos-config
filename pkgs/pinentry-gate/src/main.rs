@@ -6,6 +6,8 @@
 //! otherwise) and an escape sequence into every terminal that marked its pty.
 //! The first decision wins and the others withdraw.
 
+#![deny(unsafe_code)]
+
 mod answer;
 mod assuan;
 mod broker;
@@ -16,6 +18,8 @@ mod paint;
 mod phone;
 mod seat;
 mod signals;
+#[allow(unsafe_code)]
+mod vt;
 
 use std::io;
 

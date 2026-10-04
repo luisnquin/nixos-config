@@ -3,11 +3,14 @@
 //! console it switches to.
 
 use std::fs::OpenOptions;
-use std::os::unix::io::{AsRawFd, OwnedFd};
+use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::path::{Path, PathBuf};
 #[cfg(test)]
 use std::time::Duration;
 use std::time::Instant;
+
+use rustix::event::{PollFd, PollFlags, Timespec};
+use rustix::termios::{self, OptionalActions, Termios};
 
 use crate::assuan::Payload;
 use crate::config::{Config, SoundConfig};
@@ -15,19 +18,9 @@ use ttycanvas::audio::{Cue, Options, Sound};
 use ttycanvas::carousel::Carousel;
 use crate::paint::{self, Ink, Screen};
 use crate::signals::{self, interrupted};
+use crate::vt;
 
 const TICK_MS: u64 = 100;
-
-const VT_GETSTATE: libc::c_ulong = 0x5603;
-const VT_ACTIVATE: libc::c_ulong = 0x5606;
-const VT_WAITACTIVE: libc::c_ulong = 0x5607;
-
-#[repr(C)]
-struct VtStat {
-    v_active: u16,
-    v_signal: u16,
-    v_state: u16,
-}
 
 pub enum Outcome {
     Decided(Option<String>),
@@ -37,7 +30,7 @@ pub enum Outcome {
 /// The terminal the modal draws on, with what it has to put back.
 pub struct Console {
     fd: OwnedFd,
-    saved: libc::termios,
+    saved: Termios,
     previous_vt: Option<u16>,
 }
 
@@ -45,48 +38,36 @@ impl Console {
     pub fn take(device: &Path, vt: Option<u16>) -> Option<Console> {
         let file = OpenOptions::new().read(true).write(true).open(device).ok()?;
         let fd = OwnedFd::from(file);
-        let raw = fd.as_raw_fd();
-        let mut saved: libc::termios = unsafe { std::mem::zeroed() };
-        if unsafe { libc::tcgetattr(raw, &mut saved) } != 0 {
-            return None;
-        }
+        let saved = termios::tcgetattr(&fd).ok()?;
         let mut previous_vt = None;
         if let Some(vt) = vt {
-            // Steal it even if a controlling tty already exists; the broker
-            // started this process in its own session for exactly this.
-            if unsafe { libc::ioctl(raw, libc::TIOCSCTTY as _, 1) } != 0 {
-                return None;
-            }
-            let mut state = VtStat { v_active: 0, v_signal: 0, v_state: 0 };
-            if unsafe { libc::ioctl(raw, VT_GETSTATE as _, &mut state) } != 0 {
-                return None;
-            }
-            if unsafe { libc::ioctl(raw, VT_ACTIVATE as _, vt as libc::c_ulong) } != 0 {
-                return None;
-            }
-            unsafe { libc::ioctl(raw, VT_WAITACTIVE as _, vt as libc::c_ulong) };
-            previous_vt = Some(state.v_active);
+            // `main` left this process a session leader with no controlling
+            // tty; VT_ACTIVATE is refused unless this tty becomes it.
+            rustix::process::ioctl_tiocsctty(&fd).ok()?;
+            let active = vt::active()?;
+            vt::activate(&fd, vt).ok()?;
+            let _ = vt::wait_active(&fd, vt);
+            previous_vt = Some(active);
         }
-        let mut mode = saved;
-        unsafe { libc::cfmakeraw(&mut mode) };
+        let mut mode = saved.clone();
+        mode.make_raw();
         // Flushing drops keys typed before the box was up; none of them were
         // meant for it.
-        unsafe { libc::tcsetattr(raw, libc::TCSAFLUSH, &mode) };
+        let _ = termios::tcsetattr(&fd, OptionalActions::Flush, &mode);
         Some(Console { fd, saved, previous_vt })
     }
 
-    pub fn raw(&self) -> i32 {
-        self.fd.as_raw_fd()
+    pub fn fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
     }
 
     pub fn write(&self, bytes: &[u8]) {
         let mut offset = 0;
         while offset < bytes.len() {
-            let n = unsafe { libc::write(self.raw(), bytes[offset..].as_ptr() as *const libc::c_void, bytes.len() - offset) };
-            if n <= 0 {
-                return;
+            match rustix::io::write(&self.fd, &bytes[offset..]) {
+                Ok(n) if n > 0 => offset += n,
+                _ => return,
             }
-            offset += n as usize;
         }
     }
 }
@@ -94,19 +75,17 @@ impl Console {
 impl Drop for Console {
     fn drop(&mut self) {
         self.write(b"\x1b[2J\x1b[H\x1b[?25h\x1b[?1049l");
-        unsafe { libc::tcsetattr(self.raw(), libc::TCSANOW, &self.saved) };
+        let _ = termios::tcsetattr(&self.fd, OptionalActions::Now, &self.saved);
         if let Some(previous) = self.previous_vt {
-            unsafe { libc::ioctl(self.raw(), VT_ACTIVATE as _, previous as libc::c_ulong) };
+            let _ = vt::activate(&self.fd, previous);
         }
     }
 }
 
-pub fn size(fd: i32) -> (u16, u16) {
-    let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
-    if unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) } == 0 && ws.ws_col > 0 && ws.ws_row > 0 {
-        (ws.ws_col, ws.ws_row)
-    } else {
-        (80, 24)
+pub fn size(fd: BorrowedFd<'_>) -> (u16, u16) {
+    match termios::tcgetwinsize(fd) {
+        Ok(ws) if ws.ws_col > 0 && ws.ws_row > 0 => (ws.ws_col, ws.ws_row),
+        _ => (80, 24),
     }
 }
 
@@ -278,22 +257,19 @@ impl Frame {
     }
 }
 
-fn read_byte(fd: i32, timeout_ms: i32) -> Option<Option<u8>> {
-    let mut pfd = libc::pollfd { fd, events: libc::POLLIN, revents: 0 };
-    let ready = unsafe { libc::poll(&mut pfd, 1, timeout_ms) };
-    if ready <= 0 {
-        return if ready == 0 { Some(None) } else { None };
+fn read_byte(fd: BorrowedFd<'_>, timeout_ms: i32) -> Option<Option<u8>> {
+    let timeout = Timespec { tv_sec: (timeout_ms / 1000).into(), tv_nsec: (timeout_ms % 1000 * 1_000_000).into() };
+    if rustix::event::poll(&mut [PollFd::new(&fd, PollFlags::IN)], Some(&timeout)).ok()? == 0 {
+        return Some(None);
     }
-    let mut byte = 0u8;
-    let n = unsafe { libc::read(fd, &mut byte as *mut u8 as *mut libc::c_void, 1) };
-    if n == 1 {
-        Some(Some(byte))
-    } else {
-        None
+    let mut byte = [0u8; 1];
+    match rustix::io::read(fd, &mut byte) {
+        Ok(1) => Some(Some(byte[0])),
+        _ => None,
     }
 }
 
-fn skip_escape_sequence(fd: i32, first: u8) {
+fn skip_escape_sequence(fd: BorrowedFd<'_>, first: u8) {
     match first {
         b'[' => {
             while let Some(Some(byte)) = read_byte(fd, 50) {
@@ -311,7 +287,7 @@ fn skip_escape_sequence(fd: i32, first: u8) {
 
 /// Keys until a decision. Every keystroke redraws through `draw`, which gets
 /// the number of characters typed so far.
-pub fn read_answer(fd: i32, mode: &str, mut draw: impl FnMut(usize)) -> Outcome {
+pub fn read_answer(fd: BorrowedFd<'_>, mode: &str, mut draw: impl FnMut(usize)) -> Outcome {
     let mut pin: Vec<char> = Vec::new();
     let mut pending: Vec<u8> = Vec::new();
     draw(0);
@@ -387,14 +363,14 @@ pub fn open_sound(cfg: &SoundConfig) -> Option<Sound> {
 /// The picture and the sound share one clock, so a tick is wall time, not a
 /// draw count: keystrokes redraw without advancing it.
 pub fn run(console: &Console, payload: &Payload, sound: Option<&Sound>) -> Outcome {
-    let (cols, rows) = size(console.raw());
+    let (cols, rows) = size(console.fd());
     let frame = layout(payload, cols);
     let carousel = Carousel::from_clock();
     let mut screen = Screen::new(usize::from(cols), usize::from(rows));
     let started = Instant::now();
     let mut typed_before = 0;
     console.write(b"\x1b[?1049h");
-    read_answer(console.raw(), &frame.mode, |typed| {
+    read_answer(console.fd(), &frame.mode, |typed| {
         let tick = (started.elapsed().as_millis() / u128::from(TICK_MS)) as u64;
         if let Some(sound) = sound {
             sound.tick(tick);
@@ -438,6 +414,9 @@ pub fn main(args: &[String]) -> i32 {
         eprintln!("usage: pinentry-gate modal --answer FIFO --request FILE [--vt N]");
         return 2;
     };
+    if args.vt.is_some() {
+        let _ = rustix::process::setsid();
+    }
     let payload: Payload = std::fs::read_to_string(&args.request)
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
@@ -475,18 +454,18 @@ pub fn main(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustix::fs::{Mode, OFlags};
+    use rustix::pty::{grantpt, openpt, ptsname, unlockpt, OpenptFlags};
 
-    fn pty() -> (i32, i32) {
-        let mut master = 0;
-        let mut slave = 0;
-        let rc = unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) };
-        assert_eq!(rc, 0);
-        let mut mode: libc::termios = unsafe { std::mem::zeroed() };
-        unsafe {
-            libc::tcgetattr(slave, &mut mode);
-            libc::cfmakeraw(&mut mode);
-            libc::tcsetattr(slave, libc::TCSANOW, &mode);
-        }
+    fn pty() -> (OwnedFd, OwnedFd) {
+        let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY).unwrap();
+        grantpt(&master).unwrap();
+        unlockpt(&master).unwrap();
+        let name = ptsname(&master, Vec::new()).unwrap();
+        let slave = rustix::fs::open(name.as_c_str(), OFlags::RDWR | OFlags::NOCTTY, Mode::empty()).unwrap();
+        let mut mode = termios::tcgetattr(&slave).unwrap();
+        mode.make_raw();
+        termios::tcsetattr(&slave, OptionalActions::Now, &mode).unwrap();
         (master, slave)
     }
 
@@ -494,18 +473,17 @@ mod tests {
         let (master, slave) = pty();
         let writer = std::thread::spawn(move || {
             for chunk in bytes.chunks(3) {
-                unsafe { libc::write(master, chunk.as_ptr() as *const libc::c_void, chunk.len()) };
+                let _ = rustix::io::write(&master, chunk);
                 std::thread::sleep(Duration::from_millis(5));
             }
+            master
         });
-        let outcome = read_answer(slave, "pin", |_| {});
-        writer.join().unwrap();
-        unsafe {
-            libc::close(master);
-            libc::close(slave);
-        }
+        let outcome = read_answer(slave.as_fd(), "pin", |_| {});
+        let master = writer.join().unwrap();
+        drop((master, slave));
         outcome
     }
+
 
     fn decided(outcome: Outcome) -> Option<String> {
         match outcome {
@@ -535,12 +513,9 @@ mod tests {
     #[test]
     fn confirm_answers_yes_on_enter() {
         let (master, slave) = pty();
-        unsafe { libc::write(master, b"\r".as_ptr() as *const libc::c_void, 1) };
-        assert_eq!(decided(read_answer(slave, "confirm", |_| {})), Some("ok".into()));
-        unsafe {
-            libc::close(master);
-            libc::close(slave);
-        }
+        let _ = rustix::io::write(&master, b"\r");
+        assert_eq!(decided(read_answer(slave.as_fd(), "confirm", |_| {})), Some("ok".into()));
+        drop((master, slave));
     }
 
     #[test]

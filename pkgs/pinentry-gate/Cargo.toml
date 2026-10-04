@@ -8,9 +8,14 @@ license = "MIT"
 [dependencies]
 ttycanvas = { path = "../ttycanvas", features = ["audio"] }
 base64 = "0.22"
-libc = "0.2"
+linux-raw-sys = { version = "0.12", default-features = false, features = ["ioctl"] }
+rustix = { version = "1", features = ["event", "fs", "process", "termios"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+signal-hook = { version = "0.3", default-features = false }
+
+[dev-dependencies]
+rustix = { version = "1", features = ["pty"] }
 
 [profile.release]
 strip = true

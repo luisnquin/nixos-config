@@ -7,6 +7,7 @@ use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
+use rustix::fs::OFlags;
 
 pub const OSC: u32 = 7771;
 
@@ -35,7 +36,7 @@ pub fn marked_by(runtime: &Path, alive: impl Fn(i32) -> bool) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(runtime.join("tty")) else {
         return Vec::new();
     };
-    let uid = unsafe { libc::getuid() };
+    let uid = rustix::process::getuid().as_raw();
     let mut names: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
     names.sort();
     let mut ptys = Vec::new();
@@ -58,7 +59,7 @@ pub fn marked_by(runtime: &Path, alive: impl Fn(i32) -> bool) -> Vec<PathBuf> {
 fn emit(pty: &Path, sequence: &[u8]) -> bool {
     let opened = OpenOptions::new()
         .write(true)
-        .custom_flags(libc::O_NOCTTY | libc::O_NONBLOCK)
+        .custom_flags((OFlags::NOCTTY | OFlags::NONBLOCK).bits() as i32)
         .open(pty);
     match opened {
         Ok(mut file) => file.write_all(sequence).is_ok(),
@@ -94,7 +95,9 @@ pub fn done(ptys: &[PathBuf], request_id: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CStr;
+    use rustix::pty::{grantpt, openpt, ptsname, unlockpt, OpenptFlags};
+    use std::fs::File;
+    use std::os::unix::io::OwnedFd;
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("pinentry-gate-phone-{}-{name}", std::process::id()));
@@ -103,20 +106,20 @@ mod tests {
         dir
     }
 
-    fn openpty() -> (i32, i32, String) {
-        let mut master = 0;
-        let mut slave = 0;
-        let rc = unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) };
-        assert_eq!(rc, 0);
-        let name = unsafe { CStr::from_ptr(libc::ttyname(slave)) }.to_string_lossy().into_owned();
+    fn openpty() -> (OwnedFd, File, String) {
+        let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY).unwrap();
+        grantpt(&master).unwrap();
+        unlockpt(&master).unwrap();
+        let name = ptsname(&master, Vec::new()).unwrap().into_string().unwrap();
+        let slave = OpenOptions::new().read(true).write(true).custom_flags(OFlags::NOCTTY.bits() as i32).open(&name).unwrap();
         (master, slave, name)
     }
 
-    fn read(master: i32) -> Vec<u8> {
+    fn read(master: &OwnedFd) -> Vec<u8> {
         let mut buf = vec![0u8; 4096];
-        let n = unsafe { libc::read(master, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
+        let n = rustix::io::read(master, &mut buf).unwrap();
         assert!(n > 0);
-        buf.truncate(n as usize);
+        buf.truncate(n);
         buf
     }
 
@@ -151,7 +154,7 @@ mod tests {
         let told = marked_by(&dir, |pid| pid == me);
         assert_eq!(told, vec![PathBuf::from(&name)]);
         assert!(emit(&told[0], &request_sequence("abcd", r#"{"desc":"hi"}"#)));
-        let raw = read(master);
+        let raw = read(&master);
         let head = b"\x1b]7771;pin;abcd;";
         assert!(raw.starts_with(head));
         assert!(raw.ends_with(b"\x07\x07"));
@@ -160,10 +163,7 @@ mod tests {
         assert_eq!(decoded, br#"{"desc":"hi"}"#);
 
         done(&told, "abcd");
-        assert_eq!(read(master), b"\x1b]7771;done;abcd\x07\x07");
-        unsafe {
-            libc::close(master);
-            libc::close(slave);
-        }
+        assert_eq!(read(&master), b"\x1b]7771;done;abcd\x07\x07");
+        drop((master, slave));
     }
 }
