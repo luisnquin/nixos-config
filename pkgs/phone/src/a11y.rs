@@ -763,11 +763,15 @@ fn moved(nodes: &[Node], index: usize, row: &Signature) -> anyhow::Error {
             anyhow!("@{index} ({name}) moved; it is still on screen, name it '{name}' instead")
         }
         name => anyhow!(
-            "@{index} ({}) is no longer where the last snapshot saw it; take a new snapshot",
+            "@{index} ({}) is no longer where the last snapshot saw it; take a new snapshot{}",
             name.cloned().unwrap_or_else(|| format!(
                 "<{}>",
                 row.class.rsplit('.').next().unwrap_or_default()
-            ))
+            )),
+            match row.res_id.is_empty() {
+                true => "; it has no id (testID in React Native), so only its exact text and place find it",
+                false => "",
+            }
         ),
     }
 }
@@ -837,25 +841,47 @@ fn outermost<'a>(hits: &[&'a Node]) -> Option<&'a Node> {
 }
 
 /// Text and size are state as much as identity, so an id only one element on
-/// screen carries is enough; without one, only its words and place are left.
+/// screen carries is enough; without one, only its words and place are left,
+/// numbers aside: a latency or a progress counter ticks between snapshot and tap.
 fn found<'a>(nodes: &'a [Node], row: &Signature) -> Option<&'a Node> {
     if let Some(same) = nodes.iter().find(|n| n.signature() == *row) {
         return Some(same);
     }
 
-    if row.res_id.is_empty() {
-        return None;
-    }
+    let ticked = |n: &&Node| {
+        n.res_id.is_empty()
+            && (&n.class, n.bounds) == (&row.class, row.bounds)
+            && masked(&n.text) == masked(&row.text)
+            && masked(&n.desc) == masked(&row.desc)
+    };
+    let same_id = |n: &&Node| n.res_id == row.res_id && n.class == row.class;
 
     match nodes
         .iter()
-        .filter(|n| n.res_id == row.res_id && n.class == row.class)
+        .filter(|n| match row.res_id.is_empty() {
+            true => ticked(n),
+            false => same_id(n),
+        })
         .collect::<Vec<_>>()
         .as_slice()
     {
         [one] => Some(one),
         _ => None,
     }
+}
+
+fn masked(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+
+    for c in s.chars() {
+        match c.is_ascii_digit() {
+            true if out.ends_with('\0') => {}
+            true => out.push('\0'),
+            false => out.push(c),
+        }
+    }
+
+    out
 }
 
 /// Whether anything on screen answers to `needle`. Unlike `pick`, how many do
@@ -1788,6 +1814,70 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("no element @7 in the last snapshot"), "{err}");
+    }
+
+    fn live(desc: &str) -> String {
+        FORM.replace(
+            r#"  <node class="android.view.ViewGroup" bounds="[40,1800]"#,
+            &format!(
+                r#"  <node class="android.view.ViewGroup" bounds="[40,700][1040,900]" clickable="true" text="" content-desc="{desc}" resource-id=""/>
+  <node class="android.view.ViewGroup" bounds="[40,1800]"#
+            ),
+        )
+    }
+
+    #[test]
+    fn an_id_less_row_is_found_again_after_its_numbers_ticked() {
+        for (then, now) in [
+            (
+                "100.118.60.77:357&#10;luisnquin · OPENSSH_10.5 · 30 MS&#10;DETAILS",
+                "100.118.60.77:357&#10;luisnquin · OPENSSH_10.5 · 31 MS&#10;DETAILS",
+            ),
+            ("III&#10;III&#10;48/78  62%", "III&#10;III&#10;49/78  63%"),
+        ] {
+            let shown: Vec<Signature> = parse(&live(then))
+                .unwrap()
+                .iter()
+                .map(Node::signature)
+                .collect();
+            let after = parse(&live(now)).unwrap();
+
+            assert_eq!(
+                pick_in(&after, "@2", Some(&shown)).unwrap().desc,
+                now.replace("&#10;", "\n")
+            );
+        }
+    }
+
+    #[test]
+    fn an_id_less_row_whose_words_changed_is_refused_and_says_why() {
+        let shown: Vec<Signature> = parse(&live("III&#10;48/78  62%"))
+            .unwrap()
+            .iter()
+            .map(Node::signature)
+            .collect();
+        let after = parse(&live("III&#10;Done")).unwrap();
+
+        let err = pick_in(&after, "@2", Some(&shown)).unwrap_err().to_string();
+        assert!(err.contains("is no longer where"), "{err}");
+        assert!(err.contains("testID"), "{err}");
+    }
+
+    #[test]
+    fn two_id_less_rows_whose_numbers_ticked_alike_are_refused() {
+        let shown: Vec<Signature> = parse(&live("48/78  62%"))
+            .unwrap()
+            .iter()
+            .map(Node::signature)
+            .collect();
+        let after = parse(&live("49/78  63%").replace(
+            r#"content-desc="49/78  63%" resource-id=""/>"#,
+            r#"content-desc="49/78  63%" resource-id=""/>
+  <node class="android.view.ViewGroup" bounds="[40,700][1040,900]" clickable="true" text="" content-desc="50/78  64%" resource-id=""/>"#,
+        ))
+        .unwrap();
+
+        assert!(pick_in(&after, "@2", Some(&shown)).is_err());
     }
 
     #[test]
