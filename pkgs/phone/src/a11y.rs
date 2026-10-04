@@ -1263,10 +1263,12 @@ struct Room {
     area: Rect,
     inside: Rect,
     gap: f64,
+    cap: f64,
 }
 
-const FINGER_EDGE: f64 = 0.05;
+const FINGER_EDGE: f64 = 0.02;
 const FINGER_GAP: f64 = 0.08;
+const POINT_SPREAD: f64 = 0.25;
 const FINGER_SPACING: f64 = 0.12;
 const GESTURE_STEP: Duration = Duration::from_millis(16);
 const GESTURE_STEPS_MAX: usize = 60;
@@ -1305,47 +1307,63 @@ impl Gesture {
 }
 
 impl Room {
-    fn new(centre: (i32, i32), within: Bounds, panel: Size) -> Room {
+    fn new(centre: (i32, i32), within: Option<Bounds>, panel: Size) -> Room {
         let short = panel.width.min(panel.height);
         let (edge, gap) = (short * FINGER_EDGE, short * FINGER_GAP);
         let inside = (edge, edge, panel.width - edge, panel.height - edge);
 
-        let centre = (
-            f64::from(centre.0).clamp(inside.0 + gap, inside.2 - gap),
-            f64::from(centre.1).clamp(inside.1 + gap, inside.3 - gap),
-        );
-
-        let area = (
-            f64::from(within.x1).max(inside.0),
-            f64::from(within.y1).max(inside.1),
-            f64::from(within.x2).min(inside.2),
-            f64::from(within.y2).min(inside.3),
-        );
+        let (area, cap) = match within {
+            Some(b) => (
+                (
+                    f64::from(b.x1).max(inside.0),
+                    f64::from(b.y1).max(inside.1),
+                    f64::from(b.x2).min(inside.2),
+                    f64::from(b.y2).min(inside.3),
+                ),
+                f64::INFINITY,
+            ),
+            None => (inside, short * POINT_SPREAD),
+        };
         let area = match area.0 < area.2 && area.1 < area.3 {
             true => area,
             false => inside,
         };
 
         Room {
-            centre,
+            centre: (f64::from(centre.0), f64::from(centre.1)),
             area,
             inside,
             gap,
+            cap,
         }
     }
 
     fn reach(&self, (x1, y1, x2, y2): Rect, (dx, dy): (f64, f64)) -> f64 {
         let (cx, cy) = self.centre;
-        let axis = |d: f64, c: f64, lo: f64, hi: f64| match d.abs() < 1e-9 {
-            true => f64::INFINITY,
-            false => (c - lo).min(hi - c).max(0.0) / d.abs(),
+        let axis = |d: f64, c: f64, lo: f64, hi: f64| {
+            let room = (c - lo).min(hi - c);
+
+            match (room < 0.0, d.abs() < 1e-9) {
+                (true, _) => 0.0,
+                (false, true) => f64::INFINITY,
+                (false, false) => room / d.abs(),
+            }
         };
 
         axis(dx, cx, x1, x2).min(axis(dy, cy, y1, y2))
     }
 
     fn half(&self, reach: impl Fn(Rect) -> f64) -> f64 {
-        reach(self.area).max(self.gap).min(reach(self.inside))
+        reach(self.area).min(self.cap / 2.0).max(self.gap).min(reach(self.inside))
+    }
+
+    fn crowded(&self, span: f64, what: &str) -> Result<()> {
+        if span <= self.gap {
+            let (x, y) = self.centre;
+            bail!("{x},{y} is too close to the panel's edge for two fingers to {what} around it");
+        }
+
+        Ok(())
     }
 
     fn still(&self, span: [f64; 2], turn: [f64; 2]) -> Gesture {
@@ -1359,7 +1377,7 @@ impl Room {
     }
 }
 
-pub fn fingers(centre: (i32, i32), within: Bounds, panel: Size, factor: f64, angle: f64) -> Result<Gesture> {
+pub fn fingers(centre: (i32, i32), within: Option<Bounds>, panel: Size, factor: f64, angle: f64) -> Result<Gesture> {
     if !factor.is_finite() || factor <= 0.0 || (factor - 1.0).abs() < 0.01 {
         bail!("a pinch factor is above 1 to spread the fingers or below 1 to close them, not {factor}");
     }
@@ -1367,11 +1385,8 @@ pub fn fingers(centre: (i32, i32), within: Bounds, panel: Size, factor: f64, ang
     let room = Room::new(centre, within, panel);
     let line = (angle.to_radians().cos(), angle.to_radians().sin());
     let wide = 2.0 * room.half(|r| room.reach(r, line));
+    room.crowded(wide, "pinch")?;
     let narrow = (wide / factor.max(1.0 / factor)).max(room.gap);
-
-    if narrow >= wide {
-        bail!("the panel has no room for two fingers to pinch at {},{}", centre.0, centre.1);
-    }
 
     let span = match factor > 1.0 {
         true => [narrow, wide],
@@ -1381,13 +1396,14 @@ pub fn fingers(centre: (i32, i32), within: Bounds, panel: Size, factor: f64, ang
     Ok(room.still(span, [angle; 2]))
 }
 
-pub fn twist(centre: (i32, i32), within: Bounds, panel: Size, degrees: f64) -> Result<Gesture> {
+pub fn twist(centre: (i32, i32), within: Option<Bounds>, panel: Size, degrees: f64) -> Result<Gesture> {
     if !degrees.is_finite() || !(1.0..=360.0).contains(&degrees.abs()) {
         bail!("a rotation is between 1 and 360 degrees either way, not {degrees}");
     }
 
     let room = Room::new(centre, within, panel);
     let radius = room.half(|r| room.reach(r, (1.0, 0.0)).min(room.reach(r, (0.0, 1.0))));
+    room.crowded(2.0 * radius, "turn")?;
 
     Ok(room.still([2.0 * radius; 2], [0.0, degrees]))
 }
@@ -2388,6 +2404,11 @@ mod tests {
         x2: 640,
         y2: 1300,
     };
+    const FOLD: Size = Size {
+        width: 2076.0,
+        height: 2152.0,
+        scale: 1.0,
+    };
 
     #[test]
     fn two_fingers_spread_or_close_inside_what_they_aim_at() {
@@ -2397,11 +2418,11 @@ mod tests {
             height: 874.0,
             scale: 3.0,
         };
-        let whole = |s: Size| Bounds {
+        let panel = Bounds {
             x1: 0,
             y1: 0,
-            x2: s.width as i32,
-            y2: s.height as i32,
+            x2: 1080,
+            y2: 2400,
         };
         let icon = Bounds {
             x1: 530,
@@ -2411,33 +2432,33 @@ mod tests {
         };
 
         type Fingers = [(i32, i32); 2];
-        type Case = (&'static str, Size, (i32, i32), Bounds, f64, f64, Fingers, Fingers);
-        let cases: [Case; 9] = [
+        type Case = (&'static str, Size, (i32, i32), Option<Bounds>, f64, f64, Fingers, Fingers);
+        let cases: [Case; 11] = [
             (
-                "out across the panel, inside its edges",
+                "a point spreads over a quarter of the short side",
                 pixel,
                 (540, 1200),
-                whole(pixel),
+                None,
                 2.0,
                 0.0,
-                [(297, 1200), (783, 1200)],
-                [(54, 1200), (1026, 1200)],
+                [(473, 1200), (608, 1200)],
+                [(405, 1200), (675, 1200)],
             ),
             (
                 "in is the same path walked backwards",
                 pixel,
                 (540, 1200),
-                whole(pixel),
+                None,
                 0.5,
                 0.0,
-                [(54, 1200), (1026, 1200)],
-                [(297, 1200), (783, 1200)],
+                [(405, 1200), (675, 1200)],
+                [(473, 1200), (608, 1200)],
             ),
             (
                 "an element bounds the spread",
                 pixel,
                 (540, 1200),
-                photo,
+                Some(photo),
                 2.0,
                 0.0,
                 [(490, 1200), (590, 1200)],
@@ -2447,61 +2468,81 @@ mod tests {
                 "a large factor stops at the closest two fingers come",
                 pixel,
                 (540, 1200),
-                whole(pixel),
+                None,
                 100.0,
                 0.0,
                 [(497, 1200), (583, 1200)],
-                [(54, 1200), (1026, 1200)],
+                [(405, 1200), (675, 1200)],
             ),
             (
                 "an element too small for two fingers lends them the panel",
                 pixel,
                 (540, 1200),
-                icon,
+                Some(icon),
                 2.0,
                 0.0,
                 [(497, 1200), (583, 1200)],
                 [(454, 1200), (626, 1200)],
             ),
             (
-                "a point by the edge moves in until both fingers fit",
+                "a point by the edge keeps its centre and spreads less",
                 pixel,
                 (100, 1200),
-                whole(pixel),
+                None,
                 2.0,
                 0.0,
-                [(97, 1200), (184, 1200)],
-                [(54, 1200), (227, 1200)],
+                [(57, 1200), (143, 1200)],
+                [(22, 1200), (178, 1200)],
             ),
             (
                 "vertical",
                 pixel,
                 (540, 1200),
-                whole(pixel),
+                None,
                 2.0,
                 90.0,
-                [(540, 627), (540, 1773)],
-                [(540, 54), (540, 2346)],
+                [(540, 1133), (540, 1268)],
+                [(540, 1065), (540, 1335)],
             ),
             (
-                "diagonal, bounded by the nearer edge",
+                "an element the size of the panel, diagonal, bounded by the nearer edge",
                 pixel,
                 (540, 1200),
-                whole(pixel),
+                Some(panel),
                 2.0,
                 45.0,
-                [(297, 957), (783, 1443)],
-                [(54, 714), (1026, 1686)],
+                [(281, 941), (799, 1459)],
+                [(22, 682), (1058, 1718)],
             ),
             (
                 "a simulator in points",
                 simulator,
                 (201, 437),
-                whole(simulator),
+                None,
                 2.0,
                 0.0,
-                [(111, 437), (291, 437)],
-                [(20, 437), (382, 437)],
+                [(176, 437), (226, 437)],
+                [(151, 437), (251, 437)],
+            ),
+            (
+                "a widget docked by the right edge of a fold keeps both fingers on it",
+                FOLD,
+                (1917, 560),
+                None,
+                1.5,
+                0.0,
+                [(1834, 560), (2000, 560)],
+                [(1800, 560), (2034, 560)],
+            ),
+            (
+                "the same widget pinched along its height",
+                FOLD,
+                (1917, 560),
+                None,
+                1.5,
+                90.0,
+                [(1917, 387), (1917, 733)],
+                [(1917, 301), (1917, 820)],
             ),
         ];
 
@@ -2513,9 +2554,15 @@ mod tests {
 
         for factor in [1.0, 0.0, -2.0, f64::NAN, f64::INFINITY] {
             assert!(
-                fingers((540, 1200), photo, pixel, factor, 0.0).is_err(),
+                fingers((540, 1200), Some(photo), pixel, factor, 0.0).is_err(),
                 "{factor} is no pinch"
             );
+        }
+
+        for centre in [(30, 1200), (-5, 1200), (540, 2395)] {
+            let refused = fingers(centre, None, pixel, 2.0, 0.0).unwrap_err().to_string();
+
+            assert!(refused.starts_with(&format!("{},{} ", centre.0, centre.1)), "{refused}");
         }
     }
 
@@ -2581,26 +2628,25 @@ mod tests {
 
     #[test]
     fn fingers_turn_inside_their_element_and_travel_side_by_side() {
-        let panel = Bounds {
-            x1: 0,
-            y1: 0,
-            x2: 1080,
-            y2: 2400,
-        };
-
         type Case = (&'static str, Gesture, Vec<(i32, i32)>, Vec<(i32, i32)>);
-        let cases: [Case; 5] = [
+        let cases: [Case; 6] = [
             (
-                "a quarter turn across the panel",
-                twist((540, 1200), panel, PIXEL, 90.0).unwrap(),
-                vec![(54, 1200), (1026, 1200)],
-                vec![(540, 714), (540, 1686)],
+                "a quarter turn around a point",
+                twist((540, 1200), None, PIXEL, 90.0).unwrap(),
+                vec![(405, 1200), (675, 1200)],
+                vec![(540, 1065), (540, 1335)],
             ),
             (
                 "anticlockwise inside an element",
-                twist((540, 1200), PHOTO, PIXEL, -90.0).unwrap(),
+                twist((540, 1200), Some(PHOTO), PIXEL, -90.0).unwrap(),
                 vec![(440, 1200), (640, 1200)],
                 vec![(540, 1300), (540, 1100)],
+            ),
+            (
+                "a point by the edge keeps its centre and turns a smaller circle",
+                twist((1917, 560), None, FOLD, 45.0).unwrap(),
+                vec![(1800, 560), (2034, 560)],
+                vec![(1834, 477), (2000, 643)],
             ),
             (
                 "an upward swipe lines the fingers up across it",
@@ -2617,8 +2663,8 @@ mod tests {
             (
                 "a tap by the edge moves in until every finger fits",
                 side_by_side((20, 1200), (20, 1200), PIXEL, 2),
-                vec![(54, 1200), (184, 1200)],
-                vec![(54, 1200), (184, 1200)],
+                vec![(22, 1200), (151, 1200)],
+                vec![(22, 1200), (151, 1200)],
             ),
         ];
 
@@ -2627,8 +2673,10 @@ mod tests {
         }
 
         for degrees in [0.0, 0.5, -400.0, f64::NAN] {
-            assert!(twist((540, 1200), PHOTO, PIXEL, degrees).is_err(), "{degrees} is no turn");
+            assert!(twist((540, 1200), Some(PHOTO), PIXEL, degrees).is_err(), "{degrees} is no turn");
         }
+
+        assert!(twist((540, 30), None, PIXEL, 90.0).is_err(), "a turn by the edge has no room");
     }
 
     #[test]

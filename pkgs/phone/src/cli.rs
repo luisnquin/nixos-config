@@ -501,10 +501,13 @@ handling of the gesture."#)]
   phone pinch @7 3 --duration 800ms
   phone pinch 540,1200 2 --angle 90  # vertically, around a point
 
-The factor is how much farther apart the fingers end than they start. The wider
-of the two spans fills the element, or the panel for a point, clear of its
-edges; the narrower one never comes closer than a fingertip, so a large factor
-has a smaller effect than it says. The line printed gives the spans used.
+The factor is how much farther apart the fingers end than they start. They
+straddle the exact centre asked for, which never moves. The wider of the two
+spans fills the element, or a quarter of the panel's short side for a point,
+and shrinks to keep both fingers on the panel; the narrower one never comes
+closer than a fingertip, so a large factor has a smaller effect than it says. A
+point too close to the edge for two fingers is refused. The line printed gives
+the spans used.
 
 --angle turns the line the fingers move along, in degrees: 0 is horizontal, 90
 vertical."#)]
@@ -539,9 +542,11 @@ vertical."#)]
   phone rotate Map -90       # negative turns anticlockwise
   phone rotate 540,1200 180 --duration 1s
 
-The fingers start level, either side of the centre, as far apart as the element
-allows (or the panel, for a point) while staying clear of its edges, and walk
-the circle between them, so they never cross."#)]
+The fingers start level, either side of the exact centre asked for, as far
+apart as the element allows (or a quarter of the panel's short side, for a
+point) while the whole circle stays on the panel, and walk the circle between
+them, so they never cross. A point too close to the edge for two fingers is
+refused."#)]
     Rotate {
         #[arg(help = "An element, @index or X,Y to turn around")]
         what: String,

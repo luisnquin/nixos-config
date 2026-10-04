@@ -1529,22 +1529,16 @@ fn editable(node: &a11y::Node) -> bool {
 
 struct Aimed {
     centre: (i32, i32),
-    within: a11y::Bounds,
+    within: Option<a11y::Bounds>,
     size: a11y::Size,
     name: Option<String>,
 }
 
 async fn aimed(s: &Session, what: &str, force: bool) -> Result<Aimed> {
     let size = a11y::size(&s.target).await?;
-    let panel = a11y::Bounds {
-        x1: 0,
-        y1: 0,
-        x2: size.width as i32,
-        y2: size.height as i32,
-    };
 
     let (centre, within, name) = match cli::parse_point(what) {
-        Ok(point) => (point, panel, None),
+        Ok(point) => (point, None, None),
         Err(_) => {
             let (screen, node) = find(s, what).await?;
 
@@ -1552,9 +1546,15 @@ async fn aimed(s: &Session, what: &str, force: bool) -> Result<Aimed> {
                 refuse_covered(&screen, &node)?;
             }
 
+            let panel = a11y::Bounds {
+                x1: 0,
+                y1: 0,
+                x2: size.width as i32,
+                y2: size.height as i32,
+            };
             let within = node.bounds.clipped(&panel).unwrap_or(node.bounds);
 
-            (pressable(&screen, &node)?, within, Some(node.label()))
+            (pressable(&screen, &node)?, Some(within), Some(node.label()))
         }
     };
 
