@@ -346,6 +346,23 @@ pub async fn swipe(
     Ok(())
 }
 
+// Simulator input lands in bursts, so the 100ms gap Android takes between taps
+// often stretches past a double tap's window by the time it reaches the app.
+const TAP_GAP: Duration = Duration::from_millis(40);
+
+fn touch_args(udid: &str, g: &crate::a11y::Gesture, frames: &[Vec<(i32, i32)>], step: usize) -> Vec<String> {
+    let still = frames.windows(2).all(|w| w[0] == w[1]);
+    let frames: Vec<&Vec<(i32, i32)>> = match (still, frames) {
+        (true, [first, .., last]) => vec![first, last],
+        _ => frames.iter().collect(),
+    };
+
+    let head = [g.fingers, step, g.taps, TAP_GAP.as_millis() as usize].map(|v| v.to_string());
+    let points = frames.into_iter().flatten().flat_map(|(x, y)| [x.to_string(), y.to_string()]);
+
+    ["touch".to_string(), udid.to_string()].into_iter().chain(head).chain(points).collect()
+}
+
 pub async fn gesture(
     at: &Where,
     udid: &str,
@@ -359,13 +376,7 @@ pub async fn gesture(
         bail!("a simulator takes at most two fingers at once; {} need Android", g.fingers);
     }
 
-    let head = [g.fingers, step, g.taps, crate::a11y::TAP_GAP.as_millis() as usize].map(|v| v.to_string());
-    let points = frames.iter().flatten().flat_map(|(x, y)| [x.to_string(), y.to_string()]);
-
-    let mut args = vec!["touch".to_string(), udid.to_string()];
-    args.extend(head);
-    args.extend(points);
-
+    let args = touch_args(udid, g, frames, step);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let ms = (step * frames.len() * g.taps) as u64;
 
@@ -575,5 +586,23 @@ mod tests {
 
         assert!(err.contains("no 'back' key"), "{err}");
         assert!(err.contains("home"), "the alternatives are listed: {err}");
+    }
+
+    #[test]
+    fn a_touch_that_stays_put_is_sent_as_its_ends() {
+        let g = |fingers| crate::a11y::Gesture {
+            centre: [(0.0, 0.0); 2],
+            span: [0.0; 2],
+            turn: [0.0; 2],
+            fingers,
+            taps: 2,
+        };
+        let args = |fingers, frames: &[Vec<(i32, i32)>]| touch_args("U", &g(fingers), frames, 16).join(" ");
+
+        assert_eq!(args(1, &vec![vec![(5, 6)]; 4]), "touch U 1 16 2 40 5 6 5 6");
+        assert_eq!(
+            args(2, &[vec![(1, 2), (3, 4)], vec![(1, 2), (3, 4)], vec![(0, 2), (4, 4)]]),
+            "touch U 2 16 2 40 1 2 3 4 1 2 3 4 0 2 4 4"
+        );
     }
 }
