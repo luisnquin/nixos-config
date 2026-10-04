@@ -7,7 +7,7 @@ use crate::cli::Cli;
 const GROUPS: &[(&str, &[&str])] = &[
     ("Project", &["up", "down", "status"]),
     ("Read the screen", &["snapshot", "shot", "size"]),
-    ("Act on it", &["tap", "press", "swipe", "pinch", "type", "fill", "key"]),
+    ("Act on it", &["tap", "press", "swipe", "pinch", "rotate", "type", "fill", "key"]),
     ("Wait and chain", &["wait", "do"]),
     ("Devices and apps", &["device", "app", "host"]),
     ("Watch", &["mirror", "stream", "record"]),

@@ -35,8 +35,9 @@ usage: phone <verb> [args]
   tap <udid> <x> <y>    a touch, in points
   swipe <udid> <x1> <y1> <x2> <y2> [ms]
                         a drag, in points; both ends alike is a long press
-  pinch <udid> <ax1> <ay1> <bx1> <by1> <ax2> <ay2> <bx2> <by2> [ms]
-                        two fingers, a and b, from their 1 points to their 2
+  touch <udid> <fingers> <step-ms> <taps> <gap-ms> <x> <y>...
+                        one or two fingers through frames of points, x y
+                        per finger per frame, repeated taps times
   text <udid> <string>  one key event per character
   key <udid> <name>     a named key or a hardware button
   shot <udid>           a PNG on stdout
@@ -166,7 +167,7 @@ fn run(args: &[String]) -> Result<()> {
 
             session.send_touch(x, y, "ended")?;
         }
-        "pinch" => pinch(&bridge, rest)?,
+        "touch" => touch(&bridge, rest)?,
         "text" => {
             let udid = udid(rest)?;
             let text = rest.get(1).ok_or_else(|| anyhow!("text: no string"))?;
@@ -215,43 +216,61 @@ fn read(bridge: &NativeBridge, verb: &str, rest: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn pinch(bridge: &NativeBridge, rest: &[String]) -> Result<()> {
+fn touch(bridge: &NativeBridge, rest: &[String]) -> Result<()> {
     let udid = udid(rest)?;
-    let mut points = [0.0; 8];
-    for (i, name) in ["ax1", "ay1", "bx1", "by1", "ax2", "ay2", "bx2", "by2"]
-        .iter()
-        .enumerate()
-    {
-        points[i] = coordinate(rest, i + 1, name)?;
-    }
-
-    let ms: u64 = match rest.get(9) {
-        Some(value) => value.parse().map_err(|_| anyhow!("ms is not a number"))?,
-        None => DEFAULT_SWIPE_MS,
-    };
+    let [fingers, step, taps, gap] =
+        [(1, "fingers"), (2, "step"), (3, "taps"), (4, "gap")].map(|(at, name)| coordinate(rest, at, name));
+    let (fingers, step, taps, gap) = (fingers? as usize, step? as u64, taps? as usize, gap? as u64);
+    let points = touch_points(rest, fingers)?;
+    let frames: Vec<&[f64]> = points.chunks_exact(fingers * 2).collect();
 
     let size = bridge.display_size(udid)?;
-    let at = |t: f64, from: usize| {
-        let lerp = |i: usize| points[i] + (points[i + 4] - points[i]) * t;
-
-        (lerp(from) / size.width, lerp(from + 1) / size.height)
+    let at = |frame: &[f64], f: usize| (frame[f * 2] / size.width, frame[f * 2 + 1] / size.height);
+    let session = bridge.create_input_session(udid)?;
+    let send = |frame: &[f64], phase: &str| match fingers {
+        1 => session.send_touch(at(frame, 0).0, at(frame, 0).1, phase),
+        _ => session.send_multitouch(at(frame, 0), at(frame, 1), phase),
     };
 
-    let session = bridge.create_input_session(udid)?;
-    let steps = (ms / STEP_MS).clamp(2, 120);
+    for tap in 0..taps {
+        if tap > 0 {
+            std::thread::sleep(Duration::from_millis(gap));
+        }
 
-    session.send_multitouch(at(0.0, 0), at(0.0, 2), "began")?;
+        for (i, frame) in frames.iter().enumerate() {
+            if i > 0 {
+                std::thread::sleep(Duration::from_millis(step));
+            }
 
-    for step in 1..=steps {
-        std::thread::sleep(Duration::from_millis(ms / steps));
-
-        let t = step as f64 / steps as f64;
-        session.send_multitouch(at(t, 0), at(t, 2), "moved")?;
+            send(frame, phase(i, frames.len()))?;
+        }
     }
 
-    session.send_multitouch(at(1.0, 0), at(1.0, 2), "ended")?;
-
     Ok(())
+}
+
+fn touch_points(rest: &[String], fingers: usize) -> Result<Vec<f64>> {
+    if !(1..=2).contains(&fingers) {
+        return Err(anyhow!("a simulator takes one or two fingers, not {fingers}"));
+    }
+
+    let points = (5..rest.len())
+        .map(|i| coordinate(rest, i, "a coordinate"))
+        .collect::<Result<Vec<f64>>>()?;
+
+    if points.len() < fingers * 4 || points.len() % (fingers * 2) != 0 {
+        return Err(anyhow!("a touch needs at least two steps of two coordinates per finger"));
+    }
+
+    Ok(points)
+}
+
+fn phase(i: usize, frames: usize) -> &'static str {
+    match i {
+        0 => "began",
+        _ if i + 1 == frames => "ended",
+        _ => "moved",
+    }
 }
 
 fn key(bridge: &NativeBridge, rest: &[String]) -> Result<()> {

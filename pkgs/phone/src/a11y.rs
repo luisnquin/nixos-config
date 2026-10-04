@@ -566,7 +566,7 @@ async fn read_with(a: &Adb, reader: &Reader) -> Result<Screen> {
     read_dump(ok, &String::from_utf8_lossy(&bytes))
 }
 
-const PINCHED: &str = "phone:pinched";
+const TOUCHED: &str = "phone:touched";
 
 fn launch(reader: &Reader, args: &str) -> String {
     format!(
@@ -1134,141 +1134,219 @@ impl std::str::FromStr for Direction {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Pinch {
-    pub from: [(i32, i32); 2],
-    pub to: [(i32, i32); 2],
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Gesture {
+    pub centre: [(f64, f64); 2],
+    pub span: [f64; 2],
+    pub turn: [f64; 2],
+    pub fingers: usize,
+    pub taps: usize,
 }
 
-const PINCH_EDGE: f64 = 0.05;
-const PINCH_GAP: f64 = 0.08;
-const PINCH_STEP: Duration = Duration::from_millis(16);
-const PINCH_STEPS_MAX: usize = 60;
+type Rect = (f64, f64, f64, f64);
 
-impl Pinch {
-    pub fn gap(&self) -> (i32, i32) {
-        let apart = |[(x1, y1), (x2, y2)]: [(i32, i32); 2]| {
-            f64::from(x2 - x1).hypot(f64::from(y2 - y1)).round() as i32
-        };
+struct Room {
+    centre: (f64, f64),
+    area: Rect,
+    inside: Rect,
+    gap: f64,
+}
 
-        (apart(self.from), apart(self.to))
-    }
+const FINGER_EDGE: f64 = 0.05;
+const FINGER_GAP: f64 = 0.08;
+const FINGER_SPACING: f64 = 0.12;
+const GESTURE_STEP: Duration = Duration::from_millis(16);
+const GESTURE_STEPS_MAX: usize = 60;
+pub const TAP_GAP: Duration = Duration::from_millis(100);
+pub const TAP_DOWN: Duration = Duration::from_millis(50);
 
-    pub fn frames(&self, over: Duration) -> Vec<[(i32, i32); 2]> {
-        let steps = ((over.as_millis() / PINCH_STEP.as_millis()) as usize).clamp(2, PINCH_STEPS_MAX);
-        let lerp = |a: i32, b: i32, t: f64| (f64::from(a) + f64::from(b - a) * t).round() as i32;
+impl Gesture {
+    pub fn at(&self, t: f64) -> Vec<(i32, i32)> {
+        let lerp = |[a, b]: [f64; 2]| a + (b - a) * t;
+        let [(x1, y1), (x2, y2)] = self.centre;
+        let (cx, cy) = (lerp([x1, x2]), lerp([y1, y2]));
+        let (span, turn) = (lerp(self.span), lerp(self.turn).to_radians());
+        let last = self.fingers.saturating_sub(1).max(1) as f64;
 
-        (0..=steps)
+        (0..self.fingers)
             .map(|i| {
-                let t = i as f64 / steps as f64;
+                let off = match self.fingers {
+                    1 => 0.0,
+                    _ => span * (i as f64 / last - 0.5),
+                };
 
-                [0, 1].map(|f| {
-                    let ((x1, y1), (x2, y2)) = (self.from[f], self.to[f]);
-                    (lerp(x1, x2, t), lerp(y1, y2, t))
-                })
+                ((cx + off * turn.cos()).round() as i32, (cy + off * turn.sin()).round() as i32)
             })
             .collect()
     }
-}
 
-pub fn fingers(centre: (i32, i32), within: Bounds, panel: Size, factor: f64, angle: f64) -> Result<Pinch> {
-    if !factor.is_finite() || factor <= 0.0 || (factor - 1.0).abs() < 0.01 {
-        bail!("a pinch factor is above 1 to spread the fingers or below 1 to close them, not {factor}");
+    pub fn frames(&self, over: Duration) -> Vec<Vec<(i32, i32)>> {
+        let steps = ((over.as_millis() / GESTURE_STEP.as_millis()) as usize).clamp(2, GESTURE_STEPS_MAX);
+
+        (0..=steps).map(|i| self.at(i as f64 / steps as f64)).collect()
     }
 
-    let short = panel.width.min(panel.height);
-    let (edge, gap) = (short * PINCH_EDGE, short * PINCH_GAP);
-    let inside = (edge, edge, panel.width - edge, panel.height - edge);
+    pub fn gap(&self) -> (i32, i32) {
+        (self.span[0].round() as i32, self.span[1].round() as i32)
+    }
+}
 
-    let (cx, cy) = (
-        f64::from(centre.0).clamp(inside.0 + gap, inside.2 - gap),
-        f64::from(centre.1).clamp(inside.1 + gap, inside.3 - gap),
-    );
+impl Room {
+    fn new(centre: (i32, i32), within: Bounds, panel: Size) -> Room {
+        let short = panel.width.min(panel.height);
+        let (edge, gap) = (short * FINGER_EDGE, short * FINGER_GAP);
+        let inside = (edge, edge, panel.width - edge, panel.height - edge);
 
-    let area = (
-        f64::from(within.x1).max(inside.0),
-        f64::from(within.y1).max(inside.1),
-        f64::from(within.x2).min(inside.2),
-        f64::from(within.y2).min(inside.3),
-    );
-    let area = match area.0 < area.2 && area.1 < area.3 {
-        true => area,
-        false => inside,
-    };
+        let centre = (
+            f64::from(centre.0).clamp(inside.0 + gap, inside.2 - gap),
+            f64::from(centre.1).clamp(inside.1 + gap, inside.3 - gap),
+        );
 
-    let (dx, dy) = (angle.to_radians().cos(), angle.to_radians().sin());
+        let area = (
+            f64::from(within.x1).max(inside.0),
+            f64::from(within.y1).max(inside.1),
+            f64::from(within.x2).min(inside.2),
+            f64::from(within.y2).min(inside.3),
+        );
+        let area = match area.0 < area.2 && area.1 < area.3 {
+            true => area,
+            false => inside,
+        };
 
-    let reach = |(x1, y1, x2, y2): (f64, f64, f64, f64)| {
+        Room {
+            centre,
+            area,
+            inside,
+            gap,
+        }
+    }
+
+    fn reach(&self, (x1, y1, x2, y2): Rect, (dx, dy): (f64, f64)) -> f64 {
+        let (cx, cy) = self.centre;
         let axis = |d: f64, c: f64, lo: f64, hi: f64| match d.abs() < 1e-9 {
             true => f64::INFINITY,
             false => (c - lo).min(hi - c).max(0.0) / d.abs(),
         };
 
         axis(dx, cx, x1, x2).min(axis(dy, cy, y1, y2))
-    };
+    }
 
-    let half = reach(area).max(gap).min(reach(inside));
-    let wide = 2.0 * half;
-    let narrow = (wide / factor.max(1.0 / factor)).max(gap);
+    fn half(&self, reach: impl Fn(Rect) -> f64) -> f64 {
+        reach(self.area).max(self.gap).min(reach(self.inside))
+    }
+
+    fn still(&self, span: [f64; 2], turn: [f64; 2]) -> Gesture {
+        Gesture {
+            centre: [self.centre; 2],
+            span,
+            turn,
+            fingers: 2,
+            taps: 1,
+        }
+    }
+}
+
+pub fn fingers(centre: (i32, i32), within: Bounds, panel: Size, factor: f64, angle: f64) -> Result<Gesture> {
+    if !factor.is_finite() || factor <= 0.0 || (factor - 1.0).abs() < 0.01 {
+        bail!("a pinch factor is above 1 to spread the fingers or below 1 to close them, not {factor}");
+    }
+
+    let room = Room::new(centre, within, panel);
+    let line = (angle.to_radians().cos(), angle.to_radians().sin());
+    let wide = 2.0 * room.half(|r| room.reach(r, line));
+    let narrow = (wide / factor.max(1.0 / factor)).max(room.gap);
 
     if narrow >= wide {
         bail!("the panel has no room for two fingers to pinch at {},{}", centre.0, centre.1);
     }
 
-    let at = |span: f64| {
-        let (ox, oy) = (dx * span / 2.0, dy * span / 2.0);
-
-        [
-            ((cx - ox).round() as i32, (cy - oy).round() as i32),
-            ((cx + ox).round() as i32, (cy + oy).round() as i32),
-        ]
+    let span = match factor > 1.0 {
+        true => [narrow, wide],
+        false => [wide, narrow],
     };
 
-    let (from, to) = match factor > 1.0 {
-        true => (narrow, wide),
-        false => (wide, narrow),
-    };
-
-    Ok(Pinch {
-        from: at(from),
-        to: at(to),
-    })
+    Ok(room.still(span, [angle; 2]))
 }
 
-pub async fn pinch(t: &Target, pinch: &Pinch, over: Duration) -> Result<()> {
-    let frames = pinch.frames(over);
+pub fn twist(centre: (i32, i32), within: Bounds, panel: Size, degrees: f64) -> Result<Gesture> {
+    if !degrees.is_finite() || !(1.0..=360.0).contains(&degrees.abs()) {
+        bail!("a rotation is between 1 and 360 degrees either way, not {degrees}");
+    }
+
+    let room = Room::new(centre, within, panel);
+    let radius = room.half(|r| room.reach(r, (1.0, 0.0)).min(room.reach(r, (0.0, 1.0))));
+
+    Ok(room.still([2.0 * radius; 2], [0.0, degrees]))
+}
+
+pub fn side_by_side(from: (i32, i32), to: (i32, i32), panel: Size, fingers: usize) -> Gesture {
+    let short = panel.width.min(panel.height);
+    let span = short * FINGER_SPACING * fingers.saturating_sub(1) as f64;
+    let (dx, dy) = (f64::from(to.0 - from.0), f64::from(to.1 - from.1));
+    let turn = match from == to {
+        true => 0.0,
+        false => dy.atan2(dx).to_degrees() + 90.0,
+    };
+
+    let edge = short * FINGER_EDGE;
+    let reach = (
+        span / 2.0 * turn.to_radians().cos().abs() + edge,
+        span / 2.0 * turn.to_radians().sin().abs() + edge,
+    );
+    let fit = |(x, y): (i32, i32)| {
+        (
+            f64::from(x).clamp(reach.0, (panel.width - reach.0).max(reach.0)),
+            f64::from(y).clamp(reach.1, (panel.height - reach.1).max(reach.1)),
+        )
+    };
+
+    Gesture {
+        centre: [fit(from), fit(to)],
+        span: [span; 2],
+        turn: [turn; 2],
+        fingers,
+        taps: 1,
+    }
+}
+
+pub async fn gesture(t: &Target, g: &Gesture, over: Duration) -> Result<()> {
+    let frames = g.frames(over);
+    let step = over.as_millis() as usize / (frames.len() - 1);
     let a = match t {
         Target::Adb(a) => a,
-        Target::Simulator(s) => return simctl::pinch(&s.at, &s.udid, pinch, over.as_millis() as u64).await,
+        Target::Simulator(s) => return simctl::gesture(&s.at, &s.udid, g, &frames, step).await,
     };
 
     let Some(reader) = reader() else {
-        bail!("this phone was built without its on-device helper (PHONE_DUMP_DEX), which a pinch needs");
+        bail!("this phone was built without its on-device helper (PHONE_DUMP_DEX), which a gesture needs");
     };
 
-    let step = over.as_millis() as usize / (frames.len() - 1);
     let points: Vec<String> = frames
         .iter()
-        .flat_map(|f| [f[0].0, f[0].1, f[1].0, f[1].1])
-        .map(|v| v.to_string())
+        .flatten()
+        .flat_map(|(x, y)| [x.to_string(), y.to_string()])
         .collect();
     let args = format!(
-        "pinch {} {step} {} 2>&1",
+        "touch {} {step} {} {} {} {} 2>&1",
         a.display.map_or(0, |d| d.logical),
+        g.fingers,
+        g.taps,
+        TAP_GAP.as_millis(),
         points.join(" ")
     );
 
+    let limit = SHELL_TIMEOUT + (over + TAP_GAP) * g.taps as u32;
     let (_, bytes) = tokio::time::timeout(
-        SHELL_TIMEOUT + over,
+        limit,
         on_helper(a, &reader, |prefix| format!("{prefix}{}", launch(&reader, &args))),
     )
     .await
-    .map_err(|_| anyhow!("the pinch did not finish within {}s", (SHELL_TIMEOUT + over).as_secs()))??;
+    .map_err(|_| anyhow!("the gesture did not finish within {}s", limit.as_secs()))??;
 
     let said = String::from_utf8_lossy(&bytes);
 
-    if !said.contains(PINCHED) {
-        bail!("the device refused the pinch: {}", said.trim());
+    if !said.contains(TOUCHED) {
+        bail!("the device refused the gesture: {}", said.trim());
     }
 
     Ok(())
@@ -2091,13 +2169,21 @@ mod tests {
         assert!(script.contains("MOVE 1000 0; sleep 1.000; input motionevent UP 1000 0"));
     }
 
+    const PIXEL: Size = Size {
+        width: 1080.0,
+        height: 2400.0,
+        scale: 1.0,
+    };
+    const PHOTO: Bounds = Bounds {
+        x1: 440,
+        y1: 1100,
+        x2: 640,
+        y2: 1300,
+    };
+
     #[test]
     fn two_fingers_spread_or_close_inside_what_they_aim_at() {
-        let pixel = Size {
-            width: 1080.0,
-            height: 2400.0,
-            scale: 1.0,
-        };
+        let (pixel, photo) = (PIXEL, PHOTO);
         let simulator = Size {
             width: 402.0,
             height: 874.0,
@@ -2108,12 +2194,6 @@ mod tests {
             y1: 0,
             x2: s.width as i32,
             y2: s.height as i32,
-        };
-        let photo = Bounds {
-            x1: 440,
-            y1: 1100,
-            x2: 640,
-            y2: 1300,
         };
         let icon = Bounds {
             x1: 530,
@@ -2220,7 +2300,7 @@ mod tests {
         for (why, size, centre, within, factor, angle, from, to) in cases {
             let pinch = fingers(centre, within, size, factor, angle).unwrap();
 
-            assert_eq!((pinch.from, pinch.to), (from, to), "{why}");
+            assert_eq!((pinch.at(0.0), pinch.at(1.0)), (from.to_vec(), to.to_vec()), "{why}");
         }
 
         for factor in [1.0, 0.0, -2.0, f64::NAN, f64::INFINITY] {
@@ -2232,40 +2312,115 @@ mod tests {
     }
 
     #[test]
-    fn a_pinch_moves_both_fingers_a_step_at_a_time() {
-        let pinch = Pinch {
-            from: [(400, 1200), (600, 1200)],
-            to: [(100, 1000), (900, 1400)],
+    fn a_gesture_moves_every_finger_a_step_at_a_time() {
+        let g = |centre, span, turn, fingers| Gesture {
+            centre,
+            span,
+            turn,
+            fingers,
+            taps: 1,
         };
+        let pinch = g([(500.0, 1200.0); 2], [200.0, 800.0], [0.0; 2], 2);
 
-        type Frames = Vec<[(i32, i32); 2]>;
-        let cases: [(Duration, Frames); 3] = [
+        type Case = (&'static str, Gesture, Duration, Vec<Vec<(i32, i32)>>);
+        let cases: [Case; 5] = [
             (
+                "two fingers spread",
+                pinch,
                 Duration::from_millis(32),
                 vec![
-                    [(400, 1200), (600, 1200)],
-                    [(250, 1100), (750, 1300)],
-                    [(100, 1000), (900, 1400)],
+                    vec![(400, 1200), (600, 1200)],
+                    vec![(250, 1200), (750, 1200)],
+                    vec![(100, 1200), (900, 1200)],
                 ],
             ),
-            (Duration::ZERO, pinch.frames(Duration::from_millis(32))),
+            ("too short still takes two steps", pinch, Duration::ZERO, pinch.frames(Duration::from_millis(32))),
             (
-                Duration::from_millis(48),
+                "a turn walks the circle, not the chord",
+                g([(500.0, 500.0); 2], [200.0; 2], [0.0, 180.0], 2),
+                Duration::from_millis(32),
                 vec![
-                    [(400, 1200), (600, 1200)],
-                    [(300, 1133), (700, 1267)],
-                    [(200, 1067), (800, 1333)],
-                    [(100, 1000), (900, 1400)],
+                    vec![(400, 500), (600, 500)],
+                    vec![(500, 400), (500, 600)],
+                    vec![(600, 500), (400, 500)],
                 ],
+            ),
+            (
+                "three fingers side by side travel together",
+                g([(540.0, 1600.0), (540.0, 800.0)], [200.0; 2], [0.0; 2], 3),
+                Duration::from_millis(32),
+                vec![
+                    vec![(440, 1600), (540, 1600), (640, 1600)],
+                    vec![(440, 1200), (540, 1200), (640, 1200)],
+                    vec![(440, 800), (540, 800), (640, 800)],
+                ],
+            ),
+            (
+                "one finger stays where it is put",
+                g([(10.0, 20.0); 2], [0.0; 2], [0.0; 2], 1),
+                Duration::ZERO,
+                vec![vec![(10, 20)]; 3],
             ),
         ];
 
-        for (over, frames) in cases {
-            assert_eq!(pinch.frames(over), frames, "over {over:?}");
+        for (why, gesture, over, frames) in cases {
+            assert_eq!(gesture.frames(over), frames, "{why}");
         }
 
         assert_eq!(pinch.frames(Duration::from_millis(400)).len(), 26);
-        assert_eq!(pinch.frames(Duration::from_secs(60)).len(), PINCH_STEPS_MAX + 1);
+        assert_eq!(pinch.frames(Duration::from_secs(60)).len(), GESTURE_STEPS_MAX + 1);
+    }
+
+    #[test]
+    fn fingers_turn_inside_their_element_and_travel_side_by_side() {
+        let panel = Bounds {
+            x1: 0,
+            y1: 0,
+            x2: 1080,
+            y2: 2400,
+        };
+
+        type Case = (&'static str, Gesture, Vec<(i32, i32)>, Vec<(i32, i32)>);
+        let cases: [Case; 5] = [
+            (
+                "a quarter turn across the panel",
+                twist((540, 1200), panel, PIXEL, 90.0).unwrap(),
+                vec![(54, 1200), (1026, 1200)],
+                vec![(540, 714), (540, 1686)],
+            ),
+            (
+                "anticlockwise inside an element",
+                twist((540, 1200), PHOTO, PIXEL, -90.0).unwrap(),
+                vec![(440, 1200), (640, 1200)],
+                vec![(540, 1300), (540, 1100)],
+            ),
+            (
+                "an upward swipe lines the fingers up across it",
+                side_by_side((540, 1680), (540, 720), PIXEL, 3),
+                vec![(410, 1680), (540, 1680), (670, 1680)],
+                vec![(410, 720), (540, 720), (670, 720)],
+            ),
+            (
+                "a sideways swipe stacks them",
+                side_by_side((200, 1200), (900, 1200), PIXEL, 2),
+                vec![(200, 1135), (200, 1265)],
+                vec![(900, 1135), (900, 1265)],
+            ),
+            (
+                "a tap by the edge moves in until every finger fits",
+                side_by_side((20, 1200), (20, 1200), PIXEL, 2),
+                vec![(54, 1200), (184, 1200)],
+                vec![(54, 1200), (184, 1200)],
+            ),
+        ];
+
+        for (why, gesture, from, to) in cases {
+            assert_eq!((gesture.at(0.0), gesture.at(1.0)), (from, to), "{why}");
+        }
+
+        for degrees in [0.0, 0.5, -400.0, f64::NAN] {
+            assert!(twist((540, 1200), PHOTO, PIXEL, degrees).is_err(), "{degrees} is no turn");
+        }
     }
 
     #[test]

@@ -19,7 +19,7 @@ A call costs about a second; the tool round trip costs more. So:
 - Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
   call. A step is parsed like a command line, so quote multi-word names
   inside it: `"wait 'Order history'"`.
-- An act (`tap`, `press`, `swipe`, `pinch`, `key`, `type`, `fill`), alone or
+- An act (`tap`, `press`, `swipe`, `pinch`, `rotate`, `key`, `type`, `fill`), alone or
   as the last step of a `do`, waits for the screen to settle and prints what
   changed: `changed N new, M gone`, the new rows with an `@index` you can use,
   then what went; or `unchanged`. Do not follow it with `snapshot` or `wait`
@@ -60,9 +60,12 @@ drift on your device, 4 only on other declared ones.
 ```
 phone snapshot                      # elements on screen, as text with @index
 phone tap "Log in" | @3 | X,Y       # whole name, snapshot row, or coordinate
+phone tap <what> --double | --fingers 2  # one double-tap gesture; 2-5 fingers
 phone press <what> --hold 2s        # long press
 phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]
+phone swipe up --fingers 3          # fingers side by side; a simulator takes 2
 phone pinch <what> 2 | 0.5 [--angle 90]  # two fingers: >1 zooms in, <1 out
+phone rotate <what> 45 | -90        # two fingers turning: positive is clockwise
 phone type "text"                   # into whatever has focus
 phone fill <field> "text"           # focus, clear, type, read back
 phone key back|home|enter|tab|…     # go back with `key back`, not a named arrow; none on iOS

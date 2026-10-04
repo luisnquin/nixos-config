@@ -26,8 +26,8 @@ public final class PhoneDump {
 
         hidden("connect", int.class).invoke(automation, UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
 
-        if (args.length > 0 && args[0].equals("pinch")) {
-            pinch(automation, args);
+        if (args.length > 0 && args[0].equals("touch")) {
+            gesture(automation, args);
             hidden("disconnect").invoke(automation);
             System.exit(0);
         }
@@ -61,37 +61,58 @@ public final class PhoneDump {
         System.exit(0);
     }
 
-    private static void pinch(UiAutomation automation, String[] args) throws Exception {
+    private static void gesture(UiAutomation automation, String[] args) throws Exception {
         int display = Integer.parseInt(args[1]);
         long step = Long.parseLong(args[2]);
-        int frames = (args.length - 3) / 4;
-        if (frames < 2 || (args.length - 3) % 4 != 0) {
-            throw new IllegalArgumentException("a pinch needs at least two steps of four coordinates");
+        int fingers = Integer.parseInt(args[3]);
+        int taps = Integer.parseInt(args[4]);
+        long gap = Long.parseLong(args[5]);
+        int width = fingers * 2;
+        int frames = fingers < 1 ? 0 : (args.length - 6) / width;
+        if (frames < 2 || (args.length - 6) % width != 0) {
+            throw new IllegalArgumentException("a gesture needs at least two steps of two coordinates per finger");
         }
 
-        float[][] at = new float[frames][4];
+        float[][] at = new float[frames][width];
         for (int i = 0; i < frames; i++) {
-            for (int j = 0; j < 4; j++) {
-                at[i][j] = Float.parseFloat(args[3 + i * 4 + j]);
+            for (int j = 0; j < width; j++) {
+                at[i][j] = Float.parseFloat(args[6 + i * width + j]);
             }
         }
 
-        int second = 1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-        long down = SystemClock.uptimeMillis();
-
-        touch(automation, display, down, MotionEvent.ACTION_DOWN, 1, at[0]);
-        touch(automation, display, down, MotionEvent.ACTION_POINTER_DOWN | second, 2, at[0]);
-
-        for (int i = 1; i < frames; i++) {
-            SystemClock.sleep(step);
-            touch(automation, display, down, MotionEvent.ACTION_MOVE, 2, at[i]);
+        for (int t = 0; t < taps; t++) {
+            if (t > 0) {
+                SystemClock.sleep(gap);
+            }
+            stroke(automation, display, step, fingers, at);
         }
 
-        touch(automation, display, down, MotionEvent.ACTION_POINTER_UP | second, 2, at[frames - 1]);
-        touch(automation, display, down, MotionEvent.ACTION_UP, 1, at[frames - 1]);
-
-        System.out.print("phone:pinched");
+        System.out.print("phone:touched");
         System.out.flush();
+    }
+
+    private static void stroke(UiAutomation automation, int display, long step, int fingers, float[][] at)
+            throws Exception {
+        float[] first = at[0];
+        float[] last = at[at.length - 1];
+        long down = SystemClock.uptimeMillis();
+
+        touch(automation, display, down, MotionEvent.ACTION_DOWN, 1, first);
+        for (int i = 1; i < fingers; i++) {
+            int pointer = MotionEvent.ACTION_POINTER_DOWN | (i << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+            touch(automation, display, down, pointer, i + 1, first);
+        }
+
+        for (int i = 1; i < at.length; i++) {
+            SystemClock.sleep(step);
+            touch(automation, display, down, MotionEvent.ACTION_MOVE, fingers, at[i]);
+        }
+
+        for (int i = fingers - 1; i > 0; i--) {
+            int pointer = MotionEvent.ACTION_POINTER_UP | (i << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+            touch(automation, display, down, pointer, i + 1, last);
+        }
+        touch(automation, display, down, MotionEvent.ACTION_UP, 1, last);
     }
 
     private static void touch(UiAutomation automation, int display, long down, int action, int pointers, float[] at)

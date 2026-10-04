@@ -56,7 +56,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 The commands
 
   project  up down status
-  screen   snapshot shot size tap press swipe pinch type fill key wait do
+  screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications
   host     list enable disable budget
@@ -331,6 +331,8 @@ iOS screenshot has to be divided by `scale` before it can be tapped."#)]
   phone tap "Log in"  # by text, content description or resource id
   phone tap @62       # by the index `snapshot` printed
   phone tap 540,1200  # by coordinate, where there are no elements to name
+  phone tap Map --double         # two taps 100ms apart, as one gesture
+  phone tap Map --fingers 2      # fingers side by side around the point
 
 An ambiguous name is refused with the candidates listed as @index rather than
 guessed at, except when every match sits inside one pressable match — a button
@@ -343,10 +345,24 @@ take the tap: close it with `phone key hide_keyboard`, or pass --force.
 
 Then it waits for the screen to settle and prints what changed: the rows that
 came, each with an @index a later tap takes, and the ones that went; or
-`unchanged` when nothing moved within 3s. press, swipe, pinch, type, fill and
-key do the same."#)]
+`unchanged` when nothing moved within 3s. press, swipe, pinch, rotate, type,
+fill and key do the same.
+
+--double is one injected gesture, not two taps, so the app reads a double tap
+rather than two single ones. A simulator takes at most two --fingers."#)]
     Tap {
         what: String,
+
+        #[arg(long, help = "Tap twice in one gesture, as a double tap is read")]
+        double: bool,
+
+        #[arg(
+            long,
+            default_value_t = 1,
+            value_parser = clap::value_parser!(u8).range(1..=5),
+            help = "How many fingers touch at once, side by side"
+        )]
+        fingers: u8,
 
         #[arg(long, help = "Press a named element even where the keyboard covers it")]
         force: bool,
@@ -377,6 +393,7 @@ tap on the same element does something else entirely."#)]
   phone swipe 540,1800 540,700       # between two points
   phone swipe Photos Trash           # or between two elements
   phone swipe 980,200 540,1200 --hold 1500ms  # long-press, then drag
+  phone swipe up --fingers 3         # three fingers abreast, across the motion
 
 --amount is a fraction of the panel and belongs to a directional swipe only. A
 directional swipe stays clear of the edges, because a drag begun at the very
@@ -384,7 +401,11 @@ edge is a system gesture and never reaches the app.
 
 --hold keeps the touch still at the start before it moves, which is what a
 floating bubble, a reorderable row or a home screen icon waits for. Android only;
-the drag then takes at least --duration rather than exactly that."#)]
+the drag then takes at least --duration rather than exactly that.
+
+--fingers lines the fingers up across the direction of travel, and the points
+given are where the middle of that line starts and ends. A simulator takes at
+most two; --hold drags one finger only."#)]
     Swipe {
         /// X,Y, an element, or a direction (up, down, left, right)
         from: String,
@@ -406,6 +427,14 @@ the drag then takes at least --duration rather than exactly that."#)]
         /// How much of the panel a directional swipe crosses
         #[arg(long, default_value_t = DEFAULT_AMOUNT)]
         amount: f64,
+
+        #[arg(
+            long,
+            default_value_t = 1,
+            value_parser = clap::value_parser!(u8).range(1..=5),
+            help = "How many fingers drag at once, abreast"
+        )]
+        fingers: u8,
 
         #[arg(
             long,
@@ -450,6 +479,35 @@ vertical."#)]
         angle: f64,
 
         #[arg(long, help = "Pinch a named element even where the keyboard covers it")]
+        force: bool,
+    },
+    #[command(about = "Two fingers turning around an element or a point", after_help = r#"Examples:
+  phone rotate Map 45        # an eighth of a turn, clockwise
+  phone rotate Map -90       # negative turns anticlockwise
+  phone rotate 540,1200 180 --duration 1s
+
+The fingers start level, either side of the centre, as far apart as the element
+allows (or the panel, for a point) while staying clear of its edges, and walk
+the circle between them, so they never cross."#)]
+    Rotate {
+        #[arg(help = "An element, @index or X,Y to turn around")]
+        what: String,
+
+        #[arg(
+            allow_negative_numbers = true,
+            help = "Degrees to turn: positive is clockwise on screen, negative anticlockwise"
+        )]
+        degrees: f64,
+
+        #[arg(
+            long,
+            default_value = "600ms",
+            value_parser = parse_gesture_time,
+            help = "How long the turn takes, with its unit: 600ms, 1s"
+        )]
+        duration: Duration,
+
+        #[arg(long, help = "Turn on a named element even where the keyboard covers it")]
         force: bool,
     },
     /// Type into whatever holds focus
@@ -1071,6 +1129,7 @@ impl Command {
             | Command::Press { .. }
             | Command::Swipe { .. }
             | Command::Pinch { .. }
+            | Command::Rotate { .. }
             | Command::Wait { .. }
             | Command::Type { .. }
             | Command::Fill { .. }
@@ -1100,6 +1159,7 @@ impl Command {
                 | Command::Press { .. }
                 | Command::Swipe { .. }
                 | Command::Pinch { .. }
+                | Command::Rotate { .. }
                 | Command::Type { .. }
                 | Command::Fill { .. }
                 | Command::Key { .. }

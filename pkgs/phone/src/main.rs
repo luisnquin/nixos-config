@@ -974,12 +974,13 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             Ok(())
         }
 
-        Command::Tap { what, force } => {
-            let t = &s.target;
-            let ((x, y), name) = at(s, &what, force).await?;
-
-            a11y::tap(t, x, y).await?;
-            eprintln!("phone: tapped {}", aim((x, y), name));
+        Command::Tap {
+            what,
+            double,
+            fingers,
+            force,
+        } => {
+            eprintln!("phone: {}", tap(s, &what, double, fingers.into(), force).await?);
 
             Ok(())
         }
@@ -1006,6 +1007,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             duration,
             hold,
             amount,
+            fingers,
             force,
         } => {
             let t = &s.target;
@@ -1030,23 +1032,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                 }
             };
 
-            match hold {
-                Some(hold) => a11y::drag(t, from, to, hold, duration).await?,
-                None => a11y::swipe(t, from, to, duration).await?,
-            }
-
-            let held = hold
-                .map(|h| format!(" after holding {}ms", h.as_millis()))
-                .unwrap_or_default();
-
-            eprintln!(
-                "phone: swiped {},{} to {},{} over {}ms{held}",
-                from.0,
-                from.1,
-                to.0,
-                to.1,
-                duration.as_millis()
-            );
+            eprintln!("phone: {}", swipe(s, (from, to), duration, hold, fingers.into()).await?);
 
             Ok(())
         }
@@ -1059,6 +1045,17 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             force,
         } => {
             eprintln!("phone: {}", pinch(s, &what, factor, duration, angle, force).await?);
+
+            Ok(())
+        }
+
+        Command::Rotate {
+            what,
+            degrees,
+            duration,
+            force,
+        } => {
+            eprintln!("phone: {}", rotate(s, &what, degrees, duration, force).await?);
 
             Ok(())
         }
@@ -1207,9 +1204,10 @@ fn reads_first(command: &Command) -> bool {
     let named = |what: &str| cli::parse_point(what).is_err();
 
     match command {
-        Command::Tap { what, .. } | Command::Press { what, .. } | Command::Pinch { what, .. } => {
-            named(what)
-        }
+        Command::Tap { what, .. }
+        | Command::Press { what, .. }
+        | Command::Pinch { what, .. }
+        | Command::Rotate { what, .. } => named(what),
         Command::Swipe {
             from, to: Some(to), ..
         } => named(from) || named(to),
@@ -1506,9 +1504,15 @@ fn editable(node: &a11y::Node) -> bool {
     node.class.contains("EditText") || node.class.contains("TextField") || !node.hint.is_empty()
 }
 
-async fn pinch(s: &Session, what: &str, factor: f64, duration: Duration, angle: f64, force: bool) -> Result<String> {
-    let t = &s.target;
-    let size = a11y::size(t).await?;
+struct Aimed {
+    centre: (i32, i32),
+    within: a11y::Bounds,
+    size: a11y::Size,
+    name: Option<String>,
+}
+
+async fn aimed(s: &Session, what: &str, force: bool) -> Result<Aimed> {
+    let size = a11y::size(&s.target).await?;
     let panel = a11y::Bounds {
         x1: 0,
         y1: 0,
@@ -1529,15 +1533,104 @@ async fn pinch(s: &Session, what: &str, factor: f64, duration: Duration, angle: 
         }
     };
 
-    let fingers = a11y::fingers(centre, within, size, factor, angle)?;
-    a11y::pinch(t, &fingers, duration).await?;
+    Ok(Aimed {
+        centre,
+        within,
+        size,
+        name,
+    })
+}
+
+async fn pinch(s: &Session, what: &str, factor: f64, duration: Duration, angle: f64, force: bool) -> Result<String> {
+    let on = aimed(s, what, force).await?;
+    let fingers = a11y::fingers(on.centre, on.within, on.size, factor, angle)?;
+    a11y::gesture(&s.target, &fingers, duration).await?;
 
     let (from, to) = fingers.gap();
     let way = if factor > 1.0 { "out" } else { "in" };
 
     Ok(format!(
         "pinched {way} on {}, fingers {from} to {to} apart over {}ms",
-        aim(centre, name),
+        aim(on.centre, on.name),
+        duration.as_millis()
+    ))
+}
+
+async fn rotate(s: &Session, what: &str, degrees: f64, duration: Duration, force: bool) -> Result<String> {
+    let on = aimed(s, what, force).await?;
+    let fingers = a11y::twist(on.centre, on.within, on.size, degrees)?;
+    a11y::gesture(&s.target, &fingers, duration).await?;
+
+    let way = if degrees > 0.0 { "clockwise" } else { "anticlockwise" };
+
+    Ok(format!(
+        "turned two fingers {}° {way} on {}, {} apart, over {}ms",
+        degrees.abs(),
+        aim(on.centre, on.name),
+        fingers.gap().0,
+        duration.as_millis()
+    ))
+}
+
+fn counted(fingers: usize) -> String {
+    match fingers {
+        1 => String::new(),
+        n => format!(" with {n} fingers"),
+    }
+}
+
+async fn tap(s: &Session, what: &str, double: bool, fingers: usize, force: bool) -> Result<String> {
+    let t = &s.target;
+    let ((x, y), name) = at(s, what, force).await?;
+
+    if !double && fingers == 1 {
+        a11y::tap(t, x, y).await?;
+
+        return Ok(format!("tapped {}", aim((x, y), name)));
+    }
+
+    let taps = if double { 2 } else { 1 };
+    let g = a11y::Gesture {
+        taps,
+        ..a11y::side_by_side((x, y), (x, y), a11y::size(t).await?, fingers)
+    };
+    a11y::gesture(t, &g, a11y::TAP_DOWN).await?;
+
+    let how = if double { "double-tapped" } else { "tapped" };
+
+    Ok(format!("{how} {}{}", aim((x, y), name), counted(fingers)))
+}
+
+async fn swipe(
+    s: &Session,
+    (from, to): ((i32, i32), (i32, i32)),
+    duration: Duration,
+    hold: Option<Duration>,
+    fingers: usize,
+) -> Result<String> {
+    let t = &s.target;
+
+    match (hold, fingers) {
+        (Some(_), 2..) => bail!("--hold drags one finger; drop --hold or --fingers"),
+        (Some(hold), _) => a11y::drag(t, from, to, hold, duration).await?,
+        (None, 1) => a11y::swipe(t, from, to, duration).await?,
+        (None, _) => {
+            let g = a11y::side_by_side(from, to, a11y::size(t).await?, fingers);
+            a11y::gesture(t, &g, duration).await?;
+        }
+    }
+
+    let held = hold
+        .map(|h| format!(" after holding {}ms", h.as_millis()))
+        .unwrap_or_default();
+
+    Ok(format!(
+        "swiped {},{} to {},{}{} over {}ms{held}",
+        from.0,
+        from.1,
+        to.0,
+        to.1,
+        counted(fingers),
         duration.as_millis()
     ))
 }

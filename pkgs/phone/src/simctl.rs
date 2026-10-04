@@ -346,17 +346,28 @@ pub async fn swipe(
     Ok(())
 }
 
-pub async fn pinch(at: &Where, udid: &str, pinch: &crate::a11y::Pinch, ms: u64) -> Result<()> {
+pub async fn gesture(
+    at: &Where,
+    udid: &str,
+    g: &crate::a11y::Gesture,
+    frames: &[Vec<(i32, i32)>],
+    step: usize,
+) -> Result<()> {
     check(udid)?;
 
-    let [(a, b), (c, d)] = pinch.from;
-    let [(e, f), (g, h)] = pinch.to;
-    let points = [a, b, c, d, e, f, g, h].map(|v| v.to_string());
-    let duration = ms.to_string();
+    if g.fingers > 2 {
+        bail!("a simulator takes at most two fingers at once; {} need Android", g.fingers);
+    }
 
-    let mut args = vec!["pinch", udid];
-    args.extend(points.iter().map(String::as_str));
-    args.push(&duration);
+    let head = [g.fingers, step, g.taps, crate::a11y::TAP_GAP.as_millis() as usize].map(|v| v.to_string());
+    let points = frames.iter().flatten().flat_map(|(x, y)| [x.to_string(), y.to_string()]);
+
+    let mut args = vec!["touch".to_string(), udid.to_string()];
+    args.extend(head);
+    args.extend(points);
+
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let ms = (step * frames.len() * g.taps) as u64;
 
     run(at, &args, Duration::from_secs(30 + ms / 1000)).await?;
 
