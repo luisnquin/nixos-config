@@ -1,11 +1,40 @@
 #![forbid(unsafe_code)]
 
+// Shadows std's printing macros crate-wide, so whatever a run says lands in its
+// call log too; textual scope reaches every module declared below.
+macro_rules! print {
+    ($($arg:tt)*) => {{
+        let text = format!($($arg)*);
+        std::print!("{text}");
+        crate::calls::out(&text);
+    }};
+}
+
+macro_rules! println {
+    () => { print!("\n") };
+    ($($arg:tt)*) => { print!("{}\n", format_args!($($arg)*)) };
+}
+
+macro_rules! eprint {
+    ($($arg:tt)*) => {{
+        let text = format!($($arg)*);
+        std::eprint!("{text}");
+        crate::calls::err(&text);
+    }};
+}
+
+macro_rules! eprintln {
+    () => { eprint!("\n") };
+    ($($arg:tt)*) => { eprint!("{}\n", format_args!($($arg)*)) };
+}
+
 mod a11y;
 mod actions;
 mod adb;
 mod answer;
 mod apps;
 mod avd;
+mod calls;
 mod cli;
 mod connect;
 mod discover;
@@ -56,8 +85,17 @@ async fn main() -> ExitCode {
     // that `println!` panics on. `phone snapshot | head` is how a long dump is
     // read, and it must end the run quietly rather than in a backtrace.
     sigpipe::reset();
+    calls::begin();
 
     let cli = help::parse();
+
+    match &cli.command {
+        Some(Command::Hook { .. } | Command::Completions { .. }) => calls::skip(),
+        None | Some(Command::Stream { .. } | Command::Mirror { .. } | Command::Record { .. }) => {
+            calls::quiet()
+        }
+        Some(_) => {}
+    }
 
     if let Some(Command::Hook { harness }) = cli.command {
         hook::run(harness);
@@ -65,19 +103,23 @@ async fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    match dispatch(cli).await {
-        Ok(()) => ExitCode::SUCCESS,
+    let code = match dispatch(cli).await {
+        Ok(()) => 0,
         Err(e) => {
             // the alternate form walks the context chain; without it a failure
             // reads as "in phone.toml" with the reason it failed dropped
             eprintln!("phone: {e:#}");
 
             match e.downcast_ref::<Refused>() {
-                Some(_) => ExitCode::from(3),
-                None => ExitCode::FAILURE,
+                Some(_) => 3,
+                None => 1,
             }
         }
-    }
+    };
+
+    calls::finish(Some(i32::from(code)), None);
+
+    ExitCode::from(code)
 }
 
 #[derive(Debug)]
@@ -105,6 +147,7 @@ fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
     }
 
     std::io::stdout().flush().ok();
+    calls::finish(Some(code), None);
     std::process::exit(code);
 }
 
@@ -153,6 +196,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
     match command {
         None => {
             if let Some(mut cmd) = tui::run(reg).await? {
+                calls::exec(&cmd);
                 let err = cmd.exec();
 
                 bail!("{err}");
@@ -548,10 +592,11 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
             return Ok(());
         }
         AppAction::Logs { app } => {
-            bail!(
-                "{}",
-                actions::logs_command(server, device, &app).await?.exec()
-            )
+            let mut cmd = actions::logs_command(server, device, &app).await?;
+
+            calls::exec(&cmd);
+
+            bail!("{}", cmd.exec())
         }
     };
 
@@ -1032,6 +1077,8 @@ async fn step(s: &Session, command: Command) -> Result<()> {
         Command::Type { text } => {
             let t = &s.target;
 
+            calls::typed(&text);
+
             a11y::type_text(t, &text).await?;
             eprintln!("phone: typed {} characters", text.chars().count());
 
@@ -1456,6 +1503,8 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
 
     let (screen, target) = find(s, what).await?;
 
+    calls::secret_if(target.password, text);
+
     let already = screen.focused().filter(|f| related(f, &target)).cloned();
 
     let field = match already {
@@ -1483,6 +1532,8 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
     let label = field.field_name();
 
     if field.password {
+        calls::secret(text);
+
         return Ok(format!(
             "filled {label} with {} characters (a password, not read back)",
             text.chars().count()
@@ -1976,6 +2027,20 @@ async fn resolve(
 }
 
 async fn choose(
+    views: &[View],
+    reg: &Registry,
+    want: Option<&str>,
+    prefer_recent: bool,
+    aim: Aim,
+) -> Result<View> {
+    let view = chosen(views, reg, want, prefer_recent, aim).await?;
+
+    calls::device(&view.device);
+
+    Ok(view)
+}
+
+async fn chosen(
     views: &[View],
     reg: &Registry,
     want: Option<&str>,

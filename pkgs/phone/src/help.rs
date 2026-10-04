@@ -1,6 +1,7 @@
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{CommandFactory, FromArgMatches};
 
+use crate::calls;
 use crate::cli::Cli;
 
 const GROUPS: &[(&str, &[&str])] = &[
@@ -23,10 +24,16 @@ pub fn parse() -> Cli {
             );
         }
 
-        e.exit()
+        exit(e)
     });
 
-    Cli::from_arg_matches_mut(&mut matches).unwrap_or_else(|e| e.format(&mut command()).exit())
+    Cli::from_arg_matches_mut(&mut matches).unwrap_or_else(|e| exit(e.format(&mut command())))
+}
+
+fn exit(e: clap::Error) -> ! {
+    calls::clap_exit(&e);
+
+    e.exit()
 }
 
 /// A flag this verb does not take, named with the verbs that do. It replaces

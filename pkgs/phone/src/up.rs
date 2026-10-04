@@ -1423,11 +1423,14 @@ pub fn strays(views: &[View], project: &Project) -> Vec<String> {
 }
 
 pub fn print(report: &Report) {
-    let mut out = std::io::stdout();
+    let mut out = Vec::new();
+    let _ = write(report, &mut out);
+
+    crate::calls::out(&String::from_utf8_lossy(&out));
 
     // nothing to do about a closed stdout that printing an error would not also
     // hit; `status` still leaves through its exit code
-    let _ = write(report, &mut out);
+    let _ = std::io::Write::write_all(&mut std::io::stdout(), &out);
 }
 
 /// Split from `print` so the table can be read back in a test. Everything the

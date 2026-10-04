@@ -118,6 +118,7 @@ impl Output {
             Self::Base64 => writeln!(out, "{}", encode(frame)),
             Self::Shm(frames) => frames.put(frame).and_then(|name| writeln!(out, "{name}")),
         }?;
+        crate::calls::piped(frame.len());
         out.flush()
     }
 }

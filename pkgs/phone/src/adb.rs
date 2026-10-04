@@ -4,6 +4,7 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Result};
 use tokio::process::Command;
 
+use crate::calls::{self, Cost};
 use crate::model::Platform;
 use crate::ssh;
 
@@ -191,6 +192,8 @@ impl Output {
 }
 
 pub async fn run(server: &Server, args: &[&str]) -> Result<Output> {
+    let _spent = calls::time(Cost::Adb);
+
     let out = Command::new("adb")
         .args(server.args())
         .args(args)
@@ -215,6 +218,8 @@ pub async fn run_timeout(server: &Server, args: &[&str], limit: Duration) -> Res
 
 /// Raw bytes, for anything that is not text (`exec-out screencap -p`).
 pub async fn run_bytes(server: &Server, args: &[&str]) -> Result<(bool, Vec<u8>)> {
+    let _spent = calls::time(Cost::Adb);
+
     let out = Command::new("adb")
         .args(server.args())
         .args(args)
@@ -245,6 +250,8 @@ async fn read(server: &Server, args: &[&str], limit: Duration) -> Result<Output>
     let Server::Remote { host, .. } = server else {
         return run_timeout(server, args, limit).await;
     };
+
+    let _spent = calls::time(Cost::Adb);
 
     let out = tokio::time::timeout(limit, ssh::script(host, REMOTE_ADB, args).output())
         .await

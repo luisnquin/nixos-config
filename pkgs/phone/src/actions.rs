@@ -326,6 +326,8 @@ pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
 }
 
 pub async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result<Vec<u8>> {
+    let _spent = crate::calls::time(crate::calls::Cost::Capture);
+
     let png = match device.platform {
         Platform::Ios => {
             let host = host_of(device)?;
@@ -381,6 +383,7 @@ async fn deliver(device: &Device, sink: &Sink, png: Vec<u8>, shot: &Shot) -> Res
             let mut stdout = std::io::stdout().lock();
             stdout.write_all(png)?;
             stdout.flush()?;
+            crate::calls::piped(png.len());
 
             // the caller is piping the bytes somewhere, so a popup is noise
             return Ok("wrote PNG to stdout".into());

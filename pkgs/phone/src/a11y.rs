@@ -476,6 +476,15 @@ impl Screen {
 }
 
 pub async fn dump(t: &Target) -> Result<Screen> {
+    let _spent = crate::calls::time(crate::calls::Cost::Dump);
+    let screen = dumped(t).await?;
+
+    crate::calls::focused_plain(screen.focused().is_some_and(|n| !n.password));
+
+    Ok(screen)
+}
+
+async fn dumped(t: &Target) -> Result<Screen> {
     let a = match t {
         Target::Adb(a) => a,
         Target::Simulator(s) => {

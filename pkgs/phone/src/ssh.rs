@@ -6,6 +6,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
 
+use crate::calls::{self, Cost};
 use crate::discover::sweep;
 use crate::registry::state_dir;
 
@@ -102,6 +103,8 @@ impl Ran {
 /// session reports success whatever the command did, which would turn every
 /// remote refusal into a silent success here.
 pub async fn run(host: &str, script: &str, args: &[&str], limit: Duration) -> Result<Ran> {
+    let _spent = calls::time(Cost::Ssh);
+
     let out = self::script(host, &wrapped(script), args).output();
     let out = tokio::time::timeout(limit, out)
         .await
@@ -173,6 +176,8 @@ fn outcome(stderr: &[u8]) -> (Status, String) {
 }
 
 pub async fn output(mut cmd: Command, limit: Duration) -> Result<Vec<u8>> {
+    let _spent = (cmd.as_std().get_program() == "ssh").then(|| calls::time(Cost::Ssh));
+
     let out = tokio::time::timeout(limit, cmd.stderr(Stdio::null()).output())
         .await
         .map_err(|_| anyhow!("ssh timed out"))??;
@@ -200,6 +205,8 @@ pub async fn forward(host: &str, local: u16, remote_port: u16) -> Result<()> {
     if sweep::probe("127.0.0.1", local, Duration::from_millis(400)).await {
         return Ok(());
     }
+
+    let _spent = calls::time(Cost::Ssh);
 
     let status = tokio::time::timeout(
         Duration::from_secs(15),
@@ -323,6 +330,7 @@ impl Where {
     /// redraws its own progress there still can.
     pub async fn stream(&self, script: &str, args: &[&str], tag: Option<&str>) -> Result<Status> {
         let wrapped = wrapped(script);
+        let _spent = self.host().map(|_| calls::time(Cost::Ssh));
 
         let mut cmd = match self {
             Where::Here => {

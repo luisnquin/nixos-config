@@ -338,7 +338,11 @@ pub async fn tree(project: &Project) -> Result<String> {
         anyhow::bail!("locating {dir} on {}: {}", at.label(), ran.said);
     }
 
-    Ok(ran.text().trim().to_string())
+    let tree = ran.text().trim().to_string();
+
+    crate::calls::tree(&tree);
+
+    Ok(tree)
 }
 
 pub enum Caller {

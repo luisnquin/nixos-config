@@ -231,8 +231,13 @@ impl Project {
 
     pub fn here() -> Result<Option<Project>> {
         let cwd = std::env::current_dir().context("reading the working directory")?;
+        let found = Self::find(&cwd)?;
 
-        Self::find(&cwd)
+        if let Some(project) = &found {
+            crate::calls::project(&project.root);
+        }
+
+        Ok(found)
     }
 
     pub fn load(path: &Path) -> Result<Project> {
