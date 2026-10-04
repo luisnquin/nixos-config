@@ -1,7 +1,6 @@
-use std::ffi::c_int;
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -37,16 +36,6 @@ pub const AUTOSTART_ENV: &str = "EE_WORKBENCH_CAD_AUTOSTART";
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
 const POLL_INTERVAL: Duration = Duration::from_millis(40);
 
-/// Two `ee` processes racing a first call must not both get to bind. `flock` on
-/// a side file is the whole exclusion: the kernel releases it when the holder
-/// exits, so a killed `ee` cannot wedge the next one.
-const LOCK_EX: c_int = 2;
-
-unsafe extern "C" {
-    fn flock(fd: c_int, operation: c_int) -> c_int;
-    fn setsid() -> c_int;
-}
-
 #[derive(Debug)]
 pub enum Started {
     /// Something was already listening; this call did nothing.
@@ -59,15 +48,18 @@ fn responding(socket: &Path) -> bool {
     UnixStream::connect(socket).is_ok()
 }
 
-fn autostart_allowed() -> bool {
-    match std::env::var(AUTOSTART_ENV) {
-        Ok(value) => !matches!(value.trim(), "0" | "no" | "never" | "false"),
-        Err(_) => true,
+fn autostart_allowed(env: &impl Fn(&str) -> Option<OsString>) -> bool {
+    match env(AUTOSTART_ENV) {
+        Some(value) => !matches!(
+            value.to_str().map(str::trim),
+            Some("0" | "no" | "never" | "false")
+        ),
+        None => true,
     }
 }
 
-fn server_binary() -> PathBuf {
-    match std::env::var_os(SERVER_ENV).filter(|value| !value.is_empty()) {
+fn server_binary(env: &impl Fn(&str) -> Option<OsString>) -> PathBuf {
+    match env(SERVER_ENV).filter(|value| !value.is_empty()) {
         Some(value) => PathBuf::from(value),
         None => PathBuf::from("ee-freecad-server"),
     }
@@ -115,10 +107,8 @@ impl Lock {
 
         // Blocking on purpose: the loser waits for the winner's server rather
         // than reporting a failure the user would only retry.
-        if unsafe { flock(file.as_raw_fd(), LOCK_EX) } != 0 {
-            return Err(std::io::Error::last_os_error())
-                .with_context(|| format!("locking {}", path.display()));
-        }
+        file.lock()
+            .with_context(|| format!("locking {}", path.display()))?;
 
         Ok(Self { _file: file })
     }
@@ -151,14 +141,13 @@ fn tail(path: &Path) -> String {
         .join("\n")
 }
 
-fn launch(socket: &Path, log: &Path) -> Result<Child> {
+fn launch(socket: &Path, log: &Path, binary: PathBuf) -> Result<Child> {
     // Truncated rather than appended: the log describes the session that is
     // starting now, and a diagnosis after a failed spawn should not have to
     // find the boundary between runs.
     let out = File::create(log).with_context(|| format!("creating {}", log.display()))?;
     let err = out.try_clone().context("cloning the server log handle")?;
 
-    let binary = server_binary();
     let mut command = Command::new(&binary);
     command
         .arg("--socket")
@@ -167,16 +156,9 @@ fn launch(socket: &Path, log: &Path) -> Result<Child> {
         .stdout(out)
         .stderr(err);
 
-    // Its own session, so a Ctrl-C aimed at the `ee` that happened to start it
-    // does not take the documents down with it.
-    unsafe {
-        command.pre_exec(|| {
-            if setsid() == -1 {
-                return Err(std::io::Error::last_os_error());
-            }
-            Ok(())
-        });
-    }
+    // Its own process group, so a Ctrl-C aimed at the `ee` that happened to
+    // start it does not take the documents down with it.
+    command.process_group(0);
 
     command.spawn().map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
@@ -196,11 +178,15 @@ fn launch(socket: &Path, log: &Path) -> Result<Child> {
 /// Every `ee mechanical` verb but `status` goes through here, so an agent never
 /// has to ask anyone to start FreeCAD for it.
 pub fn ensure(socket: &Path) -> Result<Started> {
+    ensure_with(socket, |var| std::env::var_os(var))
+}
+
+fn ensure_with(socket: &Path, env: impl Fn(&str) -> Option<OsString>) -> Result<Started> {
     if responding(socket) {
         return Ok(Started::Existing);
     }
 
-    if !autostart_allowed() {
+    if !autostart_allowed(&env) {
         bail!(
             "no cad session on {} and {AUTOSTART_ENV} forbids starting one: \
              run `ee mechanical session start` or unset it",
@@ -218,7 +204,7 @@ pub fn ensure(socket: &Path) -> Result<Started> {
     }
 
     let log = log_path(socket);
-    let mut child = launch(socket, &log)?;
+    let mut child = launch(socket, &log, server_binary(&env))?;
 
     let deadline = Instant::now() + READY_TIMEOUT;
     loop {
@@ -260,6 +246,15 @@ mod tests {
     use super::*;
     use std::os::unix::net::UnixListener;
 
+    fn env(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<OsString> {
+        move |var| {
+            pairs
+                .iter()
+                .find(|(name, _)| *name == var)
+                .map(|(_, value)| OsString::from(value))
+        }
+    }
+
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("ee-spawn-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -267,8 +262,6 @@ mod tests {
         dir.join("cad.sock")
     }
 
-    /// One test, because the knobs are process-wide environment variables and
-    /// cargo runs test functions in parallel threads.
     #[test]
     fn spawning_probes_first_and_reports_a_server_that_dies() {
         let listening = scratch("existing");
@@ -276,28 +269,25 @@ mod tests {
 
         // A binary that cannot exist: reaching the launch path at all would
         // turn this into a failure rather than an `Existing`.
-        unsafe { std::env::set_var(SERVER_ENV, "/nonexistent/ee-freecad-server") };
-        assert!(matches!(ensure(&listening).unwrap(), Started::Existing));
+        let missing = env(&[(SERVER_ENV, "/nonexistent/ee-freecad-server")]);
+        assert!(matches!(
+            ensure_with(&listening, missing).unwrap(),
+            Started::Existing
+        ));
 
         let dead = scratch("dies");
-        unsafe { std::env::set_var(SERVER_ENV, "/bin/sh") };
-        let error = ensure(&dead).unwrap_err();
+        let error = ensure_with(&dead, env(&[(SERVER_ENV, "/bin/sh")])).unwrap_err();
         assert!(error.to_string().contains("before it was ready"), "{error}");
 
-        unsafe { std::env::set_var(AUTOSTART_ENV, "0") };
-        let error = ensure(&scratch("refused")).unwrap_err();
+        let refused = env(&[(SERVER_ENV, "/bin/sh"), (AUTOSTART_ENV, "0")]);
+        let error = ensure_with(&scratch("refused"), refused).unwrap_err();
         assert!(error.to_string().contains("forbids"), "{error}");
-
-        unsafe { std::env::remove_var(AUTOSTART_ENV) };
-        unsafe { std::env::remove_var(SERVER_ENV) };
 
         // A fresh boot has no runtime directory at all, and the lock is taken
         // before anything else would have made one.
         let nested = scratch("nested").parent().unwrap().join("deep/cad.sock");
-        unsafe { std::env::set_var(SERVER_ENV, "/bin/sh") };
-        let error = ensure(&nested).unwrap_err();
+        let error = ensure_with(&nested, env(&[(SERVER_ENV, "/bin/sh")])).unwrap_err();
         assert!(error.to_string().contains("before it was ready"), "{error}");
         assert!(nested.parent().unwrap().is_dir());
-        unsafe { std::env::remove_var(SERVER_ENV) };
     }
 }

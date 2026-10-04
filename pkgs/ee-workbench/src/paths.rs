@@ -28,6 +28,10 @@ fn home() -> PathBuf {
 /// lands somewhere nobody asked for. `std::path::absolute` and not
 /// `canonicalize`: save, export and render all name files that do not exist yet.
 pub fn absolute(input: &str) -> Result<PathBuf> {
+    resolve(input, home)
+}
+
+fn resolve(input: &str, home: impl Fn() -> PathBuf) -> Result<PathBuf> {
     let expanded = match input.strip_prefix('~') {
         Some("") => home(),
         Some(rest) => match rest.strip_prefix('/') {
@@ -107,7 +111,7 @@ mod tests {
 
     #[test]
     fn a_path_is_resolved_against_the_client() {
-        unsafe { std::env::set_var("HOME", "/home/tester") };
+        let absolute = |input| resolve(input, || PathBuf::from("/home/tester"));
 
         assert_eq!(
             absolute("~/out.png").unwrap(),

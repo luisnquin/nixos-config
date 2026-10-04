@@ -93,10 +93,15 @@ pub struct Client {
     reader: BufReader<UnixStream>,
     writer: UnixStream,
     next_id: u64,
+    expected_build: Option<String>,
 }
 
 impl Client {
     pub fn connect(socket: &Path) -> Result<Self> {
+        Self::connect_expecting(socket, crate::spawn::expected_build())
+    }
+
+    fn connect_expecting(socket: &Path, expected_build: Option<String>) -> Result<Self> {
         let stream = UnixStream::connect(socket).with_context(|| {
             format!(
                 "connecting to {}: is ee-freecad-server running?",
@@ -108,6 +113,7 @@ impl Client {
             reader: BufReader::new(stream.try_clone().context("cloning the cad socket")?),
             writer: stream,
             next_id: 1,
+            expected_build,
         })
     }
 
@@ -158,7 +164,7 @@ impl Client {
         // guard above. The reply names the build that answered, so a session
         // left listening by an older generation says so on the first request
         // rather than quietly serving last week's behaviour.
-        if let Some(expected) = crate::spawn::expected_build() {
+        if let Some(expected) = self.expected_build.as_deref() {
             let running = reply
                 .get("build")
                 .and_then(Value::as_str)
@@ -231,13 +237,17 @@ mod tests {
         });
     }
 
-    /// The build expectation is a process-wide environment variable and cargo
-    /// runs test functions in parallel threads, so every test that reaches
-    /// `call` serializes here rather than reading a neighbour's setting.
-    static ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    fn call_expecting(
+        socket: &Path,
+        method: &str,
+        params: Value,
+        expected_build: Option<&str>,
+    ) -> Result<Value> {
+        Client::connect_expecting(socket, expected_build.map(str::to_string))?.call(method, params)
+    }
 
-    fn exclusive() -> std::sync::MutexGuard<'static, ()> {
-        ENV.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    fn call(socket: &Path, method: &str, params: Value) -> Result<Value> {
+        call_expecting(socket, method, params, None)
     }
 
     fn scratch(name: &str) -> std::path::PathBuf {
@@ -249,7 +259,6 @@ mod tests {
 
     #[test]
     fn a_result_comes_back_unwrapped() {
-        let _exclusive = exclusive();
         let socket = scratch("ok");
         spawn_mock(
             &socket,
@@ -265,7 +274,6 @@ mod tests {
 
     #[test]
     fn a_refusal_keeps_its_code() {
-        let _exclusive = exclusive();
         let socket = scratch("refusal");
         spawn_mock(
             &socket,
@@ -287,7 +295,6 @@ mod tests {
 
     #[test]
     fn a_stale_server_is_refused() {
-        let _exclusive = exclusive();
         let socket = scratch("stale");
         spawn_mock(
             &socket,
@@ -305,8 +312,6 @@ mod tests {
     /// exemption existed.
     #[test]
     fn a_protocol_mismatch_is_still_rescuable() {
-        let _exclusive = exclusive();
-
         for rescue in RESCUE {
             let socket = scratch(&format!("proto-drift-{}", rescue.replace('.', "-")));
             spawn_mock(
@@ -329,7 +334,6 @@ mod tests {
 
     #[test]
     fn a_hangup_is_told_apart_from_a_refusal() {
-        let _exclusive = exclusive();
         // No replies at all: the mock accepts and then drops the connection,
         // which is exactly what a session retiring mid-call looks like.
         let vanishing = scratch("hangup");
@@ -358,11 +362,8 @@ mod tests {
         assert!(!is_disconnect(&error), "{error:#}");
     }
 
-    /// The other tests' mocks answer without a `build`, so the guard skips them
-    /// and this can set the process-wide variable while they run.
     #[test]
     fn a_session_from_another_build_is_refused_but_still_stoppable() {
-        let _exclusive = exclusive();
         let reply = |tag: &str, method: &str, build: Option<&str>| {
             let socket = scratch(&format!("drift-{tag}-{}", method.replace('.', "-")));
             let mut envelope = json!({ "ok": true, "protocol": PROTOCOL, "id": 1, "result": {} });
@@ -370,10 +371,13 @@ mod tests {
                 envelope["build"] = json!(build);
             }
             spawn_mock(&socket, vec![envelope.to_string()]);
-            call(&socket, method, json!({}))
+            call_expecting(
+                &socket,
+                method,
+                json!({}),
+                Some("/nix/store/new-ee-freecad-server"),
+            )
         };
-
-        unsafe { std::env::set_var(crate::spawn::BUILD_ENV, "/nix/store/new-ee-freecad-server") };
 
         let named = reply(
             "named",
@@ -396,13 +400,10 @@ mod tests {
             );
             assert!(reply("silent", rescue, None).is_ok(), "{rescue} likewise");
         }
-
-        unsafe { std::env::remove_var(crate::spawn::BUILD_ENV) };
     }
 
     #[test]
     fn a_missing_socket_names_the_server() {
-        let _exclusive = exclusive();
         let socket = scratch("missing").with_file_name("absent.sock");
 
         let error = call(&socket, "session.status", json!({})).unwrap_err();

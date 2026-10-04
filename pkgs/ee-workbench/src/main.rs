@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod bridge;
 mod cli;
 mod cmd;
@@ -8,8 +10,6 @@ mod paths;
 mod spawn;
 mod store;
 mod tui;
-
-use std::ffi::c_int;
 
 use anyhow::Result;
 use clap::Parser;
@@ -28,19 +28,8 @@ use store::Workbench;
 /// Only ee's own output needs this. Children are already covered:
 /// `std::process::Command` resets SIGPIPE to `SIG_DFL` between fork and exec,
 /// because an ignored disposition is one of the few that survive `execve`.
-///
-/// Declared here rather than pulled from libc, matching the `flock` and
-/// `setsid` bindings in `spawn`: `sighandler_t` is `size_t` on every platform
-/// this builds for, and SIGPIPE is 13 on all of them.
-const SIGPIPE: c_int = 13;
-const SIG_DFL: usize = 0;
-
-unsafe extern "C" {
-    fn signal(signum: c_int, handler: usize) -> usize;
-}
-
 fn main() {
-    unsafe { signal(SIGPIPE, SIG_DFL) };
+    sigpipe::reset();
 
     match run() {
         Ok(code) => std::process::exit(code),
