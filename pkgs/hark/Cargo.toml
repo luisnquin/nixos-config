@@ -6,8 +6,8 @@ description = "notification centre over mako's history"
 license = "MIT"
 
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-case", "unicode-perl"] }
-libc = "0.2"
 serde_json = "1"
 
 [profile.release]

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn now_ms() -> u64 {
@@ -24,14 +25,10 @@ pub fn clock(then_ms: u64) -> String {
     if then_ms == 0 {
         return String::new();
     }
-    let seconds = (then_ms / 1000) as libc::time_t;
-    let mut broken: libc::tm = unsafe { std::mem::zeroed() };
-    // localtime_r reads /etc/localtime, so this follows the zone the rest of
-    // the desktop shows, DST included.
-    if unsafe { libc::localtime_r(&seconds, &mut broken) }.is_null() {
+    let Some(utc) = DateTime::from_timestamp((then_ms / 1000) as i64, 0) else {
         return String::new();
-    }
-    format!("{:02}:{:02}", broken.tm_hour, broken.tm_min)
+    };
+    utc.with_timezone(&Local).format("%H:%M").to_string()
 }
 
 /// A body collapsed onto one line, for the row that is not expanded.

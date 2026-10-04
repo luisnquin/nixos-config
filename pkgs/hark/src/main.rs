@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod center;
 mod config;
 mod format;
