@@ -35,6 +35,8 @@ usage: phone <verb> [args]
   tap <udid> <x> <y>    a touch, in points
   swipe <udid> <x1> <y1> <x2> <y2> [ms]
                         a drag, in points; both ends alike is a long press
+  pinch <udid> <ax1> <ay1> <bx1> <by1> <ax2> <ay2> <bx2> <by2> [ms]
+                        two fingers, a and b, from their 1 points to their 2
   text <udid> <string>  one key event per character
   key <udid> <name>     a named key or a hardware button
   shot <udid>           a PNG on stdout
@@ -105,22 +107,7 @@ fn run(args: &[String]) -> Result<()> {
     let bridge = NativeBridge;
 
     match verb.as_str() {
-        "devices" => {
-            let simulators = bridge.list_simulators()?;
-
-            println!("{}", serde_json::to_string(&simulators)?);
-        }
-        "size" => {
-            let size = bridge.display_size(udid(rest)?)?;
-
-            println!("{}", serde_json::to_string(&size)?);
-        }
-        "snapshot" => {
-            let tree = bridge.accessibility_snapshot(udid(rest)?, None)?;
-            let tree = interactive_accessibility_snapshot(&tree);
-
-            println!("{}", serde_json::to_string(&node::flatten(&tree))?);
-        }
+        "devices" | "size" | "snapshot" | "shot" => read(&bridge, verb, rest)?,
         "tap" => {
             let udid = udid(rest)?;
             let x = coordinate(rest, 1, "x")?;
@@ -179,6 +166,7 @@ fn run(args: &[String]) -> Result<()> {
 
             session.send_touch(x, y, "ended")?;
         }
+        "pinch" => pinch(&bridge, rest)?,
         "text" => {
             let udid = udid(rest)?;
             let text = rest.get(1).ok_or_else(|| anyhow!("text: no string"))?;
@@ -205,13 +193,63 @@ fn run(args: &[String]) -> Result<()> {
         }
         "key" => key(&bridge, rest)?,
         "stream" => stream(&bridge, rest)?,
-        "shot" => {
-            let png = bridge.screenshot_png(udid(rest)?)?;
-
-            std::io::stdout().write_all(&png)?;
-        }
         other => return Err(anyhow!("unknown verb: {other}\n\n{USAGE}")),
     }
+
+    Ok(())
+}
+
+fn read(bridge: &NativeBridge, verb: &str, rest: &[String]) -> Result<()> {
+    match verb {
+        "devices" => println!("{}", serde_json::to_string(&bridge.list_simulators()?)?),
+        "size" => println!("{}", serde_json::to_string(&bridge.display_size(udid(rest)?)?)?),
+        "snapshot" => {
+            let tree = bridge.accessibility_snapshot(udid(rest)?, None)?;
+            let tree = interactive_accessibility_snapshot(&tree);
+
+            println!("{}", serde_json::to_string(&node::flatten(&tree))?);
+        }
+        _ => std::io::stdout().write_all(&bridge.screenshot_png(udid(rest)?)?)?,
+    }
+
+    Ok(())
+}
+
+fn pinch(bridge: &NativeBridge, rest: &[String]) -> Result<()> {
+    let udid = udid(rest)?;
+    let mut points = [0.0; 8];
+    for (i, name) in ["ax1", "ay1", "bx1", "by1", "ax2", "ay2", "bx2", "by2"]
+        .iter()
+        .enumerate()
+    {
+        points[i] = coordinate(rest, i + 1, name)?;
+    }
+
+    let ms: u64 = match rest.get(9) {
+        Some(value) => value.parse().map_err(|_| anyhow!("ms is not a number"))?,
+        None => DEFAULT_SWIPE_MS,
+    };
+
+    let size = bridge.display_size(udid)?;
+    let at = |t: f64, from: usize| {
+        let lerp = |i: usize| points[i] + (points[i + 4] - points[i]) * t;
+
+        (lerp(from) / size.width, lerp(from + 1) / size.height)
+    };
+
+    let session = bridge.create_input_session(udid)?;
+    let steps = (ms / STEP_MS).clamp(2, 120);
+
+    session.send_multitouch(at(0.0, 0), at(0.0, 2), "began")?;
+
+    for step in 1..=steps {
+        std::thread::sleep(Duration::from_millis(ms / steps));
+
+        let t = step as f64 / steps as f64;
+        session.send_multitouch(at(t, 0), at(t, 2), "moved")?;
+    }
+
+    session.send_multitouch(at(1.0, 0), at(1.0, 2), "ended")?;
 
     Ok(())
 }

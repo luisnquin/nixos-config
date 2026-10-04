@@ -56,7 +56,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 The commands
 
   project  up down status
-  screen   snapshot shot size tap press swipe type fill key wait do
+  screen   snapshot shot size tap press swipe pinch type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications
   host     list enable disable budget
@@ -343,8 +343,8 @@ take the tap: close it with `phone key hide_keyboard`, or pass --force.
 
 Then it waits for the screen to settle and prints what changed: the rows that
 came, each with an @index a later tap takes, and the ones that went; or
-`unchanged` when nothing moved within 3s. press, swipe, type, fill and key do
-the same."#)]
+`unchanged` when nothing moved within 3s. press, swipe, pinch, type, fill and
+key do the same."#)]
     Tap {
         what: String,
 
@@ -411,6 +411,45 @@ the drag then takes at least --duration rather than exactly that."#)]
             long,
             help = "Start or end on a named element even where the keyboard covers it"
         )]
+        force: bool,
+    },
+    #[command(about = "Two fingers spreading or closing on an element or a point", after_help = r#"Examples:
+  phone pinch Map 2          # spread the fingers: zoom in
+  phone pinch Map 0.5        # close them: zoom out
+  phone pinch @7 3 --duration 800ms
+  phone pinch 540,1200 2 --angle 90  # vertically, around a point
+
+The factor is how much farther apart the fingers end than they start. The wider
+of the two spans fills the element, or the panel for a point, clear of its
+edges; the narrower one never comes closer than a fingertip, so a large factor
+has a smaller effect than it says. The line printed gives the spans used.
+
+--angle turns the line the fingers move along, in degrees: 0 is horizontal, 90
+vertical."#)]
+    Pinch {
+        #[arg(help = "An element, @index or X,Y to pinch around")]
+        what: String,
+
+        #[arg(help = "Above 1 spreads the fingers, below 1 closes them")]
+        factor: f64,
+
+        #[arg(
+            long,
+            default_value = "400ms",
+            value_parser = parse_gesture_time,
+            help = "How long the pinch takes, with its unit: 400ms, 1s"
+        )]
+        duration: Duration,
+
+        #[arg(
+            long,
+            default_value_t = 0.0,
+            allow_negative_numbers = true,
+            help = "The line the fingers move along, in degrees"
+        )]
+        angle: f64,
+
+        #[arg(long, help = "Pinch a named element even where the keyboard covers it")]
         force: bool,
     },
     /// Type into whatever holds focus
@@ -1031,6 +1070,7 @@ impl Command {
             Command::Tap { .. }
             | Command::Press { .. }
             | Command::Swipe { .. }
+            | Command::Pinch { .. }
             | Command::Wait { .. }
             | Command::Type { .. }
             | Command::Fill { .. }
@@ -1059,6 +1099,7 @@ impl Command {
             Command::Tap { .. }
                 | Command::Press { .. }
                 | Command::Swipe { .. }
+                | Command::Pinch { .. }
                 | Command::Type { .. }
                 | Command::Fill { .. }
                 | Command::Key { .. }

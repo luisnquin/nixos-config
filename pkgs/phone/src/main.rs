@@ -1051,6 +1051,18 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             Ok(())
         }
 
+        Command::Pinch {
+            what,
+            factor,
+            duration,
+            angle,
+            force,
+        } => {
+            eprintln!("phone: {}", pinch(s, &what, factor, duration, angle, force).await?);
+
+            Ok(())
+        }
+
         Command::Wait {
             what,
             gone,
@@ -1195,7 +1207,9 @@ fn reads_first(command: &Command) -> bool {
     let named = |what: &str| cli::parse_point(what).is_err();
 
     match command {
-        Command::Tap { what, .. } | Command::Press { what, .. } => named(what),
+        Command::Tap { what, .. } | Command::Press { what, .. } | Command::Pinch { what, .. } => {
+            named(what)
+        }
         Command::Swipe {
             from, to: Some(to), ..
         } => named(from) || named(to),
@@ -1490,6 +1504,42 @@ fn related(a: &a11y::Node, b: &a11y::Node) -> bool {
 
 fn editable(node: &a11y::Node) -> bool {
     node.class.contains("EditText") || node.class.contains("TextField") || !node.hint.is_empty()
+}
+
+async fn pinch(s: &Session, what: &str, factor: f64, duration: Duration, angle: f64, force: bool) -> Result<String> {
+    let t = &s.target;
+    let size = a11y::size(t).await?;
+    let panel = a11y::Bounds {
+        x1: 0,
+        y1: 0,
+        x2: size.width as i32,
+        y2: size.height as i32,
+    };
+
+    let (centre, within, name) = match cli::parse_point(what) {
+        Ok(point) => (point, panel, None),
+        Err(_) => {
+            let (screen, node) = find(s, what).await?;
+
+            if !force {
+                refuse_covered(&screen, &node)?;
+            }
+
+            (node.bounds.center(), node.bounds, Some(node.label()))
+        }
+    };
+
+    let fingers = a11y::fingers(centre, within, size, factor, angle)?;
+    a11y::pinch(t, &fingers, duration).await?;
+
+    let (from, to) = fingers.gap();
+    let way = if factor > 1.0 { "out" } else { "in" };
+
+    Ok(format!(
+        "pinched {way} on {}, fingers {from} to {to} apart over {}ms",
+        aim(centre, name),
+        duration.as_millis()
+    ))
 }
 
 async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String> {

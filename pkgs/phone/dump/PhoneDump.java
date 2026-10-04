@@ -3,6 +3,9 @@ import android.app.UiAutomation;
 import android.graphics.Rect;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.view.InputDevice;
+import android.view.MotionEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 import java.lang.reflect.Constructor;
@@ -22,6 +25,12 @@ public final class PhoneDump {
                 thread.getLooper(), Class.forName("android.app.UiAutomationConnection").getDeclaredConstructor().newInstance());
 
         hidden("connect", int.class).invoke(automation, UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
+
+        if (args.length > 0 && args[0].equals("pinch")) {
+            pinch(automation, args);
+            hidden("disconnect").invoke(automation);
+            System.exit(0);
+        }
 
         AccessibilityServiceInfo info = automation.getServiceInfo();
         info.flags |= AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
@@ -50,6 +59,69 @@ public final class PhoneDump {
 
         hidden("disconnect").invoke(automation);
         System.exit(0);
+    }
+
+    private static void pinch(UiAutomation automation, String[] args) throws Exception {
+        int display = Integer.parseInt(args[1]);
+        long step = Long.parseLong(args[2]);
+        int frames = (args.length - 3) / 4;
+        if (frames < 2 || (args.length - 3) % 4 != 0) {
+            throw new IllegalArgumentException("a pinch needs at least two steps of four coordinates");
+        }
+
+        float[][] at = new float[frames][4];
+        for (int i = 0; i < frames; i++) {
+            for (int j = 0; j < 4; j++) {
+                at[i][j] = Float.parseFloat(args[3 + i * 4 + j]);
+            }
+        }
+
+        int second = 1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+        long down = SystemClock.uptimeMillis();
+
+        touch(automation, display, down, MotionEvent.ACTION_DOWN, 1, at[0]);
+        touch(automation, display, down, MotionEvent.ACTION_POINTER_DOWN | second, 2, at[0]);
+
+        for (int i = 1; i < frames; i++) {
+            SystemClock.sleep(step);
+            touch(automation, display, down, MotionEvent.ACTION_MOVE, 2, at[i]);
+        }
+
+        touch(automation, display, down, MotionEvent.ACTION_POINTER_UP | second, 2, at[frames - 1]);
+        touch(automation, display, down, MotionEvent.ACTION_UP, 1, at[frames - 1]);
+
+        System.out.print("phone:pinched");
+        System.out.flush();
+    }
+
+    private static void touch(UiAutomation automation, int display, long down, int action, int pointers, float[] at)
+            throws Exception {
+        MotionEvent.PointerProperties[] properties = new MotionEvent.PointerProperties[pointers];
+        MotionEvent.PointerCoords[] coords = new MotionEvent.PointerCoords[pointers];
+
+        for (int i = 0; i < pointers; i++) {
+            properties[i] = new MotionEvent.PointerProperties();
+            properties[i].id = i;
+            properties[i].toolType = MotionEvent.TOOL_TYPE_FINGER;
+
+            coords[i] = new MotionEvent.PointerCoords();
+            coords[i].x = at[i * 2];
+            coords[i].y = at[i * 2 + 1];
+            coords[i].pressure = 1;
+            coords[i].size = 1;
+        }
+
+        MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, pointers, properties, coords,
+                0, 0, 1, 1, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
+        if (display != 0) {
+            MotionEvent.class.getMethod("setDisplayId", int.class).invoke(event, display);
+        }
+
+        boolean taken = automation.injectInputEvent(event, true);
+        event.recycle();
+        if (!taken) {
+            throw new IllegalStateException("the system refused " + MotionEvent.actionToString(action));
+        }
     }
 
     // the window list is empty for a moment after the service connects

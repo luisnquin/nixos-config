@@ -558,26 +558,37 @@ async fn dump_once(a: &Adb) -> Result<Screen> {
 }
 
 async fn read_with(a: &Adb, reader: &Reader) -> Result<Screen> {
-    let run = |prefix: String| {
-        format!(
-            "{prefix}{KEYBOARD}; if [ -f {0} ]; then CLASSPATH={0} app_process /system/bin PhoneDump 2>/dev/null; \
-             else echo {NO_READER}; fi",
-            reader.remote
-        )
-    };
-
-    let (mut ok, mut bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(a.prefix())]).await?;
-
-    if String::from_utf8_lossy(&bytes).contains(NO_READER) {
-        let pushed = adb::run(&a.server, &["-s", &a.serial, "push", reader.local, &reader.remote]).await?;
-        if !pushed.ok() {
-            bail!("pushing the screen reader: {}", pushed.stderr.trim());
-        }
-
-        (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(String::new())]).await?;
-    }
+    let (ok, bytes) = on_helper(a, reader, |prefix| {
+        format!("{prefix}{KEYBOARD}; {}", launch(reader, "2>/dev/null"))
+    })
+    .await?;
 
     read_dump(ok, &String::from_utf8_lossy(&bytes))
+}
+
+const PINCHED: &str = "phone:pinched";
+
+fn launch(reader: &Reader, args: &str) -> String {
+    format!(
+        "if [ -f {0} ]; then CLASSPATH={0} app_process /system/bin PhoneDump {args}; \
+         else echo {NO_READER}; fi",
+        reader.remote
+    )
+}
+
+async fn on_helper(a: &Adb, reader: &Reader, run: impl Fn(String) -> String) -> Result<(bool, Vec<u8>)> {
+    let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(a.prefix())]).await?;
+
+    if !String::from_utf8_lossy(&bytes).contains(NO_READER) {
+        return Ok((ok, bytes));
+    }
+
+    let pushed = adb::run(&a.server, &["-s", &a.serial, "push", reader.local, &reader.remote]).await?;
+    if !pushed.ok() {
+        bail!("pushing the screen reader: {}", pushed.stderr.trim());
+    }
+
+    adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(String::new())]).await
 }
 
 fn read_dump(ok: bool, out: &str) -> Result<Screen> {
@@ -1121,6 +1132,146 @@ impl std::str::FromStr for Direction {
             other => bail!("'{other}' is not a direction (up, down, left, right)"),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Pinch {
+    pub from: [(i32, i32); 2],
+    pub to: [(i32, i32); 2],
+}
+
+const PINCH_EDGE: f64 = 0.05;
+const PINCH_GAP: f64 = 0.08;
+const PINCH_STEP: Duration = Duration::from_millis(16);
+const PINCH_STEPS_MAX: usize = 60;
+
+impl Pinch {
+    pub fn gap(&self) -> (i32, i32) {
+        let apart = |[(x1, y1), (x2, y2)]: [(i32, i32); 2]| {
+            f64::from(x2 - x1).hypot(f64::from(y2 - y1)).round() as i32
+        };
+
+        (apart(self.from), apart(self.to))
+    }
+
+    pub fn frames(&self, over: Duration) -> Vec<[(i32, i32); 2]> {
+        let steps = ((over.as_millis() / PINCH_STEP.as_millis()) as usize).clamp(2, PINCH_STEPS_MAX);
+        let lerp = |a: i32, b: i32, t: f64| (f64::from(a) + f64::from(b - a) * t).round() as i32;
+
+        (0..=steps)
+            .map(|i| {
+                let t = i as f64 / steps as f64;
+
+                [0, 1].map(|f| {
+                    let ((x1, y1), (x2, y2)) = (self.from[f], self.to[f]);
+                    (lerp(x1, x2, t), lerp(y1, y2, t))
+                })
+            })
+            .collect()
+    }
+}
+
+pub fn fingers(centre: (i32, i32), within: Bounds, panel: Size, factor: f64, angle: f64) -> Result<Pinch> {
+    if !factor.is_finite() || factor <= 0.0 || (factor - 1.0).abs() < 0.01 {
+        bail!("a pinch factor is above 1 to spread the fingers or below 1 to close them, not {factor}");
+    }
+
+    let short = panel.width.min(panel.height);
+    let (edge, gap) = (short * PINCH_EDGE, short * PINCH_GAP);
+    let inside = (edge, edge, panel.width - edge, panel.height - edge);
+
+    let (cx, cy) = (
+        f64::from(centre.0).clamp(inside.0 + gap, inside.2 - gap),
+        f64::from(centre.1).clamp(inside.1 + gap, inside.3 - gap),
+    );
+
+    let area = (
+        f64::from(within.x1).max(inside.0),
+        f64::from(within.y1).max(inside.1),
+        f64::from(within.x2).min(inside.2),
+        f64::from(within.y2).min(inside.3),
+    );
+    let area = match area.0 < area.2 && area.1 < area.3 {
+        true => area,
+        false => inside,
+    };
+
+    let (dx, dy) = (angle.to_radians().cos(), angle.to_radians().sin());
+
+    let reach = |(x1, y1, x2, y2): (f64, f64, f64, f64)| {
+        let axis = |d: f64, c: f64, lo: f64, hi: f64| match d.abs() < 1e-9 {
+            true => f64::INFINITY,
+            false => (c - lo).min(hi - c).max(0.0) / d.abs(),
+        };
+
+        axis(dx, cx, x1, x2).min(axis(dy, cy, y1, y2))
+    };
+
+    let half = reach(area).max(gap).min(reach(inside));
+    let wide = 2.0 * half;
+    let narrow = (wide / factor.max(1.0 / factor)).max(gap);
+
+    if narrow >= wide {
+        bail!("the panel has no room for two fingers to pinch at {},{}", centre.0, centre.1);
+    }
+
+    let at = |span: f64| {
+        let (ox, oy) = (dx * span / 2.0, dy * span / 2.0);
+
+        [
+            ((cx - ox).round() as i32, (cy - oy).round() as i32),
+            ((cx + ox).round() as i32, (cy + oy).round() as i32),
+        ]
+    };
+
+    let (from, to) = match factor > 1.0 {
+        true => (narrow, wide),
+        false => (wide, narrow),
+    };
+
+    Ok(Pinch {
+        from: at(from),
+        to: at(to),
+    })
+}
+
+pub async fn pinch(t: &Target, pinch: &Pinch, over: Duration) -> Result<()> {
+    let frames = pinch.frames(over);
+    let a = match t {
+        Target::Adb(a) => a,
+        Target::Simulator(s) => return simctl::pinch(&s.at, &s.udid, pinch, over.as_millis() as u64).await,
+    };
+
+    let Some(reader) = reader() else {
+        bail!("this phone was built without its on-device helper (PHONE_DUMP_DEX), which a pinch needs");
+    };
+
+    let step = over.as_millis() as usize / (frames.len() - 1);
+    let points: Vec<String> = frames
+        .iter()
+        .flat_map(|f| [f[0].0, f[0].1, f[1].0, f[1].1])
+        .map(|v| v.to_string())
+        .collect();
+    let args = format!(
+        "pinch {} {step} {} 2>&1",
+        a.display.map_or(0, |d| d.logical),
+        points.join(" ")
+    );
+
+    let (_, bytes) = tokio::time::timeout(
+        SHELL_TIMEOUT + over,
+        on_helper(a, &reader, |prefix| format!("{prefix}{}", launch(&reader, &args))),
+    )
+    .await
+    .map_err(|_| anyhow!("the pinch did not finish within {}s", (SHELL_TIMEOUT + over).as_secs()))??;
+
+    let said = String::from_utf8_lossy(&bytes);
+
+    if !said.contains(PINCHED) {
+        bail!("the device refused the pinch: {}", said.trim());
+    }
+
+    Ok(())
 }
 
 /// What `input text` cannot carry. It spells characters through the device
@@ -1938,6 +2089,183 @@ mod tests {
 
         assert_eq!(script.matches("MOVE").count(), 10);
         assert!(script.contains("MOVE 1000 0; sleep 1.000; input motionevent UP 1000 0"));
+    }
+
+    #[test]
+    fn two_fingers_spread_or_close_inside_what_they_aim_at() {
+        let pixel = Size {
+            width: 1080.0,
+            height: 2400.0,
+            scale: 1.0,
+        };
+        let simulator = Size {
+            width: 402.0,
+            height: 874.0,
+            scale: 3.0,
+        };
+        let whole = |s: Size| Bounds {
+            x1: 0,
+            y1: 0,
+            x2: s.width as i32,
+            y2: s.height as i32,
+        };
+        let photo = Bounds {
+            x1: 440,
+            y1: 1100,
+            x2: 640,
+            y2: 1300,
+        };
+        let icon = Bounds {
+            x1: 530,
+            y1: 1190,
+            x2: 550,
+            y2: 1210,
+        };
+
+        type Fingers = [(i32, i32); 2];
+        type Case = (&'static str, Size, (i32, i32), Bounds, f64, f64, Fingers, Fingers);
+        let cases: [Case; 9] = [
+            (
+                "out across the panel, inside its edges",
+                pixel,
+                (540, 1200),
+                whole(pixel),
+                2.0,
+                0.0,
+                [(297, 1200), (783, 1200)],
+                [(54, 1200), (1026, 1200)],
+            ),
+            (
+                "in is the same path walked backwards",
+                pixel,
+                (540, 1200),
+                whole(pixel),
+                0.5,
+                0.0,
+                [(54, 1200), (1026, 1200)],
+                [(297, 1200), (783, 1200)],
+            ),
+            (
+                "an element bounds the spread",
+                pixel,
+                (540, 1200),
+                photo,
+                2.0,
+                0.0,
+                [(490, 1200), (590, 1200)],
+                [(440, 1200), (640, 1200)],
+            ),
+            (
+                "a large factor stops at the closest two fingers come",
+                pixel,
+                (540, 1200),
+                whole(pixel),
+                100.0,
+                0.0,
+                [(497, 1200), (583, 1200)],
+                [(54, 1200), (1026, 1200)],
+            ),
+            (
+                "an element too small for two fingers lends them the panel",
+                pixel,
+                (540, 1200),
+                icon,
+                2.0,
+                0.0,
+                [(497, 1200), (583, 1200)],
+                [(454, 1200), (626, 1200)],
+            ),
+            (
+                "a point by the edge moves in until both fingers fit",
+                pixel,
+                (100, 1200),
+                whole(pixel),
+                2.0,
+                0.0,
+                [(97, 1200), (184, 1200)],
+                [(54, 1200), (227, 1200)],
+            ),
+            (
+                "vertical",
+                pixel,
+                (540, 1200),
+                whole(pixel),
+                2.0,
+                90.0,
+                [(540, 627), (540, 1773)],
+                [(540, 54), (540, 2346)],
+            ),
+            (
+                "diagonal, bounded by the nearer edge",
+                pixel,
+                (540, 1200),
+                whole(pixel),
+                2.0,
+                45.0,
+                [(297, 957), (783, 1443)],
+                [(54, 714), (1026, 1686)],
+            ),
+            (
+                "a simulator in points",
+                simulator,
+                (201, 437),
+                whole(simulator),
+                2.0,
+                0.0,
+                [(111, 437), (291, 437)],
+                [(20, 437), (382, 437)],
+            ),
+        ];
+
+        for (why, size, centre, within, factor, angle, from, to) in cases {
+            let pinch = fingers(centre, within, size, factor, angle).unwrap();
+
+            assert_eq!((pinch.from, pinch.to), (from, to), "{why}");
+        }
+
+        for factor in [1.0, 0.0, -2.0, f64::NAN, f64::INFINITY] {
+            assert!(
+                fingers((540, 1200), photo, pixel, factor, 0.0).is_err(),
+                "{factor} is no pinch"
+            );
+        }
+    }
+
+    #[test]
+    fn a_pinch_moves_both_fingers_a_step_at_a_time() {
+        let pinch = Pinch {
+            from: [(400, 1200), (600, 1200)],
+            to: [(100, 1000), (900, 1400)],
+        };
+
+        type Frames = Vec<[(i32, i32); 2]>;
+        let cases: [(Duration, Frames); 3] = [
+            (
+                Duration::from_millis(32),
+                vec![
+                    [(400, 1200), (600, 1200)],
+                    [(250, 1100), (750, 1300)],
+                    [(100, 1000), (900, 1400)],
+                ],
+            ),
+            (Duration::ZERO, pinch.frames(Duration::from_millis(32))),
+            (
+                Duration::from_millis(48),
+                vec![
+                    [(400, 1200), (600, 1200)],
+                    [(300, 1133), (700, 1267)],
+                    [(200, 1067), (800, 1333)],
+                    [(100, 1000), (900, 1400)],
+                ],
+            ),
+        ];
+
+        for (over, frames) in cases {
+            assert_eq!(pinch.frames(over), frames, "over {over:?}");
+        }
+
+        assert_eq!(pinch.frames(Duration::from_millis(400)).len(), 26);
+        assert_eq!(pinch.frames(Duration::from_secs(60)).len(), PINCH_STEPS_MAX + 1);
     }
 
     #[test]

@@ -56,6 +56,15 @@ unsafe extern "C" {
         phase: *const c_char,
         error_message: *mut *mut c_char,
     ) -> bool;
+    pub fn xcw_native_input_send_multitouch(
+        handle: *mut c_void,
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
+        phase: *const c_char,
+        error_message: *mut *mut c_char,
+    ) -> bool;
 
     pub fn xcw_native_stream_h264(
         udid: *const c_char,

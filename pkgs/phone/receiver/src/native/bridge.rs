@@ -302,6 +302,33 @@ impl NativeInputSession {
             )
         }
     }
+
+    pub fn send_multitouch(
+        &self,
+        (x1, y1): (f64, f64),
+        (x2, y2): (f64, f64),
+        phase: &str,
+    ) -> Result<(), AppError> {
+        let phase = CString::new(phase).map_err(|e| AppError::bad_request(e.to_string()))?;
+
+        // SAFETY: self.handle stays live until Drop, phase outlives the call,
+        // and error is an out-pointer bool_result frees.
+        unsafe {
+            let mut error = ptr::null_mut();
+            bool_result(
+                ffi::xcw_native_input_send_multitouch(
+                    self.handle,
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    phase.as_ptr(),
+                    &mut error,
+                ),
+                error,
+            )
+        }
+    }
 }
 
 impl Drop for NativeInputSession {

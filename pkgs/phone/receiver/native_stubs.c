@@ -105,6 +105,18 @@ bool xcw_native_input_send_touch(void *handle, double x, double y,
   return xcw_unsupported(error_message);
 }
 
+bool xcw_native_input_send_multitouch(void *handle, double x1, double y1,
+                                      double x2, double y2, const char *phase,
+                                      char **error_message) {
+  (void)handle;
+  (void)x1;
+  (void)y1;
+  (void)x2;
+  (void)y2;
+  (void)phase;
+  return xcw_unsupported(error_message);
+}
+
 void xcw_native_free_string(char *value) { free(value); }
 
 void xcw_native_free_bytes(xcw_native_owned_bytes bytes) { free(bytes.data); }

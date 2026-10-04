@@ -346,6 +346,23 @@ pub async fn swipe(
     Ok(())
 }
 
+pub async fn pinch(at: &Where, udid: &str, pinch: &crate::a11y::Pinch, ms: u64) -> Result<()> {
+    check(udid)?;
+
+    let [(a, b), (c, d)] = pinch.from;
+    let [(e, f), (g, h)] = pinch.to;
+    let points = [a, b, c, d, e, f, g, h].map(|v| v.to_string());
+    let duration = ms.to_string();
+
+    let mut args = vec!["pinch", udid];
+    args.extend(points.iter().map(String::as_str));
+    args.push(&duration);
+
+    run(at, &args, Duration::from_secs(30 + ms / 1000)).await?;
+
+    Ok(())
+}
+
 pub async fn tap(at: &Where, udid: &str, x: i32, y: i32) -> Result<()> {
     check(udid)?;
 
