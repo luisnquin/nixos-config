@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use image::RgbImage;
 
 use crate::a11y::{self, Bounds, Keyboard, Node, Row, Screen, Signature, Target};
-use crate::actions::{Settled, Settling, STILL_SHARE};
+use crate::actions::{MOVE_LIMIT, SETTLE_LIMIT, STILL_SHARE};
 
 const STEP: Duration = Duration::from_millis(350);
 
@@ -21,6 +22,7 @@ pub struct Change {
     pub how: How,
     pub appeared: Vec<usize>,
     pub gone: Vec<String>,
+    pub changing: Vec<String>,
 }
 
 #[derive(Default, PartialEq)]
@@ -39,27 +41,155 @@ fn look(screen: &Screen) -> Look {
 pub async fn after(t: &Target, before: &Screen) -> Result<Change> {
     let started = Instant::now();
     let first = a11y::dump(t).await?;
-    let mut settling = Settling::with(Some(look(before)), look(&first), |a, b| a == b);
+    let mut settle = Settle::new(look(before), look(&first));
+    let mut took = started.elapsed();
 
     loop {
-        tokio::time::sleep(STEP).await;
+        tokio::time::sleep(STEP.saturating_sub(took)).await;
 
+        let read = Instant::now();
         let screen = a11y::dump(t).await?;
+        took = read.elapsed();
 
-        let how = match settling.see(look(&screen), started.elapsed()) {
-            Settled::Still => continue,
-            Settled::Done(_) => How::Moved,
-            Settled::Unmoved(_) => How::Unmoved,
-            Settled::Restless(_) => How::Restless,
+        let how = match settle.see(look(&screen), started.elapsed()) {
+            Verdict::Still => continue,
+            Verdict::Done => How::Moved,
+            Verdict::Unmoved => How::Unmoved,
+            Verdict::Restless => How::Restless,
         };
 
-        return Ok(compare(before, screen, how));
+        let changing = settle.changing(&how);
+
+        return Ok(Change {
+            changing: changing.iter().map(named).collect(),
+            ..compare(before, screen, how, &changing)
+        });
     }
 }
 
-pub fn compare(before: &Screen, screen: Screen, how: How) -> Change {
-    let was = listed(before);
-    let now = listed(&screen);
+#[derive(Debug, PartialEq)]
+enum Verdict {
+    Still,
+    Done,
+    Unmoved,
+    Restless,
+}
+
+/// A row already changing before the act, a video or a live preview, is read
+/// past; one that moves must be seen at it twice, since a slide moves them all.
+struct Settle {
+    before: Look,
+    previous: Look,
+    first: Vec<Signature>,
+    since: Vec<Signature>,
+    background: Vec<Signature>,
+    last: Vec<Signature>,
+    moved: bool,
+}
+
+impl Settle {
+    fn new(before: Look, first: Look) -> Self {
+        Settle {
+            moved: before != first,
+            first: differ(&before.rows, &first.rows),
+            before,
+            previous: first,
+            since: Vec::new(),
+            background: Vec::new(),
+            last: Vec::new(),
+        }
+    }
+
+    fn see(&mut self, next: Look, elapsed: Duration) -> Verdict {
+        self.moved |= self.before != next;
+
+        let diff = differ(&self.previous.rows, &next.rows);
+        let (background, rest): (Vec<Signature>, Vec<Signature>) =
+            diff.iter().cloned().partition(|r| self.ambient(r));
+        let quiet = rest.is_empty() && next.keyboard == self.previous.keyboard;
+
+        if !background.is_empty() {
+            self.background.clear();
+            background
+                .into_iter()
+                .for_each(|r| keep(&mut self.background, r));
+        }
+
+        self.last = rest;
+        self.since.extend(diff);
+        self.previous = next;
+
+        match (quiet, self.moved) {
+            (true, true) => Verdict::Done,
+            (true, false) if elapsed >= MOVE_LIMIT => Verdict::Unmoved,
+            _ if elapsed >= SETTLE_LIMIT => Verdict::Restless,
+            _ => Verdict::Still,
+        }
+    }
+
+    fn ambient(&self, row: &Signature) -> bool {
+        self.before.rows.iter().any(|b| akin(b, row))
+            && (self.first.iter().any(|f| in_place(f, row))
+                || self.since.iter().any(|s| akin(s, row)))
+    }
+
+    fn changing(&self, how: &How) -> Vec<Signature> {
+        let mut rows: Vec<Signature> = self
+            .background
+            .iter()
+            .filter(|r| !self.before.rows.contains(r))
+            .cloned()
+            .collect();
+
+        if *how == How::Restless {
+            for row in self.last.iter().cloned() {
+                keep(&mut rows, row);
+            }
+        }
+
+        rows
+    }
+}
+
+fn in_place(a: &Signature, b: &Signature) -> bool {
+    a.class == b.class && a.res_id == b.res_id && a.bounds == b.bounds
+}
+
+fn akin(a: &Signature, b: &Signature) -> bool {
+    let named = !(a.text.is_empty() && a.desc.is_empty());
+    let same = a.class == b.class && a.res_id == b.res_id && a.text == b.text && a.desc == b.desc;
+
+    in_place(a, b) || (named && same)
+}
+
+fn differ(was: &[Signature], now: &[Signature]) -> Vec<Signature> {
+    let gone = unmatched(was, now, Signature::clone);
+    let came = unmatched(now, was, Signature::clone);
+
+    gone.into_iter().chain(came).cloned().collect()
+}
+
+fn keep(rows: &mut Vec<Signature>, row: Signature) {
+    match rows.iter_mut().find(|r| akin(r, &row)) {
+        Some(r) => *r = row,
+        None => rows.push(row),
+    }
+}
+
+fn named(s: &Signature) -> String {
+    let b = s.bounds;
+    let name = [&s.text, &s.desc, &s.res_id]
+        .into_iter()
+        .find(|f| !f.is_empty())
+        .map(|f| a11y::row_label(f))
+        .unwrap_or_else(|| format!("<{}>", s.class.rsplit('.').next().unwrap_or(&s.class)));
+
+    format!("{name} [{},{}][{},{}]", b.x1, b.y1, b.x2, b.y2)
+}
+
+pub fn compare(before: &Screen, screen: Screen, how: How, noise: &[Signature]) -> Change {
+    let was = listed(before, noise);
+    let now = listed(&screen, noise);
     let appeared = fresh(&now, &was).iter().map(|r| r.node.index).collect();
     let gone = fresh(&was, &now).iter().map(|r| r.label.clone()).collect();
 
@@ -68,6 +198,7 @@ pub fn compare(before: &Screen, screen: Screen, how: How) -> Change {
         how,
         appeared,
         gone,
+        changing: Vec::new(),
     }
 }
 
@@ -77,24 +208,36 @@ fn identity<'a>(r: &Row<'a>) -> Identity<'a> {
     (&r.node.res_id, &r.node.class, &r.node.text, &r.node.desc)
 }
 
-fn listed(screen: &Screen) -> Vec<Row<'_>> {
+fn listed<'a>(screen: &'a Screen, noise: &[Signature]) -> Vec<Row<'a>> {
     a11y::rows(&screen.nodes)
         .into_iter()
         .filter(|r| r.within.is_none())
+        .filter(|r| {
+            let row = r.node.signature();
+            !noise.iter().any(|n| akin(n, &row))
+        })
         .collect()
 }
 
 /// Rows of `from` that `against` has no counterpart for. Where a row sits is
 /// left out, so a scroll reports what came into view rather than every row.
 fn fresh<'a, 'b>(from: &'b [Row<'a>], against: &[Row<'a>]) -> Vec<&'b Row<'a>> {
-    let mut left: HashMap<Identity, usize> = HashMap::new();
+    unmatched(from, against, identity)
+}
+
+fn unmatched<'b, T, K: Eq + Hash>(
+    from: &'b [T],
+    against: &[T],
+    key: impl Fn(&T) -> K,
+) -> Vec<&'b T> {
+    let mut left: HashMap<K, usize> = HashMap::new();
 
     for n in against {
-        *left.entry(identity(n)).or_default() += 1;
+        *left.entry(key(n)).or_default() += 1;
     }
 
     from.iter()
-        .filter(|n| match left.get_mut(&identity(n)) {
+        .filter(|n| match left.get_mut(&key(n)) {
             Some(count) if *count > 0 => {
                 *count -= 1;
                 false
@@ -234,7 +377,7 @@ mod tests {
 
     #[test]
     fn a_tap_that_opens_a_screen_names_what_came_and_what_went() {
-        let change = compare(&home(), form(), How::Moved);
+        let change = compare(&home(), form(), How::Moved, &[]);
         let labels = |at: &[usize]| -> Vec<String> {
             at.iter().map(|&i| change.screen.nodes[i].label()).collect()
         };
@@ -259,7 +402,7 @@ mod tests {
         let before = screen(&hierarchy(&[row("A", false, 100), row("B", false, 300)]));
         let after = screen(&hierarchy(&[row("B", false, 100), row("C", false, 300)]));
 
-        let change = compare(&before, after, How::Moved);
+        let change = compare(&before, after, How::Moved, &[]);
 
         assert_eq!(change.appeared, [1]);
         assert_eq!(change.gone, ["A"]);
@@ -273,7 +416,189 @@ mod tests {
             row("Item", false, 300),
         ]));
 
-        assert_eq!(compare(&before, after, How::Moved).appeared, [1]);
+        assert_eq!(compare(&before, after, How::Moved, &[]).appeared, [1]);
+    }
+
+    fn at(text: &str, y: i32) -> Signature {
+        Signature {
+            res_id: String::new(),
+            class: "android.widget.TextView".to_string(),
+            text: text.to_string(),
+            desc: String::new(),
+            bounds: a11y::Bounds {
+                x1: 40,
+                y1: y,
+                x2: 1040,
+                y2: y + 80,
+            },
+        }
+    }
+
+    fn seen(rows: &[Signature]) -> Look {
+        Look {
+            rows: rows.to_vec(),
+            keyboard: None,
+        }
+    }
+
+    const SOON: Duration = Duration::from_millis(900);
+
+    #[test]
+    fn a_screen_that_holds_still_after_the_act_is_done_on_the_next_read() {
+        let mut settle = Settle::new(seen(&[at("Home", 100)]), seen(&[at("Form", 100)]));
+
+        assert_eq!(settle.see(seen(&[at("Form", 100)]), SOON), Verdict::Done);
+        assert!(settle.changing(&How::Moved).is_empty());
+    }
+
+    #[test]
+    fn a_video_playing_before_the_act_is_read_past_and_named() {
+        let mut settle = Settle::new(
+            seen(&[at("Title", 100), at("0:01", 900)]),
+            seen(&[at("Title", 100), at("Next", 300), at("0:02", 900)]),
+        );
+
+        let verdict = settle.see(
+            seen(&[at("Title", 100), at("Next", 300), at("0:03", 900)]),
+            SOON,
+        );
+
+        assert_eq!(verdict, Verdict::Done);
+        assert_eq!(
+            settle
+                .changing(&How::Moved)
+                .iter()
+                .map(named)
+                .collect::<Vec<_>>(),
+            ["0:03 [40,900][1040,980]"]
+        );
+    }
+
+    #[test]
+    fn a_row_back_as_it_was_after_an_empty_read_is_not_named() {
+        let mut settle = Settle::new(seen(&[at("Title", 100), at("0:01", 900)]), seen(&[]));
+
+        let verdict = settle.see(seen(&[at("Title", 100), at("0:02", 900)]), SOON);
+
+        assert_eq!(verdict, Verdict::Done);
+        assert_eq!(
+            settle
+                .changing(&How::Moved)
+                .iter()
+                .map(named)
+                .collect::<Vec<_>>(),
+            ["0:02 [40,900][1040,980]"]
+        );
+    }
+
+    #[test]
+    fn background_rows_are_left_out_of_what_came_and_went() {
+        let before = screen(&hierarchy(&[
+            row("Title", false, 100),
+            row("0:01", false, 900),
+        ]));
+        let after = screen(&hierarchy(&[
+            row("Title", false, 100),
+            row("Next", true, 300),
+            row("0:03", false, 900),
+        ]));
+        let noise = [after.nodes[2].signature()];
+
+        let change = compare(&before, after, How::Moved, &noise);
+
+        assert_eq!(change.appeared, [1]);
+        assert!(change.gone.is_empty());
+    }
+
+    #[test]
+    fn a_row_the_act_brought_in_is_waited_for_and_named_at_the_limit() {
+        let mut settle = Settle::new(
+            seen(&[at("Title", 100)]),
+            seen(&[at("Title", 100), at("Loading 10%", 300)]),
+        );
+
+        let busy = |n: &str| seen(&[at("Title", 100), at(n, 300)]);
+
+        assert_eq!(settle.see(busy("Loading 40%"), SOON), Verdict::Still);
+        assert_eq!(
+            settle.see(busy("Loading 70%"), SETTLE_LIMIT),
+            Verdict::Restless
+        );
+        assert_eq!(
+            settle
+                .changing(&How::Restless)
+                .iter()
+                .map(named)
+                .collect::<Vec<_>>(),
+            ["Loading 70% [40,300][1040,380]"]
+        );
+    }
+
+    fn verdicts(before: &[Signature], first: &[Signature], reads: &[&[Signature]]) -> Vec<Verdict> {
+        let mut settle = Settle::new(seen(before), seen(first));
+
+        reads.iter().map(|r| settle.see(seen(r), SOON)).collect()
+    }
+
+    #[test]
+    fn a_slide_on_the_first_read_is_not_taken_for_background() {
+        let settled = [at("A", 0), at("B", 200)];
+
+        assert_eq!(
+            verdicts(
+                &[at("A", 100), at("B", 300)],
+                &[at("A", 50), at("B", 250)],
+                &[&settled, &settled]
+            ),
+            [Verdict::Still, Verdict::Done]
+        );
+    }
+
+    #[test]
+    fn a_row_seen_moving_twice_after_the_act_is_background() {
+        assert_eq!(
+            verdicts(
+                &[at("Ball", 100), at("Title", 0)],
+                &[at("Ball", 200), at("Title", 0)],
+                &[
+                    &[at("Ball", 300), at("Title", 0)],
+                    &[at("Ball", 400), at("Title", 0)]
+                ],
+            ),
+            [Verdict::Still, Verdict::Done]
+        );
+    }
+
+    #[test]
+    fn a_nameless_row_is_only_matched_where_it_sits() {
+        let mut settle = Settle::new(seen(&[at("", 100)]), seen(&[at("", 200)]));
+
+        assert_eq!(settle.see(seen(&[at("", 300)]), SOON), Verdict::Still);
+        assert_eq!(settle.see(seen(&[at("", 400)]), SOON), Verdict::Still);
+    }
+
+    #[test]
+    fn an_act_that_changed_nothing_is_unmoved_once_the_move_limit_passes() {
+        let still = || seen(&[at("Home", 100)]);
+        let mut settle = Settle::new(still(), still());
+
+        assert_eq!(settle.see(still(), SOON), Verdict::Still);
+        assert_eq!(settle.see(still(), MOVE_LIMIT), Verdict::Unmoved);
+    }
+
+    #[test]
+    fn a_keyboard_coming_up_keeps_the_read_going() {
+        let rows = [at("Name", 100)];
+        let up = Look {
+            rows: rows.to_vec(),
+            keyboard: Some(Keyboard {
+                shown: true,
+                frame: None,
+            }),
+        };
+        let mut settle = Settle::new(seen(&rows), seen(&rows));
+
+        assert_eq!(settle.see(up, SOON), Verdict::Still);
     }
 
     #[test]

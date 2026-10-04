@@ -84,7 +84,7 @@ impl Adb {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct Bounds {
     pub x1: i32,
     pub y1: i32,
@@ -294,7 +294,7 @@ pub struct Node {
     pub parent: Option<usize>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct Signature {
     pub res_id: String,
     pub class: String,

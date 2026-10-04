@@ -1293,6 +1293,8 @@ fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
         change.gone.len()
     );
 
+    print_changing(change);
+
     if let Some(keyboard) = screen.keyboard.filter(|k| Some(*k) != before.keyboard) {
         println!("keyboard   {}", keyboard.describe());
     }
@@ -1322,10 +1324,7 @@ fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
         println!("…          {more} more new; `phone snapshot` lists them");
     }
 
-    let rest = match change.gone.len().saturating_sub(GONE_SHOWN) {
-        0 => String::new(),
-        n => format!(" (+{n} more)"),
-    };
+    let rest = beyond(change.gone.len(), GONE_SHOWN);
 
     if !change.gone.is_empty() {
         let names: Vec<String> = change
@@ -1337,6 +1336,33 @@ fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
 
         println!("gone       {}{rest}", names.join(" | "));
     }
+}
+
+fn beyond(count: usize, shown: usize) -> String {
+    match count.saturating_sub(shown) {
+        0 => String::new(),
+        n => format!(" (+{n} more)"),
+    }
+}
+
+const CHANGING_SHOWN: usize = 3;
+
+fn print_changing(change: &answer::Change) {
+    if change.changing.is_empty() {
+        return;
+    }
+
+    let shown = &change.changing[..change.changing.len().min(CHANGING_SHOWN)];
+    let why = match change.how {
+        answer::How::Restless => "",
+        _ => "; it was changing before the act too, so it was not waited out",
+    };
+
+    println!(
+        "changing   {}{}{why}",
+        shown.join(" | "),
+        beyond(change.changing.len(), CHANGING_SHOWN)
+    );
 }
 
 fn parse_step(n: usize, raw: &str) -> Result<Command> {
