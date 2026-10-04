@@ -405,10 +405,37 @@ the drag then takes at least --duration rather than exactly that.
 
 --fingers lines the fingers up across the direction of travel, and the points
 given are where the middle of that line starts and ends. A simulator takes at
-most two; --hold drags one finger only."#)]
+most two; --hold drags one finger only.
+
+Scrolling to something:
+  phone swipe up --until "About phone"       # swipe, read, repeat until it is in view
+  phone swipe left --until "Card 9" --max 8
+  phone swipe 900,640 200,640 --until "Card 9"  # a carousel off the middle line
+  phone tap @14                              # the row it printed
+
+--until repeats the swipe, reading the screen after each one, and stops once
+the element is wholly in view: clear of the list's edges, the system bars and
+the keyboard. A last short, slow drag brings it there when a swipe left it
+half off. It prints the element's row with an @index, or fails when the list
+stops moving or after --max swipes, naming what is on screen instead. Each
+swipe crosses 0.4 of the panel over 500ms unless --amount or --duration say
+otherwise, so a target is not flung past between two reads.
+
+Edge gestures, which belong to the system rather than the app:
+  phone swipe --edge left    # back: Android's predictive back, iOS's in-app back
+  phone swipe --edge right   # back on Android; on iOS, forward in Safari
+  phone swipe --edge bottom  # home with gesture navigation, iOS included;
+                             # with --duration 1s, the app switcher
+  phone swipe --edge top     # Android's notification shade, iOS's Notification Center
+
+--edge starts on the panel's outermost pixel and drags inward over --amount of
+it. On a simulator, `phone key back` is the left one; on Android `key back`
+sends the key instead, which skips the predictive-back animation and the app's
+handling of the gesture."#)]
     Swipe {
         /// X,Y, an element, or a direction (up, down, left, right)
-        from: String,
+        #[arg(required_unless_present = "edge")]
+        from: Option<String>,
 
         /// X,Y or an element; left out when the first is a direction
         to: Option<String>,
@@ -441,6 +468,30 @@ most two; --hold drags one finger only."#)]
             help = "Start or end on a named element even where the keyboard covers it"
         )]
         force: bool,
+
+        #[arg(
+            long,
+            value_enum,
+            conflicts_with_all = ["from", "to", "hold", "until", "fingers"],
+            help = "Drag in from this edge of the panel: a system gesture"
+        )]
+        edge: Option<Edge>,
+
+        #[arg(
+            long,
+            value_name = "NAME",
+            conflicts_with_all = ["hold", "fingers"],
+            help = "Repeat the swipe until this element is wholly on screen"
+        )]
+        until: Option<String>,
+
+        #[arg(
+            long,
+            default_value_t = 20,
+            requires = "until",
+            help = "How many swipes --until takes before it gives up"
+        )]
+        max: usize,
     },
     #[command(about = "Two fingers spreading or closing on an element or a point", after_help = r#"Examples:
   phone pinch Map 2          # spread the fingers: zoom in
@@ -555,8 +606,9 @@ With the keyboard up, `back` closes the keyboard rather than navigating, and
 returns once it is gone. `hide_keyboard` is that and only that: with the keyboard
 already down it sends nothing, where `back` would leave the screen.
 
-A simulator has no back button; when a key is refused the ones it does take are
-listed."#)]
+A simulator has no back button, so there `back` is a drag in from the left
+edge, the gesture iOS goes back with; any other key it refuses is listed with
+the ones it does take."#)]
     Key { name: String },
     /// Block until an element appears, or stop waiting and fail
     #[command(after_help = r#"Examples:
@@ -1157,7 +1209,7 @@ impl Command {
             self,
             Command::Tap { .. }
                 | Command::Press { .. }
-                | Command::Swipe { .. }
+                | Command::Swipe { until: None, .. }
                 | Command::Pinch { .. }
                 | Command::Rotate { .. }
                 | Command::Type { .. }
@@ -1171,6 +1223,14 @@ impl Command {
 pub enum Switch {
     On,
     Off,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Edge {
+    Left,
+    Right,
+    Top,
+    Bottom,
 }
 
 #[derive(Copy, Clone, ValueEnum)]

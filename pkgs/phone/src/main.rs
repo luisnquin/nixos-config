@@ -52,6 +52,7 @@ mod pids;
 mod project;
 mod record;
 mod registry;
+mod scroll;
 mod simctl;
 mod ssh;
 mod stamps;
@@ -1001,36 +1002,19 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             Ok(())
         }
 
+        Command::Swipe { edge: Some(edge), amount, duration, .. } => scroll::edge(&s.target, edge, amount, duration).await,
+        command @ Command::Swipe { until: Some(_), .. } => scroll::until(s, command).await,
         Command::Swipe {
-            from,
+            from: Some(from),
             to,
             duration,
             hold,
             amount,
             fingers,
             force,
+            ..
         } => {
-            let t = &s.target;
-
-            let (from, to) = match &to {
-                Some(to) => {
-                    // the two forms answer the same question differently, and a
-                    // flag that belongs to the other one is a misunderstanding
-                    // worth reporting rather than dropping
-                    if amount != DEFAULT_AMOUNT {
-                        bail!("--amount sizes a directional swipe; this one has both ends");
-                    }
-
-                    (at(s, &from, force).await?.0, at(s, to, force).await?.0)
-                }
-                None => {
-                    let direction = from.parse().map_err(|e| {
-                        anyhow::anyhow!("{e}; a swipe from a point needs somewhere to go")
-                    })?;
-
-                    a11y::along(a11y::size(t).await?, direction, amount)
-                }
-            };
+            let (from, to) = ends(s, &from, to.as_deref(), amount, force).await?;
 
             eprintln!("phone: {}", swipe(s, (from, to), duration, hold, fingers.into()).await?);
 
@@ -1209,7 +1193,9 @@ fn reads_first(command: &Command) -> bool {
         | Command::Pinch { what, .. }
         | Command::Rotate { what, .. } => named(what),
         Command::Swipe {
-            from, to: Some(to), ..
+            from: Some(from),
+            to: Some(to),
+            ..
         } => named(from) || named(to),
         Command::Fill { .. } => true,
         _ => false,
@@ -1454,6 +1440,28 @@ async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<
     }
 
     Ok((node.bounds.center(), Some(node.label())))
+}
+
+async fn ends(
+    s: &Session,
+    from: &str,
+    to: Option<&str>,
+    amount: f64,
+    force: bool,
+) -> Result<((i32, i32), (i32, i32))> {
+    let Some(to) = to else {
+        let direction = from
+            .parse()
+            .map_err(|e| anyhow::anyhow!("{e}; a swipe from a point needs somewhere to go"))?;
+
+        return Ok(a11y::along(a11y::size(&s.target).await?, direction, amount));
+    };
+
+    if amount != DEFAULT_AMOUNT {
+        bail!("--amount sizes a directional swipe; this one has both ends");
+    }
+
+    Ok((at(s, from, force).await?.0, at(s, to, force).await?.0))
 }
 
 const APPEAR_GRACE: Duration = Duration::from_secs(2);
@@ -1910,23 +1918,27 @@ async fn wait(
                 "'{what}' was still {} after {:.0}s{}",
                 if gone { "there" } else { "missing" },
                 timeout.as_secs_f64(),
-                screen.filter(|_| !gone).map_or_else(String::new, |s| {
-                    match a11y::near(&s.nodes, what) {
-                        close if close.is_empty() => on_screen(
-                            &a11y::rows(&s.nodes)
-                                .iter()
-                                .filter(|r| r.within.is_none())
-                                .map(|r| a11y::row_label(&r.label))
-                                .collect::<Vec<_>>(),
-                        ),
-                        close => close,
-                    }
-                })
+                screen
+                    .filter(|_| !gone)
+                    .map_or_else(String::new, |s| instead(&s.nodes, what))
             );
         }
 
         tokio::time::sleep(POLL).await;
         first = false;
+    }
+}
+
+fn instead(nodes: &[a11y::Node], what: &str) -> String {
+    match a11y::near(nodes, what) {
+        close if close.is_empty() => on_screen(
+            &a11y::rows(nodes)
+                .iter()
+                .filter(|r| r.within.is_none())
+                .map(|r| a11y::row_label(&r.label))
+                .collect::<Vec<_>>(),
+        ),
+        close => close,
     }
 }
 

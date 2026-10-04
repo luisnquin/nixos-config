@@ -1422,6 +1422,7 @@ pub async fn key(t: &Target, name: &str) -> Result<String> {
     // actually has rather than against a union of both.
     let a = match t {
         Target::Adb(a) => a,
+        Target::Simulator(_) if name.eq_ignore_ascii_case("back") => return crate::scroll::back(t).await,
         Target::Simulator(s) => {
             simctl::key(&s.at, &s.udid, name).await?;
 

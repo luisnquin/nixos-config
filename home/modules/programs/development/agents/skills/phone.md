@@ -64,11 +64,13 @@ phone tap <what> --double | --fingers 2  # one double-tap gesture; 2-5 fingers
 phone press <what> --hold 2s        # long press
 phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]
 phone swipe up --fingers 3          # fingers side by side; a simulator takes 2
+phone swipe up --until "About phone" # one call scrolls until it is wholly visible, prints its @index
+phone swipe --edge left|right|top|bottom  # system edge gesture: back, shade, home
 phone pinch <what> 2 | 0.5 [--angle 90]  # two fingers: >1 zooms in, <1 out
 phone rotate <what> 45 | -90        # two fingers turning: positive is clockwise
 phone type "text"                   # into whatever has focus
 phone fill <field> "text"           # focus, clear, type, read back
-phone key back|home|enter|tab|…     # go back with `key back`, not a named arrow; none on iOS
+phone key back|home|enter|tab|…     # go back with `key back`, not a named arrow; iOS: an edge swipe
 phone wait <what> [--gone] [--timeout 15s]
 phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle] [--grid]
 phone size                          # panel size and scale
