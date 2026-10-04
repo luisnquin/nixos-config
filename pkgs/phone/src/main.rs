@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod a11y;
 mod actions;
 mod adb;
@@ -53,7 +55,7 @@ async fn main() -> ExitCode {
     // Rust ignores SIGPIPE, so a write to a closed pipe comes back as an error
     // that `println!` panics on. `phone snapshot | head` is how a long dump is
     // read, and it must end the run quietly rather than in a backtrace.
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+    sigpipe::reset();
 
     let cli = help::parse();
 

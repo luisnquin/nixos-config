@@ -215,17 +215,12 @@ async fn spawned(server: &Server, device: &Device, size: Size) -> Result<tokio::
         .stderr(Stdio::null())
         .kill_on_drop(true);
 
-    // SAFETY: runs in the forked child before exec; the closure captures nothing
-    // and only issues prctl, which is async-signal-safe (no allocation, no locks)
     #[cfg(target_os = "linux")]
-    unsafe {
-        source.pre_exec(|| {
-            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
-            Ok(())
-        });
-    }
+    let child = ur_taking_me_with_you::spawn_dying_with_parent_async(source);
+    #[cfg(not(target_os = "linux"))]
+    let child = source.spawn();
 
-    source.spawn().context("starting the screen encoder")
+    child.context("starting the screen encoder")
 }
 
 fn decode(decoder: &mut Decoder, stream: &[u8], full: &mut Vec<u8>) -> Option<(usize, usize)> {
