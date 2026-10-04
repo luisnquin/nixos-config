@@ -54,7 +54,15 @@ async fn swipe_in(t: &Target, edge: Edge, amount: f64, over: Duration) -> Result
 }
 
 pub async fn edge(t: &Target, edge: Edge, amount: f64, over: Duration) -> Result<()> {
-    eprintln!("phone: {}", swipe_in(t, edge, amount, over).await?);
+    let said = match (t, edge) {
+        (Target::Simulator(_), Edge::Bottom) => format!(
+            "{}: a simulator never hands a bottom-edge touch to the home indicator",
+            a11y::key(t, "home").await?
+        ),
+        _ => swipe_in(t, edge, amount, over).await?,
+    };
+
+    eprintln!("phone: {said}");
 
     Ok(())
 }

@@ -423,13 +423,15 @@ otherwise, so a target is not flung past between two reads.
 
 Edge gestures, which belong to the system rather than the app:
   phone swipe --edge left    # back: Android's predictive back, iOS's in-app back
-  phone swipe --edge right   # back on Android; on iOS, forward in Safari
+  phone swipe --edge right   # back on Android
   phone swipe --edge bottom  # home with gesture navigation, iOS included;
                              # with --duration 1s, the app switcher
   phone swipe --edge top     # Android's notification shade, iOS's Notification Center
 
 --edge starts on the panel's outermost pixel and drags inward over --amount of
-it. On a simulator, `phone key back` is the left one; on Android `key back`
+it. A simulator never hands a bottom-edge touch to the home indicator, so there
+--edge bottom is the home button and `phone key app-switcher` the switcher.
+On a simulator, `phone key back` is the left one; on Android `key back`
 sends the key instead, which skips the predictive-back animation and the app's
 handling of the gesture."#)]
     Swipe {
