@@ -1645,15 +1645,48 @@ async fn wait(
                 "'{what}' was still {} after {:.0}s{}",
                 if gone { "there" } else { "missing" },
                 timeout.as_secs_f64(),
-                screen
-                    .filter(|_| !gone)
-                    .map_or_else(String::new, |s| a11y::near(&s.nodes, what))
+                screen.filter(|_| !gone).map_or_else(String::new, |s| {
+                    match a11y::near(&s.nodes, what) {
+                        close if close.is_empty() => on_screen(
+                            &a11y::rows(&s.nodes)
+                                .iter()
+                                .filter(|r| r.within.is_none())
+                                .map(|r| a11y::row_label(&r.label))
+                                .collect::<Vec<_>>(),
+                        ),
+                        close => close,
+                    }
+                })
             );
         }
 
         tokio::time::sleep(POLL).await;
         first = false;
     }
+}
+
+const ON_SCREEN_SHOWN: usize = 6;
+
+fn on_screen(labels: &[String]) -> String {
+    let named: Vec<&str> = labels
+        .iter()
+        .map(String::as_str)
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if named.is_empty() {
+        return "; nothing on screen".to_string();
+    }
+
+    let rest = match named.len().saturating_sub(ON_SCREEN_SHOWN) {
+        0 => String::new(),
+        n => format!(" (+{n} more)"),
+    };
+
+    format!(
+        "; on screen: {}{rest}",
+        named[..named.len().min(ON_SCREEN_SHOWN)].join(" | ")
+    )
 }
 
 fn print_elements(screen: &a11y::Screen) {
@@ -2265,6 +2298,26 @@ fn truncate(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_missed_wait_with_no_near_spelling_names_what_is_on_screen() {
+        let labels = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+
+        assert_eq!(
+            on_screen(&labels(&["/ DAZZLE / HOSTS", "SSH", "TOOLS"])),
+            "; on screen: / DAZZLE / HOSTS | SSH | TOOLS"
+        );
+        assert_eq!(
+            on_screen(&labels(&["a", "b", "c", "d", "e", "f", "g", "h"])),
+            "; on screen: a | b | c | d | e | f (+2 more)"
+        );
+        assert_eq!(
+            on_screen(&labels(&["a", "", "b"])),
+            "; on screen: a | b",
+            "an unnamed row tells the agent nothing"
+        );
+        assert_eq!(on_screen(&[]), "; nothing on screen");
+    }
 
     #[test]
     fn a_step_with_a_flag_of_another_verb_names_that_verb() {
