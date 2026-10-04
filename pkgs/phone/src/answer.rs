@@ -188,6 +188,7 @@ mod tests {
         Screen {
             nodes: a11y::parse(xml).unwrap(),
             keyboard: None,
+            panel: None,
         }
     }
 

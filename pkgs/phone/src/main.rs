@@ -1439,7 +1439,22 @@ async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<
         refuse_covered(&screen, &node)?;
     }
 
-    Ok((node.bounds.center(), Some(node.label())))
+    Ok((pressable(&screen, &node)?, Some(node.label())))
+}
+
+fn pressable(screen: &a11y::Screen, node: &a11y::Node) -> Result<(i32, i32)> {
+    screen.reach(node).point().ok_or_else(|| {
+        let b = node.bounds;
+
+        anyhow::anyhow!(
+            "{} is off the panel at [{},{}][{},{}]; swipe it into view first",
+            node.label(),
+            b.x1,
+            b.y1,
+            b.x2,
+            b.y2
+        )
+    })
 }
 
 async fn ends(
@@ -1490,7 +1505,7 @@ async fn find(s: &Session, what: &str) -> Result<(a11y::Screen, a11y::Node)> {
 
 fn refuse_covered(screen: &a11y::Screen, node: &a11y::Node) -> Result<()> {
     if screen.covered(node) {
-        let (x, y) = node.bounds.center();
+        let (x, y) = pressable(screen, node)?;
 
         bail!(
             "{} at {x},{y} is under the keyboard, which would take the touch; \
@@ -1537,7 +1552,9 @@ async fn aimed(s: &Session, what: &str, force: bool) -> Result<Aimed> {
                 refuse_covered(&screen, &node)?;
             }
 
-            (node.bounds.center(), node.bounds, Some(node.label()))
+            let within = node.bounds.clipped(&panel).unwrap_or(node.bounds);
+
+            (pressable(&screen, &node)?, within, Some(node.label()))
         }
     };
 
@@ -1660,16 +1677,7 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
 
     let field = match already {
         Some(field) => field,
-        None => {
-            if !force {
-                refuse_covered(&screen, &target)?;
-            }
-
-            let (x, y) = target.bounds.center();
-            a11y::tap(t, x, y).await?;
-
-            focus_after_tap(t, &target).await?
-        }
+        None => tap_into(t, &screen, &target, force).await?,
     };
 
     if !field.is_empty_field() {
@@ -1729,6 +1737,22 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
         }
         None => bail!("{label} lost focus while being filled; nothing on screen holds it"),
     }
+}
+
+async fn tap_into(
+    t: &a11y::Target,
+    screen: &a11y::Screen,
+    target: &a11y::Node,
+    force: bool,
+) -> Result<a11y::Node> {
+    if !force {
+        refuse_covered(screen, target)?;
+    }
+
+    let (x, y) = pressable(screen, target)?;
+    a11y::tap(t, x, y).await?;
+
+    focus_after_tap(t, target).await
 }
 
 async fn focus_after_tap(t: &a11y::Target, target: &a11y::Node) -> Result<a11y::Node> {
@@ -1988,8 +2012,15 @@ fn print_elements(screen: &a11y::Screen) {
 
 fn print_row(screen: &a11y::Screen, row: &a11y::Row, index: usize) {
     let node = row.node;
-    let (x, y) = node.bounds.center();
-    let press = if node.clickable { "tap" } else { "   " };
+    let reach = screen.reach(node);
+    let at = reach
+        .point()
+        .map_or_else(|| "-".to_string(), |(x, y)| format!("{x},{y}"));
+    let press = match (node.clickable, reach) {
+        (true, a11y::Reach::On(_) | a11y::Reach::Partly { .. }) => "tap",
+        _ => "   ",
+    };
+    let note = reach.note().map(|n| format!("  {n}")).unwrap_or_default();
     let under = if screen.covered(node) {
         "  under keyboard"
     } else {
@@ -1997,7 +2028,7 @@ fn print_row(screen: &a11y::Screen, row: &a11y::Row, index: usize) {
     };
 
     println!(
-        "@{:<3} {press}  {:<40} {x},{y}{under}",
+        "@{:<3} {press}  {:<40} {at}{note}{under}",
         index,
         a11y::row_label(&row.label)
     );
@@ -2008,7 +2039,7 @@ fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
         .into_iter()
         .map(|row| {
             let node = row.node;
-            let (x, y) = node.bounds.center();
+            let reach = screen.reach(node);
 
             serde_json::json!({
                 "ref": format!("@{}", node.index),
@@ -2019,7 +2050,8 @@ fn print_elements_json(screen: &a11y::Screen) -> Result<()> {
                 "clickable": node.clickable,
                 "focused": node.focused,
                 "covered": screen.covered(node),
-                "at": [x, y],
+                "at": reach.point().map(|(x, y)| [x, y]),
+                "off_panel": reach.note(),
                 "within": row.within.map(|p| format!("@{p}")),
             })
         })

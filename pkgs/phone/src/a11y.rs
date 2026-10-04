@@ -23,6 +23,8 @@ const READ: &str = "cat /sdcard/.phone-a11y.xml 2>/dev/null; rm -f /sdcard/.phon
 const KEYBOARD: &str = "dumpsys input_method 2>/dev/null | grep -m1 mInputShown; \
      dumpsys window 2>/dev/null | grep -m1 'type=ime frame='";
 
+const PANEL: &str = "dumpsys window displays 2>/dev/null | grep -E 'mDisplayId=| cur=[0-9]'";
+
 const NOT_IDLE: &str = "phone:not-idle";
 
 #[derive(Debug)]
@@ -139,6 +141,103 @@ impl Bounds {
     pub fn holds(&self, (x, y): (i32, i32)) -> bool {
         (self.x1..self.x2).contains(&x) && (self.y1..self.y2).contains(&y)
     }
+
+    pub fn clipped(&self, to: &Bounds) -> Option<Bounds> {
+        let clip = Bounds {
+            x1: self.x1.max(to.x1),
+            y1: self.y1.max(to.y1),
+            x2: self.x2.min(to.x2),
+            y2: self.y2.min(to.y2),
+        };
+
+        (clip.area() > 0).then_some(clip)
+    }
+}
+
+/// Where an element can be pressed. A window parked mostly off the panel, like
+/// a picture-in-picture stashed against an edge, has its centre out of reach.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reach {
+    On((i32, i32)),
+    Partly {
+        at: (i32, i32),
+        edge: &'static str,
+        showing: i32,
+    },
+    Off,
+}
+
+impl Reach {
+    pub fn of(bounds: Bounds, panel: Option<Bounds>) -> Self {
+        let centre = bounds.center();
+
+        let Some(panel) = panel.filter(|p| !p.holds(centre)) else {
+            return Reach::On(centre);
+        };
+
+        let Some(seen) = bounds.clipped(&panel) else {
+            return Reach::Off;
+        };
+
+        let (edge, _, showing) = [
+            ("left", panel.x1 - bounds.x1, seen.width()),
+            ("right", bounds.x2 - panel.x2, seen.width()),
+            ("top", panel.y1 - bounds.y1, seen.height()),
+            ("bottom", bounds.y2 - panel.y2, seen.height()),
+        ]
+        .into_iter()
+        .max_by_key(|(_, over, _)| *over)
+        .expect("four edges");
+
+        Reach::Partly {
+            at: seen.center(),
+            edge,
+            showing,
+        }
+    }
+
+    pub fn point(&self) -> Option<(i32, i32)> {
+        match *self {
+            Reach::On(at) | Reach::Partly { at, .. } => Some(at),
+            Reach::Off => None,
+        }
+    }
+
+    pub fn note(&self) -> Option<String> {
+        match self {
+            Reach::On(_) => None,
+            Reach::Partly { edge, showing, .. } => {
+                Some(format!("mostly off the {edge} edge, {showing}px showing"))
+            }
+            Reach::Off => Some("off the panel".to_string()),
+        }
+    }
+}
+
+fn panel_of(text: &str, display: u32) -> Option<Bounds> {
+    let wanted = format!("mDisplayId={display} ");
+    let mut current = false;
+
+    for line in text.lines() {
+        if line.contains("mDisplayId=") {
+            current = line.contains(&wanted) || line.trim_end().ends_with(wanted.trim_end());
+            continue;
+        }
+
+        let Some((_, rest)) = line.split_once(" cur=").filter(|_| current) else {
+            continue;
+        };
+        let (w, h) = rest.split_whitespace().next()?.split_once('x')?;
+
+        return Some(Bounds {
+            x1: 0,
+            y1: 0,
+            x2: w.parse().ok()?,
+            y2: h.parse().ok()?,
+        });
+    }
+
+    None
 }
 
 /// The panel in the space its element bounds and taps are given in, and the
@@ -461,13 +560,21 @@ impl Keyboard {
 pub struct Screen {
     pub nodes: Vec<Node>,
     pub keyboard: Option<Keyboard>,
+    pub panel: Option<Bounds>,
 }
 
 impl Screen {
     pub fn covered(&self, node: &Node) -> bool {
+        let at = self.reach(node).point();
+
         self.keyboard
             .and_then(|k| k.frame)
-            .is_some_and(|frame| frame.holds(node.bounds.center()))
+            .zip(at)
+            .is_some_and(|(frame, at)| frame.holds(at))
+    }
+
+    pub fn reach(&self, node: &Node) -> Reach {
+        Reach::of(node.bounds, self.panel)
     }
 
     pub fn focused(&self) -> Option<&Node> {
@@ -491,6 +598,7 @@ async fn dumped(t: &Target) -> Result<Screen> {
             return Ok(Screen {
                 nodes: simctl::snapshot(&s.at, &s.udid).await?,
                 keyboard: None,
+                panel: None,
             })
         }
     };
@@ -548,10 +656,10 @@ async fn dump_once(a: &Adb) -> Result<Screen> {
         }
     }
 
-    let remote = format!("{}{DUMP}; {KEYBOARD}; {READ}", a.prefix());
+    let remote = format!("{}{DUMP}; {KEYBOARD}; {PANEL}; {READ}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
 
-    match read_dump(ok, &String::from_utf8_lossy(&bytes)) {
+    match read_dump(ok, logical(a), &String::from_utf8_lossy(&bytes)) {
         Err(e) if e.is::<NotIdle>() => Err(unread.unwrap_or(e)),
         read => read,
     }
@@ -559,11 +667,11 @@ async fn dump_once(a: &Adb) -> Result<Screen> {
 
 async fn read_with(a: &Adb, reader: &Reader) -> Result<Screen> {
     let (ok, bytes) = on_helper(a, reader, |prefix| {
-        format!("{prefix}{KEYBOARD}; {}", launch(reader, "2>/dev/null"))
+        format!("{prefix}{KEYBOARD}; {PANEL}; {}", launch(reader, "2>/dev/null"))
     })
     .await?;
 
-    read_dump(ok, &String::from_utf8_lossy(&bytes))
+    read_dump(ok, logical(a), &String::from_utf8_lossy(&bytes))
 }
 
 const TOUCHED: &str = "phone:touched";
@@ -591,7 +699,7 @@ async fn on_helper(a: &Adb, reader: &Reader, run: impl Fn(String) -> String) -> 
     adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &run(String::new())]).await
 }
 
-fn read_dump(ok: bool, out: &str) -> Result<Screen> {
+fn read_dump(ok: bool, display: u32, out: &str) -> Result<Screen> {
     let (said, xml) = out.split_at(
         out.find("<?xml")
             .or_else(|| out.find("<hierarchy"))
@@ -613,7 +721,12 @@ fn read_dump(ok: bool, out: &str) -> Result<Screen> {
     Ok(Screen {
         nodes: parse(xml)?,
         keyboard: Keyboard::parse(said),
+        panel: panel_of(said, display),
     })
+}
+
+fn logical(a: &Adb) -> u32 {
+    a.display.map_or(0, |d| d.logical)
 }
 
 fn record_path(device: &str) -> PathBuf {
@@ -1808,21 +1921,115 @@ mod tests {
 
     const IME_DOWN: &str = "  mInputShown=false\n  Window #3 Window{f00 u0 InputMethod}: ty=INPUT_METHOD type=ime frame=[0,0][0,0] visibleFrame=[0,0][0,0] visible=false\n";
 
+    const DISPLAYS: &str = "  Display: mDisplayId=0 (organized)\n    init=2076x2152 420dpi cur=2152x2076 app=2152x1950 rng=1840x1840-2152x2152\n  Display: mDisplayId=3\n    init=1080x2424 420dpi cur=1080x2424 app=1080x2300 rng=1080x1080-2424x2424\n";
+
+    const PANEL_FOLD: Bounds = Bounds {
+        x1: 0,
+        y1: 0,
+        x2: 2076,
+        y2: 2152,
+    };
+
+    #[test]
+    fn the_panel_is_read_for_the_display_being_driven() {
+        let rotated = Bounds::parse("[0,0][2152,2076]");
+
+        assert_eq!(panel_of(DISPLAYS, 0), rotated);
+        assert_eq!(panel_of(DISPLAYS, 3), Bounds::parse("[0,0][1080,2424]"));
+        assert_eq!(panel_of(DISPLAYS, 1), None);
+        assert_eq!(panel_of("", 0), None);
+
+        let screen = read_dump(true, 0, &format!("{IME_DOWN}{DISPLAYS}{FORM}")).unwrap();
+        assert_eq!(screen.panel, rotated);
+    }
+
+    #[test]
+    fn a_window_stashed_off_the_left_edge_is_aimed_at_its_visible_strip() {
+        let pip = Bounds::parse("[-656,200][78,613]").unwrap();
+
+        assert_eq!(
+            Reach::of(pip, Some(PANEL_FOLD)),
+            Reach::Partly {
+                at: (39, 406),
+                edge: "left",
+                showing: 78,
+            }
+        );
+        assert_eq!(
+            Reach::of(pip, Some(PANEL_FOLD)).note().as_deref(),
+            Some("mostly off the left edge, 78px showing")
+        );
+        assert_eq!(Reach::of(pip, None), Reach::On((-289, 406)));
+    }
+
+    #[test]
+    fn an_element_with_its_centre_on_the_panel_keeps_its_centre() {
+        let half = Bounds::parse("[-100,500][300,600]").unwrap();
+
+        assert_eq!(Reach::of(half, Some(PANEL_FOLD)), Reach::On((100, 550)));
+        assert_eq!(Reach::On((100, 550)).note(), None);
+    }
+
+    #[test]
+    fn the_edge_named_is_the_one_most_of_the_element_is_past() {
+        let low = Bounds::parse("[1900,2100][2300,2900]").unwrap();
+
+        assert_eq!(
+            Reach::of(low, Some(PANEL_FOLD)),
+            Reach::Partly {
+                at: (1988, 2126),
+                edge: "bottom",
+                showing: 52,
+            }
+        );
+    }
+
+    #[test]
+    fn an_element_wholly_off_the_panel_offers_no_point() {
+        let gone = Bounds::parse("[-900,200][-10,600]").unwrap();
+        let reach = Reach::of(gone, Some(PANEL_FOLD));
+
+        assert_eq!(reach, Reach::Off);
+        assert_eq!(reach.point(), None);
+        assert_eq!(reach.note().as_deref(), Some("off the panel"));
+    }
+
+    #[test]
+    fn the_keyboard_is_judged_at_the_point_that_would_be_pressed() {
+        let nodes = parse(
+            r#"<hierarchy><node class="android.widget.Button" bounds="[-656,1600][78,1700]" clickable="true" text="Pip" content-desc="" resource-id=""/></hierarchy>"#,
+        )
+        .unwrap();
+        let mut screen = Screen {
+            nodes,
+            keyboard: Some(Keyboard {
+                shown: true,
+                frame: Bounds::parse("[0,1500][1080,2400]"),
+            }),
+            panel: None,
+        };
+
+        assert!(!screen.covered(&screen.nodes[0]), "the centre is off the keyboard");
+
+        screen.panel = Some(PANEL_FOLD);
+        assert!(screen.covered(&screen.nodes[0]), "the strip that shows is under it");
+    }
+
     #[test]
     fn a_screen_that_never_goes_idle_is_told_apart_from_one_that_is_off() {
-        let err = read_dump(true, "phone:not-idle\n").unwrap_err();
+        let err = read_dump(true, 0, "phone:not-idle\n").unwrap_err();
 
         assert!(err.is::<NotIdle>(), "{err}");
         assert!(err.to_string().contains("Remove animations"), "{err}");
 
-        let err = read_dump(true, "  mInputShown=false\n").unwrap_err();
+        let err = read_dump(true, 0, "  mInputShown=false\n").unwrap_err();
         assert!(!err.is::<NotIdle>(), "{err}");
         assert!(err.to_string().contains("no hierarchy"), "{err}");
     }
 
     #[test]
     fn the_scales_are_read_off_a_screen_that_never_went_idle() {
-        let err = read_dump(true, "phone:not-idle\nphone:scales null 1.0 0\n").unwrap_err();
+        let err = read_dump(true, 0, "phone:not-idle\nphone:scales null 1.0 0\n").unwrap_err();
         let msg = err.to_string();
 
         assert!(msg.contains("transition_animation_scale is 1"), "{msg}");
@@ -1839,7 +2046,7 @@ mod tests {
 
     #[test]
     fn the_keyboard_is_read_off_what_comes_before_the_hierarchy() {
-        let up = read_dump(true, &format!("{IME_UP}{FORM}")).unwrap();
+        let up = read_dump(true, 0, &format!("{IME_UP}{FORM}")).unwrap();
 
         assert_eq!(
             up.keyboard,
@@ -1853,7 +2060,7 @@ mod tests {
             "up over [0,1500][1080,2400]"
         );
 
-        let down = read_dump(true, &format!("{IME_DOWN}{FORM}")).unwrap();
+        let down = read_dump(true, 0, &format!("{IME_DOWN}{FORM}")).unwrap();
 
         assert_eq!(
             down.keyboard,
@@ -1864,13 +2071,13 @@ mod tests {
         );
         assert_eq!(down.nodes.len(), up.nodes.len());
 
-        let silent = read_dump(true, FORM).unwrap();
+        let silent = read_dump(true, 0, FORM).unwrap();
         assert_eq!(silent.keyboard, None, "unknown is not down");
     }
 
     #[test]
     fn a_row_whose_middle_is_under_the_keyboard_is_covered() {
-        let screen = read_dump(true, &format!("{IME_UP}{FORM}")).unwrap();
+        let screen = read_dump(true, 0, &format!("{IME_UP}{FORM}")).unwrap();
         let covered: Vec<String> = screen
             .nodes
             .iter()
@@ -1880,13 +2087,13 @@ mod tests {
 
         assert_eq!(covered, ["row", "Continue"]);
 
-        let down = read_dump(true, &format!("{IME_DOWN}{FORM}")).unwrap();
+        let down = read_dump(true, 0, &format!("{IME_DOWN}{FORM}")).unwrap();
         assert!(down.nodes.iter().all(|n| !down.covered(n)));
     }
 
     #[test]
     fn a_field_showing_its_hint_is_empty() {
-        let screen = read_dump(true, FORM).unwrap();
+        let screen = read_dump(true, 0, FORM).unwrap();
         let search = screen.focused().expect("the search field holds focus");
 
         assert_eq!(search.res_id, "search");
@@ -1914,7 +2121,7 @@ mod tests {
         )
         .replace(r#"clickable="true" focused="true""#, r#"clickable="false" focused="true""#);
 
-        let screen = read_dump(true, &xml).unwrap();
+        let screen = read_dump(true, 0, &xml).unwrap();
 
         assert_eq!(screen.focused().unwrap().label(), "<EditText>");
     }
