@@ -5,6 +5,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
 use std::time::Duration;
 
+use nix::unistd::{Group, User};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,31 +56,21 @@ pub fn bind(path: &Path, group: &str) -> io::Result<UnixListener> {
 }
 
 fn group_id(group: &str) -> Option<u32> {
-    let name = std::ffi::CString::new(group).ok()?;
-    let entry = unsafe { libc::getgrnam(name.as_ptr()) };
-    if entry.is_null() {
-        return None;
-    }
-    Some(unsafe { (*entry).gr_gid })
+    Group::from_name(group)
+        .ok()
+        .flatten()
+        .map(|entry| entry.gid.as_raw())
 }
 
 fn chown_to_group(path: &Path, gid: u32) -> io::Result<()> {
-    let c_path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes())
-        .map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
-    let rc = unsafe { libc::chown(c_path.as_ptr(), u32::MAX, gid) };
-    if rc < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(())
+    std::os::unix::fs::chown(path, None, Some(gid))
 }
 
 pub fn user_id(user: &str) -> Option<u32> {
-    let name = std::ffi::CString::new(user).ok()?;
-    let entry = unsafe { libc::getpwnam(name.as_ptr()) };
-    if entry.is_null() {
-        return None;
-    }
-    Some(unsafe { (*entry).pw_uid })
+    User::from_name(user)
+        .ok()
+        .flatten()
+        .map(|entry| entry.uid.as_raw())
 }
 
 const READ_TIMEOUT: Duration = Duration::from_secs(2);

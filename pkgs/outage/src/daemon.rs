@@ -1,8 +1,10 @@
 use std::io;
-use std::os::fd::{AsRawFd, RawFd};
+use std::os::fd::{AsFd, BorrowedFd};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::time::Duration;
+
+use rustix::event::{PollFd, PollFlags, Timespec};
 
 use crate::config::Config;
 use crate::control::{self, Reply, Request};
@@ -31,7 +33,6 @@ pub fn run(config: Config) -> io::Result<()> {
             format!("CLOCK_BOOTTIME_ALARM timerfd unavailable ({err}); CAP_WAKE_ALARM is required"),
         )
     })?;
-    let alarm_fd = alarm.as_raw_fd();
 
     let listener = control::bind(&config.socket, &config.control_group)?;
     listener.set_nonblocking(true)?;
@@ -68,7 +69,7 @@ pub fn run(config: Config) -> io::Result<()> {
     loop {
         let wait_ms = driver.step(&mut world, &mut runner);
 
-        let (alarm_ready, _) = world.block(alarm_fd, wait_ms)?;
+        let (alarm_ready, _) = world.block(runner.effects().alarm().as_fd(), wait_ms)?;
 
         let slept = detector.sample(SLEEP_THRESHOLD_MS);
         let fired = alarm_ready && runner.effects().alarm().take_expiration();
@@ -89,24 +90,27 @@ struct PolledWorld {
 }
 
 impl PolledWorld {
-    fn block(&mut self, alarm_fd: RawFd, wait_ms: Millis) -> io::Result<(bool, bool)> {
+    fn block(&mut self, alarm_fd: BorrowedFd<'_>, wait_ms: Millis) -> io::Result<(bool, bool)> {
         let input_fds = self.watcher.fds();
         let mut fds = Vec::with_capacity(input_fds.len() + 2);
-        fds.push(pollfd(self.listener.as_raw_fd()));
+        fds.push(pollfd(self.listener.as_fd()));
         fds.push(pollfd(alarm_fd));
-        fds.extend(input_fds.iter().map(|fd| pollfd(*fd)));
+        fds.extend(input_fds.into_iter().map(pollfd));
 
-        let timeout = wait_ms.clamp(MIN_POLL_MS, MAX_POLL_MS) as libc::c_int;
-        let rc = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, timeout) };
-        if rc < 0 {
-            let err = io::Error::last_os_error();
+        let wait_ms = wait_ms.clamp(MIN_POLL_MS, MAX_POLL_MS);
+        let timeout = Timespec {
+            tv_sec: (wait_ms / 1_000) as _,
+            tv_nsec: ((wait_ms % 1_000) * 1_000_000) as _,
+        };
+        if let Err(err) = rustix::event::poll(&mut fds, Some(&timeout)) {
+            let err = io::Error::from(err);
             if err.kind() == io::ErrorKind::Interrupted {
                 return Ok((false, false));
             }
             return Err(err);
         }
 
-        let ready = |slot: &libc::pollfd| slot.revents != 0;
+        let ready = |slot: &PollFd<'_>| !slot.revents().is_empty();
         Ok((ready(&fds[1]), fds[2..].iter().any(ready)))
     }
 
@@ -197,10 +201,6 @@ impl World for PolledWorld {
     }
 }
 
-fn pollfd(fd: RawFd) -> libc::pollfd {
-    libc::pollfd {
-        fd,
-        events: libc::POLLIN,
-        revents: 0,
-    }
+fn pollfd(fd: BorrowedFd<'_>) -> PollFd<'_> {
+    PollFd::from_borrowed_fd(fd, PollFlags::IN)
 }

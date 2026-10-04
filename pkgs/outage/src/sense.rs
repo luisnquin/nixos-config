@@ -1,11 +1,14 @@
 use std::fs;
 use std::io;
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+use std::os::fd::{AsFd, BorrowedFd, OwnedFd};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
+
+use rustix::fs::{Mode, OFlags};
+use rustix::time::ClockId;
 
 use crate::machine::{Millis, Power};
 
@@ -15,21 +18,17 @@ const EV_REL: u16 = 0x02;
 const EV_ABS: u16 = 0x03;
 const MAX_DRAIN_READS: usize = 64;
 
-fn clock_ms(clock: libc::clockid_t) -> Millis {
-    let mut ts = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    unsafe { libc::clock_gettime(clock, &mut ts) };
+fn clock_ms(clock: ClockId) -> Millis {
+    let ts = rustix::time::clock_gettime(clock);
     (ts.tv_sec as Millis) * 1_000 + (ts.tv_nsec as Millis) / 1_000_000
 }
 
 pub fn boottime_ms() -> Millis {
-    clock_ms(libc::CLOCK_BOOTTIME)
+    clock_ms(ClockId::Boottime)
 }
 
 pub fn monotonic_ms() -> Millis {
-    clock_ms(libc::CLOCK_MONOTONIC)
+    clock_ms(ClockId::Monotonic)
 }
 
 pub struct SleepDetector {
@@ -228,8 +227,8 @@ impl InputWatcher {
         self.devices.len()
     }
 
-    pub fn fds(&self) -> Vec<RawFd> {
-        self.devices.iter().map(|d| d.fd.as_raw_fd()).collect()
+    pub fn fds(&self) -> Vec<BorrowedFd<'_>> {
+        self.devices.iter().map(|d| d.fd.as_fd()).collect()
     }
 
     pub fn rescan(&mut self) {
@@ -272,18 +271,12 @@ impl InputWatcher {
 
         for device in &self.devices {
             for _ in 0..MAX_DRAIN_READS {
-                let n = unsafe {
-                    libc::read(
-                        device.fd.as_raw_fd(),
-                        buf.as_mut_ptr() as *mut libc::c_void,
-                        buf.len(),
-                    )
+                let n = match rustix::io::read(&device.fd, &mut buf) {
+                    Ok(n) if n > 0 => n,
+                    _ => break,
                 };
-                if n <= 0 {
-                    break;
-                }
-                touched |= has_human_input(&buf[..n as usize]);
-                if (n as usize) < buf.len() {
+                touched |= has_human_input(&buf[..n]);
+                if n < buf.len() {
                     break;
                 }
             }
@@ -297,18 +290,11 @@ impl InputWatcher {
 }
 
 fn open_nonblocking(path: &Path) -> io::Result<OwnedFd> {
-    let c_path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes())
-        .map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
-    let fd = unsafe {
-        libc::open(
-            c_path.as_ptr(),
-            libc::O_RDONLY | libc::O_NONBLOCK | libc::O_CLOEXEC,
-        )
-    };
-    if fd < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    Ok(rustix::fs::open(
+        path,
+        OFlags::RDONLY | OFlags::NONBLOCK | OFlags::CLOEXEC,
+        Mode::empty(),
+    )?)
 }
 
 fn counts_as_input(ev_type: u16) -> bool {
@@ -505,8 +491,7 @@ mod tests {
     fn a_watcher_with_a_device_reports_idle_normally() {
         let root = scratch("input-one");
         let path = root.join("event0");
-        let c_path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
-        assert_eq!(unsafe { libc::mkfifo(c_path.as_ptr(), 0o600) }, 0);
+        rustix::fs::mkfifoat(rustix::fs::CWD, &path, Mode::from_raw_mode(0o600)).unwrap();
 
         let watcher = InputWatcher::new(&root, Vec::new(), 5_000);
         assert_eq!(watcher.device_count(), 1);

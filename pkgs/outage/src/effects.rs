@@ -1,10 +1,14 @@
 use std::fs;
 use std::io;
-use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+use std::os::fd::{AsFd, BorrowedFd, OwnedFd};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
+
+use rustix::io::Errno;
+use rustix::process::{Pid, PidfdFlags, Signal};
+use rustix::time::{Itimerspec, TimerfdClockId, TimerfdFlags, TimerfdTimerFlags, Timespec};
 
 use crate::machine::Millis;
 use crate::sense;
@@ -30,22 +34,11 @@ pub struct WakeAlarm {
 
 impl WakeAlarm {
     pub fn new() -> io::Result<Self> {
-        let fd = unsafe {
-            libc::timerfd_create(
-                libc::CLOCK_BOOTTIME_ALARM,
-                libc::TFD_CLOEXEC | libc::TFD_NONBLOCK,
-            )
-        };
-        if fd < 0 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(Self {
-            fd: unsafe { OwnedFd::from_raw_fd(fd) },
-        })
-    }
-
-    pub fn as_raw_fd(&self) -> RawFd {
-        self.fd.as_raw_fd()
+        let fd = rustix::time::timerfd_create(
+            TimerfdClockId::BoottimeAlarm,
+            TimerfdFlags::CLOEXEC | TimerfdFlags::NONBLOCK,
+        )?;
+        Ok(Self { fd })
     }
 
     pub fn arm(&self, after: Duration) -> io::Result<()> {
@@ -57,34 +50,30 @@ impl WakeAlarm {
     }
 
     fn set(&self, after: Duration) -> io::Result<()> {
-        let spec = libc::itimerspec {
-            it_interval: libc::timespec {
+        let spec = Itimerspec {
+            it_interval: Timespec {
                 tv_sec: 0,
                 tv_nsec: 0,
             },
-            it_value: libc::timespec {
-                tv_sec: after.as_secs() as libc::time_t,
+            it_value: Timespec {
+                tv_sec: after.as_secs() as _,
                 tv_nsec: after.subsec_nanos() as _,
             },
         };
-        let rc =
-            unsafe { libc::timerfd_settime(self.fd.as_raw_fd(), 0, &spec, std::ptr::null_mut()) };
-        if rc < 0 {
-            return Err(io::Error::last_os_error());
-        }
+        rustix::time::timerfd_settime(&self.fd, TimerfdTimerFlags::empty(), &spec)?;
         Ok(())
     }
 
     pub fn take_expiration(&self) -> bool {
         let mut buf = [0u8; 8];
-        let n = unsafe {
-            libc::read(
-                self.fd.as_raw_fd(),
-                buf.as_mut_ptr() as *mut libc::c_void,
-                buf.len(),
-            )
-        };
-        n == buf.len() as isize && u64::from_ne_bytes(buf) > 0
+        let n = rustix::io::read(&self.fd, &mut buf);
+        n == Ok(buf.len()) && u64::from_ne_bytes(buf) > 0
+    }
+}
+
+impl AsFd for WakeAlarm {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
     }
 }
 
@@ -289,37 +278,22 @@ fn kill_in_slice(proc_root: &Path, pid: i32, uid: u32, slice: &str) -> Killed {
             }
             match pidfd_kill(&fd) {
                 Ok(()) => Killed::Signalled,
-                Err(err) if err.raw_os_error() == Some(libc::ESRCH) => Killed::Gone,
+                Err(err) if err.raw_os_error() == Some(Errno::SRCH.raw_os_error()) => Killed::Gone,
                 Err(err) => Killed::Failed(err),
             }
         }
-        Err(err) if err.raw_os_error() == Some(libc::ESRCH) => Killed::Gone,
+        Err(err) if err.raw_os_error() == Some(Errno::SRCH.raw_os_error()) => Killed::Gone,
         Err(err) => Killed::Failed(err),
     }
 }
 
 fn pidfd_open(pid: i32) -> io::Result<OwnedFd> {
-    let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
-    if fd < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(unsafe { OwnedFd::from_raw_fd(fd as RawFd) })
+    let pid = Pid::from_raw(pid.max(0)).ok_or(Errno::INVAL)?;
+    Ok(rustix::process::pidfd_open(pid, PidfdFlags::empty())?)
 }
 
 fn pidfd_kill(fd: &OwnedFd) -> io::Result<()> {
-    let rc = unsafe {
-        libc::syscall(
-            libc::SYS_pidfd_send_signal,
-            fd.as_raw_fd(),
-            libc::SIGKILL,
-            std::ptr::null::<libc::siginfo_t>(),
-            0,
-        )
-    };
-    if rc < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(())
+    Ok(rustix::process::pidfd_send_signal(fd, Signal::KILL)?)
 }
 
 fn in_cgroup(proc_root: &Path, pid: i32, slice: &str) -> bool {
