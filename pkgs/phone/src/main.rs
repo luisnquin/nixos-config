@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 // Shadows std's printing macros crate-wide, so whatever a run says lands in its
 // call log too; textual scope reaches every module declared below.
@@ -85,7 +85,9 @@ async fn main() -> ExitCode {
     // Rust ignores SIGPIPE, so a write to a closed pipe comes back as an error
     // that `println!` panics on. `phone snapshot | head` is how a long dump is
     // read, and it must end the run quietly rather than in a backtrace.
-    sigpipe::reset();
+    // SAFETY: nothing else in the process installs a SIGPIPE handler to race this.
+    #[allow(unsafe_code)]
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     calls::begin();
 
     let cli = help::parse();

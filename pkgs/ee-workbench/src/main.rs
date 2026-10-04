@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 mod bridge;
 mod cli;
@@ -11,11 +11,22 @@ mod spawn;
 mod store;
 mod tui;
 
+use std::ffi::c_int;
+
 use anyhow::Result;
 use clap::Parser;
 
 use cli::{Cli, Command};
 use store::Workbench;
+
+const SIGPIPE: c_int = 13;
+const SIG_DFL: usize = 0;
+
+// SAFETY: matches libc's `signal`; sighandler_t is size_t on every target this builds for.
+#[allow(unsafe_code)]
+unsafe extern "C" {
+    safe fn signal(signum: c_int, handler: usize) -> usize;
+}
 
 /// Rust ignores SIGPIPE before `main`, so writing into a closed pipe returns
 /// EPIPE and `println!` panics on it. `ee mechanical document inspect | head -1`
@@ -29,7 +40,7 @@ use store::Workbench;
 /// `std::process::Command` resets SIGPIPE to `SIG_DFL` between fork and exec,
 /// because an ignored disposition is one of the few that survive `execve`.
 fn main() {
-    sigpipe::reset();
+    signal(SIGPIPE, SIG_DFL);
 
     match run() {
         Ok(code) => std::process::exit(code),

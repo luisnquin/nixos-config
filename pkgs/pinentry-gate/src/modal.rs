@@ -5,7 +5,6 @@
 use std::fs::OpenOptions;
 use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::path::{Path, PathBuf};
-#[cfg(test)]
 use std::time::Duration;
 use std::time::Instant;
 
@@ -257,8 +256,8 @@ impl Frame {
     }
 }
 
-fn read_byte(fd: BorrowedFd<'_>, timeout_ms: i32) -> Option<Option<u8>> {
-    let timeout = Timespec { tv_sec: (timeout_ms / 1000).into(), tv_nsec: (timeout_ms % 1000 * 1_000_000).into() };
+fn read_byte(fd: BorrowedFd<'_>, timeout_ms: u64) -> Option<Option<u8>> {
+    let timeout = Timespec::try_from(Duration::from_millis(timeout_ms)).ok()?;
     if rustix::event::poll(&mut [PollFd::new(&fd, PollFlags::IN)], Some(&timeout)).ok()? == 0 {
         return Some(None);
     }
@@ -415,7 +414,9 @@ pub fn main(args: &[String]) -> i32 {
         return 2;
     };
     if args.vt.is_some() {
-        let _ = rustix::process::setsid();
+        if let Err(err) = rustix::process::setsid() {
+            eprintln!("pinentry-gate: setsid: {err}");
+        }
     }
     let payload: Payload = std::fs::read_to_string(&args.request)
         .ok()

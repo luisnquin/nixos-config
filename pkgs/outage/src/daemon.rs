@@ -98,10 +98,8 @@ impl PolledWorld {
         fds.extend(input_fds.into_iter().map(pollfd));
 
         let wait_ms = wait_ms.clamp(MIN_POLL_MS, MAX_POLL_MS);
-        let timeout = Timespec {
-            tv_sec: (wait_ms / 1_000) as _,
-            tv_nsec: ((wait_ms % 1_000) * 1_000_000) as _,
-        };
+        let timeout =
+            Timespec::try_from(Duration::from_millis(wait_ms)).map_err(io::Error::other)?;
         if let Err(err) = rustix::event::poll(&mut fds, Some(&timeout)) {
             let err = io::Error::from(err);
             if err.kind() == io::ErrorKind::Interrupted {

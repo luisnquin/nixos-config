@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+#include <unistd.h>
+
 #include <App/Application.h>
 #include <Base/Console.h>
 #include <Base/Interpreter.h>
@@ -38,6 +40,8 @@ constexpr long long kDefaultIdleTimeout = 900;
 
 int main(int argc, char** argv)
 {
+    setsid();
+
     std::string socket_path;
     long long idle_timeout = kDefaultIdleTimeout;
     if (const char* configured = std::getenv("EE_WORKBENCH_CAD_IDLE")) {
