@@ -917,7 +917,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             drop(rep);
             drain.await;
 
-            eprintln!("phone: {}", res?);
+            eprintln!("phone: {}{}", res?, legend(s, &shot).await);
 
             Ok(())
         }
@@ -1782,6 +1782,16 @@ fn aim(point: (i32, i32), name: Option<String>) -> String {
         Some(name) => format!("{name} at {},{}", point.0, point.1),
         None => format!("{},{}", point.0, point.1),
     }
+}
+
+async fn legend(s: &Session, shot: &actions::Shot) -> String {
+    let per_unit = match (shot.grid, &s.target) {
+        (Some(per_unit), _) => Some(per_unit),
+        (None, a11y::Target::Adb(_)) => Some(1.0),
+        (None, a11y::Target::Simulator(_)) => a11y::size(&s.target).await.ok().map(|z| z.scale),
+    };
+
+    per_unit.map(|u| shot.legend(u)).unwrap_or_default()
 }
 
 async fn grid_scale(s: &Session, grid: bool) -> Result<Option<f64>> {

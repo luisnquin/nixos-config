@@ -82,6 +82,56 @@ impl Shot {
             None => "image/png",
         }
     }
+
+    /// Maps image pixels back to panel coordinates, given pixels per panel unit
+    /// (1 on Android). Empty when the image is the panel unscaled and uncropped.
+    pub fn legend(&self, per_unit: f64) -> String {
+        let (ox, oy) = self.crop.map_or((0, 0), |b| (b.x1.max(0), b.y1.max(0)));
+        let by = 1.0 / (self.scale.unwrap_or(1.0) * per_unit);
+        let (dx, dy) = (f64::from(ox) / per_unit, f64::from(oy) / per_unit);
+
+        let mut map = String::new();
+
+        if (by - 1.0).abs() > 1e-9 {
+            map.push_str(&multiplier(by));
+        }
+
+        if dx != 0.0 || dy != 0.0 {
+            map.push_str(&format!(" + {},{}", decimal(dx), decimal(dy)));
+        }
+
+        let mut said = Vec::new();
+
+        if !map.is_empty() {
+            said.push(format!("panel X,Y = image x,y{map}"));
+        }
+
+        if self.grid.is_some() {
+            said.push("grid labels are panel X,Y".to_string());
+        }
+
+        let at = self.scale.map(|s| format!(" at {} scale", decimal(s))).unwrap_or_default();
+
+        match said.is_empty() {
+            true => at,
+            false => format!("{at}: {}", said.join("; ")),
+        }
+    }
+}
+
+fn multiplier(by: f64) -> String {
+    let inverse = 1.0 / by;
+
+    match by < 1.0 && (inverse - inverse.round()).abs() < 1e-6 {
+        true => format!(" ÷ {}", decimal(inverse)),
+        false => format!(" × {}", decimal(by)),
+    }
+}
+
+fn decimal(v: f64) -> String {
+    let text = format!("{v:.3}");
+
+    text.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
 /// How long a screen is given to stop changing. Past this the frames are handed
@@ -1256,6 +1306,50 @@ mod tests {
         assert!(
             start.elapsed() < Duration::from_secs(5),
             "waited on a process that inherited stderr and outlived the child"
+        );
+    }
+
+    #[test]
+    fn a_shot_says_how_its_pixels_map_back_to_the_panel() {
+        let crop = Some(Bounds {
+            x1: 100,
+            y1: 400,
+            x2: 600,
+            y2: 900,
+        });
+
+        let half = Shot {
+            scale: Some(0.5),
+            ..Shot::default()
+        };
+        let cropped = Shot { crop, ..half };
+        let gridded = Shot {
+            grid: Some(1.0),
+            ..cropped
+        };
+
+        assert_eq!(Shot::default().legend(1.0), "");
+        assert_eq!(half.legend(1.0), " at 0.5 scale: panel X,Y = image x,y × 2");
+        assert_eq!(
+            cropped.legend(1.0),
+            " at 0.5 scale: panel X,Y = image x,y × 2 + 100,400"
+        );
+        assert_eq!(
+            gridded.legend(1.0),
+            " at 0.5 scale: panel X,Y = image x,y × 2 + 100,400; grid labels are panel X,Y"
+        );
+        assert_eq!(
+            Shot { crop, ..Shot::default() }.legend(1.0),
+            ": panel X,Y = image x,y + 100,400"
+        );
+        assert_eq!(Shot::default().legend(3.0), ": panel X,Y = image x,y ÷ 3");
+        assert_eq!(
+            Shot {
+                scale: Some(0.25),
+                ..Shot::default()
+            }
+            .legend(3.0),
+            " at 0.25 scale: panel X,Y = image x,y × 1.333"
         );
     }
 
