@@ -149,8 +149,9 @@ public final class PhoneDump {
     // and the status bar often arrives alone, hundreds of ms before the app under it
     private static List<AccessibilityWindowInfo> windows(UiAutomation automation) throws InterruptedException {
         List<AccessibilityWindowInfo> found = automation.getWindows();
+        long deadline = SystemClock.uptimeMillis() + 2000;
 
-        for (int i = 0; i < 20 && !settled(found); i++) {
+        while (!settled(found) && SystemClock.uptimeMillis() < deadline) {
             Thread.sleep(100);
             found = automation.getWindows();
         }

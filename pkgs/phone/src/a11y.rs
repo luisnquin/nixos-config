@@ -27,6 +27,24 @@ const PANEL: &str = "dumpsys window displays 2>/dev/null | grep -E 'mDisplayId=|
 
 const NOT_IDLE: &str = "phone:not-idle";
 
+const ASLEEP: &str = "phone:asleep";
+
+// UiAutomation window queries on a sleeping display each block 5s and return
+// nothing, which the retries multiply into minutes
+const AWAKE: &str = "dumpsys power 2>/dev/null | grep -qE 'mWakefulness=(Asleep|Dozing)' \
+     && { echo phone:asleep; exit 0; }; ";
+
+#[derive(Debug)]
+pub struct Asleep;
+
+impl std::fmt::Display for Asleep {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("the screen is off; wake it with `phone key wakeup`")
+    }
+}
+
+impl std::error::Error for Asleep {}
+
 #[derive(Debug)]
 pub struct NotIdle {
     scales: Option<Scales>,
@@ -637,6 +655,7 @@ async fn dumped(t: &Target) -> Result<Screen> {
                 }
                 .into())
             }
+            Err(Err(e)) if e.is::<Asleep>() => return Err(e),
             Err(Err(e)) => last = Some(e),
         }
     }
@@ -671,11 +690,12 @@ async fn dump_once(a: &Adb) -> Result<Screen> {
         match read_with(a, &reader).await {
             Ok(screen) => return Ok(screen),
             Err(e) if e.is::<NoApp>() => return Err(e),
+            Err(e) if e.is::<Asleep>() => return Err(e),
             Err(e) => unread = Some(e),
         }
     }
 
-    let remote = format!("{}{DUMP}; {KEYBOARD}; {PANEL}; {READ}", a.prefix());
+    let remote = format!("{}{AWAKE}{DUMP}; {KEYBOARD}; {PANEL}; {READ}", a.prefix());
     let (ok, bytes) = adb::run_bytes(&a.server, &["-s", &a.serial, "exec-out", &remote]).await?;
 
     match read_dump(ok, logical(a), &String::from_utf8_lossy(&bytes)) {
@@ -686,7 +706,7 @@ async fn dump_once(a: &Adb) -> Result<Screen> {
 
 async fn read_with(a: &Adb, reader: &Reader) -> Result<Screen> {
     let (ok, bytes) = on_helper(a, reader, |prefix| {
-        format!("{prefix}{KEYBOARD}; {PANEL}; {}", launch(reader, "2>/dev/null"))
+        format!("{prefix}{AWAKE}{KEYBOARD}; {PANEL}; {}", launch(reader, "2>/dev/null"))
     })
     .await?;
 
@@ -724,6 +744,10 @@ fn read_dump(ok: bool, display: u32, out: &str) -> Result<Screen> {
             .or_else(|| out.find("<hierarchy"))
             .unwrap_or(out.len()),
     );
+
+    if said.contains(ASLEEP) {
+        return Err(Asleep.into());
+    }
 
     if said.contains(NOT_IDLE) {
         return Err(NotIdle {
@@ -2110,6 +2134,17 @@ mod tests {
         let err = read_dump(true, 0, "  mInputShown=false\n").unwrap_err();
         assert!(!err.is::<NotIdle>(), "{err}");
         assert!(err.to_string().contains("no hierarchy"), "{err}");
+    }
+
+    #[test]
+    fn a_sleeping_screen_is_told_apart_from_an_unreadable_one() {
+        let err = read_dump(true, 0, "phone:asleep\n").unwrap_err();
+
+        assert!(err.is::<Asleep>(), "{err}");
+        assert!(err.to_string().contains("phone key wakeup"), "{err}");
+
+        let err = read_dump(true, 0, "  mInputShown=false\n").unwrap_err();
+        assert!(!err.is::<Asleep>(), "{err}");
     }
 
     #[test]

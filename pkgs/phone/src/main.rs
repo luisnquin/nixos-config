@@ -1200,11 +1200,18 @@ async fn answered(s: &Session, command: Command) -> Result<()> {
         async {
             match first {
                 true => None,
-                false => a11y::dump(&s.target).await.ok(),
+                false => Some(a11y::dump(&s.target).await),
             }
         },
         frame(s),
     );
+
+    let early = match early {
+        Some(Err(e)) if e.is::<a11y::Asleep>() && !matches!(command, Command::Key { .. }) => {
+            return Err(e)
+        }
+        early => early.and_then(Result::ok),
+    };
 
     step(s, command).await?;
 
@@ -1217,6 +1224,7 @@ async fn answered(s: &Session, command: Command) -> Result<()> {
             println!("{}", unmoved(s, frame, &change.screen).await)
         }
         Ok(change) => print_change(s, &before, &change),
+        Err(e) if e.is::<a11y::Asleep>() => println!("the screen is off"),
         Err(e) => eprintln!(
             "phone: the act went through, but the screen after it could not be read: {e:#}"
         ),
@@ -1987,7 +1995,7 @@ async fn wait(
         // that never goes idle will not answer by the timeout either
         let screen = match a11y::dump(t).await {
             Ok(screen) => Some(screen),
-            Err(e) if e.is::<a11y::NotIdle>() => return Err(e),
+            Err(e) if e.is::<a11y::NotIdle>() || e.is::<a11y::Asleep>() => return Err(e),
             Err(_) => None,
         };
         let present = screen
