@@ -144,7 +144,14 @@ fn invokes_phone(command: &str) -> bool {
 fn raw(command: &str) -> bool {
     command
         .split(SEPARATORS)
-        .any(|segment| leads(segment.split_whitespace()))
+        .any(|segment| leads(segment.split_whitespace()) || steers(segment))
+}
+
+fn steers(segment: &str) -> bool {
+    segment
+        .split_whitespace()
+        .take_while(|w| w.contains('=') || *w == "export" || PRELUDE.contains(&name(w)))
+        .any(|w| w.starts_with("ADB_SERVER_SOCKET="))
 }
 
 fn lead<'a>(words: &mut impl Iterator<Item = &'a str>) -> Option<&'a str> {
@@ -157,7 +164,7 @@ fn leads<'a>(mut words: impl Iterator<Item = &'a str>) -> bool {
     };
 
     match name(first) {
-        "xcrun" => words.next() == Some("simctl"),
+        "xcrun" => words.find(|w| !w.starts_with('-')) == Some("simctl"),
         "ssh" | "sh" | "bash" | "zsh" => words.any(|w| PROGRAMS.contains(&name(w))),
         program => PROGRAMS.contains(&program),
     }
@@ -182,6 +189,12 @@ mod tests {
             "sleep 5; avdmanager list avd",
             "ssh rose adb devices",
             "bash -lc 'adb devices'",
+            "ssh -o BatchMode=yes rose \"adb -s emulator-5554 shell input tap 1 1\"",
+            "ADB_SERVER_SOCKET=tcp:rose:5037 ./gradlew connectedAndroidTest",
+            "export ADB_SERVER_SOCKET=tcp:rose:5037",
+            "env ADB_SERVER_SOCKET=tcp:rose:5037 npx expo run:android",
+            "xcrun -v simctl list devices",
+            "~/Library/Android/sdk/emulator/emulator -avd pixel_7-api36 -no-window",
         ] {
             assert!(raw(line), "{line}");
         }
@@ -198,6 +211,8 @@ mod tests {
             "cat src/emulator.rs",
             "xcrun --find clang",
             "ssh rose uptime",
+            "grep -rn ADB_SERVER_SOCKET= src",
+            "echo $ADB_SERVER_SOCKET",
             "",
         ] {
             assert!(!raw(line), "{line}");
