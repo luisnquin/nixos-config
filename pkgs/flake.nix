@@ -7,7 +7,14 @@
     systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin"];
 
     forAllSystems = f:
-      nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+      nixpkgs.lib.genAttrs systems (system:
+        f (import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+            android_sdk.accept_license = true;
+          };
+        }));
   in {
     overlays.default = final: _prev: import ./default.nix final;
 
