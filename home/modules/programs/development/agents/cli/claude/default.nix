@@ -40,9 +40,17 @@ in {
           ''"permissionDecision": "allow",''
           ''"permissionDecisionReason": "RTK auto-rewrite",''
         ];
+        rewritten = "EXIT_CODE=$?\n";
+        # a worktree-isolated agent's git calls are refused once rtk wraps them
+        isolatedGit = ''
+          case "$(jq -r '.cwd // empty' <<<"$INPUT")" in
+            */.claude/worktrees/*) case "$REWRITTEN" in *"rtk git"*) exit 0 ;; esac ;;
+          esac
+        '';
       in
         assert lib.assertMsg (lib.hasInfix autoAllow upstream) "rtk-rewrite.sh changed; re-check its auto-allow branch";
-          builtins.replaceStrings [autoAllow] [""] upstream;
+        assert lib.assertMsg (lib.hasInfix rewritten upstream) "rtk-rewrite.sh changed; re-check where EXIT_CODE is read";
+          builtins.replaceStrings [autoAllow rewritten] ["" (rewritten + isolatedGit)] upstream;
     };
 
     marketplaces = {
