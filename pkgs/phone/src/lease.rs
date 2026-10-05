@@ -1,152 +1,284 @@
-//! Who has a device, so a second project's `up` is refused rather than served.
-//!
-//! `up` converges one manifest and knows nothing of any other. Two projects
-//! naming the same emulator each run to completion, and the second launch puts
-//! its app in front of the first's; from then on every snapshot the first agent
-//! takes describes the wrong screen, and nothing says so. This is the saying so.
-//!
-//! Kept on the host the device hangs off, for the reason the stamps give: the
-//! projects driving one device may sit on different machines — one handed over
-//! to the mac that owns the emulator, another driving it from a laptop over
-//! adb — and a file on either would be invisible to the other. The device's
-//! host is the one place both go through.
-//!
-//! Held until `down` rather than until the process exits: `up` returns and the
-//! agent keeps driving the device for as long as it likes. A device that is off
-//! carries nobody's session, so a lease on one is ignored rather than honoured.
-
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
+use crate::agent::{self, Agent, Harness};
 use crate::model::{self, Device, Platform, Unix, View, AVD_PREFIX};
 use crate::project::Project;
-use crate::ssh::Where;
-use crate::usage::{self, Usage};
-use crate::{actions, up};
+use crate::ssh::{Status, Where};
+use crate::usage::Usage;
+use crate::{actions, config, registry, stamps, up};
 
 const TIMEOUT: Duration = Duration::from_secs(20);
+const CONFLICT: i32 = 75;
+const RETRIES: usize = 6;
+pub const BOOT: i64 = 300;
 
-/// One round trip for both where the host keeps its state and what is in the
-/// file. A file that is not there is the ordinary case on a host nothing has
-/// claimed a device on yet.
-const OPEN: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
-printf '%s\n' "$state"
-cat "$state/leases.json" 2>/dev/null
-printf '\n@usage\n'
+const LEDGER: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
+mkdir -p "$state" || exit 1
+f="$state/leases.json"
+lock="$state/leases.lock"
+code=0
+if [ "$1" != "-" ]; then
+  n=0
+  until mkdir "$lock" 2>/dev/null; do
+    m=$(stat -c %Y "$lock" 2>/dev/null || stat -f %m "$lock" 2>/dev/null || echo 0)
+    [ $(( $(date +%s) - m )) -gt 5 ] && rmdir "$lock" 2>/dev/null
+    n=$((n + 1))
+    [ "$n" -gt 100 ] && { echo "phone: $lock is stuck" >&2; exit 1; }
+    sleep 0.1 2>/dev/null || sleep 1
+  done
+  trap 'rmdir "$lock" 2>/dev/null' EXIT INT TERM
+  if [ "$(cat "$f" 2>/dev/null | cksum)" = "$1" ]; then
+    tmp="$f.$$.tmp"
+    printf '%s' "$2" > "$tmp" && mv "$tmp" "$f" || exit 1
+    if [ -n "$3" ]; then
+      u="$state/usage.tsv"
+      { cat "$u" 2>/dev/null; } | awk -F '\t' -v OFS='\t' -v d="$3" -v t="$4" -v at="$5" '
+NF < 4 { next }
+$1 == d && $2 == t { $3 = at; $4 = $4 + 1; hit = 1 }
+{ print }
+END { if (!hit) print d, t, at, 1 }' > "$u.$$.tmp" && mv "$u.$$.tmp" "$u"
+    fi
+  else
+    code=75
+  fi
+fi
+me=$(uname -n)
+printf '%s\n%s\n' "$state" "$me"
+cat "$f" 2>/dev/null | cksum
+printf '@body\n'
+cat "$f" 2>/dev/null
+printf '\n@dead\n'
+grep -o '"host":"[^"]*","pid":[0-9]*,"start":"[^"]*"' "$f" 2>/dev/null | while IFS= read -r p; do
+  h=${p#*\"host\":\"}; h=${h%%\"*}
+  [ "$h" = "$me" ] || continue
+  pid=${p#*\"pid\":}; pid=${pid%%,*}
+  st=${p#*\"start\":\"}; st=${st%\"}
+  if [ -r "/proc/$pid/stat" ]; then
+    now=$(sed 's/.*) //' "/proc/$pid/stat" | cut -d' ' -f20)
+  else
+    now=$(ps -o lstart= -p "$pid" 2>/dev/null | awk '{$1=$1; gsub(/ /, "_"); print}')
+  fi
+  [ "$now" = "$st" ] || echo "dead $pid $st"
+done
+printf '@usage\n'
 cat "$state/usage.tsv" 2>/dev/null
-exit 0"#;
+exit $code"#;
 
-/// A rename rather than a truncate-and-fill, for the reason the registry gives:
-/// every project on the host shares this file.
-const WRITE: &str = r#"mkdir -p "$1" || exit 1
-tmp="$1/leases.json.$$.tmp"
-printf '%s' "$2" > "$tmp" && mv "$tmp" "$1/leases.json""#;
-
-/// The project holding a device.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Holder {
-    /// The project's root as the host owning its tree spells it: what the
-    /// stamps are keyed by, and the one name every machine driving it agrees
-    /// on. Two runs with the same tree are one project renewing its hold.
-    pub tree: String,
-    /// What to call it to a reader.
-    pub project: String,
+pub struct Lease {
+    pub agent: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness: Option<Harness>,
+    pub host: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app: Option<String>,
     pub since: Unix,
+    pub last_seen: Unix,
+    pub ttl: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub host: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session: Option<String>,
-    /// Where `up` was typed, which is where a refused agent has to go: `tree` is
-    /// the host's spelling and may name nothing on the agent's machine.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub checkout: Option<String>,
+    pub took: Option<String>,
 }
 
-impl Holder {
-    pub fn of(tree: &str, project: &str) -> Self {
-        Holder {
-            tree: tree.to_string(),
-            project: project.to_string(),
-            since: model::now(),
-            host: None,
-            session: None,
-            checkout: None,
+impl Lease {
+    pub fn of(me: &Agent, ttl: Duration, now: Unix) -> Self {
+        Lease {
+            agent: me.id.clone(),
+            label: me.label.clone(),
+            harness: Some(me.harness),
+            host: me.host.clone(),
+            pid: me.pid,
+            start: me.start.clone(),
+            app: None,
+            since: now,
+            last_seen: now,
+            ttl: ttl.as_secs() as i64,
+            took: None,
         }
     }
 
-    pub fn on(mut self, host: Option<&str>) -> Self {
-        self.host = host.filter(|h| !h.is_empty()).map(str::to_string);
-
-        self
+    pub fn owned_by(&self, me: &Agent) -> bool {
+        self.agent == me.id && self.host == me.host && self.pid == me.pid && self.start == me.start
     }
 
-    pub fn by(mut self, session: Option<&str>) -> Self {
-        self.session = session.filter(|s| !s.is_empty()).map(str::to_string);
-
-        self
+    pub fn idle(&self, now: Unix) -> i64 {
+        (now - self.last_seen).max(0)
     }
 
-    pub fn typed_in(mut self, checkout: &std::path::Path) -> Self {
-        self.checkout = Some(checkout.display().to_string());
-
-        self
+    pub fn due(&self, now: Unix) -> bool {
+        self.idle(now) * 4 >= self.ttl
     }
 
-    fn go_to(&self) -> String {
-        self.checkout.clone().unwrap_or_else(|| self.at())
-    }
+    pub fn describe(&self, now: Unix) -> String {
+        let harness = self.harness.map(|h| format!("{h:?}").to_lowercase());
 
-    /// A side naming no session is let in by its tree alone: a hold stamped
-    /// before sessions existed, or a verb typed by hand.
-    pub fn admits(&self, tree: &str, session: Option<&str>) -> bool {
-        self.tree == tree
-            && match (self.session.as_deref(), session) {
-                (Some(held), Some(asking)) => held == asking,
-                _ => true,
-            }
+        format!(
+            "{} ({}{}, idle {})",
+            self.label,
+            harness.map(|h| format!("{h} on ")).unwrap_or_default(),
+            self.host,
+            span(self.idle(now))
+        )
     }
+}
 
-    /// `hotline (2h ago)`, for a message or a status row.
-    pub fn label(&self) -> String {
-        match &self.session {
-            Some(session) => format!(
-                "{}, session {} ({})",
-                self.project,
-                short(session),
-                model::ago(self.since)
-            ),
-            None => format!("{} ({})", self.project, model::ago(self.since)),
+pub fn span(secs: i64) -> String {
+    match secs {
+        ..=59 => format!("{}s", secs.max(0)),
+        60..=3599 => format!("{}m", secs / 60),
+        _ => format!("{}h{}m", secs / 3600, secs % 3600 / 60),
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Ledger {
+    pub v: u32,
+    #[serde(default)]
+    pub leases: BTreeMap<String, Lease>,
+    #[serde(default)]
+    pub installed: BTreeMap<String, BTreeSet<String>>,
+}
+
+#[derive(Deserialize)]
+struct Old {
+    project: String,
+    since: Unix,
+    #[serde(default)]
+    host: Option<String>,
+    #[serde(default)]
+    session: Option<String>,
+}
+
+impl Ledger {
+    pub fn parse(body: &str) -> Self {
+        let Ok(Value::Object(map)) = serde_json::from_str::<Value>(body) else {
+            return Ledger::default();
+        };
+
+        match map.contains_key("v") {
+            true => serde_json::from_value(Value::Object(map)).unwrap_or_default(),
+            false => Ledger::migrate(map),
         }
     }
 
-    pub fn at(&self) -> String {
-        match &self.host {
-            Some(host) => format!("{} on {host}", self.tree),
-            None => self.tree.clone(),
+    fn migrate(map: serde_json::Map<String, Value>) -> Self {
+        let leases = map
+            .into_iter()
+            .filter_map(|(key, held)| Some((key, serde_json::from_value::<Old>(held).ok()?)))
+            .map(|(key, old)| {
+                let lease = Lease {
+                    agent: format!("legacy:{}", old.session.as_deref().unwrap_or(&old.project)),
+                    label: agent::short(&old.project),
+                    harness: None,
+                    host: old.host.unwrap_or_default(),
+                    pid: None,
+                    start: None,
+                    app: None,
+                    since: old.since,
+                    last_seen: old.since,
+                    ttl: config::TTL.as_secs() as i64,
+                    took: None,
+                };
+
+                (key, lease)
+            })
+            .collect();
+
+        Ledger {
+            v: 2,
+            leases,
+            installed: BTreeMap::new(),
         }
+    }
+
+    pub fn body(&self) -> String {
+        let mut out = self.clone();
+        out.v = 2;
+
+        serde_json::to_string(&out).expect("a ledger serializes")
+    }
+
+    pub fn get(&self, key: &Key) -> Option<(&String, &Lease)> {
+        std::iter::once(&key.id)
+            .chain(&key.legacy)
+            .find_map(|id| self.leases.get_key_value(id))
+    }
+
+    pub fn put(&mut self, key: &Key, lease: Lease) {
+        self.drop_key(key);
+        self.leases.insert(key.id.clone(), lease);
+    }
+
+    pub fn drop_key(&mut self, key: &Key) -> Option<Lease> {
+        let had = self.leases.remove(&key.id);
+
+        key.legacy
+            .iter()
+            .fold(had, |had, id| had.or(self.leases.remove(id)))
+    }
+
+    fn prune(&mut self, judge: &Judge) {
+        self.leases.retain(|_, lease| judge.valid(lease, true));
     }
 }
 
-fn short(session: &str) -> &str {
-    session.get(..8).unwrap_or(session)
+pub struct Judge<'a> {
+    pub now: Unix,
+    pub book_host: &'a str,
+    pub dead: &'a BTreeSet<(u32, String)>,
+    pub here: &'a str,
+    pub alive: fn(u32, &str) -> bool,
 }
 
-pub fn session() -> Option<String> {
-    ["PHONE_SESSION", "CLAUDE_CODE_SESSION_ID"]
-        .iter()
-        .filter_map(|name| std::env::var(name).ok())
-        .map(|s| s.trim().to_string())
-        .find(|s| !s.is_empty())
+impl Judge<'_> {
+    pub fn valid(&self, lease: &Lease, running: bool) -> bool {
+        let idle = lease.idle(self.now);
+
+        idle < lease.ttl && (running || idle < BOOT) && self.living(lease)
+    }
+
+    fn living(&self, lease: &Lease) -> bool {
+        let (Some(pid), Some(start)) = (lease.pid, lease.start.as_deref()) else {
+            return true;
+        };
+
+        if lease.host == self.book_host {
+            return !self.dead.contains(&(pid, start.to_string()));
+        }
+
+        lease.host != self.here || (self.alive)(pid, start)
+    }
 }
 
-/// What a device is filed under: its id as the host owning it spells it.
-///
-/// A simulator on the mac is `3F83…` in the mac's own registry and `mac/AAAA1111…`
-/// in a laptop's, and both registries have to land on the one entry in the
-/// mac's file. An emulator's `android_id:…` is already the same everywhere.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Standing {
+    Mine(Lease),
+    Free(Option<Lease>),
+    Held(Lease),
+}
+
+pub fn standing(ledger: &Ledger, key: &Key, judge: &Judge, me: &Agent, running: bool) -> Standing {
+    let Some((_, lease)) = ledger.get(key) else {
+        return Standing::Free(None);
+    };
+
+    match (judge.valid(lease, running), lease.owned_by(me)) {
+        (true, true) => Standing::Mine(lease.clone()),
+        (true, false) => Standing::Held(lease.clone()),
+        (false, _) => Standing::Free(Some(lease.clone())),
+    }
+}
+
 pub fn key(device: &Device) -> Key {
     let legacy = match device.platform == Platform::Emulator && device.id.starts_with(AVD_PREFIX) {
         true => device
@@ -183,7 +315,7 @@ fn filed_as(device: &Device) -> String {
     id.strip_prefix(&scope).unwrap_or(id).to_string()
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Key {
     pub id: String,
     legacy: Vec<String>,
@@ -198,134 +330,369 @@ impl From<&str> for Key {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct Leases {
-    /// Device key -> who holds it. The id rather than the label, since the id
-    /// is what survives a transport change; the label is what a message says.
-    held: BTreeMap<String, Holder>,
-
-    at: Where,
-
-    /// The directory holding the file, as that host spells it. Empty means
-    /// nothing was read and nothing will be written.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Book {
+    #[serde(skip)]
+    pub at: Where,
     dir: String,
-
+    pub host: String,
+    sum: String,
+    pub ledger: Ledger,
+    dead: BTreeSet<(u32, String)>,
     pub usage: Usage,
+    #[serde(skip)]
+    pub fresh: bool,
 }
 
-impl Leases {
-    /// The leases the host at `at` keeps.
-    ///
-    /// An unreadable file reads as nothing held: refusing every `up` on the
-    /// host over a bad file would cost more than one collision.
-    pub async fn open(at: &Where) -> Result<Self> {
+impl Book {
+    fn parse(at: &Where, text: &str) -> Option<Self> {
+        let mut head = text.splitn(4, '\n');
+        let (dir, host, sum, rest) = (head.next()?, head.next()?, head.next()?, head.next()?);
+        let rest = rest.strip_prefix("@body\n")?;
+        let (body, rest) = rest.split_once("\n@dead\n")?;
+        let (dead, usage) = rest.split_once("@usage\n").unwrap_or((rest, ""));
+
+        Some(Book {
+            at: at.clone(),
+            dir: dir.to_string(),
+            host: host.to_string(),
+            sum: sum.trim().to_string(),
+            ledger: Ledger::parse(body),
+            dead: dead.lines().filter_map(dead_line).collect(),
+            usage: Usage::parse(usage),
+            fresh: true,
+        })
+    }
+
+    pub async fn fetch(at: &Where) -> Result<Self> {
         let ran = at
-            .exec(OPEN, &[], TIMEOUT)
+            .exec(LEDGER, &["-"], TIMEOUT)
             .await
             .with_context(|| format!("reading the leases on {}", at.label()))?;
 
-        Ok(Self::opened(at.clone(), &ran.text()))
+        let book = Self::parse(at, &String::from_utf8_lossy(&ran.stdout))
+            .with_context(|| format!("the leases on {} came back unreadable: {}", at.label(), ran.said))?;
+
+        book.cache();
+
+        Ok(book)
     }
 
-    fn opened(at: Where, text: &str) -> Self {
-        let (dir, rest) = text.split_once('\n').unwrap_or((text, ""));
-        let (body, used) = rest.split_once(usage::MARK).unwrap_or((rest, ""));
-
-        let mut leases = Self::read(at, dir.trim(), body.as_bytes());
-        leases.usage = Usage::parse(used);
-
-        leases
-    }
-
-    pub fn read(at: Where, dir: &str, body: &[u8]) -> Self {
-        Leases {
-            held: serde_json::from_slice(body).unwrap_or_default(),
-            at,
-            dir: dir.to_string(),
-            usage: Usage::default(),
+    pub async fn open(at: &Where) -> Result<Self> {
+        match Self::cached(at) {
+            Some(book) => Ok(book),
+            None => Self::fetch(at).await,
         }
     }
 
-    pub fn holder(&self, key: impl Into<Key>) -> Option<&Holder> {
-        let key = key.into();
+    async fn commit(&self, ledger: &Ledger, stamp: &[String]) -> Result<Result<Self, Self>> {
+        let body = ledger.body();
+        let mut args = vec![self.sum.as_str(), body.as_str()];
+        args.extend(stamp.iter().map(String::as_str));
 
-        self.held
-            .get(&key.id)
-            .or_else(|| key.legacy.iter().find_map(|id| self.held.get(id)))
-    }
-
-    /// Who holds `id`, if it is not the project at `tree`.
-    pub fn other(&self, key: impl Into<Key>, tree: &str, session: Option<&str>) -> Option<&Holder> {
-        self.holder(key)
-            .filter(|holder| !holder.admits(tree, session))
-    }
-
-    /// Puts `holder`'s name on `id`. A project already holding it keeps its
-    /// original `since`: the hold began when it began, not when it was last
-    /// renewed.
-    pub fn take(&mut self, key: impl Into<Key>, holder: Holder) {
-        let key = key.into();
-        let held = match self
-            .remove(&key)
-            .filter(|had| had.admits(&holder.tree, holder.session.as_deref()))
-        {
-            Some(mut had) => {
-                if had.session.is_none() {
-                    had.session = holder.session;
-                }
-
-                if holder.checkout.is_some() {
-                    had.checkout = holder.checkout;
-                }
-
-                had
-            }
-            None => holder,
-        };
-
-        self.held.insert(key.id, held);
-    }
-
-    pub fn release(&mut self, key: impl Into<Key>) -> Option<Holder> {
-        self.remove(&key.into())
-    }
-
-    fn remove(&mut self, key: &Key) -> Option<Holder> {
-        let had = self.held.remove(&key.id);
-
-        key.legacy
-            .iter()
-            .fold(had, |had, id| had.or(self.held.remove(id)))
-    }
-
-    pub async fn save(&self) -> Result<()> {
-        if self.dir.is_empty() {
-            return Ok(());
-        }
-
-        let body = serde_json::to_string_pretty(&self.held)?;
         let ran = self
             .at
-            .exec(WRITE, &[&self.dir, &body], TIMEOUT)
+            .exec(LEDGER, &args, TIMEOUT)
             .await
             .with_context(|| format!("writing the leases on {}", self.at.label()))?;
 
-        match ran.ok() {
-            true => Ok(()),
-            false => anyhow::bail!(
-                "could not write the leases on {}: {}",
-                self.at.label(),
-                ran.said
-            ),
+        let book = Self::parse(&self.at, &String::from_utf8_lossy(&ran.stdout));
+
+        match (ran.status, book) {
+            (Status::Code(0), Some(book)) => Ok(Ok(book.cached_now())),
+            (Status::Code(CONFLICT), Some(book)) => Ok(Err(book.cached_now())),
+            _ => bail!("could not write the leases on {}: {}", self.at.label(), ran.said),
+        }
+    }
+
+    fn cached_now(self) -> Self {
+        self.cache();
+        self
+    }
+
+    fn path(at: &Where) -> PathBuf {
+        let name = at.host().map(|h| stamps::hash(h.as_bytes())).unwrap_or_else(|| "local".into());
+
+        registry::state_dir().join("ledgers").join(format!("{name}.json"))
+    }
+
+    fn cached(at: &Where) -> Option<Self> {
+        let body = std::fs::read(Self::path(at)).ok()?;
+        let mut book: Book = serde_json::from_slice(&body).ok()?;
+
+        book.at = at.clone();
+
+        Some(book)
+    }
+
+    fn cache(&self) {
+        let path = Self::path(&self.at);
+        let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
+
+        let wrote = path.parent().map(std::fs::create_dir_all).transpose().is_ok()
+            && std::fs::write(&tmp, serde_json::to_vec(self).unwrap_or_default()).is_ok();
+
+        if wrote {
+            let _ = std::fs::rename(&tmp, &path);
+        }
+    }
+
+    pub fn judge(&self, now: Unix) -> Judge<'_> {
+        Judge {
+            now,
+            book_host: &self.host,
+            dead: &self.dead,
+            here: &agent::me().host,
+            alive: agent::alive,
+        }
+    }
+
+    pub fn standing(&self, device: &Device, running: bool) -> Standing {
+        standing(&self.ledger, &key(device), &self.judge(model::now()), agent::me(), running)
+    }
+}
+
+fn dead_line(line: &str) -> Option<(u32, String)> {
+    let mut words = line.strip_prefix("dead ")?.splitn(2, ' ');
+
+    Some((words.next()?.parse().ok()?, words.next()?.to_string()))
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Take {
+    #[default]
+    Respect,
+    Override,
+}
+
+impl From<bool> for Take {
+    fn from(take: bool) -> Self {
+        match take {
+            true => Take::Override,
+            false => Take::Respect,
         }
     }
 }
 
+#[derive(Debug)]
+pub enum Got {
+    Held(Lease),
+    Busy(Lease),
+}
 
-/// Where a project's tree is, as the host owning it spells it: the name `up`
-/// filed its hold under, so a verb typed in the same checkout finds its own
-/// hold rather than somebody else's. The same script `up` runs, so the two
-/// cannot drift apart on a symlink or a tilde.
+pub async fn acquire(view: &View, take: Take) -> Result<Got> {
+    let at = actions::where_of(&view.device);
+    let mut book = Book::open(&at).await?;
+
+    for _ in 0..RETRIES {
+        match attempt(view, take, &book) {
+            Step::Done(got) => return Ok(got),
+            Step::Refresh => book = Book::fetch(&at).await?,
+            Step::Write(ledger, lease) => match book.commit(&ledger, &stamp(view, &book).await).await? {
+                Ok(_) => return Ok(settled(view, lease)),
+                Err(newer) => book = newer,
+            },
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+enum Step {
+    Done(Got),
+    Refresh,
+    Write(Ledger, Lease),
+}
+
+fn attempt(view: &View, take: Take, book: &Book) -> Step {
+    let now = model::now();
+    let me = agent::me();
+    let key = key(&view.device);
+    let judge = book.judge(now);
+
+    let lease = match standing(&book.ledger, &key, &judge, me, actions::running(&view.reach)) {
+        Standing::Mine(lease) if !lease.due(now) => return Step::Done(Got::Held(lease)),
+        Standing::Held(_) if !book.fresh => return Step::Refresh,
+        Standing::Held(lease) if take == Take::Respect => return Step::Done(Got::Busy(lease)),
+        Standing::Mine(lease) => Lease { last_seen: now, ..lease },
+        Standing::Held(lease) => Lease {
+            took: Some(format!("{} by {:?}", lease.label, me.harness).to_lowercase()),
+            ..Lease::of(me, config::get().ttl(&view.device), now)
+        },
+        Standing::Free(_) => Lease::of(me, config::get().ttl(&view.device), now),
+    };
+
+    let mut ledger = book.ledger.clone();
+
+    ledger.prune(&judge);
+    ledger.put(&key, lease.clone());
+
+    Step::Write(ledger, lease)
+}
+
+fn settled(view: &View, lease: Lease) -> Got {
+    let me = agent::me();
+
+    if let Some(took) = &lease.took {
+        eprintln!("phone: took {} from {took}", view.device.label);
+    }
+
+    if me.shared {
+        eprintln!(
+            "phone: {} acquired as Claude session {}; PHONE_AGENT is unset, so every subagent of this session shares it",
+            view.device.label, me.label
+        );
+    }
+
+    sticky::remember(view, &lease);
+
+    Got::Held(lease)
+}
+
+async fn stamp(view: &View, book: &Book) -> Vec<String> {
+    let mine = book.ledger.get(&key(&view.device)).is_some_and(|(_, l)| l.owned_by(agent::me()));
+
+    if mine {
+        return Vec::new();
+    }
+
+    let tree = here_tree().await.unwrap_or_default();
+
+    vec![key(&view.device).id, tree, model::now().to_string()]
+}
+
+pub async fn release(view: &View) -> Result<Option<Lease>> {
+    let at = actions::where_of(&view.device);
+    let mut book = Book::fetch(&at).await?;
+
+    for _ in 0..RETRIES {
+        let key = key(&view.device);
+
+        let had = match book.standing(&view.device, actions::running(&view.reach)) {
+            Standing::Held(lease) => return busy(view, lease),
+            Standing::Free(None) => return Ok(None),
+            Standing::Mine(lease) | Standing::Free(Some(lease)) => lease,
+        };
+
+        let mut ledger = book.ledger.clone();
+        ledger.drop_key(&key);
+
+        match book.commit(&ledger, &[]).await? {
+            Ok(_) => return Ok(Some(had).filter(|l| l.owned_by(agent::me()))),
+            Err(newer) => book = newer,
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+fn busy(view: &View, lease: Lease) -> Result<Option<Lease>> {
+    Err(refusal(view, &lease).into())
+}
+
+pub fn refusal(view: &View, lease: &Lease) -> crate::Refused {
+    crate::Refused(format!(
+        "{} is held by {}; its holder's `phone release -t {}` frees it, `--take` takes it",
+        view.device.label,
+        lease.describe(model::now()),
+        view.device.label
+    ))
+}
+
+pub async fn guard(view: &View, take: Take) -> Result<()> {
+    let book = Book::fetch(&actions::where_of(&view.device)).await?;
+
+    match (book.standing(&view.device, actions::running(&view.reach)), take) {
+        (Standing::Held(lease), Take::Respect) => Err(refusal(view, &lease).into()),
+        _ => Ok(()),
+    }
+}
+
+pub async fn here_tree() -> Option<String> {
+    tree(&Project::here().ok().flatten()?).await.ok()
+}
+
+pub async fn release_all(hosts: &[Where]) -> Result<Vec<String>> {
+    let mut freed = Vec::new();
+
+    for at in hosts {
+        let Ok(mut book) = Book::fetch(at).await else {
+            continue;
+        };
+
+        for _ in 0..RETRIES {
+            let mine: Vec<String> = book
+                .ledger
+                .leases
+                .iter()
+                .filter(|(_, l)| l.owned_by(agent::me()))
+                .map(|(k, _)| k.clone())
+                .collect();
+
+            if mine.is_empty() {
+                break;
+            }
+
+            let mut ledger = book.ledger.clone();
+            ledger.leases.retain(|k, _| !mine.contains(k));
+
+            match book.commit(&ledger, &[]).await? {
+                Ok(_) => {
+                    freed.extend(mine.iter().map(|k| format!("{k} on {}", at.label())));
+                    break;
+                }
+                Err(newer) => book = newer,
+            }
+        }
+    }
+
+    Ok(freed)
+}
+
+pub async fn installed(view: &View, app: &str) -> Result<()> {
+    let at = actions::where_of(&view.device);
+    let mut book = Book::open(&at).await?;
+    let key = key(&view.device);
+
+    for _ in 0..RETRIES {
+        let mut ledger = book.ledger.clone();
+
+        ledger.installed.entry(key.id.clone()).or_default().insert(app.to_string());
+
+        if let Some(lease) = ledger.leases.get_mut(&key.id).filter(|l| l.owned_by(agent::me())) {
+            lease.app = Some(app.to_string());
+        }
+
+        match book.commit(&ledger, &[]).await? {
+            Ok(_) => return Ok(()),
+            Err(newer) => book = newer,
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+pub struct Beat(tokio::task::JoinHandle<()>);
+
+impl Drop for Beat {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+pub fn heartbeat(view: &View) -> Beat {
+    let view = view.clone();
+    let every = config::get().ttl(&view.device) / 4;
+
+    Beat(tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(every.max(Duration::from_secs(15))).await;
+
+            let _ = acquire(&view, Take::Respect).await;
+        }
+    }))
+}
+
 pub async fn tree(project: &Project) -> Result<String> {
     let at = Where::of(project.host());
     let dir = project.dir();
@@ -335,7 +702,7 @@ pub async fn tree(project: &Project) -> Result<String> {
         .with_context(|| format!("locating {dir} on {}", at.label()))?;
 
     if !ran.ok() {
-        anyhow::bail!("locating {dir} on {}: {}", at.label(), ran.said);
+        bail!("locating {dir} on {}: {}", at.label(), ran.said);
     }
 
     let tree = ran.text().trim().to_string();
@@ -345,104 +712,7 @@ pub async fn tree(project: &Project) -> Result<String> {
     Ok(tree)
 }
 
-pub enum Caller {
-    Nowhere,
-    Beside,
-    Elsewhere {
-        project: String,
-        tree: String,
-    },
-}
-
-/// Refuses a running device that another project holds.
-///
-/// `claim` guards `up`; this guards everything after it. A hold only `up`
-/// honoured would stop a second project's launch and let a second agent's
-/// `tap` straight through, and the tap is the invasion: from then on the
-/// holder's snapshots describe a screen somebody else is driving.
-///
-/// A project of one's own is needed to be let in, not to be refused: a verb
-/// typed outside any checkout is nobody, and nobody is not the holder.
-pub async fn check(view: &View) -> Result<()> {
-    if !actions::running(&view.reach) {
-        return Ok(());
-    }
-
-    let leases = Leases::open(&actions::where_of(&view.device)).await?;
-
-    let Some(holder) = leases.holder(key(&view.device)) else {
-        return Ok(());
-    };
-
-    let caller = match Project::here().ok().flatten() {
-        Some(project) => {
-            let tree = tree(&project).await?;
-
-            if holder.admits(&tree, session().as_deref()) {
-                return Ok(());
-            }
-
-            match tree == holder.tree {
-                true => Caller::Beside,
-                false => Caller::Elsewhere {
-                    project: project.name(),
-                    tree,
-                },
-            }
-        }
-        None => Caller::Nowhere,
-    };
-
-    Err(crate::Refused(refusal(&view.device.label, holder, &caller)).into())
-}
-
-/// What a refused agent reads. It has to say whose the device is, why the
-/// refusal is not a bug to route around, and the two ways past it — with the
-/// one that walks over the other session named last and as a question to ask.
-pub fn refusal(label: &str, holder: &Holder, caller: &Caller) -> String {
-    let (project, tree) = match caller {
-        Caller::Nowhere => {
-            return format!(
-                "{label} is held by {}, and this is not running from a project\n\
-                 a verb typed outside any checkout is nobody, and nobody is not the holder, so the hold refuses it even when the hold is its own\n\
-                 run it from {}, or pick a device nobody holds (`phone device list` names every holder)",
-                holder.label(),
-                holder.go_to()
-            );
-        }
-        Caller::Beside => {
-            return format!(
-                "{label} is held from this same checkout under a different session id: {}\n\
-                 usually another agent working here, whose reinstalls and restarts would land in the middle of your run; but a session id is a best guess, and a `/clear` or a resume gives this same agent a new one\n\
-                 if you took this device earlier in this conversation, it is yours: `phone up --take` moves the hold to this session id\n\
-                 otherwise pick a device nobody holds (`phone device list` names every holder), or wait for its `phone down`; ask before taking it",
-                holder.label()
-            );
-        }
-        Caller::Elsewhere { project, tree } => (project, tree),
-    };
-
-    if *project == holder.project {
-        return format!(
-            "{label} is held by {}, which is another checkout of {project} and not this one\n\
-             the hold is on {}, this is {tree}\n\
-             run it from {}, or `phone up --take` here to move the hold; ask before using it",
-            holder.label(),
-            holder.at(),
-            holder.go_to()
-        );
-    }
-
-    format!(
-        "{label} is held by {}: another agent's session is on it, and driving it from here would put your screens in front of theirs\n\
-         pick a device nobody holds (`phone device list` names every holder), or have that agent release it with `phone down` in {}\n\
-         `phone up --take` there overrides the hold; ask before using it",
-        holder.label(),
-        holder.go_to()
-    )
-}
-
-pub async fn ledgers(views: &[View]) -> Vec<(Where, Leases)> {
+pub async fn books(views: &[View]) -> Vec<Book> {
     let mut hosts: Vec<Where> = Vec::new();
 
     for view in views {
@@ -453,9 +723,7 @@ pub async fn ledgers(views: &[View]) -> Vec<(Where, Leases)> {
         }
     }
 
-    let opened = hosts
-        .into_iter()
-        .map(|at| async move { Leases::open(&at).await.ok().map(|leases| (at, leases)) });
+    let opened = hosts.into_iter().map(|at| async move { Book::fetch(&at).await.ok() });
 
     futures_util::future::join_all(opened)
         .await
@@ -464,369 +732,188 @@ pub async fn ledgers(views: &[View]) -> Vec<(Where, Leases)> {
         .collect()
 }
 
-pub fn holds(views: &[View], ledgers: &[(Where, Leases)]) -> BTreeMap<String, Holder> {
+pub fn book_of<'a>(books: &'a [Book], device: &Device) -> Option<&'a Book> {
+    let at = actions::where_of(device);
+
+    books.iter().find(|b| b.at == at)
+}
+
+pub fn holds(views: &[View], books: &[Book]) -> BTreeMap<String, Lease> {
     views
         .iter()
-        .filter(|v| actions::running(&v.reach))
         .filter_map(|view| {
-            let at = actions::where_of(&view.device);
-            let (_, leases) = ledgers.iter().find(|(known, _)| *known == at)?;
-            let holder = leases.holder(key(&view.device))?;
+            let book = book_of(books, &view.device)?;
 
-            Some((view.device.id.clone(), holder.clone()))
+            match book.standing(&view.device, actions::running(&view.reach)) {
+                Standing::Mine(lease) | Standing::Held(lease) => Some((view.device.id.clone(), lease)),
+                Standing::Free(_) => None,
+            }
         })
         .collect()
 }
 
-pub async fn mine() -> Option<Holder> {
-    let project = Project::here().ok().flatten()?;
-    let tree = tree(&project).await.ok()?;
+pub mod sticky {
+    use super::*;
 
-    Some(
-        Holder::of(&tree, &project.name())
-            .by(session().as_deref())
-            .typed_in(&project.root),
-    )
-}
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct Last {
+        pub device: String,
+        pub label: String,
+        pub seen: Unix,
+    }
 
-/// Drops whatever hold a device this process just booted carried: the session
-/// that held it did not survive the shutdown, and a hold with no session behind
-/// it would refuse everyone until somebody found the right checkout to run
-/// `phone down` in.
-pub async fn forget(view: &View) -> Result<Option<String>> {
-    let mut leases = Leases::open(&actions::where_of(&view.device)).await?;
+    pub fn last() -> Option<Last> {
+        let body = std::fs::read(agent::file("agents", &agent::me().id)).ok()?;
 
-    let Some(had) = leases.release(key(&view.device)) else {
-        return Ok(None);
-    };
+        serde_json::from_slice(&body).ok()
+    }
 
-    leases.save().await?;
+    pub fn remember(view: &View, lease: &Lease) {
+        let path = agent::file("agents", &agent::me().id);
+        let last = Last {
+            device: view.device.id.clone(),
+            label: view.device.label.clone(),
+            seen: lease.last_seen,
+        };
 
-    Ok(Some(format!(
-        "{} was held by {}; that session did not survive the shutdown, so the hold is dropped",
-        view.device.label,
-        had.label()
-    )))
+        let _ = path.parent().map(std::fs::create_dir_all);
+        let _ = serde_json::to_vec(&last).map(|body| std::fs::write(path, body));
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Platform;
 
-    fn temp(what: &str) -> String {
-        std::env::temp_dir()
-            .join(format!("phone-leases-{what}-{}", std::process::id()))
-            .display()
-            .to_string()
+    fn me(id: &str) -> Agent {
+        Agent {
+            id: id.into(),
+            label: agent::short(id),
+            host: "nyx".into(),
+            harness: Harness::Claude,
+            pid: Some(10),
+            start: Some("500".into()),
+            shared: false,
+        }
     }
 
-    async fn reread(dir: &str) -> Leases {
-        let ran = Where::Here
-            .exec(
-                r#"cat "$1/leases.json" 2>/dev/null; exit 0"#,
-                &[dir],
-                TIMEOUT,
-            )
-            .await
-            .unwrap();
-
-        Leases::read(Where::Here, dir, &ran.stdout)
+    fn held(by: &Agent, last_seen: Unix) -> Lease {
+        Lease {
+            last_seen,
+            since: last_seen,
+            ..Lease::of(by, Duration::from_secs(1200), last_seen)
+        }
     }
 
-    #[tokio::test]
-    async fn a_hold_survives_the_process_that_took_it() {
-        let dir = temp("kept");
-        let mut leases = Leases::read(Where::Here, &dir, b"");
-
-        leases.take("emu:1", Holder::of("/a", "alpha"));
-        leases.save().await.unwrap();
-
-        let read = reread(&dir).await;
-
-        assert_eq!(
-            read.holder("emu:1").map(|h| h.project.as_str()),
-            Some("alpha")
-        );
-        assert_eq!(read.holder("emu:2"), None);
-
-        std::fs::remove_dir_all(&dir).unwrap();
+    fn living(_: u32, start: &str) -> bool {
+        start == "500"
     }
 
-    async fn opened(state: &str) -> Leases {
-        let ran = Where::Here
-            .exec(&format!("XDG_STATE_HOME='{state}'\n{OPEN}"), &[], TIMEOUT)
-            .await
-            .unwrap();
-
-        Leases::opened(Where::Here, &ran.text())
-    }
-
-    #[tokio::test]
-    async fn one_read_brings_back_the_holds_and_the_usage_beside_them() {
-        let state = temp("usage");
-        let pixel = Device::new("avd:pixel", "pixel", Platform::Emulator);
-
-        let empty = opened(&state).await;
-
-        assert!(empty.holder("avd:pixel").is_none());
-        assert_eq!(empty.usage.of(&pixel, None).all, None);
-
-        std::fs::create_dir_all(format!("{state}/phone")).unwrap();
-        std::fs::write(
-            format!("{state}/phone/leases.json"),
-            r#"{"avd:pixel":{"tree":"/a","project":"alpha","since":1}}"#,
-        )
-        .unwrap();
-
-        assert!(opened(&state).await.holder("avd:pixel").is_some());
-
-        std::fs::write(format!("{state}/phone/usage.tsv"), "avd:pixel\t/a\t5\t7\n").unwrap();
-
-        let both = opened(&state).await;
-
-        assert_eq!(both.dir, format!("{state}/phone"));
-        assert!(both.holder("avd:pixel").is_some());
-        assert_eq!(
-            both.usage.of(&pixel, Some("/a")).project.map(|u| u.count),
-            Some(7)
-        );
-
-        std::fs::remove_dir_all(&state).unwrap();
-    }
-
-    #[test]
-    fn the_holder_is_only_somebody_else_from_another_tree() {
-        let mut leases = Leases::default();
-
-        leases.take("emu:1", Holder::of("/a", "alpha"));
-
-        assert!(leases.other("emu:1", "/a", None).is_none());
-        assert_eq!(
-            leases
-                .other("emu:1", "/b", None)
-                .map(|h| h.project.as_str()),
-            Some("alpha")
-        );
-        assert!(leases.other("emu:2", "/b", None).is_none());
-    }
-
-    #[test]
-    fn a_second_session_in_the_same_tree_is_somebody_else() {
-        let mut leases = Leases::default();
-
-        leases.take("emu:1", Holder::of("/a", "alpha").by(Some("one")));
-
-        assert!(leases.other("emu:1", "/a", Some("one")).is_none());
-        assert_eq!(
-            leases
-                .other("emu:1", "/a", Some("two"))
-                .and_then(|h| h.session.as_deref()),
-            Some("one")
-        );
-    }
-
-    #[test]
-    fn a_side_with_no_session_is_let_in_by_its_tree() {
-        let old: Holder =
-            serde_json::from_str(r#"{"tree":"/a","project":"alpha","since":1000}"#).unwrap();
-
-        assert_eq!(old.session, None);
-        assert!(old.admits("/a", Some("two")));
-        assert!(!old.admits("/b", Some("two")));
-
-        assert!(Holder::of("/a", "alpha").by(Some("one")).admits("/a", None));
-    }
-
-    #[test]
-    fn renewing_a_hold_from_before_sessions_stamps_the_session() {
-        let mut leases = Leases::default();
-        let mut old = Holder::of("/a", "alpha");
-
-        old.since = 1_000;
-        leases.take("emu:1", old);
-        leases.take("emu:1", Holder::of("/a", "alpha").by(Some("one")));
-
-        let holder = leases.holder("emu:1").unwrap();
-
-        assert_eq!(
-            (holder.since, holder.session.as_deref()),
-            (1_000, Some("one"))
-        );
-    }
-
-    #[test]
-    fn a_hold_without_a_session_is_written_as_before() {
-        let body = serde_json::to_string(&Holder::of("/a", "alpha")).unwrap();
-
-        assert!(!body.contains("session"));
-    }
-
-    #[test]
-    fn a_second_session_is_told_the_hold_is_in_its_own_checkout() {
-        let said = refusal(
-            "Pixel 9",
-            &Holder::of("/home/x/hotline", "hotline").by(Some("5dac5f28-ad4e-48bf")),
-            &Caller::Beside,
-        );
-
-        assert!(said.contains("under a different session id: hotline, session 5dac5f28 ("));
-        assert!(said.contains("a `/clear` or a resume"));
-        assert!(said.ends_with("ask before taking it"));
-    }
-
-    fn elsewhere(project: &str, tree: &str) -> Caller {
-        Caller::Elsewhere {
-            project: project.to_string(),
-            tree: tree.to_string(),
+    fn judge(now: Unix, dead: &BTreeSet<(u32, String)>) -> Judge<'_> {
+        Judge {
+            now,
+            book_host: "rose",
+            dead,
+            here: "nyx",
+            alive: living,
         }
     }
 
     #[test]
-    fn a_refusal_names_the_holder_and_where_to_release_it() {
-        let said = refusal(
-            "Pixel 9",
-            &Holder::of("/home/x/hotline", "hotline"),
-            &elsewhere("clipz", "/home/x/clipz"),
-        );
+    fn a_lease_lapses_after_its_ttl() {
+        let none = BTreeSet::new();
+        let lease = held(&me("a"), 1_000);
 
-        assert!(said.starts_with("Pixel 9 is held by hotline ("));
-        assert!(said.contains("`phone down` in /home/x/hotline"));
-        assert!(said.ends_with("ask before using it"));
+        assert!(judge(1_000 + 1199, &none).valid(&lease, true));
+        assert!(!judge(1_000 + 1200, &none).valid(&lease, true));
     }
 
     #[test]
-    fn a_refusal_says_which_machine_the_tree_is_on() {
-        let said = refusal(
-            "Pixel 9",
-            &Holder::of("/ext/projects/hotline", "hotline").on(Some("rose")),
-            &elsewhere("clipz", "/home/x/clipz"),
-        );
+    fn a_dead_holder_frees_the_device_at_once() {
+        let none = BTreeSet::new();
+        let mut lease = held(&me("a"), 1_000);
 
-        assert!(said.contains("`phone down` in /ext/projects/hotline on rose"));
+        lease.start = Some("499".into());
+        assert!(!judge(1_001, &none).valid(&lease, true), "same host as the client, wrong start");
+
+        let mut there = held(&me("a"), 1_000);
+        there.host = "rose".into();
+        let dead = BTreeSet::from([(10, "500".to_string())]);
+
+        assert!(!judge(1_001, &dead).valid(&there, true), "reported dead by the ledger host");
+        assert!(judge(1_001, &none).valid(&there, true));
+
+        let mut elsewhere = held(&me("a"), 1_000);
+        elsewhere.host = "laptop".into();
+        assert!(judge(1_001, &dead).valid(&elsewhere, true), "a third machine is ttl only");
     }
 
     #[test]
-    fn a_refused_agent_is_sent_to_the_checkout_up_ran_in() {
-        let said = refusal(
-            "Pixel 9",
-            &Holder::of("/ext/projects/hotline", "hotline")
-                .on(Some("rose"))
-                .typed_in(std::path::Path::new("/home/x/hotline")),
-            &Caller::Nowhere,
-        );
+    fn a_lease_on_an_off_device_is_a_boot_reservation() {
+        let none = BTreeSet::new();
+        let lease = held(&me("a"), 1_000);
 
-        assert!(said.contains("run it from /home/x/hotline,"));
+        assert!(judge(1_000 + BOOT - 1, &none).valid(&lease, false));
+        assert!(!judge(1_000 + BOOT, &none).valid(&lease, false));
+        assert!(judge(1_000 + BOOT, &none).valid(&lease, true));
     }
 
     #[test]
-    fn nobody_is_not_told_it_walked_into_somebody() {
-        let said = refusal(
-            "Pixel 9",
-            &Holder::of("/home/x/hotline", "hotline"),
-            &Caller::Nowhere,
-        );
+    fn standing_says_whose_it_is() {
+        let none = BTreeSet::new();
+        let j = judge(1_100, &none);
+        let (a, b) = (me("a"), me("b"));
+        let mut ledger = Ledger::default();
+        let k = Key::from("avd:pixel");
 
-        assert!(said.contains("this is not running from a project"));
-        assert!(said.contains("run it from /home/x/hotline"));
-        assert!(!said.contains("another agent's session"));
+        assert_eq!(standing(&ledger, &k, &j, &a, true), Standing::Free(None));
+
+        ledger.put(&k, held(&a, 1_000));
+
+        assert!(matches!(standing(&ledger, &k, &j, &a, true), Standing::Mine(_)));
+        assert!(matches!(standing(&ledger, &k, &j, &b, true), Standing::Held(_)));
+
+        let mut resumed = a.clone();
+        resumed.start = Some("777".into());
+
+        assert!(matches!(standing(&ledger, &k, &j, &resumed, true), Standing::Held(_)));
     }
 
     #[test]
-    fn a_second_checkout_is_told_it_is_the_same_project() {
-        let said = refusal(
-            "Pixel 9",
-            &Holder::of("/ext/projects/hotline", "hotline").on(Some("rose")),
-            &elsewhere("hotline", "/home/x/hotline"),
-        );
+    fn renewal_waits_for_a_quarter_of_the_ttl() {
+        let lease = held(&me("a"), 1_000);
 
-        assert!(said.contains("another checkout of hotline and not this one"));
-        assert!(
-            said.contains("the hold is on /ext/projects/hotline on rose, this is /home/x/hotline")
-        );
-        assert!(!said.contains("another agent's session"));
+        assert!(!lease.due(1_000 + 299));
+        assert!(lease.due(1_000 + 300));
     }
 
     #[test]
-    fn renewing_a_hold_keeps_when_it_began() {
-        let mut leases = Leases::default();
-        let mut first = Holder::of("/a", "alpha");
-
-        first.since = 1_000;
-        leases.take("emu:1", first);
-        leases.take("emu:1", Holder::of("/a", "alpha"));
-
-        assert_eq!(leases.holder("emu:1").map(|h| h.since), Some(1_000));
-    }
-
-    #[test]
-    fn taking_over_replaces_the_holder_outright() {
-        let mut leases = Leases::default();
-
-        leases.take("emu:1", Holder::of("/a", "alpha"));
-        leases.take("emu:1", Holder::of("/b", "beta"));
-
-        let holder = leases.holder("emu:1").unwrap();
-
-        assert_eq!(
-            (holder.tree.as_str(), holder.project.as_str()),
-            ("/b", "beta")
+    fn old_leases_import_expired_from_since() {
+        let ledger = Ledger::parse(
+            r#"{"avd:pixel":{"tree":"/a","project":"hotline","since":1000,"session":"5dac5f28-ad4e"}}"#,
         );
+        let lease = &ledger.leases["avd:pixel"];
+        let none = BTreeSet::new();
+
+        assert_eq!((lease.agent.as_str(), lease.last_seen), ("legacy:5dac5f28-ad4e", 1_000));
+        assert!(!judge(1_000 + 1200, &none).valid(lease, true));
+        assert_eq!(Ledger::parse("{ not json"), Ledger::default());
+        assert_eq!(Ledger::parse(""), Ledger::default());
     }
 
     #[test]
-    fn a_release_leaves_the_others_held() {
-        let mut leases = Leases::default();
+    fn the_body_puts_the_liveness_probe_where_the_host_script_greps_for_it() {
+        let mut ledger = Ledger::default();
+        ledger.put(&Key::from("avd:pixel"), held(&me("a"), 1_000));
 
-        leases.take("emu:1", Holder::of("/a", "alpha"));
-        leases.take("emu:2", Holder::of("/b", "beta"));
-
-        assert_eq!(
-            leases.release("emu:1").map(|h| h.project),
-            Some("alpha".into())
-        );
-        assert!(leases.holder("emu:1").is_none());
-        assert!(leases.holder("emu:2").is_some());
-    }
-
-    /// Half a file, or one from an older shape of the struct, must cost one
-    /// collision at most rather than every `up` on the host.
-    #[tokio::test]
-    async fn an_unreadable_file_reads_as_nothing_held() {
-        let dir = temp("bad");
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(format!("{dir}/leases.json"), b"{ not json").unwrap();
-
-        assert!(reread(&dir).await.holder("emu:1").is_none());
-
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn a_device_is_filed_as_its_own_host_spells_it() {
-        let mut sim = Device::new("mac/AAAA1111", "iPhone 17", Platform::Simulator);
-        sim.host = Some("mac".to_string());
-
-        let mut emu = Device::new("android_id:3333", "pixel", Platform::Emulator);
-        emu.host = Some("mac".to_string());
-
-        let local = Device::new("android_id:4444", "pixel", Platform::Emulator);
-
-        let mut avd = Device::new("avd:mac/pixel", "pixel", Platform::Emulator);
-        avd.host = Some("mac".to_string());
-
-        assert_eq!(key(&avd).id, "avd:pixel");
-
-        assert_eq!(key(&sim).id, "AAAA1111");
-        assert_eq!(key(&emu).id, "android_id:3333");
-        assert_eq!(key(&local).id, "android_id:4444");
+        assert!(ledger.body().contains(r#""host":"nyx","pid":10,"start":"500""#));
+        assert_eq!(Ledger::parse(&ledger.body()), Ledger { v: 2, ..ledger });
     }
 
     #[test]
     fn a_hold_under_the_android_id_follows_the_row_to_its_avd() {
-        let mut leases = Leases::default();
-
-        leases.take("android_id:dc3f6e59", Holder::of("/a", "alpha"));
+        let mut ledger = Ledger::default();
+        ledger.leases.insert("android_id:dc3f6e59".into(), held(&me("a"), 1_000));
 
         let mut pixel = Device::new("avd:rose/pixel", "pixel", Platform::Emulator);
         pixel.host = Some("rose".to_string());
@@ -835,29 +922,88 @@ mod tests {
         let mut clone = Device::new("avd:rose/pixel-c", "pixel-c", Platform::Emulator);
         clone.host = Some("rose".to_string());
 
-        assert_eq!(
-            leases.other(key(&pixel), "/b", None).map(|h| h.project.as_str()),
-            Some("alpha")
-        );
-        assert!(
-            leases.other(key(&clone), "/b", None).is_none(),
-            "a clone does not own its source's android_id"
-        );
+        assert!(ledger.get(&key(&pixel)).is_some());
+        assert!(ledger.get(&key(&clone)).is_none());
 
-        leases.take(key(&pixel), Holder::of("/a", "alpha"));
+        ledger.put(&key(&pixel), held(&me("b"), 1_000));
 
-        assert!(leases.holder("android_id:dc3f6e59").is_none());
-        assert_eq!(
-            leases.holder("avd:pixel").map(|h| h.project.as_str()),
-            Some("alpha")
-        );
+        assert!(!ledger.leases.contains_key("android_id:dc3f6e59"));
+        assert_eq!(ledger.leases["avd:pixel"].agent, "b");
+    }
+
+    #[test]
+    fn a_device_is_filed_as_its_own_host_spells_it() {
+        let mut sim = Device::new("mac/AAAA1111", "iPhone 17", Platform::Simulator);
+        sim.host = Some("mac".to_string());
+
+        let mut avd = Device::new("avd:mac/pixel", "pixel", Platform::Emulator);
+        avd.host = Some("mac".to_string());
+
+        assert_eq!(key(&avd).id, "avd:pixel");
+        assert_eq!(key(&sim).id, "AAAA1111");
+        assert_eq!(key(&Device::new("android_id:4444", "p", Platform::Emulator)).id, "android_id:4444");
+    }
+
+    async fn run(state: &str, args: &[&str]) -> (Status, Book) {
+        let ran = Where::Here
+            .exec(&format!("XDG_STATE_HOME='{state}'\n{LEDGER}"), args, TIMEOUT)
+            .await
+            .unwrap();
+
+        (ran.status, Book::parse(&Where::Here, &String::from_utf8_lossy(&ran.stdout)).unwrap())
     }
 
     #[tokio::test]
-    async fn a_ledger_that_came_from_nowhere_is_not_written_anywhere() {
-        let mut leases = Leases::default();
+    async fn the_host_script_writes_only_over_the_sum_it_was_shown() {
+        let state = std::env::temp_dir()
+            .join(format!("phone-ledger-{}", std::process::id()))
+            .display()
+            .to_string();
 
-        leases.take("emu:1", Holder::of("/a", "alpha"));
-        leases.save().await.unwrap();
+        let (status, empty) = run(&state, &["-"]).await;
+        assert_eq!((status, empty.ledger.leases.len()), (Status::Code(0), 0));
+
+        let mut ledger = Ledger::default();
+        ledger.put(&Key::from("avd:pixel"), held(&me("a"), 1_000));
+
+        let body = ledger.body();
+        let (status, wrote) = run(&state, &[&empty.sum, &body, "avd:pixel", "/a", "5"]).await;
+        assert_eq!(status, Status::Code(0));
+        assert_eq!(wrote.ledger.leases["avd:pixel"].agent, "a");
+        assert_ne!(wrote.sum, empty.sum);
+        assert!(wrote.usage.of(&Device::new("avd:pixel", "pixel", Platform::Emulator), Some("/a")).project.is_some());
+
+        let (status, stale) = run(&state, &[&empty.sum, "{}"]).await;
+        assert_eq!(status, Status::Code(CONFLICT));
+        assert_eq!(stale.ledger.leases["avd:pixel"].agent, "a", "a stale write leaves the file alone");
+        assert_eq!(stale.sum, wrote.sum);
+
+        std::fs::remove_dir_all(&state).unwrap();
+    }
+
+    #[tokio::test]
+    async fn the_host_script_reports_holders_on_its_own_machine_that_died() {
+        let state = std::env::temp_dir()
+            .join(format!("phone-dead-{}", std::process::id()))
+            .display()
+            .to_string();
+
+        let host = agent::hostname();
+        let pid = std::process::id();
+        let start = agent::start(pid).unwrap();
+        let mut ledger = Ledger::default();
+
+        for (k, start) in [("live", start.as_str()), ("dead", "1")] {
+            let mut lease = held(&me("a"), 1_000);
+            (lease.host, lease.pid, lease.start) = (host.clone(), Some(pid), Some(start.to_string()));
+            ledger.put(&Key::from(k), lease);
+        }
+
+        let (_, empty) = run(&state, &["-"]).await;
+        let (_, book) = run(&state, &[&empty.sum, &ledger.body()]).await;
+
+        assert_eq!(book.dead, BTreeSet::from([(pid, "1".to_string())]));
+
+        std::fs::remove_dir_all(&state).unwrap();
     }
 }

@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::hook::Harness;
 use crate::model::Device;
-use crate::{lease, registry};
+use crate::registry;
 
 const HEAD: usize = 4096;
 const TAIL: usize = 2048;
@@ -358,7 +358,7 @@ pub fn finish(exit: Option<i32>, exec: Option<String>) {
     record.harness = harness()
         .and_then(|h| h.to_possible_value())
         .map(|v| v.get_name().to_string());
-    record.session = lease::session();
+    record.session = Some(crate::agent::me().id.clone());
     record.env = ENV
         .iter()
         .filter_map(|&name| Some((name, std::env::var(name).ok()?)))

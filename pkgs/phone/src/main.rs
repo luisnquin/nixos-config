@@ -229,7 +229,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             let opts = up::Opts {
                 profile,
                 rebuild,
-                take,
+                take: take.into(),
                 over_budget,
                 timeout,
             };
@@ -349,7 +349,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                         resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
 
                     // turning off the device somebody else is holding ends their session
-                    lease::check(&view).await?;
+                    lease::guard(&view, lease::Take::Respect).await?;
 
                     eprintln!("phone: {}", actions::stop(&view.device, &view.reach).await?);
 
@@ -743,14 +743,14 @@ async fn list(reg: &mut Registry, json: bool) -> Result<()> {
     reg.save()?;
 
     let hosts = memory::hosts_of(&views);
-    let (ledgers, mine, rooms) = tokio::join!(lease::ledgers(&views), lease::mine(), async {
+    let (books, tree, rooms) = tokio::join!(lease::books(&views), lease::here_tree(), async {
         match json {
             true => Vec::new(),
             false => memory::rooms(reg, &views, &hosts).await,
         }
     });
-    let holds = lease::holds(&views, &ledgers);
-    let driven = usage::driven(&views, &ledgers, mine.as_ref().map(|m| m.tree.as_str()));
+    let holds = lease::holds(&views, &books);
+    let driven = usage::driven(&views, &books, tree.as_deref());
 
     usage::rank(&mut views, |v| {
         driven.get(&v.device.id).copied().unwrap_or_default()
@@ -767,7 +767,7 @@ async fn list(reg: &mut Registry, json: bool) -> Result<()> {
         );
     }
 
-    print_table(&views, &holds, &driven, mine.as_ref());
+    print_table(&views, &holds, &driven);
 
     for line in memory::lines(&rooms, memory::Room::advice) {
         println!("{line}");
@@ -2216,15 +2216,14 @@ async fn reaching(
 async fn admit(view: View, hold: Hold) -> Result<View> {
     calls::device(&view.device);
 
-    let (held, looked, ()) = tokio::join!(
+    let (held, looked) = tokio::join!(
         async {
             match hold {
-                Hold::Respected => lease::check(&view).await,
+                Hold::Respected => lease::guard(&view, lease::Take::Respect).await,
                 Hold::Ignored => Ok(()),
             }
         },
-        pids::look(&view),
-        usage::stamp(&view.device)
+        pids::look(&view)
     );
 
     held?;
@@ -2513,14 +2512,14 @@ async fn on_host(
     let at = ssh::Where::of(Some(host));
     let pool = pool(views, host, kind);
 
-    let (ledger, mine) = tokio::join!(lease::Leases::open(&at), lease::mine());
-    let ledger = ledger.ok();
-    let tree = mine.as_ref().map(|me| me.tree.as_str());
+    let (book, tree) = tokio::join!(lease::Book::open(&at), lease::here_tree());
+    let book = book.ok();
+    let tree = tree.as_deref();
 
     let driven: BTreeMap<String, usage::Driven> = pool
         .iter()
         .map(|v| {
-            let used = ledger.as_ref().map(|l| l.usage.of(&v.device, tree));
+            let used = book.as_ref().map(|b| b.usage.of(&v.device, tree));
 
             (v.device.id.clone(), used.unwrap_or_default())
         })
@@ -2540,13 +2539,8 @@ async fn on_host(
     }
 
     let free = |v: &View| {
-        let held = ledger
-            .as_ref()
-            .and_then(|l| l.holder(lease::key(&v.device)));
-
-        held.is_none_or(|h| {
-            mine.as_ref()
-                .is_some_and(|me| h.admits(&me.tree, me.session.as_deref()))
+        book.as_ref().is_none_or(|b| {
+            !matches!(b.standing(&v.device, actions::running(&v.reach)), lease::Standing::Held(_))
         })
     };
 
@@ -2560,18 +2554,17 @@ async fn on_host(
     Err(Refused(stranded(host, &pool, &driven, room.as_ref())).into())
 }
 
-fn whose(holder: &lease::Holder, mine: Option<&lease::Holder>) -> String {
-    match mine.is_some_and(|me| holder.admits(&me.tree, me.session.as_deref())) {
+fn whose(holder: &lease::Lease) -> String {
+    match holder.owned_by(agent::me()) {
         true => format!("yours ({})", model::ago(holder.since)),
-        false => holder.label(),
+        false => holder.describe(model::now()),
     }
 }
 
 fn print_table(
     views: &[View],
-    holds: &BTreeMap<String, lease::Holder>,
+    holds: &BTreeMap<String, lease::Lease>,
     driven: &BTreeMap<String, usage::Driven>,
-    mine: Option<&lease::Holder>,
 ) {
     if views.is_empty() {
         eprintln!("phone: nothing reachable or remembered");
@@ -2614,7 +2607,7 @@ fn print_table(
             driven.get(&d.id).copied().unwrap_or_default().label(),
             holds
                 .get(&d.id)
-                .map(|holder| whose(holder, mine))
+                .map(whose)
                 .unwrap_or_default(),
         );
 
@@ -2639,7 +2632,7 @@ fn listed_name(views: &[View], d: &model::Device) -> String {
 
 fn print_json(
     views: &[View],
-    holds: &BTreeMap<String, lease::Holder>,
+    holds: &BTreeMap<String, lease::Lease>,
     driven: &BTreeMap<String, usage::Driven>,
 ) -> Result<()> {
     let rows: Vec<serde_json::Value> = views

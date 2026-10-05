@@ -26,7 +26,7 @@ use tokio::sync::Mutex;
 
 use crate::connect;
 use crate::discover::{self, survey};
-use crate::lease::{self, Holder, Leases};
+use crate::lease::{self, Book, Lease, Standing};
 use crate::model::{self, Device, Platform, Reach, View};
 use crate::pids;
 use crate::project::{Build, Level, Project, Spec, Task};
@@ -48,8 +48,7 @@ pub struct Opts {
     pub profile: Option<String>,
     /// Run the build steps whatever the stamps say.
     pub rebuild: bool,
-    /// Take a device another project holds.
-    pub take: bool,
+    pub take: lease::Take,
     pub over_budget: bool,
     pub timeout: Duration,
 }
@@ -568,7 +567,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         *view = attach(reg, name, spec, view.clone()).await?;
     }
 
-    claim(project, &site, &wanted, &booted, opts.take).await?;
+    claim(&wanted, opts.take).await?;
 
     let lanes = lanes(&wanted);
     let tagged = lanes.len() > 1;
@@ -601,80 +600,20 @@ fn all_of(outcomes: Vec<Result<()>>) -> Result<()> {
 /// A device, what it was declared to be, and where it currently is.
 type Climb<'a> = (&'a str, &'a Spec, View);
 
-/// Puts this project's name on every device the run is about to converge, and
-/// refuses the ones another project holds.
-///
-/// Before the builds rather than after: a build is minutes, and a device that
-/// turns out to be somebody else's should cost a line rather than a build.
-/// Every refusal is reported and not just the first, since the fix for each is
-/// the same and the reader wants the list once. Nothing is written when any
-/// device is refused, so a refused run leaves no trace.
-///
-/// A device this run booted is nobody's whatever the file says: the session
-/// that held it did not survive the shutdown.
-async fn claim(
-    project: &Project,
-    site: &Site,
-    wanted: &[Climb<'_>],
-    booted: &[String],
-    take: bool,
-) -> Result<()> {
-    let session = lease::session();
-    let mine = Holder::of(&site.key, &project.name())
-        .on(site.at.host())
-        .typed_in(&project.root)
-        .by(session.as_deref());
-    let mut hosts: Vec<(Where, Leases)> = Vec::new();
+async fn claim(wanted: &[Climb<'_>], take: lease::Take) -> Result<()> {
     let mut refused = Vec::new();
 
     for (name, _, view) in wanted {
-        let at = actions::where_of(&view.device);
-
-        let leases = match hosts.iter().position(|(known, _)| *known == at) {
-            Some(i) => &mut hosts[i].1,
-            None => {
-                hosts.push((at.clone(), Leases::open(&at).await?));
-                &mut hosts.last_mut().expect("just pushed").1
-            }
-        };
-
-        let fresh = booted.iter().any(|b| b == name);
-
-        if let Some(holder) = leases
-            .other(lease::key(&view.device), &site.key, session.as_deref())
-            .filter(|_| !fresh)
-        {
-            match take {
-                true => eprintln!("phone: {name} taken from {}", holder.label()),
-                false if holder.tree == site.key => {
-                    refused.push(format!(
-                        "{name} is held from this same checkout under a different session id: {}; usually another agent, or this one after a `/clear` or resume; its `phone down` releases it, `phone up --take` takes it",
-                        holder.label()
-                    ));
-
-                    continue;
-                }
-                false => {
-                    refused.push(format!(
-                        "{name} is held by {}; `phone down` in {} releases it, `phone up --take` takes it",
-                        holder.label(),
-                        holder.at()
-                    ));
-
-                    continue;
-                }
-            }
+        if let lease::Got::Busy(holder) = lease::acquire(view, take).await? {
+            refused.push(format!(
+                "{name} is held by {}; its holder's `phone release` frees it, `--take` takes it",
+                holder.describe(model::now())
+            ));
         }
-
-        leases.take(lease::key(&view.device), mine.clone());
     }
 
     if !refused.is_empty() {
         return Err(crate::Refused(refused.join("\n")).into());
-    }
-
-    for (_, leases) in &hosts {
-        leases.save().await?;
     }
 
     for (_, _, view) in wanted {
@@ -684,36 +623,26 @@ async fn claim(
     Ok(())
 }
 
-async fn hold_on(site: &Site, view: &View) -> Option<(Holder, bool)> {
+async fn hold_on(view: &View) -> Option<(Lease, bool)> {
     reached(view)?;
 
-    let holder = Leases::open(&actions::where_of(&view.device))
-        .await
-        .ok()?
-        .holder(lease::key(&view.device))
-        .cloned()?;
+    let book = Book::fetch(&actions::where_of(&view.device)).await.ok()?;
 
-    let mine = holder.admits(&site.key, lease::session().as_deref());
-
-    Some((holder, mine))
+    match book.standing(&view.device, actions::running(&view.reach)) {
+        Standing::Mine(lease) => Some((lease, true)),
+        Standing::Held(lease) => Some((lease, false)),
+        Standing::Free(_) => None,
+    }
 }
 
-/// Drops this project's hold on a device, unless another project's session is
-/// running on it, in which case that holder is returned and nothing is touched.
-async fn released(site: &Site, view: &View) -> Result<Option<Holder>> {
-    let at = actions::where_of(&view.device);
-    let mut leases = Leases::open(&at).await?;
+async fn released(view: &View) -> Result<Option<Lease>> {
+    let book = Book::fetch(&actions::where_of(&view.device)).await?;
 
-    if let Some(holder) = leases
-        .other(lease::key(&view.device), &site.key, lease::session().as_deref())
-        .filter(|_| actions::running(&view.reach))
-    {
-        return Ok(Some(holder.clone()));
+    if let Standing::Held(lease) = book.standing(&view.device, actions::running(&view.reach)) {
+        return Ok(Some(lease));
     }
 
-    if leases.release(lease::key(&view.device)).is_some() {
-        leases.save().await?;
-    }
+    lease::release(view).await?;
 
     Ok(None)
 }
@@ -1244,18 +1173,18 @@ async fn row(
 
     // whatever rung it is on: a device that is prepared for this project and
     // being driven by another is the one case the rest of the row cannot see
-    let hold = hold_on(site, view).await;
+    let hold = hold_on(view).await;
 
     // ours is worth printing but is not drift
     let held = hold
         .as_ref()
         .filter(|(_, mine)| !mine)
-        .map(|(holder, _)| holder.label());
+        .map(|(holder, _)| holder.describe(model::now()));
 
     if let Some((holder, mine)) = &hold {
         let whose = match mine {
             true => format!("yours ({})", model::ago(holder.since)),
-            false => format!("held by {}", holder.label()),
+            false => format!("held by {}", holder.describe(model::now())),
         };
 
         note = match note.is_empty() {
@@ -1356,8 +1285,8 @@ pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
 
         // somebody else's session is on it, so neither its forwards nor its
         // power are this project's to touch
-        if let Some(holder) = released(&site, view).await? {
-            eprintln!("phone: {name} is held by {}, so it is left alone", holder.label());
+        if let Some(holder) = released(view).await? {
+            eprintln!("phone: {name} is held by {}, so it is left alone", holder.describe(model::now()));
 
             continue;
         }

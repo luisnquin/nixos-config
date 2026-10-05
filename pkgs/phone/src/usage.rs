@@ -1,31 +1,15 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
-use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::actions;
-use crate::lease::{self, Leases};
+use crate::lease::{self, Book};
 use crate::memory::Room;
 use crate::model::{self, Device, Platform, Unix, View};
-use crate::project::Project;
 use crate::ssh::Where;
 
-const TIMEOUT: Duration = Duration::from_secs(6);
-
-pub const MARK: &str = "\n@usage";
-
-const STAMP: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
-mkdir -p "$state" || exit 1
-file="$state/usage.tsv"
-tmp="$file.$$.tmp"
-{ cat "$file" 2>/dev/null; } | awk -F '\t' -v OFS='\t' -v d="$1" -v t="$2" -v at="$3" '
-NF < 4 { next }
-$1 == d && $2 == t { $3 = at; $4 = $4 + 1; hit = 1 }
-{ print }
-END { if (!hit) print d, t, at, 1 }' > "$tmp" && mv "$tmp" "$file""#;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Use {
     pub at: Unix,
     pub count: u64,
@@ -50,7 +34,7 @@ impl Use {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Usage {
     rows: BTreeMap<String, BTreeMap<String, Use>>,
 }
@@ -119,16 +103,15 @@ impl Driven {
 /// Device id -> how much it was driven, by the project at `tree` and by anyone.
 pub fn driven(
     views: &[View],
-    ledgers: &[(Where, Leases)],
+    books: &[Book],
     tree: Option<&str>,
 ) -> BTreeMap<String, Driven> {
     views
         .iter()
         .filter_map(|view| {
-            let at = actions::where_of(&view.device);
-            let (_, leases) = ledgers.iter().find(|(known, _)| *known == at)?;
+            let book = lease::book_of(books, &view.device)?;
 
-            Some((view.device.id.clone(), leases.usage.of(&view.device, tree)))
+            Some((view.device.id.clone(), book.usage.of(&view.device, tree)))
         })
         .collect()
 }
@@ -195,23 +178,6 @@ pub fn summary(
     }
 
     format!("{}: {}", at.label(), parts.join(" · "))
-}
-
-pub async fn stamp(device: &Device) {
-    let tree = match Project::here().ok().flatten() {
-        Some(project) => match lease::tree(&project).await {
-            Ok(tree) => tree,
-            Err(_) => return,
-        },
-        None => String::new(),
-    };
-
-    let at = model::now().to_string();
-    let key = lease::key(device).id;
-
-    let _ = actions::where_of(device)
-        .exec(STAMP, &[&key, &tree, &at], TIMEOUT)
-        .await;
 }
 
 #[cfg(test)]
@@ -327,40 +293,5 @@ pub(crate) mod tests {
 
         assert_eq!(driven.label(), "2h · 41×");
         assert_eq!(Driven::default().label(), "-");
-    }
-
-    #[tokio::test]
-    async fn a_stamp_counts_up_and_keeps_projects_apart() {
-        let dir = std::env::temp_dir()
-            .join(format!("phone-usage-{}", std::process::id()))
-            .display()
-            .to_string();
-
-        let stamp = |tree: &'static str, at: &'static str| {
-            let dir = dir.clone();
-
-            async move {
-                Where::Here
-                    .exec(
-                        &format!("XDG_STATE_HOME='{dir}'\n{STAMP}"),
-                        &["avd:pixel", tree, at],
-                        TIMEOUT,
-                    )
-                    .await
-                    .unwrap()
-            }
-        };
-
-        assert!(stamp("/a", "100").await.ok());
-        assert!(stamp("/a", "200").await.ok());
-        assert!(stamp("", "300").await.ok());
-
-        let text = std::fs::read_to_string(format!("{dir}/phone/usage.tsv")).unwrap();
-        let driven = Usage::parse(&text).of(&avd("pixel"), Some("/a"));
-
-        assert_eq!(driven.project, Some(Use { at: 200, count: 2 }));
-        assert_eq!(driven.all, Some(Use { at: 300, count: 3 }));
-
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

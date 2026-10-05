@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{self, Unix, View};
 use crate::project::Project;
-use crate::{adb, apps, lease, registry, stamps};
+use crate::{adb, agent, apps, registry};
 
 const TIMEOUT: Duration = Duration::from_secs(6);
 
@@ -49,7 +49,7 @@ pub async fn look(view: &View) -> Option<Look> {
     }
 
     let serial = view.reach.serial()?;
-    let path = file(&lease::session()?);
+    let path = agent::file("pids", &agent::me().id);
     let project = Project::here().ok().flatten()?;
     let app = apps::app_id(&project.manifest.build.get("android")?.app)
         .ok()?
@@ -114,11 +114,7 @@ dumpsys package {app} | grep -m1 lastUpdateTime"#
 }
 
 pub fn forget(device: &str) {
-    let Some(session) = lease::session() else {
-        return;
-    };
-
-    let path = file(&session);
+    let path = agent::file("pids", &agent::me().id);
     let mut seen = load(&path);
 
     if seen.remove(device).is_some() {
@@ -162,22 +158,6 @@ pub fn change(label: &str, before: &Seen, now: &Seen) -> Option<String> {
     }
 }
 
-fn file(session: &str) -> PathBuf {
-    let safe = session.len() <= 128
-        && session
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
-
-    let name = match safe {
-        true => session.to_string(),
-        false => stamps::hash(session.as_bytes()),
-    };
-
-    registry::state_dir()
-        .join("sessions")
-        .join(format!("{name}.json"))
-}
-
 fn load(path: &Path) -> BTreeMap<String, Seen> {
     std::fs::read(path)
         .ok()
@@ -189,6 +169,7 @@ fn save(path: &Path, seen: &BTreeMap<String, Seen>) -> Result<()> {
     let dir = path.parent().expect("a session file has a directory");
 
     std::fs::create_dir_all(dir)?;
+    let _ = std::fs::remove_dir_all(registry::state_dir().join("sessions"));
 
     let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
 
@@ -278,11 +259,11 @@ mod tests {
     }
 
     #[test]
-    fn a_session_token_that_is_not_a_file_name_is_hashed() {
-        let plain = file("5dac5f28-ad4e-48bf-b897-5b29850d2150");
-        let odd = file("../../etc/passwd");
+    fn an_agent_id_is_hashed_into_a_file_name() {
+        let plain = agent::file("pids", "1f636eb3-8a91/a6a8204d");
+        let odd = agent::file("pids", "../../etc/passwd");
 
-        assert!(plain.ends_with("sessions/5dac5f28-ad4e-48bf-b897-5b29850d2150.json"));
+        assert!(plain.parent().unwrap().ends_with("pids"));
         assert_eq!(odd.parent(), plain.parent());
         assert!(!odd.to_string_lossy().contains(".."));
     }

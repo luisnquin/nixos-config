@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::adb::{self, Server};
-use crate::lease::{self, Holder, Leases};
+use crate::lease::{Book, Standing};
 use crate::model::{Device, Platform, View};
 use crate::registry::Registry;
 use crate::ssh::Where;
@@ -204,7 +204,7 @@ fn gb(bytes: u64) -> f64 {
 pub struct Tenant {
     pub label: String,
     pub gb: f64,
-    pub holder: Option<Holder>,
+    pub holder: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -261,7 +261,7 @@ impl Room {
                         t.label,
                         t.gb,
                         match &t.holder {
-                            Some(holder) => format!("held by {}", holder.label()),
+                            Some(holder) => format!("held by {holder}"),
                             None => "unheld".to_string(),
                         }
                     ))
@@ -481,9 +481,9 @@ async fn room(budget: Budget, at: &Where, views: &[&View]) -> Result<Room> {
         .map(|v| v.device.label.as_str())
         .collect();
 
-    let (read, leases) = tokio::join!(read(at, &avds), Leases::open(at));
+    let (read, book) = tokio::join!(read(at, &avds), Book::fetch(at));
     let (memory, ram) = read?;
-    let leases = leases.unwrap_or_default();
+    let book = book.ok();
 
     let mut room = Room {
         at: at.clone(),
@@ -502,7 +502,7 @@ async fn room(budget: Budget, at: &Where, views: &[&View]) -> Result<Room> {
             (true, _) => room.tenants.push(Tenant {
                 label: device.label.clone(),
                 gb: room.cost(device),
-                holder: leases.holder(lease::key(device)).cloned(),
+                holder: book.as_ref().and_then(|b| held(b, device)),
             }),
             (false, Platform::Simulator) => room.simulators = true,
             (false, _) => {
@@ -514,6 +514,13 @@ async fn room(budget: Budget, at: &Where, views: &[&View]) -> Result<Room> {
     }
 
     Ok(room)
+}
+
+fn held(book: &Book, device: &Device) -> Option<String> {
+    match book.standing(device, true) {
+        Standing::Mine(lease) | Standing::Held(lease) => Some(lease.describe(crate::model::now())),
+        Standing::Free(_) => None,
+    }
 }
 
 pub async fn report(reg: &Registry, views: &[View], hosts: &[Where]) -> Vec<String> {
@@ -803,7 +810,7 @@ SwapFree:              0 kB
                 .map(|(label, gb, holder)| Tenant {
                     label: label.to_string(),
                     gb: *gb,
-                    holder: holder.map(|p| Holder::of(&format!("/p/{p}"), p)),
+                    holder: holder.map(|p| format!("{p} (claude on nyx, idle 3m)")),
                 })
                 .collect(),
             emulator: Some(2.5),

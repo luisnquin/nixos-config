@@ -126,6 +126,12 @@ fn identify(env: &Env, host: &str) -> Agent {
     of(user.clone(), user, Harness::User, None)
 }
 
+pub fn file(dir: &str, id: &str) -> std::path::PathBuf {
+    crate::registry::state_dir()
+        .join(dir)
+        .join(format!("{}.json", crate::stamps::hash(id.as_bytes())))
+}
+
 pub fn short(id: &str) -> String {
     id.chars().take(8).collect()
 }

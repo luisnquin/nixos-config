@@ -11,7 +11,7 @@ use crate::connect::{attached_serial, serial_of, Reporter};
 use crate::model::{Device, Platform, Reach, View};
 use crate::registry::Registry;
 use crate::ssh::Where;
-use crate::{avd, discover, ios, lease, memory, simctl, usage};
+use crate::{avd, discover, ios, lease, memory, simctl};
 
 const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 
@@ -1069,8 +1069,10 @@ pub fn running(reach: &Reach) -> bool {
 pub async fn arrive(reg: &mut Registry, view: &View) -> Result<(View, Vec<String>)> {
     let label = &view.device.label;
 
-    let (forgot, ()) = tokio::join!(lease::forget(view), usage::stamp(&view.device));
-    let mut notes: Vec<String> = forgot?.into_iter().collect();
+    let mut notes: Vec<String> = match lease::acquire(view, lease::Take::Respect).await? {
+        lease::Got::Held(_) => Vec::new(),
+        lease::Got::Busy(holder) => vec![format!("{label} booted, but {} holds it", holder.describe(crate::model::now()))],
+    };
 
     let found = discover::arrived(reg, std::slice::from_ref(&view.device)).await;
     reg.save()?;
