@@ -62,7 +62,7 @@ impl Seat {
     }
 
     fn last_resort(&self) -> bool {
-        self.free() && self.pick == Pick::Last && self.running()
+        (self.free() || self.mine()) && self.pick == Pick::Last && self.running()
     }
 }
 
@@ -76,7 +76,7 @@ fn best(seats: &[Seat], fit: impl Fn(&Seat) -> bool) -> Option<usize> {
 }
 
 pub fn plan(seats: &[Seat], sticky: Option<&str>, boot: bool) -> Plan {
-    if let Some(i) = best(seats, |s| s.mine() && s.reachable(boot)) {
+    if let Some(i) = best(seats, |s| s.mine() && s.pick.sticks() && s.reachable(boot)) {
         return match seats[i].running() {
             true => Plan::Use(i, None),
             false => Plan::Boot(i),
@@ -390,6 +390,19 @@ mod tests {
         seats[0].standing = Standing::Mine(holder());
 
         assert_eq!(plan(&seats, Some("avd:rose/b"), false), Plan::Use(0, None));
+    }
+
+    #[test]
+    fn a_held_last_resort_yields_to_a_free_pool_device() {
+        let mut seats = [seat("faraday", attached()), seat("a", attached())];
+        seats[0].pick = Pick::Last;
+        seats[0].standing = Standing::Mine(holder());
+
+        assert_eq!(label(&seats, &plan(&seats, None, false)), "a");
+
+        seats[1] = taken(seats[1].clone());
+
+        assert_eq!(label(&seats, &plan(&seats, None, false)), "faraday");
     }
 
     #[test]
