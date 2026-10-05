@@ -835,6 +835,10 @@ pub mod sticky {
     }
 
     pub fn remember(view: &View, lease: &Lease) {
+        if !config::get().pick(&view.device).sticks() {
+            return;
+        }
+
         let path = agent::file("agents", &agent::me().id);
         let last = Last {
             device: view.device.id.clone(),

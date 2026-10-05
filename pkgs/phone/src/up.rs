@@ -1130,7 +1130,10 @@ fn ours(views: &[View], books: &[Book], os: &str, last: Option<&lease::sticky::L
         .or_else(|| {
             let last = last?;
 
-            views.iter().filter(on).find(|v| v.device.id == last.device)
+            views
+                .iter()
+                .filter(on)
+                .find(|v| v.device.id == last.device && config::get().pick(&v.device).sticks())
         })
         .cloned()
 }

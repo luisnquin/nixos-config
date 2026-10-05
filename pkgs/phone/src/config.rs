@@ -68,6 +68,12 @@ pub enum Pick {
     Never,
 }
 
+impl Pick {
+    pub fn sticks(self) -> bool {
+        matches!(self, Pick::First | Pick::Normal)
+    }
+}
+
 fn span<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Duration>, D::Error> {
     let text = String::deserialize(d)?;
 
@@ -232,5 +238,17 @@ ttl = "2m"
 
         assert_eq!(virtualized.pick(&handset), Pick::Normal);
         assert_eq!(normal.pick(&handset), Pick::Normal);
+    }
+
+    #[test]
+    fn only_a_first_or_normal_device_is_remembered_between_verbs() {
+        let handset = Device::new("R58N", "faraday", Platform::Android);
+        let never = Config::parse("[devices.pixel_7-api36]\npick = \"never\"").unwrap();
+
+        assert!(!Config::default().pick(&handset).sticks());
+        assert!(!Config::parse(OWNER).unwrap().pick(&handset).sticks());
+        assert!(!never.pick(&avd("pixel_7-api36")).sticks());
+        assert!(Config::default().pick(&avd("pixel_7-api36")).sticks());
+        assert!(Config::parse("[devices.faraday]\npick = \"first\"").unwrap().pick(&handset).sticks());
     }
 }

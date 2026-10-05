@@ -2272,7 +2272,7 @@ async fn sticky(reg: &Registry) -> Option<View> {
     let last = lease::sticky::last()?;
     let view = discover::known::attached(reg, &last.device).await?;
 
-    (config::get().pick(&view.device) != config::Pick::Never).then_some(view)
+    config::get().pick(&view.device).sticks().then_some(view)
 }
 
 async fn named_admit(reg: &mut Registry, view: View, hold: Hold) -> Result<View> {

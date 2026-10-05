@@ -84,7 +84,7 @@ pub fn plan(seats: &[Seat], sticky: Option<&str>, boot: bool) -> Plan {
     }
 
     let sticky = sticky.and_then(|id| {
-        best(seats, |s| s.view.device.id == id && s.free() && s.pick != Pick::Never)
+        best(seats, |s| s.view.device.id == id && s.free() && s.pick.sticks())
     });
 
     let warm = sticky
@@ -181,6 +181,13 @@ pub fn alternative(seats: &[Seat]) -> Option<String> {
         .map(|i| offer(&seats[i]))
 }
 
+fn recalled(seats: &[Seat], last: &Last) -> bool {
+    seats
+        .iter()
+        .find(|s| s.view.device.id == last.device)
+        .is_none_or(|s| s.pick.sticks())
+}
+
 pub fn displaced(seats: &[Seat], last: &Last) -> Option<String> {
     let seat = seats.iter().find(|s| s.view.device.id == last.device)?;
 
@@ -222,7 +229,7 @@ pub async fn choose(
     boot: bool,
 ) -> Result<Chosen> {
     let seats = seated(views, reg, project, oses).await;
-    let last = lease::sticky::last();
+    let last = lease::sticky::last().filter(|l| recalled(&seats, l));
 
     if let Some(why) = last.as_ref().and_then(|l| stranded(&seats, l, boot)) {
         lease::sticky::forget();
@@ -439,6 +446,31 @@ mod tests {
         assert!(why.contains("`phone device boot -t b`"), "{why}");
         assert!(!why.contains("faraday"), "{why}");
         assert_eq!(plan(&seats, None, true), Plan::Boot(2));
+    }
+
+    #[test]
+    fn a_last_resort_is_never_recalled_as_the_sticky_device() {
+        let mut seats = [
+            seat("faraday", attached()),
+            taken(seat("a", attached())),
+            seat("b", Reach::Off),
+        ];
+        seats[0].pick = Pick::Last;
+
+        let last = Last {
+            device: "avd:rose/faraday".into(),
+            label: "faraday".into(),
+            seen: model::now(),
+        };
+
+        assert!(!recalled(&seats, &last));
+        assert!(matches!(plan(&seats, Some("avd:rose/faraday"), false), Plan::Refuse(_)));
+        assert_eq!(plan(&seats, Some("avd:rose/faraday"), true), Plan::Boot(2));
+
+        seats[0].pick = Pick::Normal;
+
+        assert!(recalled(&seats, &last));
+        assert_eq!(plan(&seats, Some("avd:rose/faraday"), false), Plan::Use(0, None));
     }
 
     #[test]
