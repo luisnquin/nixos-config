@@ -27,7 +27,7 @@ if [ "$1" != "-" ]; then
   n=0
   until mkdir "$lock" 2>/dev/null; do
     m=$(stat -c %Y "$lock" 2>/dev/null || stat -f %m "$lock" 2>/dev/null || echo 0)
-    [ $(( $(date +%s) - m )) -gt 5 ] && rmdir "$lock" 2>/dev/null
+    [ $(( $(date +%s) - m )) -gt 5 ] && mv "$lock" "$lock.$$" 2>/dev/null && rmdir "$lock.$$"
     n=$((n + 1))
     [ "$n" -gt 100 ] && { echo "phone: $lock is stuck" >&2; exit 1; }
     sleep 0.1 2>/dev/null || sleep 1
@@ -1045,6 +1045,33 @@ mod tests {
         assert_eq!(status, Status::Code(CONFLICT));
         assert_eq!(stale.ledger.leases["avd:pixel"].agent, "a", "a stale write leaves the file alone");
         assert_eq!(stale.sum, wrote.sum);
+
+        std::fs::remove_dir_all(&state).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_stale_lock_is_broken_by_renaming_it_first() {
+        let state = std::env::temp_dir().join(format!("phone-lock-{}", std::process::id()));
+        let lock = state.join("phone/leases.lock");
+
+        std::fs::create_dir_all(&lock).unwrap();
+        std::fs::File::open(&lock)
+            .unwrap()
+            .set_modified(std::time::SystemTime::now() - Duration::from_secs(60))
+            .unwrap();
+
+        let dir = state.display().to_string();
+        let (_, empty) = run(&dir, &["-"]).await;
+        let (status, _) = run(&dir, &[&empty.sum, "{\"v\":2}"]).await;
+
+        let left: Vec<_> = std::fs::read_dir(state.join("phone"))
+            .unwrap()
+            .filter_map(|e| e.ok()?.file_name().into_string().ok())
+            .filter(|name| name.starts_with("leases.lock"))
+            .collect();
+
+        assert_eq!(status, Status::Code(0));
+        assert!(left.is_empty(), "{left:?}");
 
         std::fs::remove_dir_all(&state).unwrap();
     }
