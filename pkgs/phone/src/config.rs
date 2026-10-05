@@ -46,7 +46,7 @@ pub struct Entry {
     #[serde(default)]
     pub kind: Option<Kind>,
     #[serde(default)]
-    pub pick: Pick,
+    pub pick: Option<Pick>,
     #[serde(default)]
     pub lease: Lease,
 }
@@ -124,7 +124,11 @@ impl Config {
     }
 
     pub fn pick(&self, device: &Device) -> Pick {
-        self.entry(device).map(|e| e.pick).unwrap_or_default()
+        match self.entry(device).and_then(|e| e.pick) {
+            Some(pick) => pick,
+            None if self.physical(device) => Pick::Last,
+            None => Pick::Normal,
+        }
     }
 
     pub fn physical(&self, device: &Device) -> bool {
@@ -214,5 +218,19 @@ ttl = "2m"
         assert!(Config::parse("[lease]\nttl = \"2 fortnights\"").is_err());
         assert!(Config::parse("[devices.x]\npick = \"sometimes\"").is_err());
         assert!(Config::parse("[hosts.rose]\nclones = true").is_err());
+    }
+
+    #[test]
+    fn a_handset_is_a_last_resort_unless_the_config_says_otherwise() {
+        let handset = Device::new("R58N", "faraday", Platform::Android);
+        let bare = Config::default();
+
+        assert_eq!(bare.pick(&handset), Pick::Last);
+
+        let virtualized = Config::parse("[devices.faraday]\nkind = \"virtual\"").unwrap();
+        let normal = Config::parse("[devices.faraday]\npick = \"normal\"").unwrap();
+
+        assert_eq!(virtualized.pick(&handset), Pick::Normal);
+        assert_eq!(normal.pick(&handset), Pick::Normal);
     }
 }
