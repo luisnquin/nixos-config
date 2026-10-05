@@ -113,7 +113,7 @@ fn booted(seats: &[Seat], cold: Option<usize>) -> Plan {
 }
 
 fn last(seats: &[Seat], cold: Option<usize>) -> Plan {
-    let Some(i) = best(seats, Seat::last_resort) else {
+    let Some(i) = best(seats, Seat::last_resort).filter(|_| cold.is_none()) else {
         return Plan::Refuse(refused(seats, cold.map(|i| &seats[i])));
     };
 
@@ -157,15 +157,28 @@ fn refused(seats: &[Seat], cold: Option<&Seat>) -> String {
     };
 
     said.push_str(&match cold {
-        Some(s) => format!(
-            "; {} is free and off: `phone device boot {}` starts it, or `phone up` allocates one",
-            s.view.device.label,
-            crate::quoted(&s.view.device.label)
-        ),
+        Some(s) => format!("; {}, or `phone up` allocates one", offer(s)),
         None => "; a holder's `phone release` frees one, `--take` takes one".to_string(),
     });
 
     said
+}
+
+fn offer(seat: &Seat) -> String {
+    let label = &seat.view.device.label;
+    let target = crate::quoted(label);
+
+    match seat.running() {
+        true => format!("{label} is free: `-t {target}`"),
+        false => format!("{label} is free (off): `phone device boot -t {target}`"),
+    }
+}
+
+pub fn alternative(seats: &[Seat]) -> Option<String> {
+    best(seats, |s| s.pool() && s.running())
+        .or_else(|| best(seats, |s| s.pool() && s.bootable()))
+        .or_else(|| best(seats, Seat::last_resort))
+        .map(|i| offer(&seats[i]))
 }
 
 pub fn displaced(seats: &[Seat], last: &Last) -> Option<String> {
@@ -188,14 +201,9 @@ pub fn stranded(seats: &[Seat], last: &Last, boot: bool) -> Option<String> {
     }
 
     let note = displaced(seats, last)?;
-    let instead = best(seats, |s| s.pool() && s.running()).or_else(|| best(seats, Seat::last_resort));
 
-    Some(match instead {
-        Some(i) => {
-            let label = &seats[i].view.device.label;
-
-            format!("{note}; {label} is free: `-t {}`, or run again to allocate one", crate::quoted(label))
-        }
+    Some(match alternative(seats) {
+        Some(instead) => format!("{note}; {instead}"),
         None => format!("{note}; no other device is free to allocate"),
     })
 }
@@ -213,13 +221,7 @@ pub async fn choose(
     oses: &[&'static str],
     boot: bool,
 ) -> Result<Chosen> {
-    let (books, tree) = tokio::join!(lease::books(views), lease::here_tree());
-    let wants = Wants {
-        oses,
-        tree: tree.as_deref(),
-        project,
-    };
-    let seats = seats(views, &books, reg, &wants);
+    let seats = seated(views, reg, project, oses).await;
     let last = lease::sticky::last();
 
     if let Some(why) = last.as_ref().and_then(|l| stranded(&seats, l, boot)) {
@@ -246,6 +248,21 @@ pub async fn choose(
         Plan::Clone(i) => Chosen::Clone(picked(i)),
         Plan::Refuse(why) => return Err(crate::Refused(why).into()),
     })
+}
+
+async fn seated(views: &[View], reg: &Registry, project: Option<&Project>, oses: &[&'static str]) -> Vec<Seat> {
+    let (books, tree) = tokio::join!(lease::books(views), lease::here_tree());
+    let wants = Wants {
+        oses,
+        tree: tree.as_deref(),
+        project,
+    };
+
+    seats(views, &books, reg, &wants)
+}
+
+pub async fn instead(views: &[View], reg: &Registry, project: Option<&Project>, oses: &[&'static str]) -> Option<String> {
+    alternative(&seated(views, reg, project, oses).await)
 }
 
 struct Wants<'a> {
@@ -403,7 +420,54 @@ mod tests {
         };
 
         assert!(why.contains("a by other"), "{why}");
-        assert!(why.contains("`phone device boot b`"), "{why}");
+        assert!(why.contains("b is free (off): `phone device boot -t b`"), "{why}");
+    }
+
+    #[test]
+    fn a_last_resort_waits_while_a_pool_device_is_only_off() {
+        let mut seats = [
+            seat("faraday", attached()),
+            taken(seat("a", attached())),
+            seat("b", Reach::Off),
+        ];
+        seats[0].pick = Pick::Last;
+
+        let Plan::Refuse(why) = plan(&seats, None, false) else {
+            panic!("refused while b is off");
+        };
+
+        assert!(why.contains("`phone device boot -t b`"), "{why}");
+        assert!(!why.contains("faraday"), "{why}");
+        assert_eq!(plan(&seats, None, true), Plan::Boot(2));
+    }
+
+    #[test]
+    fn the_alternative_offers_running_then_off_pool_then_a_last_resort() {
+        let mut seats = [
+            seat("faraday", attached()),
+            seat("b", Reach::Off),
+            seat("c", attached()),
+        ];
+        seats[0].pick = Pick::Last;
+
+        let mut offered = Vec::new();
+
+        for i in [2, 1, 0] {
+            offered.push(alternative(&seats));
+            seats[i] = taken(seats[i].clone());
+        }
+
+        offered.push(alternative(&seats));
+
+        assert_eq!(
+            offered,
+            [
+                Some("c is free: `-t c`".to_string()),
+                Some("b is free (off): `phone device boot -t b`".to_string()),
+                Some("faraday is free: `-t faraday`".to_string()),
+                None,
+            ]
+        );
     }
 
     #[test]

@@ -2282,15 +2282,9 @@ async fn named_admit(reg: &mut Registry, view: View, hold: Hold) -> Result<View>
         Err(e) if e.is::<Refused>() => {
             let views = survey(reg).await;
             let project = Project::here().ok().flatten();
-            let instead = match alloc::choose(&views, reg, project.as_ref(), &[os], false).await {
-                Ok(alloc::Chosen::Use(free)) => format!(
-                    "{} is free: `-t {}`",
-                    free.device.label,
-                    quoted(&free.device.label)
-                ),
-                Ok(_) => String::new(),
-                Err(why) => why.to_string(),
-            };
+            let instead = alloc::instead(&views, reg, project.as_ref(), &[os])
+                .await
+                .unwrap_or_else(|| "no other device is free to allocate".to_string());
 
             Err(Refused(format!("{e}\n{instead}")).into())
         }
