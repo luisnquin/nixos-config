@@ -17,6 +17,7 @@ const TIMEOUT: Duration = Duration::from_secs(20);
 const CONFLICT: i32 = 75;
 const RETRIES: usize = 6;
 pub const BOOT: i64 = 300;
+const CACHED: i64 = 60;
 
 const LEDGER: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
 mkdir -p "$state" || exit 1
@@ -354,6 +355,8 @@ pub struct Book {
     pub ledger: Ledger,
     dead: BTreeSet<(u32, String)>,
     pub usage: Usage,
+    #[serde(default)]
+    read: Unix,
     #[serde(skip)]
     pub fresh: bool,
 }
@@ -378,8 +381,13 @@ impl Book {
             ledger: Ledger::parse(body).with_context(|| format!("{dir}/leases.json on {host}"))?,
             dead: dead.lines().filter_map(dead_line).collect(),
             usage: Usage::parse(usage),
+            read: model::now(),
             fresh: true,
         })
+    }
+
+    fn trusted(&self, now: Unix) -> bool {
+        self.fresh || now - self.read < CACHED
     }
 
     pub async fn fetch(at: &Where) -> Result<Self> {
@@ -546,12 +554,11 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     let me = agent::me();
     let key = key(&view.device);
     let judge = book.judge(now);
-
     let running = actions::running(&view.reach);
 
     let lease = match standing(&book.ledger, &key, &judge, me, running) {
-        Standing::Mine(lease) if !lease.due(now, running) => return Step::Done(Got::Held(lease)),
-        Standing::Held(_) if !book.fresh => return Step::Refresh,
+        Standing::Mine(lease) if !lease.due(now, running) && book.trusted(now) => return Step::Done(Got::Held(lease)),
+        Standing::Mine(_) | Standing::Held(_) if !book.fresh => return Step::Refresh,
         Standing::Held(lease) if take == Take::Respect => return Step::Done(Got::Busy(lease)),
         Standing::Mine(lease) => Lease { last_seen: now, ..lease },
         Standing::Held(lease) => Lease {
@@ -985,6 +992,18 @@ mod tests {
 
         assert!(!lease.due(1_000 + 299, true));
         assert!(lease.due(1_000 + 300, true));
+    }
+
+    #[test]
+    fn a_cached_ledger_is_trusted_for_a_minute() {
+        let cached = Book {
+            read: 1_000,
+            ..Book::default()
+        };
+
+        assert!(cached.trusted(1_000 + CACHED - 1));
+        assert!(!cached.trusted(1_000 + CACHED));
+        assert!(Book { fresh: true, ..cached }.trusted(1_000 + 3_600));
     }
 
     #[test]
