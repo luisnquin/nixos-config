@@ -38,7 +38,7 @@ impl Scales {
 #[derive(Debug)]
 pub struct Pin {
     file: PathBuf,
-    device: String,
+    section: &'static str,
     value: String,
 }
 
@@ -46,18 +46,13 @@ impl Pin {
     pub fn of(device: &crate::model::Device) -> Option<Self> {
         let project = crate::project::Project::here().ok().flatten()?;
 
-        project
-            .manifest
-            .devices
-            .iter()
-            .find(|(name, _)| device.is(name))
-            .and_then(|(name, spec)| {
-                Some(Pin {
-                    file: project.root.join(crate::project::FILE),
-                    device: name.clone(),
-                    value: transition(spec)?,
-                })
-            })
+        let section = device.platform.os();
+
+        Some(Pin {
+            file: project.root.join(crate::project::FILE),
+            section,
+            value: transition(&project.manifest.spec(section))?,
+        })
     }
 }
 
@@ -91,17 +86,17 @@ pub fn not_idle(scales: Option<Scales>, pin: Option<&Pin>) -> String {
     if transition != 0.0 {
         let fix = match pin {
             Some(p) if !nonzero(&p.value) => format!(
-                "{} already pins it to 0 under [devices.\"{}\"] settings.global, so the device \
+                "{} already pins it to 0 under [{}] settings.global, so the device \
                  drifted; `phone up` puts it back and restarts the app",
                 p.file.display(),
-                p.device
+                p.section
             ),
             Some(p) => format!(
-                "{} pins it to {} under [devices.\"{}\"] settings.global; set it to 0 there and \
+                "{} pins it to {} under [{}] settings.global; set it to 0 there and \
                  run `phone up`, which restarts the app",
                 p.file.display(),
                 p.value,
-                p.device
+                p.section
             ),
             None => "Turn on Remove animations, or set the animator, transition and window \
                      animation scales to 0 in Developer options, and restart the app"
@@ -131,13 +126,13 @@ pub fn not_idle(scales: Option<Scales>, pin: Option<&Pin>) -> String {
 
 pub fn pins(manifest: &Manifest, file: &Path) -> Vec<Check> {
     manifest
-        .devices
+        .android
         .iter()
-        .filter_map(|(name, spec)| {
+        .filter_map(|spec| {
             let value = transition(spec).filter(|v| nonzero(v))?;
 
             Some(Check::warn(
-                name,
+                "android",
                 format!(
                     "{} pins transition_animation_scale to {value}, so Reanimated's \
                      useReducedMotion() stays false there and an endless animation blocks \
@@ -159,7 +154,7 @@ mod tests {
     fn pin(value: &str) -> Pin {
         Pin {
             file: PathBuf::from("/src/app/phone.toml"),
-            device: "pixel_7-api36".to_string(),
+            section: "android",
             value: value.to_string(),
         }
     }
@@ -198,7 +193,7 @@ mod tests {
         let msg = not_idle(Some(ON), Some(&pin("1")));
 
         assert!(msg.contains("/src/app/phone.toml pins it to 1"), "{msg}");
-        assert!(msg.contains(r#"[devices."pixel_7-api36"]"#), "{msg}");
+        assert!(msg.contains("[android] settings.global"), "{msg}");
 
         let msg = not_idle(Some(ON), Some(&pin("0")));
         assert!(msg.contains("already pins it to 0"), "{msg}");
@@ -234,44 +229,37 @@ mod tests {
     }
 
     #[test]
-    fn a_device_pinned_to_a_nonzero_scale_is_a_warning() {
+    fn a_profile_pinned_to_a_nonzero_scale_is_a_warning() {
         let found = checked(
             r#"
-            [devices."pixel_7-api36".settings.global]
-            transition_animation_scale = 1
-
-            [devices."pixel_9-api36".settings.global]
+            [android.settings.global]
             transition_animation_scale = "0.5"
             window_animation_scale = 0
             "#,
         );
 
-        assert_eq!(found.len(), 2);
-        assert!(found.iter().all(|c| c.verdict == Verdict::Warn));
-        assert_eq!(found[0].name, "pixel_7-api36");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].verdict, Verdict::Warn);
+        assert_eq!(found[0].name, "android");
         assert!(found[0]
             .detail
-            .contains("/src/app/phone.toml pins transition_animation_scale to 1"));
+            .contains("/src/app/phone.toml pins transition_animation_scale to 0.5"));
         assert!(found[0].detail.contains("useReducedMotion() stays false"));
         assert!(found[0].detail.contains("snapshot, tap, wait and fill"));
-        assert!(found[1].detail.contains("to 0.5"));
     }
 
     #[test]
     fn a_scale_at_zero_or_left_alone_is_not_reported() {
         let found = checked(
             r#"
-            [devices."pixel_7-api36".settings.global]
-            transition_animation_scale = 0
-
-            [devices."pixel_9-api36".settings.global]
+            [android.settings.global]
             transition_animation_scale = "0.0"
 
-            [devices."iPhone 16"]
-            state = "ready"
-
-            [devices."pixel_6-api34".settings.system]
+            [android.settings.system]
             transition_animation_scale = 1
+
+            [ios]
+            state = "ready"
             "#,
         );
 

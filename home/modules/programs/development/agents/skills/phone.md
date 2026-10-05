@@ -13,9 +13,10 @@ This page is enough to work without `phone --help`. Reach for
 
 A call costs about a second; the tool round trip costs more. So:
 
-- In a repo with `phone.toml`, pass no target: its `default` applies. Elsewhere,
-  `export PHONE_TARGET=<name>` from `phone device list`, in this shell only,
-  never in a shell rc file.
+- Pass no target. Each command allocates a device for you and keeps it leased
+  to you while you use it: the one you hold, else a free running one. Pin one
+  with `-t` or `export PHONE_TARGET=<name>` only when a specific device matters,
+  in this shell only, never in a shell rc file.
 - Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
   call. A step is parsed like a command line, so quote multi-word names
   inside it: `"wait 'Order history'"`.
@@ -44,16 +45,17 @@ row unless told otherwise.
 A name matches on text, model, host or alias: `-t pixel_7`, `-t rose` (its most-driven free
 running device), `-t rose/emu`, `-t rose/sim`.
 
-Exit status 3 means "not now", not broken: the device is held by another project
-or session, or its host has no memory for a boot. The message names what to do,
-usually reusing a device that is already running. Do not pass `--take` or
-`--over-budget` without asking the user.
+Exit status 3 means "not now", not broken: the device is held by another agent,
+or its host has no memory for a boot. The message names the holder, how long it
+has been idle and a free alternative. Do not pass `--take` or `--over-budget`
+without asking the user. When done with a device, `phone release` hands it back.
 
-In a repo with `phone.toml`, run `phone up` first. It boots, forwards ports,
-installs a fresh build and opens the app, doing only what is missing, and is
-safe to repeat. It returns once the app itself is on screen, or fails with the
-dev client's error. `phone status` checks without changing anything: exit 2 is
-drift on your device, 4 only on other declared ones.
+In a repo with `phone.toml`, run `phone up` first. It allocates one device per
+platform the project builds for, boots, forwards ports, installs a fresh build
+and opens the app, doing only what is missing, and is safe to repeat. It returns
+once the app itself is on screen, or fails with the dev client's error.
+`phone status` checks without changing anything: exit 2 is drift on your device,
+4 only on another platform's. `phone down` stops and releases what you hold.
 
 ## Verbs
 

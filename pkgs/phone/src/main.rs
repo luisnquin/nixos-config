@@ -30,6 +30,7 @@ macro_rules! eprintln {
 
 mod a11y;
 mod actions;
+mod alloc;
 mod adb;
 mod agent;
 mod answer;
@@ -229,6 +230,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
             let opts = up::Opts {
                 profile,
+                target: want(None),
                 rebuild,
                 over_budget,
                 timeout,
@@ -521,8 +523,7 @@ async fn status_cmd(
 
     let ours = want
         .or_else(|| std::env::var("PHONE_TARGET").ok())
-        .filter(|s| !s.is_empty())
-        .or(project.manifest.default);
+        .filter(|s| !s.is_empty());
 
     exit_on_drift(&report, ours.as_deref());
 
@@ -824,14 +825,6 @@ fn declared() -> Result<Project> {
             here.display()
         )
     })
-}
-
-/// The device a project would rather have, for when nothing typed names one. A
-/// manifest that does not parse reads as no preference at all: `phone up` is
-/// where that is reported, and a broken file has no business taking the screen
-/// verbs down with it.
-fn preferred() -> Option<String> {
-    Project::here().ok().flatten()?.manifest.default
 }
 
 /// A reporter whose steps stream to stderr, so stdout stays reserved for the
@@ -2200,14 +2193,17 @@ async fn reaching(
     let named = want
         .map(str::to_string)
         .or_else(|| std::env::var("PHONE_TARGET").ok())
-        .filter(|s| !s.is_empty())
-        .or_else(preferred);
+        .filter(|s| !s.is_empty());
+
+    if named.is_none() && hold == Hold::Respected {
+        return allocated(reg).await;
+    }
 
     if let Some(view) = match &named {
         Some(w) => discover::known::attached(reg, w).await,
         None => None,
     } {
-        return admit(view, hold).await;
+        return named_admit(reg, view, hold).await;
     }
 
     let views = match &named {
@@ -2236,7 +2232,68 @@ async fn reaching(
         bail!(why);
     }
 
-    admit(view, hold).await
+    named_admit(reg, view, hold).await
+}
+
+async fn allocated(reg: &mut Registry) -> Result<View> {
+    if let Some(view) = sticky(reg).await {
+        if let lease::Got::Held(_) = lease::acquire(&view, lease::Take::Respect).await? {
+            return admit(view, Hold::Ignored).await;
+        }
+    }
+
+    let project = Project::here().ok().flatten();
+
+    for _ in 0..3 {
+        let views = survey(reg).await;
+        reg.save()?;
+
+        let view = match alloc::choose(&views, reg, project.as_ref(), &["android", "ios"], false).await? {
+            alloc::Chosen::Use(view) => view,
+            alloc::Chosen::Boot(view) | alloc::Chosen::Clone(view) => bail!(off(&view.device.label, None)),
+        };
+
+        if let Some(why) = connect::stranded(&views, &view) {
+            bail!(why);
+        }
+
+        match admit(view, Hold::Respected).await {
+            Err(e) if e.is::<Refused>() => continue,
+            admitted => return admitted,
+        }
+    }
+
+    Err(Refused("every device this run chose was taken first; run it again".to_string()).into())
+}
+
+async fn sticky(reg: &Registry) -> Option<View> {
+    let last = lease::sticky::last()?;
+    let view = discover::known::attached(reg, &last.device).await?;
+
+    (config::get().pick(&view.device) != config::Pick::Never).then_some(view)
+}
+
+async fn named_admit(reg: &mut Registry, view: View, hold: Hold) -> Result<View> {
+    let os = view.device.platform.os();
+
+    match admit(view, hold).await {
+        Err(e) if e.is::<Refused>() => {
+            let views = survey(reg).await;
+            let project = Project::here().ok().flatten();
+            let instead = match alloc::choose(&views, reg, project.as_ref(), &[os], false).await {
+                Ok(alloc::Chosen::Use(free)) => format!(
+                    "{} is free: `-t {}`",
+                    free.device.label,
+                    quoted(&free.device.label)
+                ),
+                Ok(_) => String::new(),
+                Err(why) => why.to_string(),
+            };
+
+            Err(Refused(format!("{e}\n{instead}")).into())
+        }
+        admitted => admitted,
+    }
 }
 
 async fn admit(view: View, hold: Hold) -> Result<View> {
@@ -2360,10 +2417,6 @@ fn untargeted(candidates: &[View], reg: &Registry, prefer_recent: bool) -> Optio
         .as_ref()
         .and_then(|id| candidates.iter().find(|v| v.device.id == *id));
 
-    // a project names the device it prefers, and only a typed name overrules
-    // it: what is remembered is one machine-wide choice every agent shares
-    let named = || preferred().and_then(|name| candidates.iter().find(|v| v.device.is(&name)));
-
     let recent = || {
         candidates
             .iter()
@@ -2372,7 +2425,7 @@ fn untargeted(candidates: &[View], reg: &Registry, prefer_recent: bool) -> Optio
             .max_by_key(|v| v.device.last_connected.unwrap_or(0))
     };
 
-    named().or(current).or_else(recent).cloned()
+    current.or_else(recent).cloned()
 }
 
 fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {

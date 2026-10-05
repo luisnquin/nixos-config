@@ -180,7 +180,7 @@ pub struct Spec {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
-    pub devices: Vec<String>,
+    pub platforms: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -191,8 +191,6 @@ pub struct Manifest {
     pub host: Option<String>,
     /// Where the tree sits on `host`. Every command runs with this as its cwd.
     pub dir: Option<String>,
-    /// The device unqualified commands target inside this project.
-    pub default: Option<String>,
 
     pub deps: Option<Task>,
     pub bundler: Option<Bundler>,
@@ -200,8 +198,8 @@ pub struct Manifest {
     /// Keyed by platform: `android`, `ios`.
     #[serde(default)]
     pub build: BTreeMap<String, Build>,
-    #[serde(default)]
-    pub devices: BTreeMap<String, Spec>,
+    pub android: Option<Spec>,
+    pub ios: Option<Spec>,
     #[serde(default)]
     pub profiles: BTreeMap<String, Profile>,
 }
@@ -286,41 +284,15 @@ impl Project {
             .unwrap_or_else(|| self.key())
     }
 
-    /// The devices a run covers, in declaration order.
-    ///
     /// A profile is a named subset, and naming one that does not exist is an
     /// error rather than an empty run: an agent that mistypes `--profile` would
     /// otherwise be told everything converged.
     /// A run with no profile named covers everything, which is what keeps `up`
     /// and `down` the inverse of each other: neither has a subset of its own to
     /// fall back to, so what one brings up the other takes down.
-    pub fn devices(&self, profile: Option<&str>) -> Result<Vec<(&str, &Spec)>> {
-        self.named(profile)
-    }
-
-    /// Every device the manifest declares, whatever profile was asked for.
-    ///
-    /// What `down` means, and the one place a profile is deliberately
-    /// ignored: it exists so that a run does not build for a simulator nobody
-    /// asked about, and there is no matching cost in shutting one down. A
-    /// teardown that left it running would be the stray the next `status`
-    /// reports.
-    pub fn every_device(&self) -> Vec<(&str, &Spec)> {
-        self.manifest
-            .devices
-            .iter()
-            .map(|(name, spec)| (name.as_str(), spec))
-            .collect()
-    }
-
-    fn named(&self, profile: Option<&str>) -> Result<Vec<(&str, &Spec)>> {
+    pub fn platforms(&self, profile: Option<&str>) -> Result<Vec<(&'static str, Spec)>> {
         let Some(profile) = profile else {
-            return Ok(self
-                .manifest
-                .devices
-                .iter()
-                .map(|(name, spec)| (name.as_str(), spec))
-                .collect());
+            return Ok(self.every_platform());
         };
 
         let Some(chosen) = self.manifest.profiles.get(profile) else {
@@ -335,17 +307,19 @@ impl Project {
             );
         };
 
-        let mut out = Vec::new();
+        Ok(self
+            .every_platform()
+            .into_iter()
+            .filter(|(os, _)| chosen.platforms.iter().any(|p| p == os))
+            .collect())
+    }
 
-        for name in &chosen.devices {
-            let spec = self.manifest.devices.get(name).ok_or_else(|| {
-                anyhow::anyhow!("profile '{profile}' names {name}, which no [devices] entry covers")
-            })?;
-
-            out.push((name.as_str(), spec));
-        }
-
-        Ok(out)
+    pub fn every_platform(&self) -> Vec<(&'static str, Spec)> {
+        self.manifest
+            .declared()
+            .into_iter()
+            .map(|os| (os, self.manifest.spec(os)))
+            .collect()
     }
 }
 
@@ -375,19 +349,44 @@ impl Manifest {
             }
         }
 
-        for (name, profile) in &self.profiles {
-            if profile.devices.is_empty() {
-                bail!("profile '{name}' names no devices");
-            }
-        }
+        let declared = self.declared();
 
-        if let Some(default) = &self.default {
-            if !self.devices.contains_key(default) {
-                bail!("default is {default}, which no [devices] entry covers");
+        for (name, profile) in &self.profiles {
+            if profile.platforms.is_empty() {
+                bail!("profile '{name}' names no platforms");
+            }
+
+            if let Some(stray) = profile
+                .platforms
+                .iter()
+                .find(|p| !declared.contains(&p.as_str()))
+            {
+                bail!(
+                    "profile '{name}' names {stray}, which neither a [build.{stray}] nor an [{stray}] section declares"
+                );
             }
         }
 
         Ok(())
+    }
+
+    pub fn declared(&self) -> Vec<&'static str> {
+        ["android", "ios"]
+            .into_iter()
+            .filter(|os| self.build.contains_key(*os) || self.section(os).is_some())
+            .collect()
+    }
+
+    fn section(&self, os: &str) -> Option<&Spec> {
+        match os {
+            "android" => self.android.as_ref(),
+            "ios" => self.ios.as_ref(),
+            _ => None,
+        }
+    }
+
+    pub fn spec(&self, os: &str) -> Spec {
+        self.section(os).cloned().unwrap_or_default()
     }
 }
 
@@ -398,7 +397,6 @@ mod tests {
     const MANIFEST: &str = r#"
 host = "mac"
 dir = "~/Projects/github.com/acme/sample-app"
-default = "pixel_7-api36"
 
 [deps]
 stale = "cksum package-lock.json"
@@ -412,16 +410,16 @@ app = "app.example.dev"
 stale = "npx @expo/fingerprint fingerprint:generate --platform android"
 run = "npx expo run:android --no-bundler"
 
-[devices."pixel_7-api36"]
+[android]
 state = "prepared"
 reverse = [8081]
 settings.global = { window_animation_scale = 1, transition_animation_scale = 1 }
 
-[devices."iPhone 17 Pro Max"]
+[ios]
 state = "ready"
 
 [profiles.dev]
-devices = ["pixel_7-api36"]
+platforms = ["android"]
 "#;
 
     fn manifest() -> Manifest {
@@ -440,11 +438,10 @@ devices = ["pixel_7-api36"]
         let m = manifest();
 
         assert_eq!(m.host.as_deref(), Some("mac"));
-        assert_eq!(m.default.as_deref(), Some("pixel_7-api36"));
         assert_eq!(m.build["android"].app, "app.example.dev");
-        assert_eq!(m.devices["pixel_7-api36"].reverse, [8081]);
-        assert_eq!(m.devices["pixel_7-api36"].state, Level::Prepared);
-        assert_eq!(m.devices["iPhone 17 Pro Max"].state, Level::Ready);
+        assert_eq!(m.spec("android").reverse, [8081]);
+        assert_eq!(m.spec("android").state, Level::Prepared);
+        assert_eq!(m.spec("ios").state, Level::Ready);
     }
 
     /// The ladder is an ordering, not a set of flags: `prepared` is what says a
@@ -460,18 +457,19 @@ devices = ["pixel_7-api36"]
     /// A device with no `state` is one someone bothered to declare, so the
     /// useful reading of the omission is "all the way up", not "barely on".
     #[test]
-    fn a_device_that_says_nothing_is_taken_all_the_way_up() {
-        let m = Project::parse("[devices.pixel]\n").unwrap();
+    fn a_platform_that_says_nothing_is_taken_all_the_way_up() {
+        let m = Project::parse("[android]\n").unwrap();
 
-        assert_eq!(m.devices["pixel"].state, Level::Prepared);
-        assert!(m.devices["pixel"].reverse.is_empty());
-        assert!(m.devices["pixel"].settings.is_empty());
+        assert_eq!(m.spec("android").state, Level::Prepared);
+        assert!(m.spec("android").reverse.is_empty());
+        assert!(m.spec("android").settings.is_empty());
+        assert_eq!(m.spec("ios").state, Level::Prepared);
     }
 
     #[test]
     fn settings_come_out_flat_and_namespaced() {
-        let m = manifest();
-        let each = m.devices["pixel_7-api36"].settings.each();
+        let spec = manifest().spec("android");
+        let each = spec.settings.each();
 
         assert_eq!(
             each,
@@ -487,12 +485,12 @@ devices = ["pixel_7-api36"]
     #[test]
     fn a_boolean_setting_is_written_as_a_number() {
         let m = Project::parse(
-            "[devices.pixel]\nsettings.global = { stay_on_while_plugged_in = true }\n",
+            "[android]\nsettings.global = { stay_on_while_plugged_in = true }\n",
         )
         .unwrap();
 
         assert_eq!(
-            m.devices["pixel"].settings.each(),
+            m.spec("android").settings.each(),
             [("global", "stay_on_while_plugged_in", "1".to_string())]
         );
     }
@@ -502,11 +500,11 @@ devices = ["pixel_7-api36"]
         let p = project();
 
         assert_eq!(
-            p.devices(Some("dev")).unwrap().len(),
+            p.platforms(Some("dev")).unwrap().len(),
             1,
-            "the dev profile names one of the two devices"
+            "the dev profile names one of the two platforms"
         );
-        assert_eq!(p.devices(None).unwrap().len(), 2);
+        assert_eq!(p.platforms(None).unwrap().len(), 2);
     }
 
     /// A build without `open` is the ordinary case and must stay legal: not
@@ -588,14 +586,14 @@ devices = ["pixel_7-api36"]
         let project = project();
 
         let up: Vec<&str> = project
-            .devices(None)
+            .platforms(None)
             .unwrap()
             .into_iter()
             .map(|(n, _)| n)
             .collect();
-        let down: Vec<&str> = project.every_device().into_iter().map(|(n, _)| n).collect();
+        let down: Vec<&str> = project.every_platform().into_iter().map(|(n, _)| n).collect();
 
-        assert_eq!(up, ["iPhone 17 Pro Max", "pixel_7-api36"]);
+        assert_eq!(up, ["android", "ios"]);
         assert_eq!(up, down);
     }
 
@@ -603,23 +601,26 @@ devices = ["pixel_7-api36"]
     /// is the one answer that must never come back from a converge.
     #[test]
     fn a_profile_that_does_not_exist_is_refused_with_the_ones_that_do() {
-        let err = project().devices(Some("e2e")).unwrap_err().to_string();
+        let err = project().platforms(Some("e2e")).unwrap_err().to_string();
 
         assert!(err.contains("no profile 'e2e'"), "{err}");
         assert!(err.contains("dev"), "{err}");
     }
 
     #[test]
-    fn a_profile_naming_an_undeclared_device_is_refused() {
-        let text = "[devices.pixel]\n\n[profiles.dev]\ndevices = [\"ghost\"]\n";
-        let p = Project {
-            root: PathBuf::from("/tmp/x"),
-            manifest: Project::parse(text).unwrap(),
-        };
+    fn a_profile_naming_an_undeclared_platform_is_refused() {
+        let err = Project::parse("[android]\n\n[profiles.dev]\nplatforms = [\"ios\"]\n")
+            .unwrap_err()
+            .to_string();
 
-        let err = p.devices(Some("dev")).unwrap_err().to_string();
+        assert!(err.contains("ios"), "{err}");
+    }
 
-        assert!(err.contains("ghost"), "{err}");
+    #[test]
+    fn a_build_alone_declares_its_platform() {
+        let m = Project::parse("[build.ios]\napp = \"x\"\nrun = \"y\"\n").unwrap();
+
+        assert_eq!(m.declared(), ["ios"]);
     }
 
     #[test]
@@ -633,7 +634,7 @@ devices = ["pixel_7-api36"]
     fn a_local_project_runs_where_its_manifest_is() {
         let p = Project {
             root: PathBuf::from("/tmp/sample-app"),
-            manifest: Project::parse("[devices.pixel]\n").unwrap(),
+            manifest: Project::parse("[android]\n").unwrap(),
         };
 
         assert_eq!(p.host(), None);
@@ -650,19 +651,16 @@ devices = ["pixel_7-api36"]
     }
 
     #[test]
-    fn a_default_naming_no_declared_device_is_refused() {
-        let err = Project::parse("default = \"ghost\"\n[devices.pixel]\n")
-            .unwrap_err()
-            .to_string();
-
-        assert!(err.contains("ghost"), "{err}");
+    fn a_manifest_no_longer_reserves_a_device_by_name() {
+        assert!(Project::parse("default = \"ghost\"\n").is_err());
+        assert!(Project::parse("[devices.pixel]\n").is_err());
     }
 
     /// A key nobody reads is a key someone believed in. The whole manifest is
     /// `deny_unknown_fields` so a typo fails loudly instead of being ignored.
     #[test]
     fn a_misspelled_key_is_refused_rather_than_ignored() {
-        assert!(Project::parse("[devices.pixel]\nreverse_ports = [8081]\n").is_err());
+        assert!(Project::parse("[android]\nreverse_ports = [8081]\n").is_err());
         assert!(Project::parse("hosts = \"mac\"\n").is_err());
     }
 
@@ -679,12 +677,12 @@ devices = ["pixel_7-api36"]
         let deep = dir.join("src/app/routes");
 
         std::fs::create_dir_all(&deep).unwrap();
-        std::fs::write(dir.join(FILE), "[devices.pixel]\n").unwrap();
+        std::fs::write(dir.join(FILE), "[android]\n").unwrap();
 
         let found = Project::find(&deep).unwrap().expect("walks up to the root");
 
         assert_eq!(found.root, dir);
-        assert!(found.manifest.devices.contains_key("pixel"));
+        assert!(found.manifest.android.is_some());
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

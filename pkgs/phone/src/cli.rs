@@ -83,11 +83,12 @@ What to know before scripting it
 
 Naming things
 
-  -t <name> targets one command and PHONE_TARGET a whole shell; both beat the
-  `default` a project's phone.toml names, and that beats the machine-wide
-  default set by `phone device use`. A name matches on text, model, host or
-  alias, and an ambiguous one is refused with the candidates listed rather than
-  guessed at. Inside a project whose phone.toml names a default, pass nothing.
+  -t <name> targets one command and PHONE_TARGET a whole shell. With neither,
+  each command allocates: the device this agent already holds, else the one it
+  last held if still free, else a free running device, preferring one that is
+  warm or has the app. `phone device use` only ranks that choice. A name matches
+  on text, model, host or alias, and an ambiguous one is refused with the
+  candidates listed rather than guessed at. Pass nothing unless a device matters.
   Export PHONE_TARGET in the running shell only, never in a shell rc file: it
   would outlive the task and retarget every later session.
 
@@ -133,9 +134,14 @@ having built stays there too, so a second machine converging the same project
 does not rebuild what the first one already did.
 `phone status` says what is not there yet without changing any of it.
 
-`--profile` narrows a run to a named subset of the declared devices. Without one
-every declared device is converged, which is what makes `phone down` the exact
-inverse of `phone up`.
+phone.toml names no device. Its `[android]` and `[ios]` sections describe what
+any device of that platform should look like, and `up` allocates one device per
+platform the project builds for: the one this agent holds, else its last one if
+free, else a free running device, else a free one that is off (booted), else a
+clone where the host allows it, else one marked `pick = "last"`, else a refusal
+naming the holders. `-t` pins the device instead, and `$PHONE_ID` in a build
+command is whichever device was allocated. `--profile` narrows a run to the
+platforms a named profile lists.
 
 A device is held by the agent that last used it, until it lets go with `phone
 release`, `phone down`, exits, or leaves it idle past its ttl. Another agent's
@@ -154,8 +160,7 @@ each line of output says which device it came from.
 A device that has to be booted is weighed against its host's memory first, as
 `phone device boot` does, and `--over-budget` is how past it."#)]
     Up {
-        /// Only the devices this profile names
-        #[arg(long)]
+        #[arg(long, help = "Only the platforms this profile names")]
         profile: Option<String>,
 
         /// Run the build steps whatever the freshness checks say
@@ -174,13 +179,10 @@ A device that has to be booted is weighed against its host's memory first, as
   phone down
 
 Stops the bundler, drops the forwards and shuts down the emulators and
-simulators this project declares. A handset is left running: it was on before
-`up` ran and `up` did not turn it on.
-
-Every declared device, and no `--profile` to narrow it. A bare `up` brings all of
-them up, so a teardown that took only some down would leave the rest as the
-strays the next `status` complains about. To stop one device and nothing else,
-name it: `phone device shutdown NAME`.
+simulators this agent holds for the project, then releases them. A handset is
+left running, only released: it was on before `up` ran and `up` did not turn it
+on. Devices other agents hold are not touched. To stop one device and nothing
+else, name it: `phone device shutdown NAME`.
 
 What is installed on a device stays installed, so the next `up` boots it and
 goes straight to the app."#)]
@@ -208,19 +210,18 @@ here, then any verb there. Without -t, every lease this agent holds is freed."#)
 Reads and changes nothing. Exits 0 when everything declared is where it was
 declared to be and non-zero when anything has drifted, which is what lets a test
 script gate on one command: `phone status || phone up`. Exit 2 is drift on the
-device commands here drive (-t, PHONE_TARGET, else the phone.toml default) or on
-a step; exit 4 means that device is in place and only other declared ones are not.
+device commands here drive (-t, PHONE_TARGET, else the one this agent holds) or
+on a step; exit 4 means that device is in place and only another platform's is not.
 
-A `!` in the first column marks the rows that differ, and a device running that
-the manifest never declared is listed under them.
+A `!` in the first column marks the rows that differ, and a running device no
+agent holds is listed under them.
 
-Under those, each host the declared devices run on gets a memory line — what
+Under those, each host the project's devices run on gets a memory line — what
 it has, what its running devices commit and who holds them — and what may be
 booted there, with a warning for any declared emulator deep in its own swap.
 Neither counts as drift."#)]
     Status {
-        /// Only the devices this profile names
-        #[arg(long)]
+        #[arg(long, help = "Only the platforms this profile names")]
         profile: Option<String>,
 
         /// Emit JSON instead of a table
@@ -925,9 +926,9 @@ sweep on every later connect. Does not survive a reboot of the device."#)]
   phone device use pixel_7-api36  # every later command targets it
   phone device use                # settle on the default already in force
 
-Set once at the start of a session rather than passing -t to every command. A
--t or PHONE_TARGET on a single command still wins over it, and so does the
-`default` a project's phone.toml names, inside that project."#)]
+Ranks this device first when a command allocates one, as long as no agent holds
+it. A -t or PHONE_TARGET on a single command still wins over it, and so does a
+device this agent already holds."#)]
     Use {
         #[arg(id = "device")]
         target: Option<String>,
@@ -1038,7 +1039,7 @@ where a bundler started over ssh there is listening. One on this machine is not
 what it will find.
 
 `DEVICE:HOST` when the two differ. Android only — a simulator is already on its
-host's loopback. A project's phone.toml declares these per device, and `phone
+host's loopback. A project's phone.toml declares these per platform, and `phone
 up` opens them."#)]
     Reverse {
         /// PORT, or DEVICE:HOST when the numbers differ

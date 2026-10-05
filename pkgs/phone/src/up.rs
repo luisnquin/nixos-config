@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::connect;
+use crate::alloc;
 use crate::discover::{self, survey};
 use crate::lease::{self, Book, Lease, Standing};
 use crate::model::{self, Device, Platform, Reach, View};
@@ -46,6 +47,7 @@ const BUNDLER_TIMEOUT: Duration = Duration::from_secs(90);
 
 pub struct Opts {
     pub profile: Option<String>,
+    pub target: Option<String>,
     /// Run the build steps whatever the stamps say.
     pub rebuild: bool,
     pub over_budget: bool,
@@ -435,10 +437,13 @@ exit 0"#;
 /// Brings the project's steps and devices to what the manifest declares.
 pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()> {
     let (site, ledger) = Site::of(Where::of(project.host()), project.dir()).await?;
-    let declared = project.devices(opts.profile.as_deref())?;
+    let declared = project.platforms(opts.profile.as_deref())?;
 
     if declared.is_empty() {
-        bail!("{} declares no devices", crate::project::FILE);
+        bail!(
+            "{} builds for no platform and has no [android] or [ios] section",
+            crate::project::FILE
+        );
     }
 
     // behind a lock from here on: the devices converge together below and each
@@ -497,10 +502,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
     let views = survey(reg).await;
     reg.save()?;
 
-    let mut wanted: Vec<Climb> = declared
-        .iter()
-        .map(|(name, spec)| Ok((*name, *spec, pick(&views, name)?.clone())))
-        .collect::<Result<_>>()?;
+    let (mut wanted, views) = allocate(reg, project, views, declared, opts.target.as_deref()).await?;
 
     // boots run together because they are minutes of waiting each and touch
     // nothing in common; everything after this needs the registry, and so is
@@ -550,7 +552,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
     };
 
     for (name, _, view) in &mut wanted {
-        *view = pick(&views, name)?.clone();
+        *view = refind(&views, view)?;
 
         if booted.iter().any(|b| b == name) && view.device.platform == Platform::Emulator {
             for changed in actions::quiet(&view.server, &view.device).await? {
@@ -596,10 +598,100 @@ fn all_of(outcomes: Vec<Result<()>>) -> Result<()> {
     }
 }
 
-/// A device, what it was declared to be, and where it currently is.
-type Climb<'a> = (&'a str, &'a Spec, View);
+/// A device, the profile its platform declares, and where it currently is.
+type Climb = (String, Spec, View);
 
-async fn claim(wanted: &[Climb<'_>]) -> Result<Vec<lease::Beat>> {
+async fn allocate(
+    reg: &mut Registry,
+    project: &Project,
+    mut views: Vec<View>,
+    declared: Vec<(&'static str, Spec)>,
+    pin: Option<&str>,
+) -> Result<(Vec<Climb>, Vec<View>)> {
+    let pinned = pin.map(|name| pick(&views, name).cloned()).transpose()?;
+
+    if let Some(p) = pinned
+        .as_ref()
+        .filter(|p| declared.iter().all(|(os, _)| *os != p.device.platform.os()))
+    {
+        bail!(
+            "{} runs {}, which this run does not build for",
+            p.device.label,
+            p.device.platform.os()
+        );
+    }
+
+    let mut wanted = Vec::new();
+
+    for (os, spec) in declared {
+        let view = match pinned.as_ref().filter(|p| p.device.platform.os() == os) {
+            Some(p) => {
+                lease::hold(p).await?;
+                p.clone()
+            }
+            None => seated(reg, project, &mut views, os).await?,
+        };
+
+        eprintln!("phone: {os} runs on {}", view.device.label);
+        wanted.push((view.device.label.clone(), spec, view));
+    }
+
+    Ok((wanted, views))
+}
+
+async fn seated(
+    reg: &mut Registry,
+    project: &Project,
+    views: &mut Vec<View>,
+    os: &'static str,
+) -> Result<View> {
+    for _ in 0..3 {
+        let view = match alloc::choose(views, reg, Some(project), &[os], true).await? {
+            alloc::Chosen::Use(view) | alloc::Chosen::Boot(view) => view,
+            alloc::Chosen::Clone(source) => cloned(reg, views, &source).await?,
+        };
+
+        match lease::hold(&view).await {
+            Err(e) if e.is::<crate::Refused>() => continue,
+            held => return held.map(|_| view),
+        }
+    }
+
+    Err(crate::Refused(format!("every {os} device this run chose was taken first; run it again")).into())
+}
+
+async fn cloned(reg: &mut Registry, views: &mut Vec<View>, source: &View) -> Result<View> {
+    let name = alloc::clone_name(views, source);
+
+    eprintln!(
+        "phone: {}",
+        actions::clone(&source.device, &source.reach, &name).await?
+    );
+
+    *views = survey(reg).await;
+    reg.save()?;
+
+    views
+        .iter()
+        .find(|v| v.device.host == source.device.host && v.device.is(&name))
+        .cloned()
+        .ok_or_else(|| anyhow!("{name} was cloned but no survey lists it"))
+}
+
+fn refind(views: &[View], was: &View) -> Result<View> {
+    views
+        .iter()
+        .find(|v| v.device.id == was.device.id)
+        .or_else(|| {
+            views
+                .iter()
+                .find(|v| v.device.host == was.device.host && v.device.is(&was.device.label))
+        })
+        .cloned()
+        .ok_or_else(|| anyhow!("{} dropped out of the survey", was.device.label))
+}
+
+async fn claim(wanted: &[Climb]) -> Result<Vec<lease::Beat>> {
     let mut refused = Vec::new();
 
     for (name, _, view) in wanted {
@@ -634,18 +726,6 @@ async fn hold_on(view: &View) -> Option<(Lease, bool)> {
     }
 }
 
-async fn released(view: &View) -> Result<Option<Lease>> {
-    let book = Book::fetch(&actions::where_of(&view.device)).await?;
-
-    if let Standing::Held(lease) = book.standing(&view.device, actions::running(&view.reach)) {
-        return Ok(Some(lease));
-    }
-
-    lease::release(view).await?;
-
-    Ok(None)
-}
-
 /// The devices grouped by the build they share.
 ///
 /// Two devices on one platform run the same build in the same directory, and a
@@ -653,7 +733,7 @@ async fn released(view: &View) -> Result<Option<Lease>> {
 /// a lock it does not hold — so they take turns. Two platforms share nothing
 /// but the tree they read, so they do not: an iPhone stops waiting out an
 /// android build it has no part in.
-fn lanes<'a>(wanted: &'a [Climb<'a>]) -> Vec<Vec<&'a Climb<'a>>> {
+fn lanes(wanted: &[Climb]) -> Vec<Vec<&Climb>> {
     let mut lanes: BTreeMap<&'static str, Vec<&Climb>> = BTreeMap::new();
 
     for climb in wanted {
@@ -670,7 +750,7 @@ fn lanes<'a>(wanted: &'a [Climb<'a>]) -> Vec<Vec<&'a Climb<'a>>> {
 async fn converge(
     project: &Project,
     site: &Site,
-    lane: &[&Climb<'_>],
+    lane: &[&Climb],
     stamps: &Mutex<Stamps>,
     tagged: bool,
 ) -> Result<()> {
@@ -713,7 +793,7 @@ async fn attach(reg: &mut Registry, name: &str, spec: &Spec, view: View) -> Resu
     res.with_context(|| format!("attaching to {name}"))?;
 
     // the transport it just came up on is what every later step names
-    let view = pick(&survey(reg).await, name)?.clone();
+    let view = refind(&survey(reg).await, &view)?;
 
     reg.save()?;
 
@@ -1005,22 +1085,65 @@ async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
     }
 }
 
-fn declared_only<'a>(
-    project: &'a Project,
+type Seat = (&'static str, Spec, Option<View>);
+
+fn seats(
+    project: &Project,
     profile: Option<&str>,
+    views: &[View],
+    books: &[Book],
     only: Option<&str>,
-) -> Result<Vec<(&'a str, &'a Spec)>> {
-    let mut declared = project.devices(profile)?;
+) -> Result<Vec<Seat>> {
+    let pinned = only.map(|name| pick(views, name).cloned()).transpose()?;
+    let last = lease::sticky::last();
 
-    if let Some(only) = only {
-        declared.retain(|(name, _)| *name == only);
+    let seated: Vec<Seat> = project
+        .platforms(profile)?
+        .into_iter()
+        .filter(|(os, _)| pinned.as_ref().is_none_or(|p| p.device.platform.os() == *os))
+        .map(|(os, spec)| {
+            let view = pinned
+                .clone()
+                .or_else(|| ours(views, books, os, last.as_ref()));
 
-        if declared.is_empty() {
-            bail!("{only} is not among the devices {} declares", crate::project::FILE);
-        }
+            (os, spec, view)
+        })
+        .collect();
+
+    if let Some(p) = pinned.as_ref().filter(|_| seated.is_empty()) {
+        bail!("{} runs {}, which {} does not declare", p.device.label, p.device.platform.os(), crate::project::FILE);
     }
 
-    Ok(declared)
+    Ok(seated)
+}
+
+fn ours(views: &[View], books: &[Book], os: &str, last: Option<&lease::sticky::Last>) -> Option<View> {
+    let on = |v: &&View| v.device.platform.os() == os;
+    let mine = |v: &&View| {
+        lease::book_of(books, &v.device).is_some_and(|b| {
+            matches!(b.standing(&v.device, actions::running(&v.reach)), Standing::Mine(_))
+        })
+    };
+
+    views
+        .iter()
+        .filter(on)
+        .filter(mine)
+        .max_by_key(|v| actions::running(&v.reach))
+        .or_else(|| {
+            let last = last?;
+
+            views.iter().filter(on).find(|v| v.device.id == last.device)
+        })
+        .cloned()
+}
+
+fn held(books: &[Book]) -> impl Fn(&View) -> bool + '_ {
+    |v| {
+        lease::book_of(books, &v.device).is_none_or(|b| {
+            !matches!(b.standing(&v.device, actions::running(&v.reach)), Standing::Free(_))
+        })
+    }
 }
 
 /// Reads what is there against what was declared, without changing any of it.
@@ -1031,7 +1154,11 @@ pub async fn status(
     only: Option<&str>,
 ) -> Result<Report> {
     let (site, stamps) = Site::of(Where::of(project.host()), project.dir()).await?;
-    let declared = declared_only(project, profile, only)?;
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let books = lease::books(&views).await;
+    let seated = seats(project, profile, &views, &books, only)?;
     let mut steps = Vec::new();
 
     if let Some(task) = &project.manifest.deps {
@@ -1075,24 +1202,18 @@ pub async fn status(
         });
     }
 
-    let views = survey(reg).await;
-    reg.save()?;
-
     // each row ends in the same fingerprint over the whole tree that a build
     // measures itself against, and no two of them read anything the others
     // write. Asked one at a time this is the slower half of the pair a test
     // script runs before every e2e round.
     let devices = futures_util::future::join_all(
-        declared
+        seated
             .iter()
-            .map(|&(name, spec)| row(project, &site, &views, &stamps, name, spec)),
+            .map(|(os, spec, view)| row(project, &site, &stamps, os, spec, view.as_ref())),
     )
     .await;
 
-    let mine: Vec<&View> = declared
-        .iter()
-        .filter_map(|(name, _)| pick(&views, name).ok())
-        .collect();
+    let mine: Vec<&View> = seated.iter().filter_map(|(_, _, view)| view.as_ref()).collect();
 
     let mut memory = memory::report(reg, &views, &memory::hosts_of(mine.iter().copied())).await;
 
@@ -1118,7 +1239,7 @@ pub async fn status(
         devices,
         strays: match only {
             Some(_) => Vec::new(),
-            None => strays(&views, project),
+            None => strays(&views, held(&books)),
         },
         memory,
     })
@@ -1127,26 +1248,24 @@ pub async fn status(
 async fn row(
     project: &Project,
     site: &Site,
-    views: &[View],
     stamps: &Stamps,
-    name: &str,
+    os: &str,
     spec: &Spec,
+    view: Option<&View>,
 ) -> Row {
     let want = spec.state;
 
-    let view = match pick(views, name) {
-        Ok(view) => view,
-        Err(e) => {
-            return Row {
-                name: name.to_string(),
-                platform: None,
-                want: want.as_str().to_string(),
-                have: "unknown".to_string(),
-                note: e.to_string(),
-                held: None,
-            }
-        }
+    let Some(view) = view else {
+        return Row {
+            name: os.to_string(),
+            platform: Some(os.to_string()),
+            want: want.as_str().to_string(),
+            have: "none".to_string(),
+            note: "this agent holds no device for it; `phone up` allocates one".to_string(),
+            held: None,
+        };
     };
+    let name = view.device.label.as_str();
 
     let mut note = String::new();
     let mut have = reached(view);
@@ -1261,7 +1380,7 @@ async fn current(project: &Project, site: &Site, stamps: &Stamps, view: &View) -
 pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
     let (site, _) = Site::of(Where::of(project.host()), project.dir()).await?;
     let at = &site.at;
-    let declared = project.every_device();
+    let declared = project.every_platform();
 
     if let Some(bundler) = &project.manifest.bundler {
         let ran = at
@@ -1281,75 +1400,66 @@ pub async fn down(reg: &mut Registry, project: &Project) -> Result<()> {
     let views = survey(reg).await;
     reg.save()?;
 
-    for (name, spec) in declared {
-        let Ok(view) = pick(&views, name) else {
+    let books = lease::books(&views).await;
+
+    for (os, spec) in declared {
+        let Some(view) = ours(&views, &books, os, None) else {
             continue;
         };
 
-        // somebody else's session is on it, so neither its forwards nor its
-        // power are this project's to touch
-        if let Some(holder) = released(view).await? {
-            eprintln!("phone: {name} is held by {}, so it is left alone", holder.describe(model::now()));
-
-            continue;
-        }
-
-        if !actions::running(&view.reach) {
-            eprintln!("phone: {name} is already off");
-
-            continue;
-        }
-
-        if matches!(view.device.platform, Platform::Android | Platform::Ios) {
-            eprintln!("phone: {name} is a handset, so it is left running");
-
-            continue;
-        }
-
-        // before the device goes, while there is still a transport to ask over;
-        // and only the ports this manifest opened, since another project's
-        // `--take` may have left its own on the same device
-        if view.device.platform.is_adb() {
-            for port in &spec.reverse {
-                let what = actions::Reverse::Close { device: *port };
-                let _ = actions::reverse(&view.server, &view.device, what).await;
-            }
-        }
-
-        match actions::stop(&view.device, &view.reach).await {
-            Ok(said) => eprintln!("phone: {said}"),
-            Err(e) => eprintln!("phone: {name}: {e}"),
-        }
+        retire(&view, &spec).await;
+        lease::release(&view).await?;
+        eprintln!("phone: released {}", view.device.label);
     }
 
     Ok(())
 }
 
-/// An emulator or simulator that is running and named nowhere in the manifest.
-/// Not an error — the point is to say so, since a second emulator on the same
-/// host is the usual reason a test drove the wrong screen.
-///
-/// Measured against every `[devices]` entry rather than against the profile
-/// being run: a simulator this project declares and this run leaves alone is
-/// accounted for, and calling it a stray would be the report crying wolf.
+async fn retire(view: &View, spec: &Spec) {
+    let name = &view.device.label;
+
+    if !actions::running(&view.reach) {
+        eprintln!("phone: {name} is already off");
+
+        return;
+    }
+
+    if matches!(view.device.platform, Platform::Android | Platform::Ios) {
+        eprintln!("phone: {name} is a handset, so it is left running");
+
+        return;
+    }
+
+    // while a transport remains, and only this manifest's ports: another
+    // agent's `--take` may have left its own on the same device
+    if view.device.platform.is_adb() {
+        for port in &spec.reverse {
+            let what = actions::Reverse::Close { device: *port };
+            let _ = actions::reverse(&view.server, &view.device, what).await;
+        }
+    }
+
+    match actions::stop(&view.device, &view.reach).await {
+        Ok(said) => eprintln!("phone: {said}"),
+        Err(e) => eprintln!("phone: {name}: {e}"),
+    }
+}
+
+/// An emulator or simulator that is running and held by no agent. Not an
+/// error: the point is to say so, since it is memory on its host that nobody
+/// is using.
 ///
 /// Handsets are left out. One is attached because somebody plugged it in or
 /// paired it, which is a deliberate act rather than something left running, and
 /// reporting it on every `status` would train the reader to skip the line.
-pub fn strays(views: &[View], project: &Project) -> Vec<String> {
+pub fn strays(views: &[View], held: impl Fn(&View) -> bool) -> Vec<String> {
     views
         .iter()
         // the same reading of "running" the rest of this module uses: a
         // simulator has no transport to attach over and would never qualify
         .filter(|v| reached(v) >= Some(Level::Attached))
         .filter(|v| matches!(v.device.platform, Platform::Emulator | Platform::Simulator))
-        .filter(|v| {
-            !project
-                .manifest
-                .devices
-                .keys()
-                .any(|name| v.device.is(name))
-        })
+        .filter(|v| !held(v))
         .map(|v| v.device.label.clone())
         .collect()
 }
@@ -1398,7 +1508,7 @@ fn write(report: &Report, out: &mut impl std::io::Write) -> std::io::Result<()> 
     for label in &report.strays {
         writeln!(
             out,
-            "  {label:name$}  {:want$}    {:have$}  running, declared nowhere here",
+            "  {label:name$}  {:want$}    {:have$}  running, held by no agent",
             "", ""
         )?;
     }
@@ -1561,18 +1671,18 @@ mod tests {
         let spec = Spec::default();
 
         let wanted: Vec<Climb> = vec![
-            ("pixel", &spec, attached("pixel")),
+            ("pixel".into(), spec.clone(), attached("pixel")),
             (
-                "iPhone 17",
-                &spec,
+                "iPhone 17".into(),
+                spec.clone(),
                 view("iPhone 17", Platform::Simulator, Reach::Online),
             ),
-            ("nexus", &spec, attached("nexus")),
+            ("nexus".into(), spec, attached("nexus")),
         ];
 
         let grouped: Vec<Vec<&str>> = lanes(&wanted)
             .iter()
-            .map(|lane| lane.iter().map(|(name, _, _)| *name).collect())
+            .map(|lane| lane.iter().map(|(name, _, _)| name.as_str()).collect())
             .collect();
 
         assert_eq!(
@@ -1829,28 +1939,21 @@ mod tests {
         assert!(!shown(&report).contains(" on "), "{}", shown(&report));
     }
 
-    fn declaring(text: &str) -> Project {
-        Project {
-            root: "/tmp/p".into(),
-            manifest: Project::parse(text).unwrap(),
-        }
-    }
-
     #[test]
-    fn a_device_nobody_declared_is_named_rather_than_ignored() {
+    fn a_running_emulator_no_agent_holds_is_named_rather_than_ignored() {
         let views = [attached("pixel_7-api36"), attached("leftover-avd")];
 
         assert_eq!(
-            strays(&views, &declaring("[devices.\"pixel_7-api36\"]\n")),
+            strays(&views, |v| v.device.label == "pixel_7-api36"),
             ["leftover-avd"]
         );
     }
 
     #[test]
-    fn a_declared_device_that_is_not_attached_is_not_a_stray() {
+    fn a_device_that_is_not_attached_is_not_a_stray() {
         let views = [view("pixel", Platform::Emulator, Reach::Off)];
 
-        assert!(strays(&views, &declaring("[devices.pixel]\n")).is_empty());
+        assert!(strays(&views, |_| false).is_empty());
     }
 
     /// A simulator never reaches `attached` — there is no transport to attach
@@ -1860,23 +1963,9 @@ mod tests {
         let views = [view("iPhone 17", Platform::Simulator, Reach::Online)];
 
         assert_eq!(
-            strays(&views, &declaring("[devices.pixel]\n")),
+            strays(&views, |_| false),
             ["iPhone 17"]
         );
-    }
-
-    /// A device the manifest declares and this run's profile leaves out is
-    /// accounted for, not loose. Reporting it would make the line meaningless
-    /// on any project that declares more than it converges at once.
-    #[test]
-    fn a_device_outside_the_profile_being_run_is_not_a_stray() {
-        let views = [attached("pixel"), attached("iphone")];
-        let project = declaring(
-            "[devices.pixel]\n[devices.iphone]\n\n[profiles.android]\ndevices = [\"pixel\"]\n",
-        );
-
-        assert_eq!(project.devices(Some("android")).unwrap().len(), 1);
-        assert!(strays(&views, &project).is_empty());
     }
 
     fn screen(texts: &[&str]) -> Vec<crate::a11y::Node> {
