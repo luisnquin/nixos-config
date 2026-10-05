@@ -61,6 +61,8 @@ mod simctl;
 mod ssh;
 mod stamps;
 mod stream;
+#[allow(dead_code)]
+mod touch;
 mod tui;
 mod up;
 mod usage;
