@@ -2206,6 +2206,8 @@ async fn reaching(
 }
 
 async fn admit(view: View, hold: Hold) -> Result<View> {
+    calls::device(&view.device);
+
     let (held, looked, ()) = tokio::join!(
         async {
             match hold {

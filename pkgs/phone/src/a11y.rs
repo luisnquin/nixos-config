@@ -41,6 +41,19 @@ impl std::fmt::Display for NotIdle {
 
 impl std::error::Error for NotIdle {}
 
+#[derive(Debug)]
+pub struct NoApp;
+
+impl std::fmt::Display for NoApp {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(
+            "the accessibility tree has no app window and nothing readable (is the screen on?)",
+        )
+    }
+}
+
+impl std::error::Error for NoApp {}
+
 /// A device to read and press, resolved once per invocation. The two arms differ
 /// only in how a verb reaches the device: the elements they report and the
 /// coordinates they take are the same shape either way.
@@ -376,7 +389,7 @@ impl Node {
     pub fn label(&self) -> String {
         match self.name() {
             "" => format!("<{}>", self.kind()),
-            name => name.to_string(),
+            name => spoken(name),
         }
     }
 
@@ -419,16 +432,21 @@ impl Node {
 /// Apps typeset their labels ("Wi‑Fi" has a non-breaking hyphen, "Don’t" a curly
 /// apostrophe) and nobody types those.
 fn folded(s: &str) -> String {
-    s.chars()
-        .map(|c| match c {
-            '\u{2010}'..='\u{2015}' | '\u{2212}' => '-',
-            '\u{00a0}' | '\u{2007}' | '\u{2009}' | '\u{202f}' => ' ',
-            '\u{2018}' | '\u{2019}' => '\'',
-            '\u{201c}' | '\u{201d}' => '"',
-            c => c,
-        })
-        .collect::<String>()
-        .to_lowercase()
+    spoken(
+        &s.chars()
+            .map(|c| match c {
+                '\u{2010}'..='\u{2015}' | '\u{2212}' => '-',
+                '\u{2018}' | '\u{2019}' => '\'',
+                '\u{201c}' | '\u{201d}' => '"',
+                c => c,
+            })
+            .collect::<String>(),
+    )
+    .to_lowercase()
+}
+
+fn spoken(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The elements that can be read or pressed. The rest of the hierarchy is
@@ -652,6 +670,7 @@ async fn dump_once(a: &Adb) -> Result<Screen> {
     if let Some(reader) = reader().filter(|_| a.display.is_none_or(|d| d.logical == 0)) {
         match read_with(a, &reader).await {
             Ok(screen) => return Ok(screen),
+            Err(e) if e.is::<NoApp>() => return Err(e),
             Err(e) => unread = Some(e),
         }
     }
@@ -718,8 +737,15 @@ fn read_dump(ok: bool, display: u32, out: &str) -> Result<Screen> {
         bail!("uiautomator returned no hierarchy (is the screen on and unlocked?)");
     }
 
+    let nodes = parse(xml)?;
+    let app = xml.contains(r#"type="TYPE_APPLICATION""#);
+
+    if nodes.is_empty() && xml.contains("<displays") && !app {
+        return Err(NoApp.into());
+    }
+
     Ok(Screen {
-        nodes: parse(xml)?,
+        nodes,
         keyboard: Keyboard::parse(said),
         panel: panel_of(said, display),
     })
@@ -858,7 +884,7 @@ pub fn pick_in<'a>(
             // a pressable and the label drawn inside it both carry the name,
             // and pressing either presses the same thing
             if let Some(outer) = outermost(many).or_else(|| outermost(&exact)) {
-                return Ok(outer);
+                return Ok(innermost(&exact).unwrap_or(outer));
             }
 
             if let [one] = many
@@ -893,11 +919,13 @@ fn moved(nodes: &[Node], index: usize, row: &Signature) -> anyhow::Error {
         .find(|s| !s.is_empty())
     {
         Some(name) if pick_in(nodes, name, None).is_ok_and(same) => {
+            let name = spoken(name);
+
             anyhow!("@{index} ({name}) moved; it is still on screen, name it '{name}' instead")
         }
         name => anyhow!(
             "@{index} ({}) is no longer where the last snapshot saw it; take a new snapshot{}",
-            name.cloned().unwrap_or_else(|| format!(
+            name.map(|n| spoken(n)).unwrap_or_else(|| format!(
                 "<{}>",
                 row.class.rsplit('.').next().unwrap_or_default()
             )),
@@ -916,11 +944,11 @@ pub fn near(nodes: &[Node], needle: &str) -> String {
     let limit = want.len() / 4;
     let digits = |s: &str| s.chars().filter(char::is_ascii_digit).collect::<String>();
 
-    let mut close: Vec<(usize, &str)> = nodes
+    let mut close: Vec<(usize, String)> = nodes
         .iter()
         .flat_map(|n| [&n.text, &n.desc, &n.res_id])
         .filter(|name| !name.is_empty() && digits(name) == digits(needle))
-        .map(|name| (distance(&want, &folded(name)), name.as_str()))
+        .map(|name| (distance(&want, &folded(name)), spoken(name)))
         .filter(|(d, _)| *d <= limit)
         .collect();
 
@@ -971,6 +999,16 @@ fn outermost<'a>(hits: &[&'a Node]) -> Option<&'a Node> {
         .filter(|n| n.clickable)
         .max_by_key(|n| n.bounds.area())
         .filter(|outer| hits.iter().all(|n| outer.bounds.contains(&n.bounds)))
+}
+
+fn innermost<'a>(hits: &[&'a Node]) -> Option<&'a Node> {
+    let pressable: Vec<&Node> = hits.iter().copied().filter(|n| n.clickable).collect();
+
+    pressable
+        .iter()
+        .copied()
+        .min_by_key(|n| n.bounds.area())
+        .filter(|inner| pressable.iter().all(|n| n.bounds.contains(&inner.bounds)))
 }
 
 /// Text and size are state as much as identity, so an id only one element on
@@ -1057,7 +1095,10 @@ pub fn rows(nodes: &[Node]) -> Vec<Row<'_>> {
 
     for (i, n) in nodes.iter().enumerate() {
         let host = n.parent.filter(|p| {
-            *p < i && loose(n) && !names[*p].is_empty() && first_line(names[*p]).contains(n.name())
+            *p < i
+                && loose(n)
+                && !names[*p].is_empty()
+                && row_label(names[*p]).contains(&spoken(n.name()))
         });
 
         within.push(host.map(|p| within[p].unwrap_or(p)));
@@ -1085,21 +1126,10 @@ fn loose(n: &Node) -> bool {
 const ROW_LIMIT: usize = 100;
 
 pub fn row_label(label: &str) -> String {
-    let lines = label.lines().count();
-    let mut row = first_line(label);
+    let line = spoken(label);
+    let mut row: String = line.chars().take(ROW_LIMIT).collect();
 
-    if lines > 1 {
-        row.push_str(&format!(" (+{} lines)", lines - 1));
-    }
-
-    row
-}
-
-fn first_line(label: &str) -> String {
-    let first = label.lines().next().unwrap_or_default();
-    let mut row: String = first.chars().take(ROW_LIMIT).collect();
-
-    if row.len() < first.len() {
+    if row.len() < line.len() {
         row.push('…');
     }
 
@@ -1682,6 +1712,45 @@ mod tests {
             nodes[1].ancestors.is_empty(),
             "a window is not a box around its rows"
         );
+    }
+
+    #[test]
+    fn a_dump_of_only_the_status_bar_is_not_a_screen() {
+        let window = |kind: &str, bounds: &str, rows: &str| {
+            format!(
+                r#"<window bounds="{bounds}" type="{kind}"><hierarchy rotation="0">{rows}</hierarchy></window>"#
+            )
+        };
+        let dump = |windows: &[String]| {
+            format!(
+                r#"<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><displays><display id="0">{}</display></displays>"#,
+                windows.concat()
+            )
+        };
+        let clock = r#"<node class="android.widget.TextView" bounds="[40,20][200,120]" clickable="false" text="4:02" content-desc="" resource-id=""/>"#;
+        let bar = window("TYPE_SYSTEM", "[0,0][1080,136]", clock);
+
+        let err = read_dump(true, 0, &dump(std::slice::from_ref(&bar))).unwrap_err();
+        assert!(err.is::<NoApp>(), "{err}");
+
+        let canvas = window(
+            "TYPE_APPLICATION",
+            "[0,0][1080,2400]",
+            r#"<node class="android.view.SurfaceView" bounds="[0,0][1080,2400]" clickable="false" text="" content-desc="" resource-id=""/>"#,
+        );
+        let drawn = read_dump(true, 0, &dump(&[bar.clone(), canvas])).unwrap();
+        assert!(
+            drawn.nodes.is_empty(),
+            "an app that only draws is still a screen"
+        );
+
+        let keyguard = window(
+            "TYPE_SYSTEM",
+            "[0,0][1080,2400]",
+            &clock.replace("4:02", "Swipe up to unlock"),
+        );
+        let locked = read_dump(true, 0, &dump(&[bar, keyguard])).unwrap();
+        assert_eq!(locked.nodes[0].label(), "Swipe up to unlock");
     }
 
     #[test]
@@ -2782,8 +2851,48 @@ mod tests {
     fn a_stack_trace_is_one_row() {
         let trace = "java.net.ConnectException: Failed\n at okhttp3.a\n at okhttp3.b";
 
-        assert_eq!(row_label(trace), "java.net.ConnectException: Failed (+2 lines)");
+        assert_eq!(
+            row_label(trace),
+            "java.net.ConnectException: Failed at okhttp3.a at okhttp3.b"
+        );
         assert_eq!(row_label(&"x".repeat(150)), format!("{}…", "x".repeat(100)));
         assert_eq!(row_label("Inicio"), "Inicio");
+    }
+
+    #[test]
+    fn a_name_across_lines_answers_to_its_words_on_one_line() {
+        let nodes =
+            parse(&SAMPLE.replace(r#"text="Log in""#, r#"text="Log&#10;in&#10;""#)).unwrap();
+
+        assert_eq!(pick(&nodes, "Log in").unwrap().res_id, "submit");
+        assert_eq!(pick(&nodes, " log\n in ").unwrap().res_id, "submit");
+        assert_eq!(nodes[2].label(), "Log in");
+        assert_eq!(row_label(&rows(&nodes)[2].label), "Log in");
+        assert_eq!(
+            pick(&nodes, "Log").unwrap_err().to_string(),
+            "nothing on screen is named 'Log', it is only part of @2 Log in; use a whole name or its @index"
+        );
+        assert_eq!(
+            pick(&nodes, "Lag in").unwrap_err().to_string(),
+            "nothing on screen matches 'Lag in'; close: 'Log in'"
+        );
+    }
+
+    #[test]
+    fn a_name_on_nested_pressables_picks_the_innermost() {
+        let xml = FORM
+            .replace(
+                r#"text="" content-desc="" resource-id="com.app:id/row""#,
+                r#"text="" content-desc="Continue" resource-id="com.app:id/row""#,
+            )
+            .replace(
+                r#"clickable="false" text="Continue""#,
+                r#"clickable="true" text="Continue""#,
+            );
+        let nodes = parse(&xml).unwrap();
+        let picked = pick(&nodes, "Continue").unwrap();
+
+        assert_eq!(picked.class, "android.widget.TextView");
+        assert!(nodes[2].bounds.holds(picked.bounds.center()));
     }
 }

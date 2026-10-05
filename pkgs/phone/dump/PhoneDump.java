@@ -145,11 +145,12 @@ public final class PhoneDump {
         }
     }
 
-    // the window list is empty for a moment after the service connects
+    // the window list fills in over the first second after the service connects,
+    // and the status bar often arrives alone, hundreds of ms before the app under it
     private static List<AccessibilityWindowInfo> windows(UiAutomation automation) throws InterruptedException {
         List<AccessibilityWindowInfo> found = automation.getWindows();
 
-        for (int i = 0; i < 30 && !anyRoot(found); i++) {
+        for (int i = 0; i < 20 && !settled(found); i++) {
             Thread.sleep(100);
             found = automation.getWindows();
         }
@@ -157,14 +158,52 @@ public final class PhoneDump {
         return found;
     }
 
-    private static boolean anyRoot(List<AccessibilityWindowInfo> windows) {
+    private static boolean settled(List<AccessibilityWindowInfo> windows) {
+        boolean app = false;
+        boolean read = false;
+        boolean other = false;
+
         for (AccessibilityWindowInfo w : windows) {
-            if (w.getRoot() != null) {
+            AccessibilityNodeInfo root = w.getRoot();
+
+            if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                if (root == null) {
+                    return false;
+                }
+                app = true;
+                read = read || meaningful(root);
+            } else if (!other && root != null && w.getType() != AccessibilityWindowInfo.TYPE_INPUT_METHOD && !bar(w)) {
+                other = meaningful(root);
+            }
+        }
+
+        return app ? read : other;
+    }
+
+    private static boolean bar(AccessibilityWindowInfo w) {
+        Rect frame = new Rect();
+        w.getBoundsInScreen(frame);
+
+        return frame.left == 0 && frame.height() * 6 < frame.width();
+    }
+
+    private static boolean meaningful(AccessibilityNodeInfo n) {
+        if (n.isClickable() || !isEmpty(n.getText()) || !isEmpty(n.getContentDescription())) {
+            return true;
+        }
+
+        for (int i = 0; i < n.getChildCount(); i++) {
+            AccessibilityNodeInfo child = n.getChild(i);
+            if (child != null && meaningful(child)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static boolean isEmpty(CharSequence s) {
+        return s == null || s.length() == 0;
     }
 
     private static void node(AccessibilityNodeInfo n, Rect clip, StringBuilder out) {
