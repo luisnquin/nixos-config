@@ -830,6 +830,10 @@ pub mod sticky {
         serde_json::from_slice(&body).ok()
     }
 
+    pub fn forget() {
+        let _ = std::fs::remove_file(agent::file("agents", &agent::me().id));
+    }
+
     pub fn remember(view: &View, lease: &Lease) {
         let path = agent::file("agents", &agent::me().id);
         let last = Last {

@@ -182,6 +182,24 @@ pub fn displaced(seats: &[Seat], last: &Last) -> Option<String> {
     }
 }
 
+pub fn stranded(seats: &[Seat], last: &Last, boot: bool) -> Option<String> {
+    if boot || seats.iter().any(|s| s.mine() && s.running()) {
+        return None;
+    }
+
+    let note = displaced(seats, last)?;
+    let instead = best(seats, |s| s.pool() && s.running()).or_else(|| best(seats, Seat::last_resort));
+
+    Some(match instead {
+        Some(i) => {
+            let label = &seats[i].view.device.label;
+
+            format!("{note}; {label} is free: `-t {}`, or run again to allocate one", crate::quoted(label))
+        }
+        None => format!("{note}; no other device is free to allocate"),
+    })
+}
+
 pub enum Chosen {
     Use(View),
     Boot(View),
@@ -203,6 +221,12 @@ pub async fn choose(
     };
     let seats = seats(views, &books, reg, &wants);
     let last = lease::sticky::last();
+
+    if let Some(why) = last.as_ref().and_then(|l| stranded(&seats, l, boot)) {
+        lease::sticky::forget();
+
+        return Err(crate::Refused(why).into());
+    }
 
     if let Some(note) = last.as_ref().and_then(|l| displaced(&seats, l)) {
         eprintln!("phone: {note}");
@@ -445,6 +469,26 @@ mod tests {
             displaced(&seats, &last).as_deref(),
             Some("your a was taken by other after 7m idle")
         );
+    }
+
+    #[test]
+    fn a_verb_whose_sticky_device_was_taken_stops_and_names_a_free_one() {
+        let mut seats = [taken(seat("a", attached())), seat("b", attached())];
+        let last = Last {
+            device: "avd:rose/a".into(),
+            label: "a".into(),
+            seen: model::now(),
+        };
+
+        let why = stranded(&seats, &last, false).unwrap();
+
+        assert!(why.starts_with("your a was taken by other"), "{why}");
+        assert!(why.contains("b is free: `-t b`"), "{why}");
+        assert_eq!(stranded(&seats, &last, true), None, "up reallocates and converges");
+
+        seats[1].standing = Standing::Mine(holder());
+
+        assert_eq!(stranded(&seats, &last, false), None, "it already holds another device");
     }
 
     #[test]
