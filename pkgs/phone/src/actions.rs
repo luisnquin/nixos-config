@@ -1069,7 +1069,7 @@ pub fn running(reach: &Reach) -> bool {
 pub async fn arrive(reg: &mut Registry, view: &View) -> Result<(View, Vec<String>)> {
     let label = &view.device.label;
 
-    let mut notes: Vec<String> = match lease::acquire(view, lease::Take::Respect).await? {
+    let mut notes: Vec<String> = match lease::acquire(view, lease::take()).await? {
         lease::Got::Held(_) => Vec::new(),
         lease::Got::Busy(holder) => vec![format!("{label} booted, but {} holds it", holder.describe(crate::model::now()))],
     };

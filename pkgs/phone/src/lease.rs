@@ -474,6 +474,23 @@ impl From<bool> for Take {
     }
 }
 
+static TAKE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn set_take(take: bool) {
+    TAKE.store(take, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn take() -> Take {
+    TAKE.load(std::sync::atomic::Ordering::Relaxed).into()
+}
+
+pub async fn hold(view: &View) -> Result<Lease> {
+    match acquire(view, take()).await? {
+        Got::Held(lease) => Ok(lease),
+        Got::Busy(lease) => Err(refusal(view, &lease).into()),
+    }
+}
+
 #[derive(Debug)]
 pub enum Got {
     Held(Lease),
@@ -599,10 +616,10 @@ pub fn refusal(view: &View, lease: &Lease) -> crate::Refused {
     ))
 }
 
-pub async fn guard(view: &View, take: Take) -> Result<()> {
+pub async fn guard(view: &View) -> Result<()> {
     let book = Book::fetch(&actions::where_of(&view.device)).await?;
 
-    match (book.standing(&view.device, actions::running(&view.reach)), take) {
+    match (book.standing(&view.device, actions::running(&view.reach)), take()) {
         (Standing::Held(lease), Take::Respect) => Err(refusal(view, &lease).into()),
         _ => Ok(()),
     }
@@ -712,7 +729,7 @@ pub async fn tree(project: &Project) -> Result<String> {
     Ok(tree)
 }
 
-pub async fn books(views: &[View]) -> Vec<Book> {
+pub fn hosts_of(views: &[View]) -> Vec<Where> {
     let mut hosts: Vec<Where> = Vec::new();
 
     for view in views {
@@ -723,7 +740,11 @@ pub async fn books(views: &[View]) -> Vec<Book> {
         }
     }
 
-    let opened = hosts.into_iter().map(|at| async move { Book::fetch(&at).await.ok() });
+    hosts
+}
+
+pub async fn books(views: &[View]) -> Vec<Book> {
+    let opened = hosts_of(views).into_iter().map(|at| async move { Book::fetch(&at).await.ok() });
 
     futures_util::future::join_all(opened)
         .await

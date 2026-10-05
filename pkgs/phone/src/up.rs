@@ -48,7 +48,6 @@ pub struct Opts {
     pub profile: Option<String>,
     /// Run the build steps whatever the stamps say.
     pub rebuild: bool,
-    pub take: lease::Take,
     pub over_budget: bool,
     pub timeout: Duration,
 }
@@ -567,7 +566,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         *view = attach(reg, name, spec, view.clone()).await?;
     }
 
-    claim(&wanted, opts.take).await?;
+    let _beats = claim(&wanted).await?;
 
     let lanes = lanes(&wanted);
     let tagged = lanes.len() > 1;
@@ -600,11 +599,11 @@ fn all_of(outcomes: Vec<Result<()>>) -> Result<()> {
 /// A device, what it was declared to be, and where it currently is.
 type Climb<'a> = (&'a str, &'a Spec, View);
 
-async fn claim(wanted: &[Climb<'_>], take: lease::Take) -> Result<()> {
+async fn claim(wanted: &[Climb<'_>]) -> Result<Vec<lease::Beat>> {
     let mut refused = Vec::new();
 
     for (name, _, view) in wanted {
-        if let lease::Got::Busy(holder) = lease::acquire(view, take).await? {
+        if let lease::Got::Busy(holder) = lease::acquire(view, lease::take()).await? {
             refused.push(format!(
                 "{name} is held by {}; its holder's `phone release` frees it, `--take` takes it",
                 holder.describe(model::now())
@@ -620,7 +619,7 @@ async fn claim(wanted: &[Climb<'_>], take: lease::Take) -> Result<()> {
         pids::forget(&view.device.id);
     }
 
-    Ok(())
+    Ok(wanted.iter().map(|(_, _, view)| lease::heartbeat(view)).collect())
 }
 
 async fn hold_on(view: &View) -> Option<(Lease, bool)> {
@@ -885,6 +884,10 @@ async fn prepared(
         "phone: {}",
         apps::launch(&view.server, &view.device, &build.app, &build.args, &[]).await?
     );
+
+    if let Ok(app) = apps::app_id(&build.app) {
+        lease::installed(view, app).await?;
+    }
 
     // after the launch and not instead of it: a simulator delivers a url to a
     // running app and silently drops one aimed at an app that is not, so the

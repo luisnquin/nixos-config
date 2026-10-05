@@ -25,6 +25,9 @@ pub struct Cli {
     /// (split screen: the dump and every key follow whichever window has it)
     #[arg(long, global = true, value_parser = parse_point)]
     pub focus: Option<(i32, i32)>,
+
+    #[arg(long, global = true, help = "Take the device even when another agent holds it; logged with its holder")]
+    pub take: bool,
 }
 
 /// Shown under `--help`. An agent that arrives here with no other
@@ -55,7 +58,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
 The commands
 
-  project  up down status
+  project  up down release status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications
@@ -134,17 +137,14 @@ does not rebuild what the first one already did.
 every declared device is converged, which is what makes `phone down` the exact
 inverse of `phone up`.
 
-A device is held by the project that last brought it up, until that project's
-`phone down`. An `up` from another project on the same device is refused and
-names the holder: a second launch would put its app in front of the first's, and
-every snapshot the first agent took from then on would describe the wrong screen
-without anything saying so. `--take` overrides it. A device that had to be booted
-is nobody's whatever was written down, since the session holding it did not
-survive the shutdown. `phone device list` names the holder of every running
-device, and `phone status` says which of them this project is holding, so a hold
-can be read before it is what a refusal is about. Reading a held device is
-not refused: `shot`, `size`, `snapshot`, `wait` and `stream` change nothing on
-screen, so they pass any hold; a verb that presses, `--focus` included, does not.
+A device is held by the agent that last used it, until it lets go with `phone
+release`, `phone down`, exits, or leaves it idle past its ttl. Another agent's
+`up` on that device is refused and names the holder: a second launch would put
+its app in front of the first's, and every snapshot the first agent took from
+then on would describe the wrong screen without anything saying so. `--take`
+overrides it, and is logged. `phone device list` names the holder of every
+device, so a hold can be read before it is what a refusal is about. Every device
+verb, reads included, takes the same lease; only `stream` and `mirror` pass it.
 
 Devices on different platforms converge at once rather than in turn, so an iPhone
 does not wait out an android build. Two devices that would run the same build take
@@ -161,10 +161,6 @@ A device that has to be booted is weighed against its host's memory first, as
         /// Run the build steps whatever the freshness checks say
         #[arg(long)]
         rebuild: bool,
-
-        /// Take a device another project holds
-        #[arg(long)]
-        take: bool,
 
         #[arg(long, help = "Boot what is off even where its host has no room for it")]
         over_budget: bool,
@@ -189,6 +185,19 @@ name it: `phone device shutdown NAME`.
 What is installed on a device stays installed, so the next `up` boots it and
 goes straight to the app."#)]
     Down,
+
+    #[command(about = "Hand back the device this agent holds, so another agent can take it", after_help = r#"Examples:
+  phone release -t pixel_7
+  phone release
+
+Every device verb takes a lease on the device it reaches and renews it while it
+is used; a lease left idle past its ttl, or whose agent has exited, lapses on its
+own. This frees one now. Handing a device to a subagent is a `phone release -t X`
+here, then any verb there. Without -t, every lease this agent holds is freed."#)]
+    Release {
+        #[arg(id = "device")]
+        target: Option<String>,
+    },
     /// Say what this project declares and what is actually there
     #[command(after_help = r#"Examples:
   phone status
@@ -1199,16 +1208,6 @@ impl Command {
         };
 
         Some(positional)
-    }
-
-    pub fn reads(&self) -> bool {
-        matches!(
-            self,
-            Command::Shot { .. }
-                | Command::Size { .. }
-                | Command::Snapshot { .. }
-                | Command::Wait { .. }
-        )
     }
 
     pub fn acts(&self) -> bool {

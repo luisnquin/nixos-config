@@ -159,6 +159,7 @@ fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
 
 async fn configured(cli: Cli) -> Result<()> {
     config::load()?;
+    lease::set_take(cli.take);
 
     dispatch(cli).await
 }
@@ -184,6 +185,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         command,
         target: fallback,
         focus,
+        ..
     } = cli;
 
     // the positional form wins: it was typed at this command, rather than
@@ -199,8 +201,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
     // for it once and hand the same device to each step.
     if let Some(positional) = command.as_ref().and_then(Command::on_screen) {
         let want = want(positional.map(str::to_string));
-        let hold = Hold::for_verb(command.as_ref(), focus);
-        let session = Session::open(&mut reg, want.as_deref(), focus, hold).await?;
+        let session = Session::open(&mut reg, want.as_deref(), focus, Hold::Respected).await?;
+        let _beat = lease::heartbeat(&session.view);
 
         return answered(&session, command.expect("classified as a screen verb")).await;
     }
@@ -220,7 +222,6 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Some(Command::Up {
             profile,
             rebuild,
-            take,
             over_budget,
             timeout,
         }) => {
@@ -229,7 +230,6 @@ async fn dispatch(cli: Cli) -> Result<()> {
             let opts = up::Opts {
                 profile,
                 rebuild,
-                take: take.into(),
                 over_budget,
                 timeout,
             };
@@ -244,29 +244,10 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Status { profile, json }) => {
-            let project = declared()?;
-            let report = up::status(
-                &mut reg,
-                &project,
-                profile.as_deref(),
-                want(None).as_deref(),
-            )
-            .await?;
-
-            match json {
-                true => println!("{}", serde_json::to_string_pretty(&report)?),
-                false => up::print(&report),
-            }
-
-            let ours = want(None)
-                .or_else(|| std::env::var("PHONE_TARGET").ok())
-                .filter(|s| !s.is_empty())
-                .or(project.manifest.default);
-
-            exit_on_drift(&report, ours.as_deref());
-
-            Ok(())
+            status_cmd(&mut reg, profile, json, want(None)).await
         }
+
+        Some(Command::Release { target }) => release_cmd(&mut reg, want(target)).await,
 
         // a bare `phone device` is the question the list answers
         Some(Command::Device { action }) => {
@@ -349,9 +330,10 @@ async fn dispatch(cli: Cli) -> Result<()> {
                         resolve(&mut reg, want(target).as_deref(), true, Aim::Running).await?;
 
                     // turning off the device somebody else is holding ends their session
-                    lease::guard(&view, lease::Take::Respect).await?;
+                    lease::guard(&view).await?;
 
                     eprintln!("phone: {}", actions::stop(&view.device, &view.reach).await?);
+            lease::release(&view).await?;
 
                     Ok(())
                 }
@@ -401,7 +383,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Mirror { target }) => {
-            let view = driving(&mut reg, want(target).as_deref(), true).await?;
+            let view = reaching(&mut reg, want(target).as_deref(), true, Hold::Ignored).await?;
 
             eprintln!(
                 "phone: {}",
@@ -420,6 +402,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
             jpeg,
         }) => {
             let view = driving(&mut reg, want(target).as_deref(), true).await?;
+            let _beat = lease::heartbeat(&view);
 
             let take = record::Take {
                 seconds,
@@ -522,11 +505,62 @@ async fn clone_device(reg: &mut Registry, target: &str, new: &str) -> Result<()>
     Ok(())
 }
 
+async fn status_cmd(
+    reg: &mut Registry,
+    profile: Option<String>,
+    json: bool,
+    want: Option<String>,
+) -> Result<()> {
+    let project = declared()?;
+    let report = up::status(reg, &project, profile.as_deref(), want.as_deref()).await?;
+
+    match json {
+        true => println!("{}", serde_json::to_string_pretty(&report)?),
+        false => up::print(&report),
+    }
+
+    let ours = want
+        .or_else(|| std::env::var("PHONE_TARGET").ok())
+        .filter(|s| !s.is_empty())
+        .or(project.manifest.default);
+
+    exit_on_drift(&report, ours.as_deref());
+
+    Ok(())
+}
+
+async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let Some(want) = want else {
+        let freed = lease::release_all(&lease::hosts_of(&views)).await?;
+
+        match freed.is_empty() {
+            true => eprintln!("phone: {} holds no device", agent::me().label),
+            false => eprintln!("phone: released {}", freed.join(", ")),
+        }
+
+        return Ok(());
+    };
+
+    let view = choose(&views, reg, Some(&want), false, Aim::Bootable).await?;
+
+    match lease::release(&view).await? {
+        Some(_) => eprintln!("phone: released {}", view.device.label),
+        None => eprintln!("phone: {} was not held", view.device.label),
+    }
+
+    Ok(())
+}
+
 async fn delete_device(reg: &mut Registry, target: &str, yes: bool) -> Result<()> {
     let views = survey(reg).await;
     reg.save()?;
 
     let view = choose(&views, reg, Some(target), false, Aim::Bootable).await?;
+    lease::guard(&view).await?;
+
     let said = actions::delete(&view.device, &view.reach, yes).await?;
 
     reg.remove(&view.device.id);
@@ -547,6 +581,7 @@ async fn boot_device(
     reg.save()?;
 
     let view = choose(&views, reg, want.as_deref(), true, Aim::Bootable).await?;
+    lease::guard(&view).await?;
 
     if !actions::running(&view.reach) {
         memory::admit(reg, &views, &[&view.device], over_budget).await?;
@@ -2156,15 +2191,6 @@ enum Hold {
     Ignored,
 }
 
-impl Hold {
-    fn for_verb(command: Option<&Command>, focus: Option<(i32, i32)>) -> Self {
-        match focus.is_none() && command.is_some_and(Command::reads) {
-            true => Hold::Ignored,
-            false => Hold::Respected,
-        }
-    }
-}
-
 async fn reaching(
     reg: &mut Registry,
     want: Option<&str>,
@@ -2216,19 +2242,11 @@ async fn reaching(
 async fn admit(view: View, hold: Hold) -> Result<View> {
     calls::device(&view.device);
 
-    let (held, looked) = tokio::join!(
-        async {
-            match hold {
-                Hold::Respected => lease::guard(&view, lease::Take::Respect).await,
-                Hold::Ignored => Ok(()),
-            }
-        },
-        pids::look(&view)
-    );
+    if hold == Hold::Respected {
+        lease::hold(&view).await?;
+    }
 
-    held?;
-
-    if let Some(looked) = looked {
+    if let Some(looked) = pids::look(&view).await {
         looked.settle();
     }
 
