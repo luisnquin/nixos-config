@@ -120,8 +120,8 @@ impl Lease {
         (now - self.last_seen).max(0)
     }
 
-    pub fn due(&self, now: Unix) -> bool {
-        self.idle(now) * 4 >= self.ttl
+    pub fn due(&self, now: Unix, running: bool) -> bool {
+        self.idle(now) * 4 >= self.ttl || !running && self.idle(now) * 2 >= BOOT
     }
 
     pub fn describe(&self, now: Unix) -> String {
@@ -547,8 +547,10 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     let key = key(&view.device);
     let judge = book.judge(now);
 
-    let lease = match standing(&book.ledger, &key, &judge, me, actions::running(&view.reach)) {
-        Standing::Mine(lease) if !lease.due(now) => return Step::Done(Got::Held(lease)),
+    let running = actions::running(&view.reach);
+
+    let lease = match standing(&book.ledger, &key, &judge, me, running) {
+        Standing::Mine(lease) if !lease.due(now, running) => return Step::Done(Got::Held(lease)),
         Standing::Held(_) if !book.fresh => return Step::Refresh,
         Standing::Held(lease) if take == Take::Respect => return Step::Done(Got::Busy(lease)),
         Standing::Mine(lease) => Lease { last_seen: now, ..lease },
@@ -727,15 +729,19 @@ impl Drop for Beat {
 
 pub fn heartbeat(view: &View) -> Beat {
     let view = view.clone();
-    let every = config::get().ttl(&view.device) / 4;
+    let every = cadence(config::get().ttl(&view.device));
 
     Beat(tokio::spawn(async move {
         loop {
-            tokio::time::sleep(every.max(Duration::from_secs(15))).await;
+            tokio::time::sleep(every).await;
 
             let _ = acquire(&view, Take::Respect).await;
         }
     }))
+}
+
+fn cadence(ttl: Duration) -> Duration {
+    (ttl / 4).min(Duration::from_secs(BOOT as u64 / 2)).max(Duration::from_secs(15))
 }
 
 pub async fn tree(project: &Project) -> Result<String> {
@@ -977,8 +983,19 @@ mod tests {
     fn renewal_waits_for_a_quarter_of_the_ttl() {
         let lease = held(&me("a"), 1_000);
 
-        assert!(!lease.due(1_000 + 299));
-        assert!(lease.due(1_000 + 300));
+        assert!(!lease.due(1_000 + 299, true));
+        assert!(lease.due(1_000 + 300, true));
+    }
+
+    #[test]
+    fn a_boot_reservation_is_renewed_before_it_lapses() {
+        let lease = held(&me("a"), 1_000);
+        let every = cadence(Duration::from_secs(1200)).as_secs() as i64;
+
+        assert!(every < BOOT);
+        assert!(lease.due(1_000 + every, false));
+        assert!(!lease.due(1_000 + every, true));
+        assert_eq!(cadence(Duration::from_secs(40)), Duration::from_secs(15));
     }
 
     #[test]
