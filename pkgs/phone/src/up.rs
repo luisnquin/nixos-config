@@ -34,7 +34,7 @@ use crate::project::{Build, Level, Project, Spec, Task};
 use crate::registry::Registry;
 use crate::ssh::{Status, Where};
 use crate::stamps::{self, Stamps};
-use crate::{actions, apps, memory};
+use crate::{actions, apps, config, memory};
 
 /// Long enough for a `git rev-parse` over a cold ssh session or an Expo
 /// fingerprint over a large tree, short enough that a hung probe is reported
@@ -867,12 +867,9 @@ async fn raise(
 /// one an app can be driven on. Both are Android's; a simulator shares its
 /// host's loopback already and takes its configuration from the host.
 async fn ready(view: &View, spec: &Spec, name: &str) -> Result<bool> {
-    if !view.device.platform.is_adb() {
+    if let Some(why) = exempt(view, config::get().physical(&view.device)) {
         if !spec.reverse.is_empty() || !spec.settings.is_empty() {
-            eprintln!(
-                "phone: {name} is a {}, so `reverse` and `settings` do not apply to it",
-                view.device.platform
-            );
+            eprintln!("phone: {name} {why}");
         }
 
         return Ok(false);
@@ -1326,8 +1323,19 @@ async fn row(
 }
 
 /// Whether a device's forwards and settings are already what was declared.
-async fn settled(view: &View, spec: &Spec) -> Result<bool> {
+fn exempt(view: &View, physical: bool) -> Option<String> {
     if !view.device.platform.is_adb() {
+        return Some(format!(
+            "is a {}, so `reverse` and `settings` do not apply to it",
+            view.device.platform
+        ));
+    }
+
+    physical.then(|| "is a physical device; `reverse` and `settings` apply to emulators only".to_string())
+}
+
+async fn settled(view: &View, spec: &Spec) -> Result<bool> {
+    if exempt(view, config::get().physical(&view.device)).is_some() {
         return Ok(true);
     }
 
@@ -1538,6 +1546,17 @@ mod tests {
                 wireless: false,
             },
         )
+    }
+
+    #[test]
+    fn a_physical_device_never_takes_the_project_profile() {
+        let handset = view("faraday", Platform::Android, Reach::Online);
+        let config = config::Config::default();
+
+        assert!(exempt(&handset, config.physical(&handset.device)).is_some_and(|why| why.contains("emulators only")));
+        assert_eq!(exempt(&attached("pixel"), config.physical(&attached("pixel").device)), None);
+        assert!(exempt(&attached("pixel"), true).is_some(), "kind = \"physical\" wins over the platform");
+        assert!(exempt(&view("iPhone 17", Platform::Simulator, Reach::Online), false).is_some());
     }
 
     /// The rung a survey alone can prove, which is not the same question for a
