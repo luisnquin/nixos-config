@@ -271,7 +271,7 @@ pub(crate) mod tests {
         );
     }
 
-    fn avd(name: &str) -> Device {
+    pub fn avd(name: &str) -> Device {
         let mut device = Device::new(format!("avd:rose/{name}"), name, Platform::Emulator);
         device.host = Some("rose".into());
 

@@ -1307,7 +1307,8 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
         "ms" => value / 1000.0,
         "s" | "" => value,
         "m" => value * 60.0,
-        other => return Err(format!("unknown unit '{other}' (try ms, s, m)")),
+        "h" => value * 3600.0,
+        other => return Err(format!("unknown unit '{other}' (try ms, s, m, h)")),
     };
 
     Ok(Duration::from_secs_f64(seconds))

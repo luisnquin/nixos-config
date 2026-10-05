@@ -36,6 +36,7 @@ mod apps;
 mod avd;
 mod calls;
 mod cli;
+mod config;
 mod connect;
 mod discover;
 mod doctor;
@@ -107,7 +108,7 @@ async fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let code = match dispatch(cli).await {
+    let code = match configured(cli).await {
         Ok(()) => 0,
         Err(e) => {
             // the alternate form walks the context chain; without it a failure
@@ -153,6 +154,12 @@ fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
     std::io::stdout().flush().ok();
     calls::finish(Some(code), None);
     std::process::exit(code);
+}
+
+async fn configured(cli: Cli) -> Result<()> {
+    config::load()?;
+
+    dispatch(cli).await
 }
 
 async fn dispatch(cli: Cli) -> Result<()> {
