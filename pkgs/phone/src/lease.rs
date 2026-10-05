@@ -108,7 +108,12 @@ impl Lease {
     }
 
     pub fn owned_by(&self, me: &Agent) -> bool {
-        self.agent == me.id && self.host == me.host && self.pid == me.pid && self.start == me.start
+        let same_process = match (self.pid, me.pid) {
+            (Some(pid), Some(mine)) => pid == mine && self.start == me.start,
+            _ => true,
+        };
+
+        self.agent == me.id && self.host == me.host && same_process
     }
 
     pub fn idle(&self, now: Unix) -> i64 {
@@ -926,6 +931,20 @@ mod tests {
         resumed.start = Some("777".into());
 
         assert!(matches!(standing(&ledger, &k, &j, &resumed, true), Standing::Held(_)));
+    }
+
+    #[test]
+    fn the_same_agent_owns_its_lease_across_a_sandbox_toggle() {
+        let outside = me("a");
+        let sandboxed = Agent {
+            pid: None,
+            start: None,
+            ..outside.clone()
+        };
+
+        assert!(held(&outside, 1_000).owned_by(&sandboxed));
+        assert!(held(&sandboxed, 1_000).owned_by(&outside));
+        assert!(!held(&sandboxed, 1_000).owned_by(&me("b")));
     }
 
     #[test]
