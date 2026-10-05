@@ -165,14 +165,18 @@ struct Old {
 }
 
 impl Ledger {
-    pub fn parse(body: &str) -> Self {
-        let Ok(Value::Object(map)) = serde_json::from_str::<Value>(body) else {
-            return Ledger::default();
+    pub fn parse(body: &str) -> Result<Self> {
+        if body.trim().is_empty() {
+            return Ok(Ledger::default());
+        }
+
+        let Value::Object(map) = serde_json::from_str::<Value>(body).context("leases.json is not JSON")? else {
+            bail!("leases.json is not a JSON object");
         };
 
         match map.contains_key("v") {
-            true => serde_json::from_value(Value::Object(map)).unwrap_or_default(),
-            false => Ledger::migrate(map),
+            true => serde_json::from_value(Value::Object(map)).context("leases.json does not parse as a v2 ledger"),
+            false => Ok(Ledger::migrate(map)),
         }
     }
 
@@ -355,19 +359,23 @@ pub struct Book {
 }
 
 impl Book {
-    fn parse(at: &Where, text: &str) -> Option<Self> {
-        let mut head = text.splitn(4, '\n');
-        let (dir, host, sum, rest) = (head.next()?, head.next()?, head.next()?, head.next()?);
-        let rest = rest.strip_prefix("@body\n")?;
-        let (body, rest) = rest.split_once("\n@dead\n")?;
+    fn parse(at: &Where, text: &str) -> Result<Self> {
+        let framed = || {
+            let mut head = text.splitn(4, '\n');
+            let (dir, host, sum, rest) = (head.next()?, head.next()?, head.next()?, head.next()?);
+            let (body, rest) = rest.strip_prefix("@body\n")?.split_once("\n@dead\n")?;
+
+            Some((dir, host, sum, body, rest))
+        };
+        let (dir, host, sum, body, rest) = framed().context("the ledger script's output is not framed")?;
         let (dead, usage) = rest.split_once("@usage\n").unwrap_or((rest, ""));
 
-        Some(Book {
+        Ok(Book {
             at: at.clone(),
             dir: dir.to_string(),
             host: host.to_string(),
             sum: sum.trim().to_string(),
-            ledger: Ledger::parse(body),
+            ledger: Ledger::parse(body).with_context(|| format!("{dir}/leases.json on {host}"))?,
             dead: dead.lines().filter_map(dead_line).collect(),
             usage: Usage::parse(usage),
             fresh: true,
@@ -409,8 +417,9 @@ impl Book {
         let book = Self::parse(&self.at, &String::from_utf8_lossy(&ran.stdout));
 
         match (ran.status, book) {
-            (Status::Code(0), Some(book)) => Ok(Ok(book.cached_now())),
-            (Status::Code(CONFLICT), Some(book)) => Ok(Err(book.cached_now())),
+            (Status::Code(0), Ok(book)) => Ok(Ok(book.cached_now())),
+            (Status::Code(CONFLICT), Ok(book)) => Ok(Err(book.cached_now())),
+            (_, Err(e)) => Err(e.context(format!("could not write the leases on {}: {}", self.at.label(), ran.said))),
             _ => bail!("could not write the leases on {}: {}", self.at.label(), ran.said),
         }
     }
@@ -959,14 +968,25 @@ mod tests {
     fn old_leases_import_expired_from_since() {
         let ledger = Ledger::parse(
             r#"{"avd:pixel":{"tree":"/a","project":"hotline","since":1000,"session":"5dac5f28-ad4e"}}"#,
-        );
+        )
+        .unwrap();
         let lease = &ledger.leases["avd:pixel"];
         let none = BTreeSet::new();
 
         assert_eq!((lease.agent.as_str(), lease.last_seen), ("legacy:5dac5f28-ad4e", 1_000));
         assert!(!judge(1_000 + 1200, &none).valid(lease, true));
-        assert_eq!(Ledger::parse("{ not json"), Ledger::default());
-        assert_eq!(Ledger::parse(""), Ledger::default());
+        assert_eq!(Ledger::parse("").unwrap(), Ledger::default());
+    }
+
+    #[test]
+    fn an_unreadable_ledger_is_an_error_rather_than_an_empty_one() {
+        for body in ["{ not json", "[]", r#"{"v":2,"leases":{"avd:pixel":{"agent":"a"}}}"#] {
+            assert!(Ledger::parse(body).is_err(), "{body}");
+        }
+
+        let framed = "/s\nrose\n1 2\n@body\n{\"v\":2,\"leases\":7}\n@dead\n@usage\n";
+
+        assert!(Book::parse(&Where::Here, framed).is_err());
     }
 
     #[test]
@@ -975,7 +995,7 @@ mod tests {
         ledger.put(&Key::from("avd:pixel"), held(&me("a"), 1_000));
 
         assert!(ledger.body().contains(r#""host":"nyx","pid":10,"start":"500""#));
-        assert_eq!(Ledger::parse(&ledger.body()), Ledger { v: 2, ..ledger });
+        assert_eq!(Ledger::parse(&ledger.body()).unwrap(), Ledger { v: 2, ..ledger });
     }
 
     #[test]
