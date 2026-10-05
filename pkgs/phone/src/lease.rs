@@ -238,6 +238,7 @@ pub struct Judge<'a> {
     pub dead: &'a BTreeSet<(u32, String)>,
     pub here: &'a str,
     pub alive: fn(u32, &str) -> bool,
+    pub blind: bool,
 }
 
 impl Judge<'_> {
@@ -251,6 +252,10 @@ impl Judge<'_> {
         let (Some(pid), Some(start)) = (lease.pid, lease.start.as_deref()) else {
             return true;
         };
+
+        if self.blind && lease.host == self.here {
+            return true;
+        }
 
         if lease.host == self.book_host {
             return !self.dead.contains(&(pid, start.to_string()));
@@ -444,6 +449,7 @@ impl Book {
             dead: &self.dead,
             here: &agent::me().host,
             alive: agent::alive,
+            blind: agent::blind(),
         }
     }
 
@@ -837,6 +843,7 @@ mod tests {
             dead,
             here: "nyx",
             alive: living,
+            blind: false,
         }
     }
 
@@ -867,6 +874,27 @@ mod tests {
         let mut elsewhere = held(&me("a"), 1_000);
         elsewhere.host = "laptop".into();
         assert!(judge(1_001, &dead).valid(&elsewhere, true), "a third machine is ttl only");
+    }
+
+    #[test]
+    fn a_reader_in_a_pid_sandbox_trusts_holders_on_its_own_host() {
+        let mut stale = held(&me("a"), 1_000);
+        stale.start = Some("499".into());
+
+        let mut local = held(&me("a"), 1_000);
+        local.host = "rose".into();
+        let dead = BTreeSet::from([(10, "500".to_string())]);
+
+        let mut blind = judge(1_001, &dead);
+        blind.here = "rose";
+        blind.blind = true;
+
+        assert!(blind.valid(&local, true), "the book's @dead came from inside the sandbox");
+
+        blind.here = "nyx";
+
+        assert!(blind.valid(&stale, true), "the pid probe cannot see outside the sandbox");
+        assert!(!blind.valid(&local, true), "another host's @dead is still trusted");
     }
 
     #[test]

@@ -75,6 +75,16 @@ pub fn me() -> &'static Agent {
     })
 }
 
+pub fn blind() -> bool {
+    static BLIND: OnceLock<bool> = OnceLock::new();
+
+    *BLIND.get_or_init(|| blinded(&Env::read(), start))
+}
+
+fn blinded(env: &Env, start: impl Fn(u32) -> Option<String>) -> bool {
+    env.claude_pid.or(env.codex_pid).is_some_and(|pid| start(pid).is_none())
+}
+
 pub fn resolve(env: &Env, host: &str, start: impl Fn(u32) -> Option<String>) -> Agent {
     let mut agent = identify(env, host);
 
@@ -293,6 +303,19 @@ mod tests {
         };
 
         assert_eq!(resolve(&e, "nyx", |_| None).pid, None);
+    }
+
+    #[test]
+    fn a_harness_pid_that_cannot_be_seen_means_a_pid_sandbox() {
+        let claude = Env {
+            claudecode: true,
+            claude_pid: Some(42),
+            ..env()
+        };
+
+        assert!(blinded(&claude, |_| None));
+        assert!(!blinded(&claude, started));
+        assert!(!blinded(&env(), |_| None), "no harness pid, nothing to be blind to");
     }
 
     #[test]
