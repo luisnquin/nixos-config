@@ -19,6 +19,8 @@ in {
     context = ''
       ${kit.memories}
 
+      Devices go through `phone`, never raw adb, simctl or emulator. Each thread holds its own device; to hand one to a sub-agent, run `phone release -t <device>` first and let the sub-agent acquire it.
+
       ${builtins.readFile "${pkgs.rtk}/share/rtk/hooks/rtk-awareness-high.md"}
     '';
 
@@ -62,6 +64,8 @@ in {
           "USER"
           "HERDR_*"
           "CODEX_AGENT"
+          "CODEX_THREAD_ID"
+          "CODEX_SESSION_ID"
           "GIT_ASKPASS"
           "GIT_SSH_COMMAND"
           "GIT_TERMINAL_PROMPT"

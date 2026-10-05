@@ -31,6 +31,7 @@ macro_rules! eprintln {
 mod a11y;
 mod actions;
 mod adb;
+mod agent;
 mod answer;
 mod apps;
 mod avd;
