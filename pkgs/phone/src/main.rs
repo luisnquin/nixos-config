@@ -337,7 +337,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
                     lease::guard(&view).await?;
 
                     eprintln!("phone: {}", actions::stop(&view.device, &view.reach).await?);
-            lease::release(&view).await?;
+                    lease::release(&view).await?;
 
                     Ok(())
                 }

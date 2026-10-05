@@ -605,10 +605,10 @@ pub async fn release(view: &View) -> Result<Option<Lease>> {
     for _ in 0..RETRIES {
         let key = key(&view.device);
 
-        let had = match book.standing(&view.device, actions::running(&view.reach)) {
-            Standing::Held(lease) => return busy(view, lease),
-            Standing::Free(None) => return Ok(None),
-            Standing::Mine(lease) | Standing::Free(Some(lease)) => lease,
+        let had = match letting_go(book.standing(&view.device, actions::running(&view.reach)), take()) {
+            Some(Ok(lease)) => lease,
+            Some(Err(lease)) => return busy(view, lease),
+            None => return Ok(None),
         };
 
         let mut ledger = book.ledger.clone();
@@ -621,6 +621,14 @@ pub async fn release(view: &View) -> Result<Option<Lease>> {
     }
 
     bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+fn letting_go(standing: Standing, take: Take) -> Option<Result<Lease, Lease>> {
+    match (standing, take) {
+        (Standing::Held(lease), Take::Respect) => Some(Err(lease)),
+        (Standing::Free(None), _) => None,
+        (Standing::Mine(lease) | Standing::Held(lease) | Standing::Free(Some(lease)), _) => Some(Ok(lease)),
+    }
 }
 
 fn busy(view: &View, lease: Lease) -> Result<Option<Lease>> {
@@ -954,6 +962,15 @@ mod tests {
         assert!(held(&outside, 1_000).owned_by(&sandboxed));
         assert!(held(&sandboxed, 1_000).owned_by(&outside));
         assert!(!held(&sandboxed, 1_000).owned_by(&me("b")));
+    }
+
+    #[test]
+    fn release_drops_another_agents_lease_only_under_take() {
+        let theirs = held(&me("b"), 1_000);
+
+        assert_eq!(letting_go(Standing::Held(theirs.clone()), Take::Respect), Some(Err(theirs.clone())));
+        assert_eq!(letting_go(Standing::Held(theirs.clone()), Take::Override), Some(Ok(theirs)));
+        assert_eq!(letting_go(Standing::Free(None), Take::Override), None);
     }
 
     #[test]
