@@ -513,7 +513,30 @@ pub fn take() -> Take {
 }
 
 pub async fn hold(view: &View) -> Result<Lease> {
-    match acquire(view, take()).await? {
+    let take = take();
+    let ttl = config::get().ttl(&view.device);
+
+    if take == Take::Respect && config::get().physical(&view.device) {
+        if let Some(age) = actions::last_human(&view.server, &view.device).await.filter(|a| *a < ttl) {
+            let book = Book::open(&actions::where_of(&view.device)).await?;
+            let since = match book.standing(&view.device, actions::running(&view.reach)) {
+                Standing::Mine(lease) => Some(model::now() - lease.last_seen),
+                _ => None,
+            };
+
+            if handed_back(age, since) {
+                return Err(crate::Refused(format!(
+                    "{} was touched by hand {}s ago, so its owner has it; it frees {}s after the last touch, `--take` takes it now",
+                    view.device.label,
+                    age.as_secs(),
+                    ttl.as_secs()
+                ))
+                .into());
+            }
+        }
+    }
+
+    match acquire(view, take).await? {
         Got::Held(lease) => Ok(lease),
         Got::Busy(lease) => Err(refusal(view, &lease).into()),
     }
@@ -630,6 +653,10 @@ pub async fn release(view: &View) -> Result<Option<Lease>> {
     }
 
     bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+fn handed_back(touched: Duration, since_my_last_verb: Option<Unix>) -> bool {
+    since_my_last_verb.is_none_or(|since| since >= touched.as_secs() as Unix)
 }
 
 fn letting_go(standing: Standing, take: Take) -> Option<Result<Lease, Lease>> {
@@ -854,6 +881,15 @@ pub mod sticky {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_touch_hands_a_physical_device_back_unless_the_holder_acted_after_it() {
+        let touched = Duration::from_secs(30);
+
+        assert!(handed_back(touched, None), "nobody held it");
+        assert!(handed_back(touched, Some(90)), "touched after the holder's last verb");
+        assert!(!handed_back(touched, Some(10)), "the holder acted after the touch");
+    }
 
     fn me(id: &str) -> Agent {
         Agent {

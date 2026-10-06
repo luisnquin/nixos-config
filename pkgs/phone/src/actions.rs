@@ -11,7 +11,7 @@ use crate::connect::{attached_serial, serial_of, Reporter};
 use crate::model::{Device, Platform, Reach, View};
 use crate::registry::Registry;
 use crate::ssh::Where;
-use crate::{avd, discover, ios, lease, memory, simctl};
+use crate::{avd, discover, ios, lease, memory, simctl, touch};
 
 const PNG_MAGIC: [u8; 4] = [0x89, b'P', b'N', b'G'];
 
@@ -915,6 +915,19 @@ async fn unsettled<'a>(
 /// Short: `settings` is a local database read, and a device that cannot answer
 /// it in this long is not going to.
 const SETTINGS_TIMEOUT: Duration = Duration::from_secs(15);
+
+pub async fn last_human(server: &Server, device: &Device) -> Option<Duration> {
+    if !device.platform.is_adb() {
+        return None;
+    }
+
+    let serial = serial_of(server, device).await.ok()?;
+    let out = adb::run_timeout(server, &["-s", &serial, "shell", "dumpsys input"], SETTINGS_TIMEOUT)
+        .await
+        .ok()?;
+
+    out.ok().then(|| touch::last_human(&out.stdout)).flatten()
+}
 
 fn first_line(text: &str) -> Option<&str> {
     text.lines().map(str::trim).find(|l| !l.is_empty())
