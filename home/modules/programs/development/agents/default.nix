@@ -18,5 +18,5 @@
     ./skills.nix
   ];
 
-  services.dazzle-engine.enable = true;
+  services.upgraded.enable = true;
 }

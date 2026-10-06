@@ -179,26 +179,6 @@
         "type": "github"
       }
     },
-    "dazzle": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1790958458,
-        "narHash": "sha256-za3vuHpEY8VLp/Gyo/pZOSJRAXT96ImwCPC7vSYTzqM=",
-        "ref": "refs/heads/main",
-        "rev": "3a1144cf6dfc0f173b16271654ff3793648d6442",
-        "revCount": 473,
-        "type": "git",
-        "url": "ssh://git@github.com/0xc000022070/dazzle"
-      },
-      "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/0xc000022070/dazzle"
-      }
-    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -1231,7 +1211,6 @@
         "battery-notifier": "battery-notifier",
         "black-terminal": "black-terminal",
         "bun2nix": "bun2nix",
-        "dazzle": "dazzle",
         "disko": "disko",
         "encore": "encore",
         "flake-parts": "flake-parts",
@@ -1253,6 +1232,7 @@
         "sops-nix": "sops-nix",
         "systems": "systems_2",
         "techdebt-cli": "techdebt-cli",
+        "upgrade": "upgrade",
         "zen-browser": "zen-browser"
       }
     },
@@ -1386,6 +1366,26 @@
         "owner": "numtide",
         "repo": "treefmt-nix",
         "type": "github"
+      }
+    },
+    "upgrade": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1791244734,
+        "narHash": "sha256-oQj3aI3cKT1emZHbA3dGQGV8doHCgrAqg678jzHvId8=",
+        "ref": "refs/heads/main",
+        "rev": "171961e79b9f6e7364d1efcf01cc2097da32478a",
+        "revCount": 508,
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/dazzle"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/dazzle"
       }
     },
     "uv2nix": {

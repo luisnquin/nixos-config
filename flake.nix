@@ -134,7 +134,7 @@
       url = "github:0xc000022070/techdebt-cli";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    dazzle = {
+    upgrade = {
       url = "git+ssh://git@github.com/0xc000022070/dazzle";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -226,7 +226,7 @@
       inputs."3mf2stl".homeModules.default
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
-      inputs.dazzle.homeModules.default
+      inputs.upgrade.homeModules.default
       ./pkgs/hm-modules
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")
