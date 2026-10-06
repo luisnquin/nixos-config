@@ -60,6 +60,12 @@ in {
         rev = "b091cb4179d3b62a6e2a39910461c7ec7165b1ef";
         sha256 = "sha256-uKDVcw6C1uzpiIY+hjgHxr4AU9wM1KF7t3v6zd9XBHk=";
       };
+      claude-image-view = pkgs.fetchFromGitHub {
+        owner = "jarrodwatts";
+        repo = "claude-image-view";
+        rev = "b3c412bb6d167cafade79148e95f9114ee1aad7c";
+        sha256 = "sha256-WCJJrInTO6iOrcrFIm2adgg+3J0L8J+KNANanYSB3Rc=";
+      };
     };
 
     context = ''
@@ -71,6 +77,7 @@ in {
     # https://code.claude.com/docs/en/settings#available-settings
     settings = {
       enabledPlugins = {
+        "image-view@claude-image-view" = true;
         "rust-analyzer-lsp@claude-plugins-official" = true;
         "swift-lsp@claude-plugins-official" = true;
       };
