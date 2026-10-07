@@ -19,7 +19,9 @@ A call costs about a second; the tool round trip costs more. So:
   in this shell only, never in a shell rc file.
 - Put steps known in advance in one `phone do "…" "…"`: one survey, one tool
   call. A step is parsed like a command line, so quote multi-word names
-  inside it: `"wait 'Order history'"`.
+  inside it: `"wait 'Order history'"`. Chain only names you have already seen:
+  a step after an act names something on the next screen, and one guessed
+  wrong aborts every step after it.
 - An act (`tap`, `press`, `swipe`, `pinch`, `rotate`, `key`, `type`, `fill`), alone or
   as the last step of a `do`, waits for the screen to settle and prints what
   changed: `changed N new, M gone`, the new rows with an `@index` you can use,
@@ -28,6 +30,11 @@ A call costs about a second; the tool round trip costs more. So:
   result still loading.
 - Never `sleep` between an act and a read. `wait <what>` and `shot --settle`
   return as soon as the screen catches up.
+- Never pipe `phone` through `head` or `tail`: its output is already trimmed,
+  and a cut drops rows or the error line.
+- A refusal names its next step. Take that step; never repeat the refused call
+  unchanged. `the screen is off` wants one `phone key wakeup`. A boot that
+  timed out fails the same way again: read the log it names first.
 
 ## Pick a device
 
@@ -86,6 +93,13 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
 
 `-t <device>` and `--focus X,Y` work on any verb; with `do` they go on `do`, not inside a step.
 
+- A coordinate is one argument, `540,1200`, never `540 1200`.
+- `key del` is backspace; `key back` leaves the screen.
+- `app open` takes a url. An app id goes to `app launch <id>`. Nothing opens
+  `data:` urls: serve the page over http and `phone device reverse <port>`.
+- `down` takes no device name. One device: `phone release -t <name>`, or
+  `phone device shutdown <name>` to stop it.
+
 ## Keep reads cheap
 
 - `shot` without `-o` goes to the clipboard, which you cannot read: always pass
@@ -96,6 +110,8 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
   the screen changes rather than guessing. Rows an act printed keep the
   numbers it gave them, alongside the last snapshot's.
 - Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
+- A trailing `…` or `(+N lines)` on a row is output being trimmed, not part
+  of the name. Tap that row by its `@index`.
 - A label inside a row that already reads it is not listed (the gaps in the
   `@` numbers), and a nameless pressable around one label is listed by it. Tap
   that name: it outlives the screen change that makes an `@index` stale.
