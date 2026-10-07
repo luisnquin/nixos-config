@@ -142,9 +142,17 @@ fn invokes_phone(command: &str) -> bool {
 }
 
 fn raw(command: &str) -> bool {
-    command
+    !phone_runs(command) && command
         .split(SEPARATORS)
         .any(|segment| leads(segment.split_whitespace()) || steers(segment))
+}
+
+fn phone_runs(command: &str) -> bool {
+    command.split(SEPARATORS).any(|segment| {
+        let mut words = segment.split_whitespace();
+
+        lead(&mut words).is_some_and(|w| name(w) == "phone") && words.next() == Some("run")
+    })
 }
 
 fn steers(segment: &str) -> bool {
@@ -204,6 +212,8 @@ mod tests {
     fn everything_else_stays_silent() {
         for line in [
             "phone device boot pixel_7",
+            "phone run -- adb shell getprop ro.product.model",
+            "phone run -t pixel_7 -- sh -c 'adb install a.apk; adb shell am start x'",
             "grep adb file",
             "rg -n emulator src/",
             "git commit -m \"fix emulator\"",

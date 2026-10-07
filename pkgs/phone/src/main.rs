@@ -114,6 +114,7 @@ async fn main() -> ExitCode {
 
     let code = match configured(cli).await {
         Ok(()) => 0,
+        Err(e) if e.is::<Exited>() => e.downcast::<Exited>().map_or(1, |Exited(code)| code as u8),
         Err(e) => {
             // the alternate form walks the context chain; without it a failure
             // reads as "in phone.toml" with the reason it failed dropped
@@ -141,6 +142,17 @@ impl std::fmt::Display for Refused {
 }
 
 impl std::error::Error for Refused {}
+
+#[derive(Debug)]
+pub struct Exited(pub i32);
+
+impl std::fmt::Display for Exited {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "exited {}", self.0)
+    }
+}
+
+impl std::error::Error for Exited {}
 
 fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
     use std::io::Write;
@@ -252,6 +264,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Release { target }) => release_cmd(&mut reg, want(target)).await,
+        Some(Command::Run { command }) => run_cmd(&mut reg, want(None), command).await,
 
         // a bare `phone device` is the question the list answers
         Some(Command::Device { action }) => {
@@ -555,6 +568,35 @@ async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn run_cmd(reg: &mut Registry, want: Option<String>, command: Vec<String>) -> Result<()> {
+    use std::os::unix::process::ExitStatusExt;
+
+    let view = driving(reg, want.as_deref(), true).await?;
+
+    if view.device.platform.os() != "android" {
+        lease::release(&view).await?;
+        bail!("{} is not an android device; `run` hands plain adb a serial", view.device.label);
+    }
+
+    let Some(serial) = view.reach.serial() else {
+        bail!("{} has no adb serial", view.device.label);
+    };
+
+    let _beat = lease::heartbeat(&view);
+    let (program, args) = command.split_first().expect("clap requires a command");
+    let status = tokio::process::Command::new(program)
+        .args(args)
+        .envs(view.server.child_env(serial))
+        .status()
+        .await
+        .map_err(|e| anyhow::anyhow!("cannot run {program}: {e}"))?;
+
+    match status.code().or_else(|| status.signal().map(|s| 128 + s)) {
+        Some(0) => Ok(()),
+        code => Err(Exited(code.unwrap_or(1)).into()),
+    }
 }
 
 async fn delete_device(reg: &mut Registry, target: &str, yes: bool) -> Result<()> {

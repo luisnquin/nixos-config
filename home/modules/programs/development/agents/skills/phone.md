@@ -64,6 +64,11 @@ once the app itself is on screen, or fails with the dev client's error.
 `phone status` checks without changing anything: exit 2 is drift on your device,
 4 only on another platform's. `phone down` stops and releases what you hold.
 
+A script or tool that speaks plain adb (a just recipe, gradle, `flutter test`)
+runs under `phone run -- <cmd>`: it leases the device, hands the command
+`ANDROID_SERIAL` and, for a device on rose, the forwarded `ADB_SERVER_SOCKET`,
+and exits with its status. Never export those by hand.
+
 ## Verbs
 
 ```
@@ -134,6 +139,6 @@ phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extr
 - Creating a new AVD or simulator: `avdmanager` or `xcrun simctl create` on its
   host, by hand. `device boot` only starts one that exists.
 - Folding a foldable:
-  `adb shell cmd device_state state 0|2` (closed or open), then always
-  `adb shell cmd device_state state reset`.
+  `phone run -- adb shell cmd device_state state 0|2` (closed or open), then
+  always `phone run -- adb shell cmd device_state state reset`.
 - A physical iPhone can only be screenshotted and have its logs read.

@@ -55,6 +55,18 @@ impl Server {
             Server::Remote { port, .. } => Some(("ANDROID_ADB_SERVER_PORT", port.to_string())),
         }
     }
+
+    /// What a child's own `adb` needs to reach `serial` through this server.
+    pub fn child_env(&self, serial: &str) -> Vec<(&'static str, String)> {
+        let mut env = vec![("ANDROID_SERIAL", serial.to_string())];
+
+        if let Server::Remote { port, .. } = self {
+            env.push(("ADB_SERVER_SOCKET", format!("tcp:127.0.0.1:{port}")));
+            env.push(("ANDROID_ADB_SERVER_PORT", port.to_string()));
+        }
+
+        env
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -563,6 +575,21 @@ pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_child_reaches_a_remote_device_through_its_forward() {
+        let mac = Server::Remote { host: "rose".into(), port: 15037 };
+
+        assert_eq!(Server::Local.child_env("R5CT"), [("ANDROID_SERIAL", "R5CT".to_string())]);
+        assert_eq!(
+            mac.child_env("emulator-5554"),
+            [
+                ("ANDROID_SERIAL", "emulator-5554".to_string()),
+                ("ADB_SERVER_SOCKET", "tcp:127.0.0.1:15037".to_string()),
+                ("ANDROID_ADB_SERVER_PORT", "15037".to_string()),
+            ]
+        );
+    }
 
     /// A Pixel 10 Pro Fold, open, trimmed of the geometry that is not read.
     const FOLD: &str = "  mViewports=[DisplayViewport{type=INTERNAL, valid=true, isActive=true, \

@@ -58,7 +58,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
 The commands
 
-  project  up down release status
+  project  up down release run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications
@@ -199,6 +199,20 @@ here, then any verb there. Without -t, every lease this agent holds is freed."#)
     Release {
         #[arg(id = "device")]
         target: Option<String>,
+    },
+
+    #[command(about = "Run a command against the device this agent holds, with plain adb pointed at it", after_help = r#"Examples:
+  phone run -- adb shell getprop ro.product.model
+  phone run -t pixel_7-api36 -- just seed
+  phone run -- flutter test integration_test
+
+The device is leased for as long as the command runs. The command gets
+ANDROID_SERIAL, and for a device on another host ADB_SERVER_SOCKET and
+ANDROID_ADB_SERVER_PORT aimed at its forwarded adb server, so a script written
+for plain adb drives it unchanged. Exits with the command's status. Android only."#)]
+    Run {
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true, value_name = "COMMAND")]
+        command: Vec<String>,
     },
     /// Say what this project declares and what is actually there
     #[command(after_help = r#"Examples:
