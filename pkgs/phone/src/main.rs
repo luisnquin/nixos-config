@@ -1602,6 +1602,21 @@ fn editable(node: &a11y::Node) -> bool {
     node.class.contains("EditText") || node.class.contains("TextField") || !node.hint.is_empty()
 }
 
+/// Flutter reports focus on its host view, a container around every field, so
+/// a focused container in front of an editable target says nothing about it.
+fn focused_on(focused: &a11y::Node, target: &a11y::Node) -> bool {
+    related(focused, target) && (editable(focused) || !editable(target))
+}
+
+fn field_after_tap(focused: &a11y::Node, target: &a11y::Node) -> Option<a11y::Node> {
+    match (editable(focused), related(focused, target), editable(target)) {
+        (true, _, _) => Some(focused.clone()),
+        (false, true, true) => Some(target.clone()),
+        (false, true, false) => Some(focused.clone()),
+        (false, false, _) => None,
+    }
+}
+
 struct Aimed {
     centre: (i32, i32),
     within: Option<a11y::Bounds>,
@@ -1748,7 +1763,7 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
 
     calls::secret_if(target.password, text);
 
-    let already = screen.focused().filter(|f| related(f, &target)).cloned();
+    let already = screen.focused().filter(|f| focused_on(f, &target)).cloned();
 
     let field = match already {
         Some(field) => field,
@@ -1838,10 +1853,11 @@ async fn focus_after_tap(t: &a11y::Target, target: &a11y::Node) -> Result<a11y::
 
         let screen = a11y::dump(t).await?;
 
-        match screen.focused() {
-            Some(f) if related(f, target) || editable(f) => return Ok(f.clone()),
-            Some(f) => stray = Some(f.label()),
-            None => {}
+        if let Some(f) = screen.focused() {
+            match field_after_tap(f, target) {
+                Some(field) => return Ok(field),
+                None => stray = Some(f.label()),
+            }
         }
     }
 
@@ -2751,6 +2767,29 @@ fn truncate(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_focused_flutter_host_view_is_not_the_field_inside_it() {
+        let nodes = a11y::parse(
+            r#"<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" focused="true" text="" content-desc="" resource-id=""/>
+  <node class="android.widget.EditText" bounds="[40,560][1040,660]" clickable="true" text="UPGRADE HOST VM" content-desc="" resource-id=""/>
+  <node class="android.widget.EditText" bounds="[40,700][1040,800]" clickable="true" text="" content-desc="" resource-id=""/>
+</hierarchy>"#,
+        )
+        .unwrap();
+        let (host, address) = (&nodes[0], &nodes[2]);
+
+        assert!(
+            !focused_on(host, address),
+            "the address field still needs its tap, or the text lands in the name field"
+        );
+        assert_eq!(
+            field_after_tap(host, address).map(|f| f.bounds),
+            Some(address.bounds),
+            "read the address back, not the host view's empty text"
+        );
+    }
 
     #[test]
     fn a_missed_wait_with_no_near_spelling_names_what_is_on_screen() {
