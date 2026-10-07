@@ -61,7 +61,7 @@ The commands
   project  up down release run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
-  app      install launch stop open logs notifications
+  app      install launch stop open logs push notifications
   host     list enable disable budget
   this     mirror stream record doctor hook
 
@@ -1148,6 +1148,19 @@ A package name on Android, a bundle id on a simulator or an iPhone."#)]
 
 One line per notification in the shade: the package, its title and its text.
 Android only; a simulator has no command that reads its notification center."#)]
+    /// Write a file into an app's private data, through run-as
+    #[command(after_help = r#"Examples:
+  phone app push seed.json com.example.app
+  phone app push seed.json com.example.app files/seed/bundle.json
+
+The destination is relative to the app's data directory and defaults to
+`files/<name>`; missing directories are made. run-as only enters a debuggable
+build, so a release build refuses. Android only."#)]
+    Push {
+        file: PathBuf,
+        app: String,
+        dest: Option<String>,
+    },
     Notifications { app: Option<String> },
 }
 

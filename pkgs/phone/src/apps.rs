@@ -8,9 +8,11 @@
 //! every `adb shell` is a round trip to whichever host holds the device, and the
 //! useful version of `launch` takes three of them.
 
+use std::path::Path;
+use std::process::Stdio;
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 
 use crate::adb::{self, Server};
 use crate::connect::serial_of;
@@ -22,6 +24,8 @@ use crate::{simctl, ssh};
 const LAUNCH_TIMEOUT: Duration = Duration::from_secs(30);
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(15);
+
+const PUSH_TIMEOUT: Duration = Duration::from_secs(120);
 
 const PID_WAIT: Duration = Duration::from_secs(5);
 
@@ -246,6 +250,54 @@ pub async fn stop(server: &Server, device: &Device, app: &str) -> Result<String>
     })
 }
 
+pub async fn push(server: &Server, device: &Device, file: &Path, app: &str, dest: Option<&str>) -> Result<String> {
+    let app = app_id(app)?;
+
+    if device.platform.os() != "android" {
+        bail!("app push writes through run-as, which only android has");
+    }
+
+    let name = file.file_name().and_then(|n| n.to_str());
+    let dest = match (dest, name) {
+        (Some(dest), _) => dest.to_string(),
+        (None, Some(name)) => format!("files/{name}"),
+        (None, None) => bail!("name a destination for {}", file.display()),
+    };
+    let size = std::fs::metadata(file).with_context(|| format!("cannot read {}", file.display()))?.len();
+    let serial = attached(server, device).await?;
+
+    let mut cmd = tokio::process::Command::from(server.command());
+    cmd.args(["-s", &serial, "exec-in", &push_script(app, &dest)])
+        .stdin(std::fs::File::open(file)?)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    let out = tokio::time::timeout(PUSH_TIMEOUT, cmd.output())
+        .await
+        .map_err(|_| anyhow!("push to {} timed out after {}s", device.label, PUSH_TIMEOUT.as_secs()))??;
+    let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+
+    if !out.status.success() || !said.trim().is_empty() {
+        bail!("{}", said.trim());
+    }
+
+    let stat = format!("run-as {app} stat -c %s {}", shell_words::quote(&dest));
+    let landed = adb::run_timeout(server, &["-s", &serial, "shell", &stat], STOP_TIMEOUT).await?;
+
+    match landed.trimmed().parse::<u64>() {
+        Ok(n) if n == size => Ok(format!("pushed {size} bytes to {app}:{dest} on {}", device.label)),
+        _ => bail!("{app}:{dest} on {} holds {} after the push, not {size} bytes", device.label, landed.trimmed()),
+    }
+}
+
+fn push_script(app: &str, dest: &str) -> String {
+    let dest = shell_words::quote(dest);
+    let inner = format!(r#"mkdir -p "$(dirname {dest})" && cat > {dest}"#);
+
+    format!("run-as {app} sh -c {}", shell_words::quote(&inner))
+}
+
 pub async fn open(server: &Server, device: &Device, raw: &str) -> Result<String> {
     let raw = url(raw)?;
 
@@ -463,6 +515,14 @@ async fn attached(server: &Server, device: &Device) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_push_destination_survives_both_shells() {
+        assert_eq!(
+            push_script("com.example.app", "files/my seed.json"),
+            r#"run-as com.example.app sh -c 'mkdir -p "$(dirname '\''files/my seed.json'\'')" && cat > '\''files/my seed.json'\'''"#
+        );
+    }
 
     #[test]
     fn refuses_an_app_id_that_could_carry_shell_syntax() {

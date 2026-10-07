@@ -94,6 +94,7 @@ phone device list|boot|shutdown|connect|reverse 8081
 phone device net off|on [--only wifi|data]   # off then on resets stale sockets
 phone app install app.apk | stop <id> | open <url> | logs <id> | notifications [<id>]
 phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extras
+phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir, via run-as
 ```
 
 `-t <device>` and `--focus X,Y` work on any verb; with `do` they go on `do`, not inside a step.

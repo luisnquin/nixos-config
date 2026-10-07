@@ -670,6 +670,9 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
             apps::launch(server, device, &app, &[], &extras).await?
         }
         AppAction::Stop { app } => apps::stop(server, device, &app).await?,
+        AppAction::Push { file, app, dest } => {
+            apps::push(server, device, &file, &app, dest.as_deref()).await?
+        }
         AppAction::Open { url } => {
             eprintln!("phone: {}", apps::open(server, device, &url).await?);
 
