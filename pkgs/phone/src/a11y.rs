@@ -1581,7 +1581,12 @@ const HIDE_KEYBOARD: &str = "HIDE_KEYBOARD";
 
 fn keycode(name: &str) -> Result<String> {
     let name = name.trim().to_uppercase().replace('-', "_");
-    let name = name.strip_prefix("KEYCODE_").unwrap_or(&name);
+    let name = match name.strip_prefix("KEYCODE_").unwrap_or(&name) {
+        "BACKSPACE" => "DEL",
+        "RETURN" => "ENTER",
+        "ESC" => "ESCAPE",
+        other => other,
+    };
 
     if name.parse::<u16>().is_ok() || KEYS.split_whitespace().any(|key| key == name) {
         return Ok(name.to_string());
@@ -1987,6 +1992,7 @@ mod tests {
         assert_eq!(keycode("back").unwrap(), "BACK");
         assert_eq!(keycode("KEYCODE_HOME").unwrap(), "HOME");
         assert_eq!(keycode("66").unwrap(), "66", "a raw code reaches the rest");
+        assert_eq!(keycode("backspace").unwrap(), "DEL", "never BACK, which leaves the form");
 
         let err = keycode("voluem_up").unwrap_err().to_string();
         assert!(err.contains("unknown key"), "{err}");
