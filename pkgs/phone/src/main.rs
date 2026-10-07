@@ -1617,6 +1617,26 @@ fn field_after_tap(focused: &a11y::Node, target: &a11y::Node) -> Option<a11y::No
     }
 }
 
+fn read_back<'a>(screen: &'a a11y::Screen, field: &a11y::Node) -> Option<&'a a11y::Node> {
+    let by_id = (!field.res_id.is_empty())
+        .then(|| {
+            screen
+                .nodes
+                .iter()
+                .find(|n| n.res_id == field.res_id && n.class == field.class)
+        })
+        .flatten();
+
+    by_id
+        .or_else(|| {
+            screen
+                .nodes
+                .iter()
+                .find(|n| n.bounds == field.bounds && n.class == field.class)
+        })
+        .or_else(|| screen.focused())
+}
+
 struct Aimed {
     centre: (i32, i32),
     within: Option<a11y::Bounds>,
@@ -1797,12 +1817,7 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
         }
 
         let screen = a11y::dump(t).await?;
-        let now = screen
-            .nodes
-            .iter()
-            .find(|n| n.bounds == field.bounds && n.class == field.class)
-            .or_else(|| screen.focused())
-            .cloned();
+        let now = read_back(&screen, &field).cloned();
 
         match now {
             Some(now) if now.reads(text) => {
@@ -2788,6 +2803,32 @@ mod tests {
             field_after_tap(host, address).map(|f| f.bounds),
             Some(address.bounds),
             "read the address back, not the host view's empty text"
+        );
+    }
+
+    #[test]
+    fn a_field_with_an_id_is_read_back_wherever_it_moved() {
+        let parse = |y: u32| {
+            a11y::parse(&format!(
+                r#"<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" focused="true" text="" content-desc="" resource-id=""/>
+  <node class="android.widget.EditText" bounds="[40,{y}][1040,{}]" clickable="true" text="10.9.8.7" content-desc="" resource-id="host.address"/>
+</hierarchy>"#,
+                y + 100
+            ))
+            .unwrap()
+        };
+        let field = parse(700).remove(1);
+        let after = a11y::Screen {
+            nodes: parse(400),
+            keyboard: None,
+            panel: None,
+        };
+
+        assert_eq!(
+            read_back(&after, &field).map(|n| n.text.as_str()),
+            Some("10.9.8.7"),
+            "the keyboard scrolled the form; the id still names the field"
         );
     }
 
