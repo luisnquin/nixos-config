@@ -1675,8 +1675,8 @@ async fn hide_keyboard(a: &Adb) -> Result<bool> {
     )
 }
 
-/// Below this API level select-all cannot be sent from a shell, so a field is
-/// emptied a character at a time.
+/// Below this API level select-all cannot be sent from a shell. Flutter can ignore
+/// it even above, so the per-character pass always follows.
 const KEYCOMBINATION_SDK: u32 = 33;
 
 pub async fn clear(t: &Target, len: usize) -> Result<()> {
@@ -1692,8 +1692,8 @@ fn clear_script(input: &str, len: usize) -> String {
 
     format!(
         "if [ \"$(getprop ro.build.version.sdk)\" -ge {KEYCOMBINATION_SDK} ]; then \
-         {input} keycombination CTRL_LEFT A && {input} keyevent DEL; \
-         else {input} keyevent MOVE_END {dels}; fi"
+         {input} keycombination CTRL_LEFT A && {input} keyevent DEL; fi; \
+         {input} keyevent MOVE_END {dels}"
     )
 }
 
@@ -2459,7 +2459,7 @@ mod tests {
     }
 
     #[test]
-    fn a_field_is_emptied_by_select_all_where_the_device_can_send_it() {
+    fn a_field_is_emptied_by_select_all_then_a_character_at_a_time() {
         let script = clear_script("input -d 2", 3);
 
         assert!(
@@ -2467,6 +2467,7 @@ mod tests {
             "{script}"
         );
         assert!(script.contains("keyevent MOVE_END DEL DEL DEL"), "{script}");
+        assert!(!script.contains("else"), "select-all can be ignored, so the DELs always run: {script}");
     }
 
     #[test]
