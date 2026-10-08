@@ -61,7 +61,7 @@ The commands
   project  up down release run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
-  app      install launch stop open logs push notifications
+  app      install launch stop open logs notifications push
   host     list enable disable budget
   this     mirror stream record doctor hook
 
@@ -1148,6 +1148,8 @@ A package name on Android, a bundle id on a simulator or an iPhone."#)]
 
 One line per notification in the shade: the package, its title and its text.
 Android only; a simulator has no command that reads its notification center."#)]
+    Notifications { app: Option<String> },
+
     /// Write a file into an app's private data, through run-as
     #[command(after_help = r#"Examples:
   phone app push seed.json com.example.app
@@ -1161,7 +1163,6 @@ build, so a release build refuses. Android only."#)]
         app: String,
         dest: Option<String>,
     },
-    Notifications { app: Option<String> },
 }
 
 #[derive(Subcommand)]
