@@ -6,6 +6,7 @@
   ...
 }: let
   kit = mkAgentKit {};
+  sources = builtins.mapAttrs (_: pkgs.fetchFromGitHub) (lib.importJSON ./plugins-sources.json);
 in {
   imports = [
     ./hooks.nix
@@ -14,6 +15,7 @@ in {
   # not `programs.claude-code.plugins`: its per-entry links put mod files
   # outside the plugin directory, which claude refuses
   home.file."${config.programs.claude-code.configDir}/skills/phone".source = pkgs.phone.claudePlugin;
+  home.file."${config.programs.claude-code.configDir}/skills/chat-clean".source = sources.chat-clean;
 
   xdg.configFile."ccstatusline/settings.json" = let
     settingsJson = builtins.fromJSON (builtins.readFile ./ccstatusline-settings.json);
@@ -54,18 +56,7 @@ in {
     };
 
     marketplaces = {
-      claude-plugins-official = pkgs.fetchFromGitHub {
-        owner = "anthropics";
-        repo = "claude-plugins-official";
-        rev = "b091cb4179d3b62a6e2a39910461c7ec7165b1ef";
-        sha256 = "sha256-uKDVcw6C1uzpiIY+hjgHxr4AU9wM1KF7t3v6zd9XBHk=";
-      };
-      claude-image-view = pkgs.fetchFromGitHub {
-        owner = "jarrodwatts";
-        repo = "claude-image-view";
-        rev = "b3c412bb6d167cafade79148e95f9114ee1aad7c";
-        sha256 = "sha256-WCJJrInTO6iOrcrFIm2adgg+3J0L8J+KNANanYSB3Rc=";
-      };
+      inherit (sources) claude-plugins-official claude-image-view;
     };
 
     context = ''

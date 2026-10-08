@@ -1,0 +1,20 @@
+{
+  "claude-plugins-official": {
+    "owner": "anthropics",
+    "repo": "claude-plugins-official",
+    "rev": "b091cb4179d3b62a6e2a39910461c7ec7165b1ef",
+    "hash": "sha256-uKDVcw6C1uzpiIY+hjgHxr4AU9wM1KF7t3v6zd9XBHk="
+  },
+  "claude-image-view": {
+    "owner": "jarrodwatts",
+    "repo": "claude-image-view",
+    "rev": "b3c412bb6d167cafade79148e95f9114ee1aad7c",
+    "hash": "sha256-WCJJrInTO6iOrcrFIm2adgg+3J0L8J+KNANanYSB3Rc="
+  },
+  "chat-clean": {
+    "owner": "achammah",
+    "repo": "claude-chat-clean",
+    "rev": "aea885f62bd1ce139418d17e45560ba5dc8af49c",
+    "hash": "sha256-u6TsPn1BSefLT3SvD/z3SNZhVsml/oMEppyOlxXH8zQ="
+  }
+}
