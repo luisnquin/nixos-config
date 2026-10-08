@@ -100,8 +100,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
-            rev = "e992febcfc15b2123c0d672c6fed440e1803ea36";
-            sha256 = "sha256-+pHy2nWuAv9CFSvhRYgCTp00bAqefvj2zUgdBGFM47s=";
+            rev = "049c95cb58f6112537241c806baa4a2b95508396";
+            sha256 = "sha256-cvMRQC0Nwgmo9QP7tp8N0Iz8s3ARgW/OyGGxECwIQS0=";
           };
         } {
           plugins = [
@@ -110,6 +110,7 @@ in {
             "mobile-nixos-port"
             "commit"
             "socratic-debate"
+            "counter-attack"
           ];
         })
 
