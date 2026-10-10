@@ -653,7 +653,10 @@ async fn net(
 }
 
 async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -> Result<()> {
-    let view = driving(reg, want.as_deref(), true).await?;
+    let view = match action {
+        AppAction::Install { .. } => reaching(reg, want.as_deref(), true, Hold::Ignored).await?,
+        _ => driving(reg, want.as_deref(), true).await?,
+    };
     let (server, device) = (&view.server, &view.device);
 
     let said = match action {
