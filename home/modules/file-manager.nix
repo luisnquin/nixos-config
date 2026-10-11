@@ -60,6 +60,10 @@ in {
         condition = "ext 3mf";
         command = ''${lib.getExe config.programs."3mf2stl".package} "$1" "''${1%.3mf}.stl" && ${pkgs.xdg-utils}/bin/xdg-open "''${1%.3mf}.stl"'';
       }
+      {
+        condition = "else";
+        command = "${lib.getExe pkgs.nano} -- \"$@\"";
+      }
     ];
   };
 
