@@ -178,6 +178,48 @@ fn pick<'a>(views: &'a [View], name: &str) -> Result<&'a View> {
     }
 }
 
+/// What `-t` narrows a run to: one device, or a host's emulators and
+/// simulators (`rose`, `rose/emu`) for allocation to choose among.
+enum Scope {
+    Device(Box<View>),
+    Host(String, Option<Platform>),
+}
+
+impl Scope {
+    fn of(views: &[View], name: &str) -> Result<Scope> {
+        match crate::host_target(views, name) {
+            Some((host, kind)) => Ok(Scope::Host(host, kind)),
+            None => pick(views, name).map(|v| Scope::Device(Box::new(v.clone()))),
+        }
+    }
+
+    fn label(&self) -> String {
+        match self {
+            Scope::Device(view) => view.device.label.clone(),
+            Scope::Host(host, Some(kind)) => format!("{host}/{}", kind.as_str()),
+            Scope::Host(host, None) => host.clone(),
+        }
+    }
+
+    fn os(&self) -> Option<&'static str> {
+        match self {
+            Scope::Device(view) => Some(view.device.platform.os()),
+            Scope::Host(_, kind) => kind.map(Platform::os),
+        }
+    }
+
+    fn runs(&self, os: &str) -> bool {
+        self.os().is_none_or(|o| o == os)
+    }
+
+    fn covers(&self, view: &View) -> bool {
+        match self {
+            Scope::Device(pinned) => pinned.device.id == view.device.id,
+            Scope::Host(host, kind) => crate::pooled(view, host, *kind),
+        }
+    }
+}
+
 /// The build entry that covers a device, by the platform it runs.
 fn build_for(project: &Project, platform: Platform) -> Option<(&str, &Build)> {
     let key = build_key(platform);
@@ -608,28 +650,25 @@ async fn allocate(
     declared: Vec<(&'static str, Spec)>,
     pin: Option<&str>,
 ) -> Result<(Vec<Climb>, Vec<View>)> {
-    let pinned = pin.map(|name| pick(&views, name).cloned()).transpose()?;
+    let scope = pin.map(|name| Scope::of(&views, name)).transpose()?;
 
-    if let Some(p) = pinned
+    if let Some((s, os)) = scope
         .as_ref()
-        .filter(|p| declared.iter().all(|(os, _)| *os != p.device.platform.os()))
+        .and_then(|s| s.os().map(|os| (s, os)))
+        .filter(|(_, os)| declared.iter().all(|(d, _)| d != os))
     {
-        bail!(
-            "{} runs {}, which this run does not build for",
-            p.device.label,
-            p.device.platform.os()
-        );
+        bail!("{} runs {os}, which this run does not build for", s.label());
     }
 
     let mut wanted = Vec::new();
 
     for (os, spec) in declared {
-        let view = match pinned.as_ref().filter(|p| p.device.platform.os() == os) {
-            Some(p) => {
+        let view = match scope.as_ref().filter(|s| s.runs(os)) {
+            Some(Scope::Device(p)) => {
                 lease::hold(p).await?;
-                p.clone()
+                View::clone(p)
             }
-            None => seated(reg, project, &mut views, os).await?,
+            within => seated(reg, project, &mut views, os, within).await?,
         };
 
         eprintln!("phone: {os} runs on {}", view.device.label);
@@ -644,9 +683,16 @@ async fn seated(
     project: &Project,
     views: &mut Vec<View>,
     os: &'static str,
+    within: Option<&Scope>,
 ) -> Result<View> {
     for _ in 0..3 {
-        let view = match alloc::choose(views, reg, Some(project), &[os], true).await? {
+        let pool: Vec<View> = views
+            .iter()
+            .filter(|v| within.is_none_or(|s| s.covers(v)))
+            .cloned()
+            .collect();
+
+        let view = match alloc::choose(&pool, reg, Some(project), &[os], true).await? {
             alloc::Chosen::Use(view) | alloc::Chosen::Boot(view) => view,
             alloc::Chosen::Clone(source) => cloned(reg, views, &source).await?,
         };
@@ -1091,24 +1137,34 @@ fn seats(
     books: &[Book],
     only: Option<&str>,
 ) -> Result<Vec<Seat>> {
-    let pinned = only.map(|name| pick(views, name).cloned()).transpose()?;
+    let scope = only.map(|name| Scope::of(views, name)).transpose()?;
     let last = lease::sticky::last();
+    let pool: Vec<View> = views
+        .iter()
+        .filter(|v| scope.as_ref().is_none_or(|s| s.covers(v)))
+        .cloned()
+        .collect();
 
     let seated: Vec<Seat> = project
         .platforms(profile)?
         .into_iter()
-        .filter(|(os, _)| pinned.as_ref().is_none_or(|p| p.device.platform.os() == *os))
+        .filter(|(os, _)| scope.as_ref().is_none_or(|s| s.runs(os)))
         .map(|(os, spec)| {
-            let view = pinned
-                .clone()
-                .or_else(|| ours(views, books, os, last.as_ref()));
+            let view = match &scope {
+                Some(Scope::Device(p)) => Some(View::clone(p)),
+                _ => ours(&pool, books, os, last.as_ref()),
+            };
 
             (os, spec, view)
         })
         .collect();
 
-    if let Some(p) = pinned.as_ref().filter(|_| seated.is_empty()) {
-        bail!("{} runs {}, which {} does not declare", p.device.label, p.device.platform.os(), crate::project::FILE);
+    if let Some((s, os)) = scope
+        .as_ref()
+        .and_then(|s| s.os().map(|os| (s, os)))
+        .filter(|_| seated.is_empty())
+    {
+        bail!("{} runs {os}, which {} does not declare", s.label(), crate::project::FILE);
     }
 
     Ok(seated)
@@ -1602,6 +1658,29 @@ mod tests {
             "pixel_7-api36"
         );
         assert!(pick(&views, "nothing").is_err());
+    }
+
+    #[test]
+    fn a_host_target_scopes_allocation_to_its_emulators_or_simulators() {
+        use crate::usage::tests::on_rose;
+
+        let views = [
+            on_rose("avd:pixel", "pixel", Platform::Emulator, Reach::Off),
+            on_rose("sim:a", "iPhone", Platform::Simulator, Reach::Off),
+            attached("local"),
+        ];
+
+        let emu = Scope::of(&views, "rose/emu").unwrap();
+        assert_eq!(emu.label(), "rose/emu");
+        assert!(emu.runs("android") && !emu.runs("ios"));
+        assert!(emu.covers(&views[0]) && !emu.covers(&views[1]) && !emu.covers(&views[2]));
+
+        let host = Scope::of(&views, "rose").unwrap();
+        assert!(host.runs("android") && host.runs("ios"));
+        assert!(host.covers(&views[1]) && !host.covers(&views[2]));
+
+        assert!(matches!(Scope::of(&views, "pixel"), Ok(Scope::Device(_))));
+        assert!(Scope::of(&views, "rose/tablet").is_err());
     }
 
     /// A name that is a prefix of another is what `use` and `-t` settle with a

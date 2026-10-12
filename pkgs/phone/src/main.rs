@@ -2556,7 +2556,7 @@ fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
     left
 }
 
-fn host_target(views: &[View], want: &str) -> Option<(String, Option<Platform>)> {
+pub(crate) fn host_target(views: &[View], want: &str) -> Option<(String, Option<Platform>)> {
     if views
         .iter()
         .any(|v| v.device.is(want) || v.answers_to(want))
@@ -2584,12 +2584,13 @@ fn host_target(views: &[View], want: &str) -> Option<(String, Option<Platform>)>
 }
 
 fn pool<'a>(views: &'a [View], host: &str, kind: Option<Platform>) -> Vec<&'a View> {
-    views
-        .iter()
-        .filter(|v| matches!(v.device.platform, Platform::Emulator | Platform::Simulator))
-        .filter(|v| kind.is_none_or(|k| v.device.platform == k))
-        .filter(|v| v.device.host.as_deref() == Some(host))
-        .collect()
+    views.iter().filter(|v| pooled(v, host, kind)).collect()
+}
+
+pub(crate) fn pooled(view: &View, host: &str, kind: Option<Platform>) -> bool {
+    matches!(view.device.platform, Platform::Emulator | Platform::Simulator)
+        && kind.is_none_or(|k| view.device.platform == k)
+        && view.device.host.as_deref() == Some(host)
 }
 
 fn pick<'a>(

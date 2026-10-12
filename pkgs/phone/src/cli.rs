@@ -115,6 +115,7 @@ pub enum Command {
   phone up --profile e2e
   phone up --rebuild
   phone up --take
+  phone up -t rose/emu
   phone up --timeout 5m
 
 Reads the nearest phone.toml, works out what is missing, and does only that:
@@ -139,8 +140,9 @@ any device of that platform should look like, and `up` allocates one device per
 platform the project builds for: the one this agent holds, else its last one if
 free, else a free running device, else a free one that is off (booted), else a
 clone where the host allows it, else one marked `pick = "last"`, else a refusal
-naming the holders. `-t` pins the device instead, and `$PHONE_ID` in a build
-command is whichever device was allocated. `--profile` narrows a run to the
+naming the holders. `-t` pins the device instead, or keeps the choice to a host
+(`-t rose`) or one kind on it (`-t rose/emu`, `-t rose/sim`), and `$PHONE_ID` in a
+build command is whichever device was allocated. `--profile` narrows a run to the
 platforms a named profile lists.
 
 A device is held by the agent that last used it, until it lets go with `phone
