@@ -6,6 +6,7 @@
 }: let
   magick = lib.getExe' pkgs.imagemagick "magick";
   rsvgConvert = lib.getExe' pkgs.librsvg "rsvg-convert";
+  svgPreviewCss = pkgs.writeText "svg-preview.css" "svg { color: #e0e0e0; }";
   pdftoppm = lib.getExe' pkgs.poppler-utils "pdftoppm";
   ffmpegthumbnailer = lib.getExe pkgs.ffmpegthumbnailer;
   ffmpeg = lib.getExe' pkgs.ffmpeg "ffmpeg";
@@ -362,7 +363,7 @@ in {
       }
 
       thumb_svg () {
-        ${rsvgConvert} --width=1200 --keep-aspect-ratio \
+        ${rsvgConvert} --width=1200 --keep-aspect-ratio --stylesheet=${svgPreviewCss} \
           --output="$IMAGE_CACHE_PATH" "$1" 2>/dev/null
         thumb_ok
       }
