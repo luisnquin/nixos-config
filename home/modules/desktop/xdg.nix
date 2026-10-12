@@ -23,14 +23,14 @@
     };
 
     mimeApps = let
-      dolphin = ["org.kde.dolphin.desktop"];
+      nautilus = ["org.gnome.Nautilus.desktop"];
       vlc = ["vlc.desktop"];
       zathura = ["zathura.desktop"];
-      vscode = ["code.desktop"];
+      zed = ["dev.zed.Zed.desktop"];
       claude = ["claude-desktop.desktop"];
 
       associations = {
-        "inode/directory" = dolphin;
+        "inode/directory" = nautilus;
         "application/pdf" = zathura;
         "x-scheme-handler/claude" = claude;
 
@@ -43,7 +43,7 @@
         "audio/flac" = vlc;
         "audio/ogg" = vlc;
 
-        "text/x-python" = vscode;
+        "text/x-python" = zed;
       };
     in {
       enable = true;

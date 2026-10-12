@@ -6,7 +6,7 @@
   eww,
   ...
 }: let
-  nmtuiCmd = "${lib.getExe config.programs.ghostty.package} --class=eww.nmtui -e ${pkgs.networkmanager}/bin/nmtui connect";
+  nmtuiCmd = "${lib.getExe config.programs.ghostty.package} --class=waybar.nmtui -e ${pkgs.networkmanager}/bin/nmtui connect";
 
   scanCmd = "${lib.getExe pkgs.scripts.nmcli-wifi-scan-waybar} --scan";
 
