@@ -520,6 +520,8 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
         }
     }
 
+    let mut fresh = false;
+
     if let Some(bundler) = &project.manifest.bundler {
         match listening(&site.at, bundler.port).await {
             true => eprintln!(
@@ -529,6 +531,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
             ),
             false => {
                 let log = start_bundler(&site, project, bundler.port, &bundler.run).await?;
+                fresh = true;
 
                 eprintln!(
                     "phone: bundler up on {}:{} ({log})",
@@ -617,7 +620,7 @@ pub async fn up(reg: &mut Registry, project: &Project, opts: &Opts) -> Result<()
 
     let climbing = lanes
         .iter()
-        .map(|lane| converge(project, &site, lane, &stamps, tagged));
+        .map(|lane| converge(project, &site, lane, &stamps, tagged, fresh));
 
     all_of(futures_util::future::join_all(climbing).await)
 }
@@ -799,10 +802,13 @@ async fn converge(
     lane: &[&Climb],
     stamps: &Mutex<Stamps>,
     tagged: bool,
+    fresh: bool,
 ) -> Result<()> {
     let mut outcomes = Vec::new();
 
-    for (name, spec, view) in lane.iter().copied() {
+    for climb in lane.iter().copied() {
+        let name = &climb.0;
+
         // only once more than one lane is running: a single build streaming to
         // a terminal it has to itself reads better without a name in front of
         // every line of it
@@ -811,7 +817,7 @@ async fn converge(
         // the next device is still tried: they share a build, not a fate, and
         // an app that would not start on one says nothing about the other
         outcomes.push(
-            raise(project, site, name, spec, view, stamps, tag.as_deref())
+            raise(project, site, climb, stamps, tag.as_deref(), fresh)
                 .await
                 .with_context(|| format!("bringing up {name}")),
         );
@@ -884,12 +890,12 @@ async fn start_bundler(site: &Site, project: &Project, port: u16, run: &str) -> 
 async fn raise(
     project: &Project,
     site: &Site,
-    name: &str,
-    spec: &Spec,
-    view: &View,
+    climb: &Climb,
     stamps: &Mutex<Stamps>,
     tag: Option<&str>,
+    fresh: bool,
 ) -> Result<()> {
+    let (name, spec, view) = climb;
     let want = spec.state;
 
     if want < Level::Ready {
@@ -898,7 +904,11 @@ async fn raise(
         return Ok(());
     }
 
-    let restart = ready(view, spec, name).await?;
+    let restart = match (ready(view, spec, name).await?, fresh) {
+        (true, _) => Some("so it starts under the new settings"),
+        (false, true) => Some("so it reaches the bundler that just started"),
+        (false, false) => None,
+    };
 
     if want < Level::Prepared {
         eprintln!("phone: {name} is ready");
@@ -965,7 +975,7 @@ async fn prepared(
     view: &View,
     stamps: &Mutex<Stamps>,
     tag: Option<&str>,
-    restart: bool,
+    restart: Option<&str>,
 ) -> Result<()> {
     let Some((platform, build)) = build_for(project, view.device.platform) else {
         bail!(
@@ -994,11 +1004,9 @@ async fn prepared(
         perform(site, Some(view), &step, &build.run, hash, stamps, tag).await?;
     }
 
-    // an app reads some settings once at launch: Reanimated takes reduced motion
-    // from transition_animation_scale and keeps it until the process dies
-    if restart && here {
+    if let (Some(why), true) = (restart, here) {
         eprintln!(
-            "phone: {}, so it starts under the new settings",
+            "phone: {}, {why}",
             apps::stop(&view.server, &view.device, &build.app).await?
         );
     }
@@ -1022,7 +1030,7 @@ async fn prepared(
         );
     }
 
-    loaded(view, name, build.open.as_deref()).await
+    loaded(view, name, build).await
 }
 
 /// What a development client shows in place of the app when the bundle does not
@@ -1059,7 +1067,7 @@ enum Front {
     Failed(String),
 }
 
-fn front(nodes: &[crate::a11y::Node]) -> Front {
+fn front(nodes: &[crate::a11y::Node], ready: &[String]) -> Front {
     let named = |marks: &[&str]| {
         nodes
             .iter()
@@ -1074,11 +1082,16 @@ fn front(nodes: &[crate::a11y::Node]) -> Front {
     match (named(&FAILED), named(&LOADING)) {
         (Some(said), _) => Front::Failed(said),
         (None, Some(_)) => Front::Loading,
+        (None, None) if !ready.is_empty() && named(&ready.iter().map(String::as_str).collect::<Vec<_>>()).is_none() => {
+            Front::Loading
+        }
         (None, None) => Front::Shown,
     }
 }
 
-async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
+async fn loaded(view: &View, name: &str, build: &Build) -> Result<()> {
+    let (mut open, ready) = (build.open.as_deref(), build.ready.as_slice());
+
     if view.device.platform == Platform::Ios {
         return Ok(());
     }
@@ -1092,12 +1105,12 @@ async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
         tokio::time::sleep(Duration::from_millis(1500)).await;
 
         let read = crate::a11y::dump(&t).await;
-        let now = read.as_ref().map_or(Front::Loading, |screen| front(&screen.nodes));
+        let now = read.as_ref().map_or(Front::Loading, |screen| front(&screen.nodes, ready));
         let unread = read.err().and_then(|e| e.downcast::<crate::a11y::NotIdle>().ok());
 
         match &now {
-            Front::Shown if shown => {
-                eprintln!("phone: {name} is showing the app");
+            Front::Shown if shown || !ready.is_empty() => {
+                eprintln!("phone: {}", seen(name, ready));
                 return Ok(());
             }
             Front::Failed(said)
@@ -1124,11 +1137,30 @@ async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
         shown = now == Front::Shown;
 
         if began.elapsed() >= LOAD_LIMIT {
-            match &unread {
-                Some(stuck) => bail!("{name} is up, but its screen cannot be read: {stuck}"),
-                None => bail!("{name} did not finish loading the app in {}s", LOAD_LIMIT.as_secs()),
-            }
+            return Err(unloaded(name, ready, unread));
         }
+    }
+}
+
+fn seen(name: &str, ready: &[String]) -> String {
+    match ready {
+        [] => format!(
+            "{name} shows no load error; `ready` in {} would confirm the app itself",
+            crate::project::FILE
+        ),
+        _ => format!("{name} is showing the app"),
+    }
+}
+
+fn unloaded(name: &str, ready: &[String], unread: Option<crate::a11y::NotIdle>) -> anyhow::Error {
+    match (unread, ready) {
+        (Some(stuck), _) => anyhow::anyhow!("{name} is up, but its screen cannot be read: {stuck}"),
+        (None, []) => anyhow::anyhow!("{name} did not finish loading the app in {}s", LOAD_LIMIT.as_secs()),
+        (None, _) => anyhow::anyhow!(
+            "{name} showed none of its `ready` text in {}s ({}); is the app on its first screen?",
+            LOAD_LIMIT.as_secs(),
+            ready.join(" | ")
+        ),
     }
 }
 
@@ -2085,14 +2117,28 @@ mod tests {
     #[test]
     fn a_dev_client_that_never_got_its_bundle_is_not_the_app() {
         assert_eq!(
-            front(&screen(&["Could not connect to development server."])),
+            front(&screen(&["Could not connect to development server."]), &[]),
             Front::Failed("Could not connect to development server.".into())
         );
-        assert_eq!(front(&screen(&["Development servers"])), Front::Failed("Development servers".into()));
-        assert_eq!(front(&screen(&["DEVELOPMENT SERVERS"])), Front::Failed("DEVELOPMENT SERVERS".into()));
-        assert_eq!(front(&screen(&["Enter URL manually"])), Front::Failed("Enter URL manually".into()));
-        assert_eq!(front(&screen(&["Bundling 42%"])), Front::Loading);
-        assert_eq!(front(&screen(&["Operaciones en curso"])), Front::Shown);
+        assert_eq!(front(&screen(&["Development servers"]), &[]), Front::Failed("Development servers".into()));
+        assert_eq!(front(&screen(&["DEVELOPMENT SERVERS"]), &[]), Front::Failed("DEVELOPMENT SERVERS".into()));
+        assert_eq!(front(&screen(&["Enter URL manually"]), &[]), Front::Failed("Enter URL manually".into()));
+        assert_eq!(front(&screen(&["Bundling 42%"]), &[]), Front::Loading);
+        assert_eq!(front(&screen(&["Operaciones en curso"]), &[]), Front::Shown);
+    }
+
+    #[test]
+    fn a_declared_ready_mark_is_the_only_proof_of_the_app() {
+        let ready = ["Iniciar sesión".to_string(), "Inicio".to_string()];
+
+        assert_eq!(front(&screen(&["Repbit", "Continue"]), &ready), Front::Loading);
+        assert_eq!(front(&screen(&["INICIAR SESIÓN"]), &ready), Front::Shown);
+        assert_eq!(front(&screen(&["Inicio"]), &ready), Front::Shown);
+        assert_eq!(front(&screen(&["Bundling 42%", "Iniciar sesión"]), &ready), Front::Loading);
+        assert_eq!(
+            front(&screen(&["Iniciar sesión", "Unable to load script"]), &ready),
+            Front::Failed("Unable to load script".into())
+        );
     }
 
     #[test]

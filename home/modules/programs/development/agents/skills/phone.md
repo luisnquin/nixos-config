@@ -60,7 +60,8 @@ without asking the user. When done with a device, `phone release` hands it back.
 In a repo with `phone.toml`, run `phone up` first. It allocates one device per
 platform the project builds for, boots, forwards ports, installs a fresh build
 and opens the app, doing only what is missing, and is safe to repeat. It returns
-once the app itself is on screen, or fails with the dev client's error.
+once the `ready` text phone.toml declares is on screen, or fails with the dev
+client's error; without `ready` it only proves no load error is showing.
 `phone status` checks without changing anything: exit 2 is drift on your device,
 4 only on another platform's. `phone down` stops and releases what you hold.
 

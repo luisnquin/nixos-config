@@ -80,6 +80,10 @@ pub struct Build {
     /// what answers that, and it is sent on every run rather than only after a
     /// build, because the answer does not survive the app being closed.
     pub open: Option<String>,
+    /// Text on the app's first screen, or a list when that screen varies (signed
+    /// in or out). `up` passes once any of it is read there.
+    #[serde(default, deserialize_with = "one_or_many")]
+    pub ready: Vec<String>,
 }
 
 impl Build {
@@ -89,6 +93,20 @@ impl Build {
             run: self.run.clone(),
         }
     }
+}
+
+fn one_or_many<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Marks {
+        One(String),
+        Many(Vec<String>),
+    }
+
+    Ok(match Marks::deserialize(d)? {
+        Marks::One(m) => vec![m],
+        Marks::Many(ms) => ms,
+    })
 }
 
 fn metro_port() -> u16 {
@@ -576,6 +594,19 @@ platforms = ["android"]
     #[test]
     fn a_build_declaring_no_arguments_has_none_rather_than_failing_to_parse() {
         assert!(manifest().build["android"].args.is_empty());
+    }
+
+    #[test]
+    fn ready_takes_one_mark_or_a_list() {
+        let ready = |value: &str| {
+            let text = format!("{MANIFEST}\n[build.ios]\napp = \"app.example.dev\"\nrun = \"true\"\nready = {value}\n");
+
+            Project::parse(&text).unwrap().build["ios"].ready.clone()
+        };
+
+        assert_eq!(ready("\"Sign in\""), ["Sign in"]);
+        assert_eq!(ready("[\"Sign in\", \"Home\"]"), ["Sign in", "Home"]);
+        assert!(manifest().build["android"].ready.is_empty());
     }
 
     /// The pair of bugs this closes: a bare `up` left the simulator down and a
