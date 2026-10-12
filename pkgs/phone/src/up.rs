@@ -1027,21 +1027,25 @@ async fn prepared(
 
 /// What a development client shows in place of the app when the bundle does not
 /// arrive; the launch and the link both succeed either way.
-const FAILED: [&str; 5] = [
+const FAILED: [&str; 6] = [
     "There was a problem loading the project",
     "Could not connect to development server",
     "Unable to load script",
     "Unable to resolve module",
-    LAUNCHER,
+    LAUNCHER[0],
+    LAUNCHER[1],
 ];
-/// The dev launcher's home, where a link sent before it was ready is dropped.
-const LAUNCHER: &str = "Development servers";
+/// The dev launcher's home, where a link sent before it was ready is dropped. iOS
+/// leaves the "Development servers" heading out of its accessibility tree.
+const LAUNCHER: [&str; 2] = ["Development servers", "Enter URL manually"];
 const LOADING: [&str; 3] = ["Bundling", "Downloading", "Loading from"];
 const LOAD_LIMIT: Duration = Duration::from_secs(120);
 const STUCK_LIMIT: Duration = Duration::from_secs(10);
 
 fn patience(said: &str, resend: bool) -> Duration {
-    if resend && said.to_lowercase().contains(&LAUNCHER.to_lowercase()) {
+    let said = said.to_lowercase();
+
+    if resend && LAUNCHER.iter().any(|l| said.contains(&l.to_lowercase())) {
         Duration::ZERO
     } else {
         STUCK_LIMIT
@@ -1075,7 +1079,7 @@ fn front(nodes: &[crate::a11y::Node]) -> Front {
 }
 
 async fn loaded(view: &View, name: &str, mut open: Option<&str>) -> Result<()> {
-    if view.device.platform.is_hosted() {
+    if view.device.platform == Platform::Ios {
         return Ok(());
     }
 
@@ -2086,6 +2090,7 @@ mod tests {
         );
         assert_eq!(front(&screen(&["Development servers"])), Front::Failed("Development servers".into()));
         assert_eq!(front(&screen(&["DEVELOPMENT SERVERS"])), Front::Failed("DEVELOPMENT SERVERS".into()));
+        assert_eq!(front(&screen(&["Enter URL manually"])), Front::Failed("Enter URL manually".into()));
         assert_eq!(front(&screen(&["Bundling 42%"])), Front::Loading);
         assert_eq!(front(&screen(&["Operaciones en curso"])), Front::Shown);
     }
@@ -2094,6 +2099,7 @@ mod tests {
     fn only_the_launcher_home_gets_the_link_again_at_once() {
         assert_eq!(patience("DEVELOPMENT SERVERS", true), Duration::ZERO);
         assert_eq!(patience("DEVELOPMENT SERVERS", false), STUCK_LIMIT);
+        assert_eq!(patience("Enter URL manually", true), Duration::ZERO);
         assert_eq!(patience("Could not connect to development server.", true), STUCK_LIMIT);
         assert_eq!(patience("Unable to load script", true), STUCK_LIMIT);
     }
