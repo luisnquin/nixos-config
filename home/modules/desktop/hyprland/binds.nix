@@ -62,6 +62,28 @@
 
   focusDir = direction: mkLuaInline "hl.dsp.focus({ direction = ${toLua' direction} })";
 
+  # send_shortcut can leave the synthetic key stuck; split it into down/up.
+  sendOnce = modsExpr: key: ''
+    hl.dispatch(hl.dsp.send_key_state({ mods = ${modsExpr}, key = ${toLua' key}, state = "down" }))
+    hl.timer(function()
+      hl.dispatch(hl.dsp.send_key_state({ mods = ${modsExpr}, key = ${toLua' key}, state = "up" }))
+    end, { timeout = 50, type = "oneshot" })
+  '';
+
+  clip = key: terminalMods:
+    mkLuaInline ''
+      function()
+        local w = hl.get_active_window()
+        local mods = "CTRL"
+        for _, tag in ipairs((w and w.tags) or {}) do
+          if tag:gsub("%*$", "") == "terminal" then
+            mods = ${toLua' terminalMods}
+          end
+        end
+        ${sendOnce "mods" key}
+      end
+    '';
+
   b = keys: dsp: {
     _args = [keys dsp];
   };
@@ -132,6 +154,9 @@ in
     (b "${mainMod} + Print" (dspExec "${grimblastCmd} --notify copy active"))
     (b "Print" (dspExec (toString hyprPrintScreen)))
     (b "${mainMod} + SHIFT + C" (dspExec "${vicinaeCmd} deeplink vicinae://launch/clipboard/history"))
+    (b "${mainMod} + C" (clip "C" "CTRL SHIFT"))
+    (b "${mainMod} + V" (clip "V" "CTRL SHIFT"))
+    (b "${mainMod} + X" (clip "X" "CTRL"))
 
     (b "CTRL + SHIFT + braceleft" (dspExec (pctlFallback "position 5-")))
     (b "CTRL + SHIFT + braceright" (dspExec (pctlFallback "position 5+")))

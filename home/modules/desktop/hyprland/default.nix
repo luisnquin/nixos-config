@@ -291,6 +291,11 @@ in {
         }
         tmuxDrop.windowRule
         {
+          name = "terminal-tag";
+          match = {class = "^(com\\.mitchellh\\.ghostty|ghostty\\..+|Alacritty)$";};
+          tag = "+terminal";
+        }
+        {
           name = "pinentry-gate";
           match = {class = "^${lib.escapeRegex pinentryClass}$";};
           fullscreen = true;
