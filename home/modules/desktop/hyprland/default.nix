@@ -29,6 +29,43 @@ args @ {
   allowExe = exe: type: {_args = [(lib.escapeRegex exe) type "allow"];};
   allowPathRegex = regex: type: {_args = [regex type "allow"];};
 
+  primary = "eDP-1";
+
+  # A workspace rule's `default` is resolved before monitor.added fires, so a
+  # hotplugged screen has to be handed `ext` explicitly.
+  extWorkspace = ''
+    local function claim_ext(m, hotplug)
+      if m.name == ${lib.generators.toLua {} primary} then
+        return
+      end
+
+      hl.workspace_rule({ workspace = "name:ext", monitor = m.name, default = true })
+
+      if not hotplug then
+        return
+      end
+
+      if hl.get_workspace("name:ext") ~= nil then
+        hl.dispatch(hl.dsp.workspace.move({ workspace = "name:ext", monitor = m.name }))
+        return
+      end
+
+      local prev = hl.get_active_monitor()
+      hl.dispatch(hl.dsp.focus({ workspace = "name:ext" }))
+      if prev ~= nil then
+        hl.dispatch(hl.dsp.focus({ monitor = prev.name }))
+      end
+    end
+
+    for _, m in ipairs(hl.get_monitors()) do
+      claim_ext(m, false)
+    end
+
+    hl.on("monitor.added", function(m)
+      claim_ext(m, true)
+    end)
+  '';
+
   pinentryClass = "ghostty.pinentry-gate";
 
   onPinentry = event: body: {
@@ -71,24 +108,21 @@ in {
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "lua";
+    extraConfig = extWorkspace;
 
     settings = {
       monitor = [
         {
-          output = "eDP-1";
+          output = primary;
           mode = "1920x1080@144";
           position = "0x0";
           scale = 1;
         }
         {
-          output = "HDMI-A-1";
+          output = "";
           mode = "1920x1080@60";
-          position = "1920x0";
+          position = "auto-right";
           scale = 1;
-        }
-        {
-          output = "DP-1";
-          disabled = true;
         }
       ];
 
@@ -234,18 +268,10 @@ in {
         }
       ];
 
-      workspace_rule =
-        map (workspace: {
-          inherit workspace;
-          layout = "scrolling";
-        }) ["2" "3" "10" "name:~"]
-        ++ [
-          {
-            workspace = "name:ext";
-            monitor = "HDMI-A-1";
-            default = true;
-          }
-        ];
+      workspace_rule = map (workspace: {
+        inherit workspace;
+        layout = "scrolling";
+      }) ["2" "3" "10" "name:~"];
 
       window_rule = [
         {
