@@ -25,11 +25,12 @@ in {
     '';
 
     settings = {
-      model = "gpt-6-sol";
-      model_reasoning_effort = "medium";
+      model = "gpt-6-luna";
+      model_reasoning_effort = "xhigh";
+      project_doc_fallback_filenames = ["CLAUDE.md"];
 
-      analytics.enabled = true;
-      feedback.enabled = true;
+      analytics.enabled = false;
+      feedback.enabled = false;
       mcp_servers =
         (kit.mkMcpServers {
           snakeCase = true;
@@ -41,7 +42,7 @@ in {
       agents = {
         job_max_runtime_seconds = 3600;
         max_depth = 5;
-        max_threads = 10;
+        max_concurrent_threads_per_session = 10;
       };
 
       sandbox_mode = permissions.sandbox_mode;
