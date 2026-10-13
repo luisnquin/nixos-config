@@ -1400,9 +1400,149 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
     ))
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Overrides {
+    pub size: Option<(u32, u32)>,
+    pub density: Option<u32>,
+    pub font_scale: Option<f64>,
+}
+
+impl Overrides {
+    pub fn is_empty(&self) -> bool {
+        *self == Overrides::default()
+    }
+
+    pub fn script(&self) -> String {
+        let size = self.size.map(|(w, h)| format!("wm size {w}x{h}"));
+        let density = self.density.map(|d| format!("wm density {d}"));
+        let font = self.font_scale.map(|f| format!("settings put system font_scale {f}"));
+
+        [size, density, font].into_iter().flatten().collect::<Vec<_>>().join("\n")
+    }
+}
+
+pub const DISPLAY_RESET: &str = "wm size reset\nwm density reset\nsettings put system font_scale 1.0";
+const DISPLAY_READ: &str = "wm size; echo @@; wm density; echo @@; settings get system font_scale";
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct DisplayState {
+    size: (Option<String>, Option<String>),
+    density: (Option<String>, Option<String>),
+    font_scale: Option<String>,
+}
+
+impl DisplayState {
+    pub fn parse(text: &str) -> Self {
+        let mut parts = text.split("@@");
+        let (size, density, font) = (parts.next(), parts.next(), parts.next());
+        let font = font.map(str::trim).filter(|f| !f.is_empty() && *f != "null");
+
+        DisplayState {
+            size: wm_pair(size.unwrap_or_default()),
+            density: wm_pair(density.unwrap_or_default()),
+            font_scale: font.map(str::to_string),
+        }
+    }
+
+    fn font_overridden(&self) -> bool {
+        self.font_scale.as_deref().and_then(|f| f.parse::<f64>().ok()).is_some_and(|f| f != 1.0)
+    }
+}
+
+fn wm_pair(text: &str) -> (Option<String>, Option<String>) {
+    let value = |prefix: &str| {
+        text.lines()
+            .filter(|l| l.trim_start().starts_with(prefix))
+            .find_map(|l| Some(l.split_once(": ")?.1.trim().to_string()))
+    };
+
+    (value("Physical"), value("Override"))
+}
+
+impl std::fmt::Display for DisplayState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (name, (physical, set)) in [("size", &self.size), ("density", &self.density)] {
+            let physical = physical.as_deref().unwrap_or("unknown");
+
+            match set {
+                Some(set) => writeln!(f, "{name} {set} (overridden, physical {physical})")?,
+                None => writeln!(f, "{name} {physical}")?,
+            }
+        }
+
+        match (self.font_overridden(), &self.font_scale) {
+            (true, Some(scale)) => write!(f, "font scale {scale} (overridden)"),
+            _ => write!(f, "font scale 1.0"),
+        }
+    }
+}
+
+async fn display_shell(server: &Server, device: &Device, script: &str) -> Result<String> {
+    let serial = serial_of(server, device).await?;
+    let out = adb::run_timeout(server, &["-s", &serial, "shell", script], SETTINGS_TIMEOUT).await?;
+
+    if !out.ok() {
+        bail!("{}", first_line(&out.stderr).or(first_line(&out.stdout)).unwrap_or("adb refused the display change"));
+    }
+
+    Ok(out.stdout)
+}
+
+pub async fn display_reset(server: &Server, device: &Device) -> Result<()> {
+    display_shell(server, device, DISPLAY_RESET).await.map(drop)
+}
+
+pub async fn display(view: &View, want: Overrides, reset: bool) -> Result<String> {
+    let (server, device) = (&view.server, &view.device);
+
+    if device.platform.is_hosted() {
+        bail!("`phone display` is android only: {} has no wm or font scale to drive over adb", device.label);
+    }
+
+    if reset {
+        display_reset(server, device).await?;
+        lease::displayed(view, false).await?;
+    } else if !want.is_empty() {
+        lease::displayed(view, true).await?;
+        display_shell(server, device, &want.script()).await?;
+    }
+
+    Ok(DisplayState::parse(&display_shell(server, device, DISPLAY_READ).await?).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn display_overrides_become_one_shell_script() {
+        let all = Overrides { size: Some((720, 1600)), density: Some(320), font_scale: Some(1.3) };
+
+        assert_eq!(
+            all.script(),
+            "wm size 720x1600\nwm density 320\nsettings put system font_scale 1.3"
+        );
+        assert_eq!(Overrides { density: Some(280), ..Default::default() }.script(), "wm density 280");
+        assert!(Overrides::default().is_empty());
+        assert_eq!(DISPLAY_RESET, "wm size reset\nwm density reset\nsettings put system font_scale 1.0");
+    }
+
+    #[test]
+    fn display_marks_what_is_overridden() {
+        let stock = "Physical size: 1080x2400\n@@\nPhysical density: 420\n@@\nnull\n";
+        let shrunk = "Physical size: 1080x2400\nOverride size: 720x1600\n@@\nPhysical density: 420\n\
+Override density: 320\n@@\n1.3\n";
+
+        assert_eq!(
+            DisplayState::parse(stock).to_string(),
+            "size 1080x2400\ndensity 420\nfont scale 1.0"
+        );
+        assert_eq!(
+            DisplayState::parse(shrunk).to_string(),
+            "size 720x1600 (overridden, physical 1080x2400)\ndensity 320 (overridden, physical 420)\n\
+font scale 1.3 (overridden)"
+        );
+    }
 
     fn adb_said(code: i32, stdout: &str, stderr: &str) -> adb::Output {
         use std::os::unix::process::ExitStatusExt as _;

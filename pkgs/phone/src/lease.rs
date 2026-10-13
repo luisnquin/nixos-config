@@ -155,6 +155,8 @@ pub struct Ledger {
     pub leases: BTreeMap<String, Lease>,
     #[serde(default)]
     pub installed: BTreeMap<String, BTreeSet<String>>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub displays: BTreeSet<String>,
 }
 
 #[derive(Deserialize)]
@@ -210,6 +212,7 @@ impl Ledger {
             v: 2,
             leases,
             installed: BTreeMap::new(),
+            displays: BTreeSet::new(),
         }
     }
 
@@ -568,8 +571,14 @@ pub async fn acquire(view: &View, take: Take) -> Result<Got> {
         match attempt(view, take, &book) {
             Step::Done(got) => return Ok(acted(view, got)),
             Step::Refresh => book = Book::fetch(&at).await?,
-            Step::Write(ledger, lease) => match book.commit(&ledger, &stamp(view, &book).await).await? {
-                Ok(_) => return Ok(acted(view, settled(view, lease))),
+            Step::Write(ledger, lease, revert) => match book.commit(&ledger, &stamp(view, &book).await).await? {
+                Ok(_) => {
+                    if revert {
+                        revert_display(view).await;
+                    }
+
+                    return Ok(acted(view, settled(view, lease)));
+                }
                 Err(newer) => book = newer,
             },
         }
@@ -589,7 +598,7 @@ fn acted(view: &View, got: Got) -> Got {
 enum Step {
     Done(Got),
     Refresh,
-    Write(Ledger, Lease),
+    Write(Ledger, Lease, bool),
 }
 
 fn attempt(view: &View, take: Take, book: &Book) -> Step {
@@ -598,8 +607,10 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     let key = key(&view.device);
     let judge = book.judge(now);
     let running = actions::running(&view.reach);
+    let standing = standing(&book.ledger, &key, &judge, me, running);
+    let revert = reverts(&standing, take, Moment::Acquire, book.ledger.displays.contains(&key.id));
 
-    let lease = match standing(&book.ledger, &key, &judge, me, running) {
+    let lease = match standing {
         Standing::Mine(lease) if !lease.due(now, running) && book.trusted(now) => return Step::Done(Got::Held(lease)),
         Standing::Mine(_) | Standing::Held(_) if !book.fresh => return Step::Refresh,
         Standing::Held(lease) if take == Take::Respect => return Step::Done(Got::Busy(lease)),
@@ -616,7 +627,61 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     ledger.prune(&judge);
     ledger.put(&key, lease.clone());
 
-    Step::Write(ledger, lease)
+    Step::Write(ledger, lease, revert)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Moment {
+    Acquire,
+    Release,
+}
+
+/// A display override is the holder's alone: it is undone when the hold ends,
+/// and by whoever next holds the device when the hold lapsed without that.
+fn reverts(standing: &Standing, take: Take, moment: Moment, overridden: bool) -> bool {
+    let refused = matches!((standing, take), (Standing::Held(_), Take::Respect));
+    let renewal = matches!(standing, Standing::Mine(_)) && moment == Moment::Acquire;
+
+    overridden && !refused && !renewal
+}
+
+async fn revert_display(view: &View) {
+    match actions::display_reset(&view.server, &view.device).await {
+        Ok(()) => {
+            eprintln!("phone: reset the display overrides left on {}", view.device.label);
+
+            if let Err(e) = displayed(view, false).await {
+                eprintln!("phone: {e:#}");
+            }
+        }
+        Err(e) => eprintln!("phone: could not reset the display overrides on {}: {e:#}", view.device.label),
+    }
+}
+
+pub async fn displayed(view: &View, on: bool) -> Result<()> {
+    let at = actions::where_of(&view.device);
+    let mut book = Book::fetch(&at).await?;
+    let key = key(&view.device);
+
+    for _ in 0..RETRIES {
+        if book.ledger.displays.contains(&key.id) == on {
+            return Ok(());
+        }
+
+        let mut ledger = book.ledger.clone();
+
+        match on {
+            true => ledger.displays.insert(key.id.clone()),
+            false => ledger.displays.remove(&key.id),
+        };
+
+        match book.commit(&ledger, &[]).await? {
+            Ok(_) => return Ok(()),
+            Err(newer) => book = newer,
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
 }
 
 fn settled(view: &View, lease: Lease) -> Got {
@@ -653,26 +718,51 @@ async fn stamp(view: &View, book: &Book) -> Vec<String> {
 pub async fn release(view: &View) -> Result<Option<Lease>> {
     let at = actions::where_of(&view.device);
     let mut book = Book::fetch(&at).await?;
+    let mut reverted = false;
 
     for _ in 0..RETRIES {
         let key = key(&view.device);
+        let standing = book.standing(&view.device, actions::running(&view.reach));
+        let revert = reverts(&standing, take(), Moment::Release, book.ledger.displays.contains(&key.id));
 
-        let had = match letting_go(book.standing(&view.device, actions::running(&view.reach)), take()) {
-            Some(Ok(lease)) => lease,
+        let had = match letting_go(standing, take()) {
+            Some(Ok(lease)) => Some(lease),
             Some(Err(lease)) => return busy(view, lease),
-            None => return Ok(None),
+            None if !revert => return Ok(None),
+            None => None,
         };
+
+        if revert && !reverted {
+            reverted = reset_on_release(view).await;
+        }
 
         let mut ledger = book.ledger.clone();
         ledger.drop_key(&key);
 
+        if reverted {
+            ledger.displays.remove(&key.id);
+        }
+
         match book.commit(&ledger, &[]).await? {
-            Ok(_) => return Ok(Some(had).filter(|l| l.owned_by(agent::me()))),
+            Ok(_) => return Ok(had.filter(|l| l.owned_by(agent::me()))),
             Err(newer) => book = newer,
         }
     }
 
     bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+async fn reset_on_release(view: &View) -> bool {
+    match actions::display_reset(&view.server, &view.device).await {
+        Ok(()) => {
+            eprintln!("phone: reset the display overrides on {}", view.device.label);
+            true
+        }
+        Err(e) => {
+            eprintln!("phone: left the display overrides on {} for its next holder to reset: {e:#}", view.device.label);
+            false
+        }
+    }
 }
 
 fn handed_back(touched: Duration, since_my_last_verb: Option<Unix>) -> bool {
@@ -713,13 +803,15 @@ pub async fn here_tree() -> Option<String> {
     tree(&Project::here().ok().flatten()?).await.ok()
 }
 
-pub async fn release_all(hosts: &[Where]) -> Result<Vec<String>> {
+pub async fn release_all(views: &[View]) -> Result<Vec<String>> {
     let mut freed = Vec::new();
 
-    for at in hosts {
+    for at in &hosts_of(views) {
         let Ok(mut book) = Book::fetch(at).await else {
             continue;
         };
+
+        let mut reverted = BTreeSet::new();
 
         for _ in 0..RETRIES {
             let mine: Vec<String> = book
@@ -734,8 +826,11 @@ pub async fn release_all(hosts: &[Where]) -> Result<Vec<String>> {
                 break;
             }
 
+            revert_held(views, at, &mine, &book.ledger.displays, &mut reverted).await;
+
             let mut ledger = book.ledger.clone();
             ledger.leases.retain(|k, _| !mine.contains(k));
+            ledger.displays.retain(|k| !reverted.contains(k));
 
             match book.commit(&ledger, &[]).await? {
                 Ok(_) => {
@@ -748,6 +843,20 @@ pub async fn release_all(hosts: &[Where]) -> Result<Vec<String>> {
     }
 
     Ok(freed)
+}
+
+async fn revert_held(views: &[View], at: &Where, mine: &[String], displays: &BTreeSet<String>, reverted: &mut BTreeSet<String>) {
+    let due: Vec<&String> = mine.iter().filter(|k| displays.contains(*k) && !reverted.contains(*k)).collect();
+
+    for id in due {
+        let view = views.iter().find(|v| actions::where_of(&v.device) == *at && key(&v.device).id == *id);
+
+        if let Some(view) = view.filter(|v| v.reach.is_attached()) {
+            if reset_on_release(view).await {
+                reverted.insert(id.clone());
+            }
+        }
+    }
 }
 
 pub async fn installed(view: &View, app: &str) -> Result<()> {
@@ -1140,6 +1249,41 @@ mod tests {
         assert_eq!(letting_go(Standing::Held(theirs.clone()), Take::Respect), Some(Err(theirs.clone())));
         assert_eq!(letting_go(Standing::Held(theirs.clone()), Take::Override), Some(Ok(theirs)));
         assert_eq!(letting_go(Standing::Free(None), Take::Override), None);
+    }
+
+    #[test]
+    fn an_overridden_display_reverts_when_its_lease_ends_or_changes_hands() {
+        let (mine, theirs) = (held(&me("a"), 1_000), held(&me("b"), 1_000));
+        let at = |s: Standing, take: Take, moment: Moment| reverts(&s, take, moment, true);
+
+        assert!(at(Standing::Mine(mine.clone()), Take::Respect, Moment::Release));
+        assert!(at(Standing::Free(Some(theirs.clone())), Take::Respect, Moment::Release));
+        assert!(at(Standing::Free(None), Take::Respect, Moment::Release), "the lease lapsed and was pruned");
+        assert!(!at(Standing::Held(theirs.clone()), Take::Respect, Moment::Release), "refused, so untouched");
+        assert!(at(Standing::Held(theirs.clone()), Take::Override, Moment::Release));
+
+        assert!(!at(Standing::Mine(mine.clone()), Take::Respect, Moment::Acquire), "a renewal keeps it");
+        assert!(at(Standing::Free(Some(theirs.clone())), Take::Respect, Moment::Acquire), "an expired takeover");
+        assert!(at(Standing::Free(None), Take::Respect, Moment::Acquire));
+        assert!(!at(Standing::Held(theirs.clone()), Take::Respect, Moment::Acquire), "busy, so untouched");
+        assert!(at(Standing::Held(theirs), Take::Override, Moment::Acquire));
+
+        assert!(!reverts(&Standing::Free(None), Take::Override, Moment::Release, false));
+    }
+
+    #[test]
+    fn the_display_record_survives_a_prune_and_a_round_trip() {
+        let none = BTreeSet::new();
+        let mut ledger = Ledger::default();
+        let k = Key::from("avd:pixel");
+
+        ledger.put(&k, held(&me("a"), 1_000));
+        ledger.displays.insert(k.id.clone());
+        ledger.prune(&judge(1_000 + 1200, &none));
+
+        assert!(ledger.leases.is_empty());
+        assert!(Ledger::parse(&ledger.body()).unwrap().displays.contains("avd:pixel"));
+        assert!(!Ledger::default().body().contains("displays"));
     }
 
     #[test]

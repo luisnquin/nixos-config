@@ -269,6 +269,9 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Release { target }) => release_cmd(&mut reg, want(target)).await,
         Some(Command::Run { command }) => run_cmd(&mut reg, want(None), command).await,
+        Some(Command::Display { size, density, font_scale, reset }) => {
+            display_cmd(&mut reg, want(None), actions::Overrides { size, density, font_scale }, reset).await
+        }
 
         // a bare `phone device` is the question the list answers
         Some(Command::Device { action }) => {
@@ -451,10 +454,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
 
         Some(Command::Doctor) => doctor::run(&mut reg).await,
 
-        Some(Command::Completions { .. } | Command::Hook { .. }) => unreachable!("handled above"),
-
         // every screen verb returned above, where it was given a device
-        Some(_) => unreachable!("a screen verb reached dispatch"),
+        Some(_) => unreachable!("a screen verb, completions or hook reached dispatch"),
     }
 }
 
@@ -554,7 +555,7 @@ async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
     reg.save()?;
 
     let Some(want) = want else {
-        let freed = lease::release_all(&lease::hosts_of(&views)).await?;
+        let freed = lease::release_all(&views).await?;
 
         match freed.is_empty() {
             true => eprintln!("phone: {} holds no device", agent::me().label),
@@ -570,6 +571,14 @@ async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
         Some(_) => eprintln!("phone: released {}", view.device.label),
         None => eprintln!("phone: {} was not held", view.device.label),
     }
+
+    Ok(())
+}
+
+async fn display_cmd(reg: &mut Registry, want: Option<String>, overrides: actions::Overrides, reset: bool) -> Result<()> {
+    let view = driving(reg, want.as_deref(), true).await?;
+
+    println!("{}", actions::display(&view, overrides, reset).await?);
 
     Ok(())
 }

@@ -63,6 +63,7 @@ The commands
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications push
   host     list enable disable budget
+  panel    display
   this     mirror stream record doctor hook
 
 What to know before scripting it
@@ -731,6 +732,33 @@ Enabling a host again re-probes what it can drive."#)]
     Host {
         #[command(subcommand)]
         action: Option<HostAction>,
+    },
+
+    #[command(about = "Read or override an android device's screen size, density and font scale", after_help = r#"Examples:
+  phone display
+  phone display --size 720x1600 --density 320
+  phone display --font-scale 1.3
+  phone display --reset
+
+Bare, it prints the size, density and font scale, marking each one something
+has overridden. With flags it applies them, any of the three at once.
+
+An override outlives the agent that set it, so phone keeps a record of it in
+the device's lease ledger and undoes it: on `phone release` (with or without
+-t), and when another agent next takes the device after the lease lapsed or
+under `--take`. `--reset` undoes it now. Android only."#)]
+    Display {
+        #[arg(long, value_parser = parse_display_size, help = "Screen size in pixels, WIDTHxHEIGHT")]
+        size: Option<(u32, u32)>,
+
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..=2000), help = "Density in dpi")]
+        density: Option<u32>,
+
+        #[arg(long, value_parser = parse_font_scale, help = "Font scale, 1.0 being stock")]
+        font_scale: Option<f64>,
+
+        #[arg(long, conflicts_with_all = ["size", "density", "font_scale"], help = "Undo every override")]
+        reset: bool,
     },
 
     // this machine, and the two verbs that want a person watching
@@ -1425,6 +1453,22 @@ fn parse_size(s: &str) -> Result<crate::stream::Size, String> {
     }
 }
 
+fn parse_display_size(s: &str) -> Result<(u32, u32), String> {
+    let side = |raw: &str| raw.trim().parse::<u32>().ok().filter(|n| (1..=10_000).contains(n));
+
+    match s.split_once('x').map(|(w, h)| (side(w), side(h))) {
+        Some((Some(width), Some(height))) => Ok((width, height)),
+        _ => Err(format!("{s} is not WIDTHxHEIGHT, each side 1 to 10000")),
+    }
+}
+
+fn parse_font_scale(s: &str) -> Result<f64, String> {
+    match s.trim().parse::<f64>() {
+        Ok(by) if by > 0.0 && by <= 4.0 => Ok(by),
+        _ => Err(format!("{s} is not a font scale (0 < scale <= 4)")),
+    }
+}
+
 fn parse_shm(s: &str) -> Result<String, String> {
     match !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
         true => Ok(s.to_owned()),
@@ -1504,6 +1548,34 @@ fn parse_range(s: &str) -> Result<RangeInclusive<u16>, String> {
 mod tests {
     use super::*;
     use clap::CommandFactory;
+
+    type Parsed = (Option<(u32, u32)>, Option<u32>, Option<f64>, bool);
+
+    fn display(args: &[&str]) -> Result<Parsed, String> {
+        let cli = Cli::try_parse_from(["phone", "display"].iter().chain(args)).map_err(|e| e.to_string())?;
+
+        match cli.command {
+            Some(Command::Display { size, density, font_scale, reset }) => Ok((size, density, font_scale, reset)),
+            _ => Err("not display".into()),
+        }
+    }
+
+    #[test]
+    fn display_takes_any_mix_of_overrides_or_a_reset() {
+        assert_eq!(display(&[]), Ok((None, None, None, false)));
+        assert_eq!(display(&["--size", "720x1600"]), Ok((Some((720, 1600)), None, None, false)));
+        assert_eq!(
+            display(&["--density", "320", "--font-scale", "1.3"]),
+            Ok((None, Some(320), Some(1.3), false))
+        );
+        assert_eq!(display(&["--reset"]), Ok((None, None, None, true)));
+        assert!(display(&["--reset", "--density", "320"]).is_err());
+        assert!(display(&["--size", "720"]).is_err());
+        assert!(display(&["--size", "0x1600"]).is_err());
+        assert!(display(&["--density", "0"]).is_err());
+        assert!(display(&["--font-scale", "-1"]).is_err());
+        assert!(display(&["--font-scale", "big"]).is_err());
+    }
 
     #[test]
     fn the_word_and_the_count_are_the_same_flag() {

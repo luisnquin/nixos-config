@@ -9,7 +9,7 @@ const GROUPS: &[(&str, &[&str])] = &[
     ("Read the screen", &["snapshot", "shot", "size"]),
     ("Act on it", &["tap", "press", "swipe", "pinch", "rotate", "type", "fill", "key"]),
     ("Wait and chain", &["wait", "do"]),
-    ("Devices and apps", &["device", "app", "host"]),
+    ("Devices and apps", &["device", "display", "app", "host"]),
     ("Watch", &["mirror", "stream", "record"]),
     ("Help", &["doctor", "hook", "help"]),
 ];
