@@ -1632,6 +1632,7 @@ fn keycode(name: &str) -> Result<String> {
         "BACKSPACE" => "DEL",
         "RETURN" => "ENTER",
         "ESC" => "ESCAPE",
+        "HIDE" => HIDE_KEYBOARD,
         other => other,
     };
 
@@ -1658,6 +1659,9 @@ pub async fn key(t: &Target, name: &str) -> Result<String> {
     let a = match t {
         Target::Adb(a) => a,
         Target::Simulator(_) if name.eq_ignore_ascii_case("back") => return crate::scroll::back(t).await,
+        Target::Simulator(_) if keycode(name).is_ok_and(|code| code == HIDE_KEYBOARD) => {
+            return Ok("a simulator has no key that closes the keyboard; nothing sent".to_string());
+        }
         Target::Simulator(s) => {
             simctl::key(&s.at, &s.udid, name).await?;
 
@@ -1698,6 +1702,13 @@ pub async fn keyboard(a: &Adb) -> Result<Keyboard> {
 }
 
 const KEYBOARD_GONE: Duration = Duration::from_secs(3);
+
+pub async fn close_keyboard(t: &Target) -> Result<bool> {
+    match t {
+        Target::Adb(a) => hide_keyboard(a).await,
+        Target::Simulator(_) => Ok(false),
+    }
+}
 
 async fn hide_keyboard(a: &Adb) -> Result<bool> {
     if !keyboard(a).await?.shown {
@@ -2587,6 +2598,11 @@ mod tests {
     fn hiding_the_keyboard_is_a_key_by_either_spelling() {
         assert_eq!(keycode("hide_keyboard").unwrap(), HIDE_KEYBOARD);
         assert_eq!(keycode("hide-keyboard").unwrap(), HIDE_KEYBOARD);
+        assert_eq!(
+            keycode("hide").unwrap(),
+            HIDE_KEYBOARD,
+            "`phone keyboard hide`"
+        );
     }
 
     #[test]

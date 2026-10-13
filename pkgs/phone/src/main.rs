@@ -1198,8 +1198,16 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             Ok(())
         }
 
-        Command::Fill { what, text, force } => {
-            eprintln!("phone: {}", fill(s, &what, &text, force).await?);
+        Command::Fill {
+            what,
+            text,
+            force,
+            keep_keyboard,
+        } => {
+            eprintln!(
+                "phone: {}",
+                fill(s, &what, &text, force, keep_keyboard).await?
+            );
 
             Ok(())
         }
@@ -1221,11 +1229,13 @@ async fn step(s: &Session, command: Command) -> Result<()> {
 /// the meaning it has on its own, and so that a caller can build one from the
 /// same strings it would have typed.
 async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
-    let commands = steps
+    let mut commands = steps
         .iter()
         .enumerate()
         .map(|(n, raw)| parse_step(n, raw))
         .collect::<Result<Vec<_>>>()?;
+
+    keep_keyboard_for_next_input(&mut commands);
 
     let settles: Vec<bool> = commands
         .iter()
@@ -1265,6 +1275,20 @@ async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Hiding only after the last fill would leave the keyboard over a later `tap`;
+/// a `key enter` right after a fill is the field's IME action, and needs it up.
+fn keep_keyboard_for_next_input(commands: &mut [Command]) {
+    for n in 1..commands.len() {
+        if !matches!(commands[n], Command::Fill { .. } | Command::Key { .. }) {
+            continue;
+        }
+
+        if let Command::Fill { keep_keyboard, .. } = &mut commands[n - 1] {
+            *keep_keyboard = true;
+        }
+    }
 }
 
 async fn answered(s: &Session, command: Command) -> Result<()> {
@@ -1849,7 +1873,36 @@ async fn swipe(
     ))
 }
 
-async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String> {
+async fn fill(
+    s: &Session,
+    what: &str,
+    text: &str,
+    force: bool,
+    keep_keyboard: bool,
+) -> Result<String> {
+    let (said, keyboard) = filled(s, what, text, force).await?;
+
+    if !hides_keyboard(keep_keyboard, keyboard) {
+        return Ok(said);
+    }
+
+    Ok(match a11y::close_keyboard(&s.target).await {
+        Ok(true) => format!("{said}, and closed the keyboard"),
+        Ok(false) => said,
+        Err(e) => format!("{said}, but the keyboard did not close: {e:#}"),
+    })
+}
+
+fn hides_keyboard(keep: bool, keyboard: Option<a11y::Keyboard>) -> bool {
+    !keep && keyboard.is_none_or(|k| k.shown)
+}
+
+async fn filled(
+    s: &Session,
+    what: &str,
+    text: &str,
+    force: bool,
+) -> Result<(String, Option<a11y::Keyboard>)> {
     let t = &s.target;
 
     if !matches!(t, a11y::Target::Adb(_)) {
@@ -1883,12 +1936,24 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
     if field.password {
         calls::secret(text);
 
-        return Ok(format!(
+        let said = format!(
             "filled {label} with {} characters (a password, not read back){partial}",
             text.chars().count()
-        ));
+        );
+
+        return Ok((said, None));
     }
 
+    read_until_filled(t, &field, text, partial).await
+}
+
+async fn read_until_filled(
+    t: &a11y::Target,
+    field: &a11y::Node,
+    text: &str,
+    partial: &str,
+) -> Result<(String, Option<a11y::Keyboard>)> {
+    let label = field.field_name();
     let mut last = None;
 
     for attempt in 0..FIELD_READS {
@@ -1897,14 +1962,16 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
         }
 
         let screen = a11y::dump(t).await?;
-        let now = read_back(&screen, &field).cloned();
+        let now = read_back(&screen, field).cloned();
 
         match now {
             Some(now) if now.reads(text) => {
-                return Ok(match text.is_empty() {
+                let said = match text.is_empty() {
                     true => format!("emptied {label}{partial}"),
                     false => format!("filled {label}, which reads {text:?}{partial}"),
-                });
+                };
+
+                return Ok((said, screen.keyboard));
             }
             other => last = other,
         }
@@ -2873,6 +2940,76 @@ fn truncate(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fill(what: &str, keep_keyboard: bool) -> Command {
+        Command::Fill {
+            what: what.to_string(),
+            text: String::new(),
+            force: false,
+            keep_keyboard,
+        }
+    }
+
+    fn kept(commands: &[Command]) -> Vec<Option<bool>> {
+        commands
+            .iter()
+            .map(|c| match c {
+                Command::Fill { keep_keyboard, .. } => Some(*keep_keyboard),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_fill_keeps_the_keyboard_only_for_a_fill_or_key_after_it() {
+        let enter = || Command::Key {
+            name: "enter".to_string(),
+        };
+        let wait = || Command::Wait {
+            what: "Inbox".to_string(),
+            gone: false,
+            timeout: Duration::from_secs(1),
+        };
+        let mut commands = vec![
+            fill("a", false),
+            fill("b", false),
+            enter(),
+            fill("c", false),
+            wait(),
+            fill("d", false),
+            fill("e", true),
+        ];
+
+        keep_keyboard_for_next_input(&mut commands);
+
+        let (keep, hide) = (Some(true), Some(false));
+
+        assert_eq!(
+            kept(&commands),
+            [keep, keep, None, hide, None, keep, keep],
+            "a fill before any other step hides; the last keeps only what it was told"
+        );
+    }
+
+    #[test]
+    fn the_keyboard_is_closed_after_a_fill_unless_kept_or_known_down() {
+        let up = Some(a11y::Keyboard {
+            shown: true,
+            frame: None,
+        });
+        let down = Some(a11y::Keyboard {
+            shown: false,
+            frame: None,
+        });
+
+        assert!(hides_keyboard(false, up));
+        assert!(
+            hides_keyboard(false, None),
+            "unknown is asked again, not assumed down"
+        );
+        assert!(!hides_keyboard(false, down));
+        assert!(!hides_keyboard(true, up));
+    }
 
     #[test]
     fn a_partial_name_is_flagged_after_where_it_aimed() {

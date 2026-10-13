@@ -618,6 +618,11 @@ that does not then say exactly that — an autocorrect, a mask, a length limit, 
 keystroke that went to the wrong window — fails and shows what it says instead.
 A password field cannot be read back, so there the check is skipped.
 
+Once the field reads right, the keyboard is closed if it is up, as `key
+hide_keyboard` closes it; no `key back` is needed after, and one could leave the
+screen. A fill that fails leaves it up. In `do`, a fill followed by another
+fill or a `key` step keeps it up for that step.
+
 Android only, and printable ASCII only, as with `type`."#)]
     Fill {
         #[arg(help = "The field, named as `tap` names one")]
@@ -627,6 +632,9 @@ Android only, and printable ASCII only, as with `type`."#)]
 
         #[arg(long, help = "Tap the field even where the keyboard covers it")]
         force: bool,
+
+        #[arg(long, help = "Leave the keyboard up after the field is filled")]
+        keep_keyboard: bool,
     },
     /// Send a key, by keycode name (back, home, enter, tab…)
     #[command(after_help = r#"Examples:
@@ -634,6 +642,7 @@ Android only, and printable ASCII only, as with `type`."#)]
   phone key home
   phone key app_switch
   phone key hide_keyboard  # closes the keyboard if it is up, and nothing else
+  phone keyboard hide      # the same
   phone key back  # on Android this navigates, and can leave a form losing it
 
 With the keyboard up, `back` closes the keyboard rather than navigating, and
@@ -642,7 +651,8 @@ already down it sends nothing, where `back` would leave the screen.
 
 A simulator has no back button, so there `back` is a drag in from the left
 edge, the gesture iOS goes back with; any other key it refuses is listed with
-the ones it does take."#)]
+the ones it does take, and hiding the keyboard is not one."#)]
+    #[command(alias = "keyboard")]
     Key { name: String },
     /// Block until an element appears, or stop waiting and fail
     #[command(after_help = r#"Examples:
@@ -1598,13 +1608,36 @@ mod tests {
         let cli = Cli::try_parse_from(["phone", "fill", "Search settings", ""]).unwrap();
 
         match cli.command {
-            Some(Command::Fill { what, text, force }) => {
+            Some(Command::Fill {
+                what, text, force, ..
+            }) => {
                 assert_eq!(
                     (what.as_str(), text.as_str(), force),
                     ("Search settings", "", false)
                 );
             }
             _ => panic!("not a fill"),
+        }
+    }
+
+    #[test]
+    fn fill_closes_the_keyboard_unless_told_to_keep_it() {
+        for (args, want) in [
+            (vec!["phone", "fill", "Email", "a"], false),
+            (vec!["phone", "fill", "Email", "a", "--keep-keyboard"], true),
+        ] {
+            match Cli::try_parse_from(args).unwrap().command {
+                Some(Command::Fill { keep_keyboard, .. }) => assert_eq!(keep_keyboard, want),
+                _ => panic!("not a fill"),
+            }
+        }
+    }
+
+    #[test]
+    fn keyboard_hide_is_the_hide_keyboard_key() {
+        match Cli::try_parse_from(["phone", "keyboard", "hide"]).unwrap().command {
+            Some(Command::Key { name }) => assert_eq!(name, "hide"),
+            _ => panic!("not a key"),
         }
     }
 
