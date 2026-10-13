@@ -125,8 +125,9 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
   `-o <file>` and open that file.
 - `snapshot` is text and usually answers the question. A full `shot` costs about
   1500 tokens; `--crop` one element, or `--scale 0.3 --jpeg 60`, costs a fraction.
-- An `@index` is refused once its element moved, so take a new snapshot after
-  the screen changes rather than guessing. Rows an act printed keep the
+- An `@index` whose element moved is followed only when exactly one element
+  on screen has its name and id (`(re-found)`); otherwise it is refused, so
+  take a new snapshot after the screen changes rather than guessing. Rows an act printed keep the
   numbers it gave them, alongside the last snapshot's.
 - Rows shown as `<View>` or `<EditText>` have no name. Use their `@index`.
 - A trailing `…` or `(+N lines)` on a row is output being trimmed, not part

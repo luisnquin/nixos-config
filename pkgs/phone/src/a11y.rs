@@ -976,20 +976,17 @@ pub fn pick_in<'a>(
 /// Pointed at by name rather than by a fresh `@index`: renumbering the kept rows
 /// here would silently re-aim every other index the caller still holds.
 fn moved(nodes: &[Node], index: usize, row: &Signature) -> anyhow::Error {
-    let same = |n: &Node| {
-        (&n.res_id, &n.class, &n.text, &n.desc) == (&row.res_id, &row.class, &row.text, &row.desc)
-    };
-
-    match [&row.text, &row.desc, &row.res_id]
+    let name = [&row.text, &row.desc, &row.res_id]
         .into_iter()
-        .find(|s| !s.is_empty())
-    {
-        Some(name) if pick_in(nodes, name, None).is_ok_and(same) => {
-            let name = spoken(name);
+        .find(|s| !s.is_empty());
+
+    match renamed(nodes, row) {
+        Some(_) => {
+            let name = spoken(name.map(String::as_str).unwrap_or_default());
 
             anyhow!("@{index} ({name}) moved; it is still on screen, name it '{name}' instead")
         }
-        name => anyhow!(
+        None => anyhow!(
             "@{index} ({}) is no longer where the last snapshot saw it; take a new snapshot{}",
             name.map(|n| spoken(n)).unwrap_or_else(|| format!(
                 "<{}>",
@@ -1001,6 +998,22 @@ fn moved(nodes: &[Node], index: usize, row: &Signature) -> anyhow::Error {
             }
         ),
     }
+}
+
+fn renamed<'a>(nodes: &'a [Node], row: &Signature) -> Option<&'a Node> {
+    let name = [&row.text, &row.desc, &row.res_id]
+        .into_iter()
+        .find(|s| !s.is_empty())?;
+
+    pick_in(nodes, name, None).ok().filter(|n| {
+        (&n.res_id, &n.class, &n.text, &n.desc) == (&row.res_id, &row.class, &row.text, &row.desc)
+    })
+}
+
+pub fn refound<'a>(nodes: &'a [Node], needle: &str, shown: &[Signature]) -> Option<&'a Node> {
+    let row = shown.get(needle.strip_prefix('@')?.parse::<usize>().ok()?)?;
+
+    found(nodes, row).is_none().then(|| renamed(nodes, row)).flatten()
 }
 
 /// Names on screen a typo or an accent away from `needle`. Only near spellings:
@@ -2540,11 +2553,25 @@ mod tests {
 
         let err = pick_in(&twice, "@3", Some(&shown)).unwrap_err().to_string();
         assert!(err.contains("@3 (Continue) is no longer where"), "{err}");
+        assert!(refound(&twice, "@3", &shown).is_none());
 
         let err = pick_in(&scrolled, "@7", Some(&shown))
             .unwrap_err()
             .to_string();
         assert!(err.contains("no element @7 in the last snapshot"), "{err}");
+    }
+
+    #[test]
+    fn a_moved_index_is_re_found_only_by_the_one_same_element() {
+        let shown: Vec<Signature> = parse(FORM).unwrap().iter().map(Node::signature).collect();
+        let scrolled = parse(&FORM.replace("[80,1820][600,1930]", "[80,1620][600,1730]")).unwrap();
+
+        let node = refound(&scrolled, "@3", &shown).unwrap();
+        assert_eq!((node.label(), node.bounds.center().1), ("Continue".into(), 1675));
+
+        assert!(refound(&parse(FORM).unwrap(), "@3", &shown).is_none());
+        assert!(refound(&scrolled, "Continue", &shown).is_none());
+        assert!(refound(&scrolled, "@7", &shown).is_none());
     }
 
     fn live(desc: &str) -> String {

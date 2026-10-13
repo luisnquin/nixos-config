@@ -1008,11 +1008,21 @@ impl Session {
     fn pick<'a>(&self, screen: &'a a11y::Screen, what: &str) -> Result<&'a a11y::Node> {
         let shown = a11y::recall(&self.view.device.id);
 
-        a11y::pick_in(&screen.nodes, what, shown.as_deref()).inspect_err(|e| {
-            if e.is::<a11y::Ambiguous>() {
-                self.remember(&screen.nodes);
-            }
-        })
+        a11y::pick_in(&screen.nodes, what, shown.as_deref())
+            .or_else(|e| {
+                let node = shown
+                    .as_deref()
+                    .and_then(|shown| a11y::refound(&screen.nodes, what, shown))
+                    .ok_or(e)?;
+
+                eprintln!("phone: {what} moved; {} (re-found)", node.label());
+                Ok(node)
+            })
+            .inspect_err(|e: &anyhow::Error| {
+                if e.is::<a11y::Ambiguous>() {
+                    self.remember(&screen.nodes);
+                }
+            })
     }
 
     fn remember(&self, nodes: &[a11y::Node]) {
