@@ -109,6 +109,7 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
 - A coordinate is one argument, `540,1200`, never `540 1200`.
 - `key del` is backspace; `key back` leaves the screen. After `fill` the keyboard
   is already closed, so never send `key back` to dismiss it.
+- On a simulator `fill` taps and types without clearing: fill empty fields only.
 - A partial name works only when its whole words belong to one label; the act
   line ends in `(partial)`. Otherwise the refusal lists the `@index` to use.
 - Never `timeout` or wrap `app logs`, and never call raw `logcat`, `wm size`

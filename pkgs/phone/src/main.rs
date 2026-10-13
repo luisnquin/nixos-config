@@ -1972,7 +1972,7 @@ async fn filled(
     let t = &s.target;
 
     if !matches!(t, a11y::Target::Adb(_)) {
-        bail!("fill reads a field back through Android's dump; on a simulator tap and type");
+        return filled_on_simulator(s, what, text, force).await;
     }
 
     a11y::sendable(text)?;
@@ -2011,6 +2011,89 @@ async fn filled(
     }
 
     read_until_filled(t, &field, text, partial).await
+}
+
+async fn filled_on_simulator(
+    s: &Session,
+    what: &str,
+    text: &str,
+    force: bool,
+) -> Result<(String, Option<a11y::Keyboard>)> {
+    let t = &s.target;
+
+    if text.is_empty() {
+        bail!("a simulator has no way to clear a field, so fill cannot empty one there");
+    }
+
+    a11y::sendable(text)?;
+
+    let (screen, target) = find(s, what).await?;
+    let partial = tail(a11y::partial(&screen.nodes, what));
+
+    if !force {
+        refuse_covered(&screen, &target)?;
+    }
+
+    let (x, y) = pressable(&screen, &target)?;
+    a11y::tap(t, x, y).await?;
+    tokio::time::sleep(POLL).await;
+
+    calls::typed(text);
+    a11y::type_text(t, text).await?;
+
+    let mut last = None;
+
+    for _ in 0..FIELD_READS {
+        tokio::time::sleep(POLL).await;
+
+        let screen = a11y::dump(t).await?;
+        match read_typed(&screen, &target, text).map(|now| typed_into(&target, now, text)) {
+            Some(Ok(said)) => return Ok((format!("{said}{partial}"), None)),
+            Some(Err(e)) => last = Some(e),
+            None => {}
+        }
+    }
+
+    Err(last.unwrap_or_else(|| {
+        anyhow::anyhow!("typed into {} but no field on screen reads it back", target.field_name())
+    }))
+}
+
+fn read_typed<'a>(
+    screen: &'a a11y::Screen,
+    target: &a11y::Node,
+    text: &str,
+) -> Option<&'a a11y::Node> {
+    let same = read_back(screen, target).filter(|n| n.class == target.class);
+
+    same.filter(|n| n.reads(text))
+        .or_else(|| screen.nodes.iter().find(|n| n.reads(text)))
+        .or(same)
+}
+
+fn typed_into(was: &a11y::Node, now: &a11y::Node, text: &str) -> Result<String> {
+    let label = was.field_name();
+    let count = text.chars().count();
+
+    if now.reads(text) {
+        return Ok(format!("filled {label}, which reads {text:?}"));
+    }
+
+    if now.text.chars().count() == count && now.text.chars().all(|c| c == '•') {
+        calls::secret(text);
+
+        return Ok(format!("filled {label} with {count} characters (a password, not read back)"));
+    }
+
+    if !was.text.is_empty() && now.text == format!("{}{text}", was.text) {
+        bail!(
+            "{label} reads {:?}: it already held {:?}, which a simulator cannot clear",
+            now.text,
+            was.text
+        );
+    }
+
+    bail!("{label} reads {:?} rather than {text:?}", now.text)
 }
 
 async fn read_until_filled(
@@ -3146,6 +3229,30 @@ mod tests {
             password: false,
             parent: None,
         }
+    }
+
+    #[test]
+    fn a_simulator_fill_reads_back_the_field_or_says_what_it_holds() {
+        let empty = labelled("", 300);
+
+        assert!(typed_into(&empty, &labelled("ios-port-1", 300), "ios-port-1").is_ok());
+        assert!(typed_into(&empty, &labelled("•••••", 300), "hunter").is_err());
+        assert!(typed_into(&empty, &labelled("••••••", 300), "hunter").unwrap().contains("not read back"));
+
+        let held = typed_into(&labelled("old", 300), &labelled("oldnew", 300), "new").unwrap_err();
+        assert!(held.to_string().contains("cannot clear"), "{held}");
+    }
+
+    #[test]
+    fn a_simulator_fill_finds_its_text_after_the_keyboard_moved_the_field() {
+        let label = labelled("Dev account", 300);
+        let screen = a11y::Screen {
+            nodes: vec![labelled("Dev account", 300), labelled("ios-port-1", 120)],
+            keyboard: None,
+            panel: None,
+        };
+
+        assert_eq!(read_typed(&screen, &label, "ios-port-1").unwrap().text, "ios-port-1");
     }
 
     #[test]
