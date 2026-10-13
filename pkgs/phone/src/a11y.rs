@@ -462,6 +462,20 @@ impl Node {
             .iter()
             .any(|field| folded(field) == needle)
     }
+
+    pub fn holds_words(&self, needle: &str) -> bool {
+        let needle = folded(needle);
+        let want: Vec<&str> = needle.split(' ').collect();
+
+        needle.chars().any(char::is_alphanumeric)
+            && [&self.text, &self.desc, &self.res_id].iter().any(|field| {
+                folded(field)
+                    .split(' ')
+                    .collect::<Vec<_>>()
+                    .windows(want.len())
+                    .any(|w| w == want)
+            })
+    }
 }
 
 /// Apps typeset their labels ("Wi‑Fi" has a non-breaking hyphen, "Don’t" a curly
@@ -914,12 +928,16 @@ pub fn pick_in<'a>(
         ))
         .into()),
         // a name that used to be on screen reads as part of a longer one that
-        // still is, and pressing that one is pressing the wrong thing
-        (partial, []) => Err(Ambiguous(format!(
-            "nothing on screen is named '{needle}', it is only part of {}; use a whole name or its @index",
-            listed(partial)
-        ))
-        .into()),
+        // still is, and pressing that one is pressing the wrong thing; only
+        // whole words of a single label are safe to take as meaning it
+        (partial, []) => match worded(partial, needle).as_slice() {
+            [one] => Ok(one),
+            _ => Err(Ambiguous(format!(
+                "nothing on screen is named '{needle}', it is only part of {}; use a whole name or its @index",
+                listed(partial)
+            ))
+            .into()),
+        },
         (_, [one]) => Ok(one),
         (many, _) => {
             // a pressable and the label drawn inside it both carry the name,
@@ -1024,6 +1042,18 @@ fn distance(a: &[char], b: &str) -> usize {
     }
 
     row[a.len()]
+}
+
+fn worded<'a>(hits: &[&'a Node], needle: &str) -> Vec<&'a Node> {
+    hits.iter().copied().filter(|n| n.holds_words(needle)).collect()
+}
+
+pub fn partial(nodes: &[Node], needle: &str) -> bool {
+    let indexed = needle
+        .strip_prefix('@')
+        .is_some_and(|n| n.parse::<usize>().is_ok());
+
+    !indexed && !nodes.iter().any(|n| n.answers(needle))
 }
 
 fn listed(nodes: &[&Node]) -> String {
@@ -1891,8 +1921,8 @@ mod tests {
 
     #[test]
     fn a_name_that_is_only_part_of_one_element_is_refused() {
-        let xml = SAMPLE.replace(r#"text="Log in""#, r#"text="Log in with Google""#);
-        let err = pick(&parse(&xml).unwrap(), "Log in").unwrap_err();
+        let xml = SAMPLE.replace(r#"text="Log in""#, r#"text="Login with Google""#);
+        let err = pick(&parse(&xml).unwrap(), "Log").unwrap_err();
 
         assert!(err.is::<Ambiguous>(), "{err}");
         assert!(err.to_string().contains("@"), "{err}");
@@ -1904,6 +1934,60 @@ mod tests {
         let nodes = parse(&xml).unwrap();
 
         assert_eq!(pick(&nodes, "Log in").unwrap().res_id, "submit");
+    }
+
+    fn tasks(title: &str, submit: &str) -> Vec<Node> {
+        let xml = SAMPLE
+            .replace(r#"text="Sign in""#, &format!(r#"text="{title}""#))
+            .replace(r#"text="Log in""#, &format!(r#"text="{submit}""#));
+
+        parse(&xml).unwrap()
+    }
+
+    #[test]
+    fn whole_words_of_one_label_press_it() {
+        let nodes = tasks("Sign in", "AG&#10;AGENT TASKS&#10;OFF");
+
+        assert_eq!(pick(&nodes, "AGENT TASKS").unwrap().res_id, "submit");
+        assert_eq!(pick(&nodes, "agent tasks").unwrap().res_id, "submit");
+        assert_eq!(pick(&nodes, "AG AGENT").unwrap().res_id, "submit");
+    }
+
+    #[test]
+    fn part_of_a_word_is_still_refused() {
+        let nodes = tasks("Sign in", "AG AGENT TASKS OFF");
+
+        for needle in ["AGENT TASK", "GENT TASKS", "TASKS OF"] {
+            let err = pick(&nodes, needle).unwrap_err();
+
+            assert!(err.is::<Ambiguous>(), "{needle}: {err}");
+            assert!(err.to_string().contains("only part of @2"), "{err}");
+        }
+    }
+
+    #[test]
+    fn whole_words_in_two_labels_are_refused_with_both() {
+        let nodes = tasks("Agent tasks list", "AG AGENT TASKS OFF");
+        let err = pick(&nodes, "AGENT TASKS").unwrap_err();
+
+        assert!(err.is::<Ambiguous>(), "{err}");
+        assert!(err.to_string().contains("@0 Agent tasks list"), "{err}");
+        assert!(err.to_string().contains("@2 AG AGENT TASKS OFF"), "{err}");
+    }
+
+    #[test]
+    fn a_symbol_never_names_part_of_a_label() {
+        let nodes = tasks("Sign in", "DIFF ×");
+
+        assert!(pick(&nodes, "×").unwrap_err().is::<Ambiguous>());
+        assert!(pick(&nodes, "- ×").unwrap_err().is::<Missing>());
+    }
+
+    #[test]
+    fn an_exact_name_beats_whole_words_of_another() {
+        let nodes = tasks("AGENT TASKS", "AG AGENT TASKS OFF");
+
+        assert_eq!(pick(&nodes, "agent tasks").unwrap().res_id, "title");
     }
 
     #[test]
@@ -2957,9 +3041,10 @@ mod tests {
         assert_eq!(pick(&nodes, " log\n in ").unwrap().res_id, "submit");
         assert_eq!(nodes[2].label(), "Log in");
         assert_eq!(row_label(&rows(&nodes)[2].label), "Log in");
+        assert_eq!(pick(&nodes, "Log").unwrap().res_id, "submit");
         assert_eq!(
-            pick(&nodes, "Log").unwrap_err().to_string(),
-            "nothing on screen is named 'Log', it is only part of @2 Log in; use a whole name or its @index"
+            pick(&nodes, "Lo").unwrap_err().to_string(),
+            "nothing on screen is named 'Lo', it is only part of @2 Log in; use a whole name or its @index"
         );
         assert_eq!(
             pick(&nodes, "Lag in").unwrap_err().to_string(),

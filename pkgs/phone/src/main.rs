@@ -1555,7 +1555,7 @@ async fn target_of(view: &View, focus: Option<(i32, i32)>) -> Result<a11y::Targe
 /// a canvas, a map, an unfocused split half — and anything else names an
 /// element. The name comes back so that a tap, a hold and a drag all report the
 /// same way; a caller that resolved an element wants to see which one.
-async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<String>)> {
+async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<Named>)> {
     if let Ok(point) = cli::parse_point(what) {
         return Ok((point, None));
     }
@@ -1566,7 +1566,7 @@ async fn at(s: &Session, what: &str, force: bool) -> Result<((i32, i32), Option<
         refuse_covered(&screen, &node)?;
     }
 
-    Ok((pressable(&screen, &node)?, Some(node.label())))
+    Ok((pressable(&screen, &node)?, Some(named(&screen, &node, what))))
 }
 
 fn pressable(screen: &a11y::Screen, node: &a11y::Node) -> Result<(i32, i32)> {
@@ -1693,7 +1693,7 @@ struct Aimed {
     centre: (i32, i32),
     within: Option<a11y::Bounds>,
     size: a11y::Size,
-    name: Option<String>,
+    name: Option<Named>,
 }
 
 async fn aimed(s: &Session, what: &str, force: bool) -> Result<Aimed> {
@@ -1716,7 +1716,7 @@ async fn aimed(s: &Session, what: &str, force: bool) -> Result<Aimed> {
             };
             let within = node.bounds.clipped(&panel).unwrap_or(node.bounds);
 
-            (pressable(&screen, &node)?, Some(within), Some(node.label()))
+            (pressable(&screen, &node)?, Some(within), Some(named(&screen, &node, what)))
         }
     };
 
@@ -1832,6 +1832,7 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
     a11y::sendable(text)?;
 
     let (screen, target) = find(s, what).await?;
+    let partial = tail(a11y::partial(&screen.nodes, what));
 
     calls::secret_if(target.password, text);
 
@@ -1856,7 +1857,7 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
         calls::secret(text);
 
         return Ok(format!(
-            "filled {label} with {} characters (a password, not read back)",
+            "filled {label} with {} characters (a password, not read back){partial}",
             text.chars().count()
         ));
     }
@@ -1874,8 +1875,8 @@ async fn fill(s: &Session, what: &str, text: &str, force: bool) -> Result<String
         match now {
             Some(now) if now.reads(text) => {
                 return Ok(match text.is_empty() {
-                    true => format!("emptied {label}"),
-                    false => format!("filled {label}, which reads {text:?}"),
+                    true => format!("emptied {label}{partial}"),
+                    false => format!("filled {label}, which reads {text:?}{partial}"),
                 });
             }
             other => last = other,
@@ -1934,10 +1935,20 @@ async fn focus_after_tap(t: &a11y::Target, target: &a11y::Node) -> Result<a11y::
     }
 }
 
+type Named = (String, bool);
+
+fn named(screen: &a11y::Screen, node: &a11y::Node, what: &str) -> Named {
+    (node.label(), a11y::partial(&screen.nodes, what))
+}
+
+fn tail(partial: bool) -> &'static str {
+    if partial { " (partial)" } else { "" }
+}
+
 /// `at 416,1627` for a bare point, `Gmail at 416,1627` for a named element.
-fn aim(point: (i32, i32), name: Option<String>) -> String {
+fn aim(point: (i32, i32), name: Option<Named>) -> String {
     match name {
-        Some(name) => format!("{name} at {},{}", point.0, point.1),
+        Some((name, partial)) => format!("{name} at {},{}{}", point.0, point.1, tail(partial)),
         None => format!("{},{}", point.0, point.1),
     }
 }
@@ -2835,6 +2846,31 @@ fn truncate(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_partial_name_is_flagged_after_where_it_aimed() {
+        let screen = a11y::Screen {
+            nodes: a11y::parse(
+                r#"<hierarchy rotation="0">
+  <node class="android.widget.Button" bounds="[0,0][100,100]" clickable="true" text="AG AGENT TASKS OFF" content-desc="" resource-id=""/>
+</hierarchy>"#,
+            )
+            .unwrap(),
+            keyboard: None,
+            panel: None,
+        };
+        let node = &screen.nodes[0];
+
+        assert_eq!(
+            format!("tapped {}", aim((50, 50), Some(named(&screen, node, "AGENT TASKS")))),
+            "tapped AG AGENT TASKS OFF at 50,50 (partial)"
+        );
+        assert_eq!(
+            aim((50, 50), Some(named(&screen, node, "ag agent tasks off"))),
+            "AG AGENT TASKS OFF at 50,50"
+        );
+        assert_eq!(aim((50, 50), Some(named(&screen, node, "@0"))), "AG AGENT TASKS OFF at 50,50");
+    }
 
     #[test]
     fn a_focused_flutter_host_view_is_not_the_field_inside_it() {
