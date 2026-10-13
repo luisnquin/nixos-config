@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  lib,
   ...
 }: {
   home = {
@@ -42,7 +41,7 @@
         dev = {
           incremental = true;
           codegen-units = 256;
-          debug = 1;
+          debug = "line-tables-only";
         };
 
         release = {
@@ -71,8 +70,4 @@
       };
     };
   };
-
-  home.activation.rustupDefault = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    ${lib.getExe pkgs.rustup} default stable >/dev/null 2>&1 || true
-  '';
 }
