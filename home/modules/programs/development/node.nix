@@ -22,6 +22,10 @@ in {
     '';
   };
 
+  xdg.configFile."pnpm/config.yaml".text = ''
+    minimumReleaseAge: 4320
+  '';
+
   programs.npm = {
     enable = true;
     package = pkgs.nodejs_26;
@@ -30,6 +34,8 @@ in {
       audit-level = "critical";
       fund = false;
       ignore-scripts = true;
+      min-release-age = 3;
+      allow-git = "none";
       init-private = true;
       init-version = "0.0.1";
       init-author-email = config.programs.git.settings.user.email;
@@ -53,6 +59,7 @@ in {
         peer = true;
         production = false;
         exact = true;
+        minimumReleaseAge = 259200;
         globalBinDir = "${BUN_GLOBAL_DIR}/bin";
         cache = "${BUN_GLOBAL_DIR}/cache";
       };
