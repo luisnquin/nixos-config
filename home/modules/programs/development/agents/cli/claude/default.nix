@@ -13,17 +13,24 @@ in {
   ];
 
   # not `programs.claude-code.plugins`: its per-entry links put mod files
-  # outside the plugin directory, which claude refuses. Not `home.file` either:
-  # its link retargets to a new home-manager-files path on every switch, which
-  # makes live sessions reload each mod even when its store path is unchanged
+  # outside the plugin directory, which claude refuses. Copied, not linked:
+  # claude reloads a mod whenever a watched file's ctime moves, and with
+  # auto-optimise-store every dirty-tree flake copy hardlinks the same inodes
   home.activation.claudeMods = let
     skills = "${config.programs.claude-code.configDir}/skills";
+    stamps = "${config.xdg.stateHome}/claude-mods";
   in
     lib.hm.dag.entryAfter ["linkGeneration"] ''
       claudeMod() {
-        [ "$(readlink "${skills}/$1" 2>/dev/null)" = "$2" ] || run ln -sfnT "$2" "${skills}/$1"
+        local dst="${skills}/$1" stamp="${stamps}/$1"
+        [ "$(cat "$stamp" 2>/dev/null)" = "$2" ] && [ -d "$dst" ] && [ ! -L "$dst" ] && return
+        run rm -rf "$dst.new"
+        run cp -rL --no-preserve=mode,ownership "$2" "$dst.new"
+        run rm -rf "$dst"
+        run mv "$dst.new" "$dst"
+        [[ -v DRY_RUN ]] || printf '%s\n' "$2" > "$stamp"
       }
-      run mkdir -p "${skills}"
+      run mkdir -p "${skills}" "${stamps}"
       claudeMod phone ${pkgs.phone.claudePlugin}
       claudeMod chat-clean ${sources.chat-clean}
     '';
