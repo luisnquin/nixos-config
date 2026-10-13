@@ -1,8 +1,7 @@
 diff --git a/pkg/gocui/edit.go b/pkg/gocui/edit.go
-index 649379fb6..ad999f563 100644
 --- a/pkg/gocui/edit.go
 +++ b/pkg/gocui/edit.go
-@@ -33,6 +33,16 @@ var (
+@@ -33,6 +33,16 @@
  
  // SimpleEditor is used as the default gocui editor.
  func SimpleEditor(v *View, key Key) bool {

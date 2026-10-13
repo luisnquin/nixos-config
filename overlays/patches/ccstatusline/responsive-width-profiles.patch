@@ -1,17 +1,20 @@
-diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
---- a/dist/ccstatusline.js
-+++ b/dist/ccstatusline.js
-@@ -63971,6 +63971,7 @@
+diff --git a/dist/ccstatusline-tgzfz3x2.js b/dist/ccstatusline-tgzfz3x2.js
+--- a/dist/ccstatusline-tgzfz3x2.js
++++ b/dist/ccstatusline-tgzfz3x2.js
+@@ -34184,6 +34184,7 @@
      }
      return {
        ...result.data,
-+      widthProfiles: rawData.widthProfiles,
++      widthProfiles: Array.isArray(rawData.widthProfiles) ? rawData.widthProfiles.map((profile) => Array.isArray(profile?.lines) ? { ...profile, lines: upgradeLegacyWidgetTypes(profile.lines) } : profile) : undefined,
        lines: upgradeLegacyWidgetTypes(result.data.lines)
      };
    } catch (error) {
-@@ -74496,8 +74497,28 @@
-     execFileSync("chcp.com", ["65001"], { stdio: "ignore", windowsHide: true });
-   } catch {}
+diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
+--- a/dist/ccstatusline.js
++++ b/dist/ccstatusline.js
+@@ -416,8 +416,28 @@
+     return null;
+   }
  }
 +function applyWidthProfile(settings, terminalWidth) {
 +  const profiles = settings.widthProfiles;
@@ -24,7 +27,7 @@ diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
 +  }
 +  return {
 +    ...settings,
-+    ...Array.isArray(profile.lines) ? { lines: upgradeLegacyWidgetTypes(profile.lines) } : {},
++    ...Array.isArray(profile.lines) ? { lines: profile.lines } : {},
 +    ...typeof profile.flexMode === "string" ? { flexMode: profile.flexMode } : {}
 +  };
 +}
@@ -39,7 +42,7 @@ diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
    const configError = getConfigLoadError();
    source_default.level = settings.colorLevel;
    updateColorMap();
-@@ -74552,10 +74573,7 @@
+@@ -472,10 +492,7 @@
      transcriptThinkingEffort: needsTranscriptThinkingEffort ? transcriptAnalysis?.thinkingEffort ?? null : undefined,
      skillsMetrics,
      compactionData,

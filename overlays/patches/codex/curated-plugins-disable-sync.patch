@@ -1,6 +1,7 @@
+diff --git a/core-plugins/src/manager.rs b/core-plugins/src/manager.rs
 --- a/core-plugins/src/manager.rs
 +++ b/core-plugins/src/manager.rs
-@@ -114,6 +114,10 @@
+@@ -147,6 +147,10 @@
  use tracing::warn;
  
  static CURATED_REPO_SYNC_STARTED: AtomicBool = AtomicBool::new(false);
@@ -10,9 +11,8 @@
 +const CURATED_REPO_SYNC_ENABLED: bool = false;
  const FEATURED_PLUGIN_IDS_CACHE_TTL: std::time::Duration =
      std::time::Duration::from_secs(60 * 60 * 3);
- 
-@@ -2597,7 +2601,10 @@
-         self: &Arc<Self>,
+ const REMOTE_INSTALLED_PLUGIN_SYNC_WAIT_TIMEOUT: Duration = Duration::from_secs(120);
+@@ -3291,6 +3295,9 @@
          http_client_factory: HttpClientFactory,
          on_effective_plugins_changed: Option<EffectivePluginsChangedCallback>,
      ) {

@@ -119,13 +119,14 @@ diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
  use codex_config::default_project_root_markers;
  use codex_config::loader::discover_project_root;
  use codex_config::loader::normalized_project_trust_keys;
-@@ -29,14 +31,19 @@
+@@ -29,15 +31,20 @@
  use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
  use codex_protocol::config_types::TrustLevel;
  use codex_utils_absolute_path::AbsolutePathBuf;
 +use codex_utils_home_dir::find_codex_home;
  use codex_utils_path_uri::LegacyAppPathString;
  use codex_utils_path_uri::PathConvention;
+ use codex_utils_path_uri::PathUri;
  use color_eyre::eyre::Result;
  use color_eyre::eyre::WrapErr;
 +use crate::legacy_core::config::edit::ConfigEdit as CoreConfigEdit;
@@ -139,7 +140,7 @@ diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
  use uuid::Uuid;
  
  #[derive(Clone, Copy, PartialEq, Eq)]
-@@ -151,10 +158,79 @@
+@@ -153,10 +160,79 @@
      replace_config_value("oss_provider", serde_json::json!(provider))
  }
  

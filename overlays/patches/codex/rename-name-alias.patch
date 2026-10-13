@@ -1,7 +1,7 @@
 diff --git a/tui/src/slash_command.rs b/tui/src/slash_command.rs
 --- a/tui/src/slash_command.rs
 +++ b/tui/src/slash_command.rs
-@@ -29,6 +29,7 @@
+@@ -28,6 +28,7 @@
      Import,
      Hooks,
      Review,
@@ -9,7 +9,7 @@ diff --git a/tui/src/slash_command.rs b/tui/src/slash_command.rs
      Rename,
      New,
      Archive,
-@@ -306,6 +307,12 @@
+@@ -347,6 +348,12 @@
      }
  
      #[test]

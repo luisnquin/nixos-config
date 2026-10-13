@@ -1,7 +1,7 @@
 diff --git a/tui/src/history_cell/session.rs b/tui/src/history_cell/session.rs
 --- a/tui/src/history_cell/session.rs
 +++ b/tui/src/history_cell/session.rs
-@@ -354,11 +354,24 @@
+@@ -337,11 +337,24 @@
  impl HistoryCell for SessionHeaderHistoryCell {
      fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
          let width = usize::from(width);
@@ -28,9 +28,9 @@ diff --git a/tui/src/history_cell/session.rs b/tui/src/history_cell/session.rs
              Line::from(vec![
                  "     ".into(),
                  self.format_directory(Some(width.saturating_sub(/*rhs*/ 5)))
-@@ -393,7 +406,8 @@
-                 .collect();
-         }
+@@ -362,7 +375,8 @@
+ 
+     fn raw_lines(&self) -> Vec<Line<'static>> {
          let mut lines = vec![
 -            Line::from(format!("OpenAI Codex (v{})", self.version)),
 +            Line::from(">_ ϟ codex@openai"),

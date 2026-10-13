@@ -1,8 +1,7 @@
 diff --git a/docs-master/Config.md b/docs-master/Config.md
-index 857a4e359..4f466aab1 100644
 --- a/docs-master/Config.md
 +++ b/docs-master/Config.md
-@@ -252,6 +252,12 @@ gui:
+@@ -279,6 +279,12 @@
    # If true, show the number of lines changed per file in the Files view
    showNumstatInFilesView: false
  
@@ -16,10 +15,9 @@ index 857a4e359..4f466aab1 100644
    showRandomTip: true
  
 diff --git a/pkg/commands/git.go b/pkg/commands/git.go
-index 69cddfa48..447137c66 100644
 --- a/pkg/commands/git.go
 +++ b/pkg/commands/git.go
-@@ -52,6 +52,7 @@ type Loaders struct {
+@@ -52,6 +52,7 @@
  	ReflogCommitLoader *git_commands.ReflogCommitLoader
  	RemoteLoader       *git_commands.RemoteLoader
  	StashLoader        *git_commands.StashLoader
@@ -27,15 +25,15 @@ index 69cddfa48..447137c66 100644
  	TagLoader          *git_commands.TagLoader
  	Worktrees          *git_commands.WorktreeLoader
  }
-@@ -150,6 +151,7 @@ func NewGitCommandAux(
+@@ -157,6 +158,7 @@
  	commitLoader := git_commands.NewCommitLoader(cmn, cmd, statusCommands.WorkingTreeState, gitCommon)
  	reflogCommitLoader := git_commands.NewReflogCommitLoader(cmn, cmd)
- 	remoteLoader := git_commands.NewRemoteLoader(cmn, cmd)
+ 	remoteLoader := git_commands.NewRemoteLoader(gitCommon)
 +	submoduleLoader := git_commands.NewSubmoduleLoader(gitCommon)
  	worktreeLoader := git_commands.NewWorktreeLoader(gitCommon)
  	stashLoader := git_commands.NewStashLoader(cmn, cmd)
  	tagLoader := git_commands.NewTagLoader(cmn, cmd)
-@@ -186,6 +188,7 @@ func NewGitCommandAux(
+@@ -193,6 +195,7 @@
  			RemoteLoader:       remoteLoader,
  			Worktrees:          worktreeLoader,
  			StashLoader:        stashLoader,
@@ -44,10 +42,9 @@ index 69cddfa48..447137c66 100644
  		},
  		RepoPaths: repoPaths,
 diff --git a/pkg/commands/git_commands/submodule.go b/pkg/commands/git_commands/submodule.go
-index 7400f0514..e44361463 100644
 --- a/pkg/commands/git_commands/submodule.go
 +++ b/pkg/commands/git_commands/submodule.go
-@@ -81,6 +81,8 @@ func (self *SubmoduleCommands) GetConfigs(parentModule *models.SubmoduleConfig)
+@@ -81,6 +81,8 @@
  				}
  			} else if url, ok := firstMatch(line, `\s*url\s*=\s*(.*)\s*`); ok {
  				configs[lastConfigIdx].Url = url
@@ -58,7 +55,6 @@ index 7400f0514..e44361463 100644
  	}
 diff --git a/pkg/commands/git_commands/submodule_loader.go b/pkg/commands/git_commands/submodule_loader.go
 new file mode 100644
-index 000000000..539f11659
 --- /dev/null
 +++ b/pkg/commands/git_commands/submodule_loader.go
 @@ -0,0 +1,344 @@
@@ -181,7 +177,7 @@ index 000000000..539f11659
 +		Arg("--count", "--left-right", status.RecordedHead+"..."+status.Head).
 +		ToArgv()
 +
-+	output, err := forOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
++	output, err := ForOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
 +	if err != nil {
 +		// Typically the pinned commit isn't in the submodule's object store (it
 +		// was never fetched). We still know the two differ, we just can't say
@@ -211,7 +207,7 @@ index 000000000..539f11659
 +		Arg("--numstat", "HEAD").
 +		ToArgv()
 +
-+	output, err := forOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
++	output, err := ForOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
 +	if err != nil {
 +		self.Log.Errorf("failed to read diff stat of submodule %s: %v", path, err)
 +		return 0, 0
@@ -266,7 +262,7 @@ index 000000000..539f11659
 +			Arg(paths...).
 +			ToArgv()
 +
-+		output, err := forOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
++		output, err := ForOtherRepo(self.cmd.New(cmdArgs)).DontLog().RunWithOutput()
 +		if err != nil {
 +			self.Log.Errorf("failed to read recorded submodule commits in %s: %v", dir, err)
 +			continue
@@ -321,7 +317,7 @@ index 000000000..539f11659
 +
 +	// forOtherRepo: GIT_DIR/GIT_WORK_TREE in the environment point at the
 +	// superproject and would win over the -C above.
-+	cmdObj := forOtherRepo(self.cmd.New(cmdArgs)).DontLog()
++	cmdObj := ForOtherRepo(self.cmd.New(cmdArgs)).DontLog()
 +	if !background {
 +		// Same trade-off as the files refresh makes: a foreground refresh takes
 +		// the optional lock so git persists its refreshed stat-cache (keeping
@@ -408,7 +404,6 @@ index 000000000..539f11659
 +}
 diff --git a/pkg/commands/git_commands/submodule_loader_test.go b/pkg/commands/git_commands/submodule_loader_test.go
 new file mode 100644
-index 000000000..584c2ebbc
 --- /dev/null
 +++ b/pkg/commands/git_commands/submodule_loader_test.go
 @@ -0,0 +1,107 @@
@@ -520,10 +515,9 @@ index 000000000..584c2ebbc
 +	}
 +}
 diff --git a/pkg/commands/models/submodule_config.go b/pkg/commands/models/submodule_config.go
-index 7df0d131a..e3be85315 100644
 --- a/pkg/commands/models/submodule_config.go
 +++ b/pkg/commands/models/submodule_config.go
-@@ -6,6 +6,10 @@ type SubmoduleConfig struct {
+@@ -6,6 +6,10 @@
  	Name string
  	Path string
  	Url  string
@@ -536,7 +530,6 @@ index 7df0d131a..e3be85315 100644
  }
 diff --git a/pkg/commands/models/submodule_status.go b/pkg/commands/models/submodule_status.go
 new file mode 100644
-index 000000000..d0e69fc3c
 --- /dev/null
 +++ b/pkg/commands/models/submodule_status.go
 @@ -0,0 +1,78 @@
@@ -619,10 +612,9 @@ index 000000000..d0e69fc3c
 +	return self.Cloned && self.RecordedHead != "" && self.Head != "" && self.RecordedHead != self.Head
 +}
 diff --git a/pkg/config/user_config.go b/pkg/config/user_config.go
-index 9738186d9..35e4e8794 100644
 --- a/pkg/config/user_config.go
 +++ b/pkg/config/user_config.go
-@@ -160,6 +160,9 @@ type GuiConfig struct {
+@@ -164,6 +164,9 @@
  	FileTreeSortCaseSensitive bool `yaml:"fileTreeSortCaseSensitive"`
  	// If true, show the number of lines changed per file in the Files view
  	ShowNumstatInFilesView bool `yaml:"showNumstatInFilesView"`
@@ -632,7 +624,7 @@ index 9738186d9..35e4e8794 100644
  	// If true, show a random tip in the command log when Lazygit starts
  	ShowRandomTip bool `yaml:"showRandomTip"`
  	// If true, show the command log
-@@ -906,6 +909,7 @@ func GetDefaultConfigForPlatform(platform string) *UserConfig {
+@@ -927,6 +930,7 @@
  			FileTreeSortOrder:                   "mixed",
  			FileTreeSortCaseSensitive:           true,
  			ShowNumstatInFilesView:              false,
@@ -641,10 +633,9 @@ index 9738186d9..35e4e8794 100644
  			ShowIcons:                           false,
  			NerdFontsVersion:                    "",
 diff --git a/pkg/gui/context/submodules_context.go b/pkg/gui/context/submodules_context.go
-index 5428da044..6ea62057a 100644
 --- a/pkg/gui/context/submodules_context.go
 +++ b/pkg/gui/context/submodules_context.go
-@@ -22,7 +22,11 @@ func NewSubmodulesContext(c *ContextCommon) *SubmodulesContext {
+@@ -22,7 +22,11 @@
  	)
  
  	getDisplayStrings := func(_ int, _ int) [][]string {
@@ -658,10 +649,9 @@ index 5428da044..6ea62057a 100644
  
  	return &SubmodulesContext{
 diff --git a/pkg/gui/controllers/helpers/refresh_helper.go b/pkg/gui/controllers/helpers/refresh_helper.go
-index 6672fab26..adef8d773 100644
 --- a/pkg/gui/controllers/helpers/refresh_helper.go
 +++ b/pkg/gui/controllers/helpers/refresh_helper.go
-@@ -1196,12 +1196,39 @@ func (self *RefreshHelper) refreshFilesAndSubmodules(captured capturedFilesState
+@@ -1226,12 +1226,39 @@
  		return err
  	}
  
@@ -705,10 +695,9 @@ index 6672fab26..adef8d773 100644
  	return nil
  }
 diff --git a/pkg/gui/controllers/submodules_controller.go b/pkg/gui/controllers/submodules_controller.go
-index a2dd22ed3..8c347dd72 100644
 --- a/pkg/gui/controllers/submodules_controller.go
 +++ b/pkg/gui/controllers/submodules_controller.go
-@@ -10,6 +10,7 @@ import (
+@@ -12,6 +12,7 @@
  	"github.com/jesseduffield/lazygit/pkg/gui/context"
  	"github.com/jesseduffield/lazygit/pkg/gui/style"
  	"github.com/jesseduffield/lazygit/pkg/gui/types"
@@ -716,7 +705,7 @@ index a2dd22ed3..8c347dd72 100644
  	"github.com/jesseduffield/lazygit/pkg/utils"
  )
  
-@@ -113,10 +114,12 @@ func (self *SubmodulesController) GetOnRenderToMain() func() {
+@@ -115,10 +116,12 @@
  				task = types.NewRenderStringTask("No submodules")
  			} else {
  				prefix := fmt.Sprintf(
@@ -733,7 +722,7 @@ index a2dd22ed3..8c347dd72 100644
  				)
  
  				file := self.c.Helpers().WorkingTree.FileForSubmodule(submodule)
-@@ -139,6 +142,121 @@ func (self *SubmodulesController) GetOnRenderToMain() func() {
+@@ -141,6 +144,121 @@
  	}
  }
  
@@ -856,7 +845,6 @@ index a2dd22ed3..8c347dd72 100644
  	return self.c.Helpers().Repos.EnterSubmodule(submodule)
  }
 diff --git a/pkg/gui/presentation/submodules.go b/pkg/gui/presentation/submodules.go
-index c7b51c6d8..5ee2b1b3d 100644
 --- a/pkg/gui/presentation/submodules.go
 +++ b/pkg/gui/presentation/submodules.go
 @@ -1,29 +1,200 @@
@@ -1075,7 +1063,6 @@ index c7b51c6d8..5ee2b1b3d 100644
  }
 diff --git a/pkg/gui/presentation/submodules_test.go b/pkg/gui/presentation/submodules_test.go
 new file mode 100644
-index 000000000..4c43f8177
 --- /dev/null
 +++ b/pkg/gui/presentation/submodules_test.go
 @@ -0,0 +1,74 @@
@@ -1154,10 +1141,9 @@ index 000000000..4c43f8177
 +	}
 +}
 diff --git a/pkg/gui/types/common.go b/pkg/gui/types/common.go
-index 75cb53018..d13bf39d9 100644
 --- a/pkg/gui/types/common.go
 +++ b/pkg/gui/types/common.go
-@@ -340,17 +340,22 @@ func (self *MenuItem) ID() string {
+@@ -359,17 +359,22 @@
  }
  
  type Model struct {
@@ -1192,10 +1178,9 @@ index 75cb53018..d13bf39d9 100644
  	// FilteredReflogCommits are the ones that appear in the reflog panel.
  	// When in filtering mode we only include the ones that match the given path
 diff --git a/pkg/i18n/english.go b/pkg/i18n/english.go
-index 6d41d31d6..ab774774d 100644
 --- a/pkg/i18n/english.go
 +++ b/pkg/i18n/english.go
-@@ -759,6 +759,23 @@ type TranslationSet struct {
+@@ -803,6 +803,23 @@
  	SubCommitsTitle                       string
  	ExitSubview                           string
  	SubmodulesTitle                       string
@@ -1219,7 +1204,7 @@ index 6d41d31d6..ab774774d 100644
  	NavigationTitle                       string
  	SuggestionsCheatsheetTitle            string
  	// Unlike the cheatsheet title above, the real suggestions title has a little message saying press tab to focus
-@@ -1921,6 +1938,23 @@ func EnglishTranslationSet() *TranslationSet {
+@@ -1999,6 +2016,23 @@
  		SubCommitsTitle:                          "Sub-commits",
  		ExitSubview:                              "Exit subview",
  		SubmodulesTitle:                          "Submodules",
@@ -1244,10 +1229,9 @@ index 6d41d31d6..ab774774d 100644
  		SuggestionsCheatsheetTitle:               "Suggestions",
  		SuggestionsTitle:                         "Suggestions (press %s to focus)",
 diff --git a/pkg/integration/tests/submodule/add.go b/pkg/integration/tests/submodule/add.go
-index a82a71227..282707650 100644
 --- a/pkg/integration/tests/submodule/add.go
 +++ b/pkg/integration/tests/submodule/add.go
-@@ -37,9 +37,9 @@ var Add = NewIntegrationTest(NewIntegrationTestArgs{
+@@ -37,9 +37,9 @@
  			)
  
  		t.Views().Main().TopLines(
@@ -1261,10 +1245,9 @@ index a82a71227..282707650 100644
  
  		t.Views().Files().Focus().
 diff --git a/pkg/integration/tests/submodule/enter_nested.go b/pkg/integration/tests/submodule/enter_nested.go
-index 1fc96425c..2e5e39fc5 100644
 --- a/pkg/integration/tests/submodule/enter_nested.go
 +++ b/pkg/integration/tests/submodule/enter_nested.go
-@@ -16,22 +16,22 @@ var EnterNested = NewIntegrationTest(NewIntegrationTestArgs{
+@@ -16,22 +16,22 @@
  	Run: func(t *TestDriver, keys config.KeybindingConfig) {
  		t.Views().Submodules().Focus().
  			Lines(
@@ -1296,10 +1279,9 @@ index 1fc96425c..2e5e39fc5 100644
  			}).
  			// enter the nested submodule
 diff --git a/pkg/integration/tests/submodule/remove_nested.go b/pkg/integration/tests/submodule/remove_nested.go
-index b143096cd..73fa5578a 100644
 --- a/pkg/integration/tests/submodule/remove_nested.go
 +++ b/pkg/integration/tests/submodule/remove_nested.go
-@@ -21,8 +21,8 @@ var RemoveNested = NewIntegrationTest(NewIntegrationTestArgs{
+@@ -21,8 +21,8 @@
  
  		t.Views().Submodules().Focus().
  			Lines(
@@ -1310,7 +1292,7 @@ index b143096cd..73fa5578a 100644
  			).
  			SelectNextItem().
  			Press(keys.Universal.Remove).
-@@ -33,7 +33,7 @@ var RemoveNested = NewIntegrationTest(NewIntegrationTestArgs{
+@@ -33,7 +33,7 @@
  					Confirm()
  			}).
  			Lines(
@@ -1321,7 +1303,6 @@ index b143096cd..73fa5578a 100644
  
 diff --git a/pkg/integration/tests/submodule/status.go b/pkg/integration/tests/submodule/status.go
 new file mode 100644
-index 000000000..45c44cb39
 --- /dev/null
 +++ b/pkg/integration/tests/submodule/status.go
 @@ -0,0 +1,43 @@
@@ -1370,7 +1351,6 @@ index 000000000..45c44cb39
 +})
 diff --git a/pkg/integration/tests/submodule/status_nested.go b/pkg/integration/tests/submodule/status_nested.go
 new file mode 100644
-index 000000000..01ba31463
 --- /dev/null
 +++ b/pkg/integration/tests/submodule/status_nested.go
 @@ -0,0 +1,52 @@
@@ -1427,23 +1407,21 @@ index 000000000..01ba31463
 +	},
 +})
 diff --git a/pkg/integration/tests/test_list.go b/pkg/integration/tests/test_list.go
-index 15ef6f8c7..01c11a66a 100644
 --- a/pkg/integration/tests/test_list.go
 +++ b/pkg/integration/tests/test_list.go
-@@ -455,6 +455,8 @@ var tests = []*components.IntegrationTest{
+@@ -579,6 +579,8 @@
  	submodule.Stage,
  	submodule.StageAllWithDirtySubmodule,
  	submodule.StageDirtyOnly,
 +	submodule.Status,
 +	submodule.StatusNested,
- 	sync.FetchAndAutoForwardBranchesAllBranches,
- 	sync.FetchAndAutoForwardBranchesAllBranchesCheckedOutInOtherWorktree,
- 	sync.FetchAndAutoForwardBranchesNone,
+ 	sync.FastForwardBehindBranch,
+ 	sync.FastForwardBehindBranchCheckedOut,
+ 	sync.FastForwardBehindBranchWithoutReflogs,
 diff --git a/schema-master/config.json b/schema-master/config.json
-index 45a2b9efe..ac1615ed9 100644
 --- a/schema-master/config.json
 +++ b/schema-master/config.json
-@@ -762,6 +762,11 @@
+@@ -1182,6 +1182,11 @@
            "description": "If true, show the number of lines changed per file in the Files view",
            "default": false
          },

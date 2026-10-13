@@ -1,7 +1,7 @@
 diff --git a/tui/src/bottom_pane/chat_composer/footer_state.rs b/tui/src/bottom_pane/chat_composer/footer_state.rs
 --- a/tui/src/bottom_pane/chat_composer/footer_state.rs
 +++ b/tui/src/bottom_pane/chat_composer/footer_state.rs
-@@ -30,6 +30,7 @@
+@@ -360,6 +360,7 @@
      pub(super) status_line_hyperlink_url: Option<String>,
      pub(super) status_line_enabled: bool,
      pub(super) side_conversation_context_label: Option<String>,
@@ -12,7 +12,7 @@ diff --git a/tui/src/bottom_pane/chat_composer/footer_state.rs b/tui/src/bottom_
 diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_composer.rs
 --- a/tui/src/bottom_pane/chat_composer.rs
 +++ b/tui/src/bottom_pane/chat_composer.rs
-@@ -334,6 +334,8 @@
+@@ -436,6 +436,8 @@
  use std::time::Instant;
  
  use ratatui::style::Color;
@@ -21,9 +21,9 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
  
  /// If the pasted content exceeds this number of characters, replace it with a
  /// placeholder in the UI.
-@@ -563,7 +565,15 @@
- 
- const FOOTER_SPACING_HEIGHT: u16 = 0;
+@@ -680,7 +682,15 @@
+     pub(crate) sparkle_draft: sparkle::SparkleDraft,
+ }
  
 -fn render_custom_input_bar(area: Rect, buf: &mut Buffer) {
 +/// Rail cells kept to the right of the thread name so it reads as part of the
@@ -38,7 +38,7 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
      if area.width == 0 || area.height == 0 {
          return;
      }
-@@ -576,6 +586,66 @@
+@@ -693,6 +703,66 @@
          let bottom_y = area.y.saturating_add(area.height.saturating_sub(1));
          buf.set_string(area.x, bottom_y, &rail, rail_style);
      }
@@ -105,7 +105,7 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
  }
  
  impl ChatComposer {
-@@ -659,6 +729,7 @@
+@@ -763,6 +833,7 @@
                  status_line_hyperlink_url: None,
                  status_line_enabled: false,
                  side_conversation_context_label: None,
@@ -113,7 +113,7 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
                  active_agent_label: None,
                  external_editor_key: default_keymap
                      .primary_hint(KeymapContext::Global, "open_external_editor"),
-@@ -4407,6 +4478,14 @@
+@@ -4327,6 +4398,14 @@
          true
      }
  
@@ -128,8 +128,8 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
      /// Replaces the contextual footer label for the currently viewed agent.
      ///
      /// Returning `false` means the value was unchanged, so callers can skip redraw work. This
-@@ -4872,7 +4951,11 @@
-             }
+@@ -4816,7 +4895,11 @@
+             line.render(warning_area, buf);
          }
          let style = user_message_style();
 -        render_custom_input_bar(composer_rect, buf);
@@ -139,12 +139,12 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
 +            self.footer.thread_title_label.as_deref(),
 +        );
          if !remote_images_rect.is_empty() {
-             Paragraph::new(self.attachments.remote_image_lines())
-                 .style(style)
+             let first = self
+                 .attachments
 diff --git a/tui/src/bottom_pane/mod.rs b/tui/src/bottom_pane/mod.rs
 --- a/tui/src/bottom_pane/mod.rs
 +++ b/tui/src/bottom_pane/mod.rs
-@@ -1899,6 +1899,12 @@
+@@ -2410,6 +2410,12 @@
              self.request_redraw();
          }
      }
@@ -156,11 +156,11 @@ diff --git a/tui/src/bottom_pane/mod.rs b/tui/src/bottom_pane/mod.rs
 +    }
  }
  
- struct ChatComposerRightReserveRenderable<'a> {
+ struct ChatComposerPresentation<'a> {
 diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
 --- a/tui/src/chatwidget/status_surfaces.rs
 +++ b/tui/src/chatwidget/status_surfaces.rs
-@@ -318,10 +318,25 @@
+@@ -321,10 +321,25 @@
          self.warn_invalid_status_line_items_once(&selections.invalid_status_line_items);
          self.warn_invalid_terminal_title_items_once(&selections.invalid_terminal_title_items);
          self.sync_status_surface_shared_state(&selections);

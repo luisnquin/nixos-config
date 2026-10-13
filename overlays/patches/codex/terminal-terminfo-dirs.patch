@@ -1,8 +1,7 @@
 diff --git a/cli/src/doctor.rs b/cli/src/doctor.rs
-index c0f310e700..e0d41ebc4a 100644
 --- a/cli/src/doctor.rs
 +++ b/cli/src/doctor.rs
-@@ -1976,14 +1976,18 @@ fn push_terminfo_details(details: &mut Vec<String>, inputs: &TerminalCheckInputs
+@@ -1992,14 +1992,18 @@
          has_warning |= warning;
      }
      if let Some(raw) = inputs.env_value("TERMINFO_DIRS") {
@@ -22,11 +21,10 @@ index c0f310e700..e0d41ebc4a 100644
      } else if inputs.env_present("TERMINFO_DIRS") {
          details.push("TERMINFO_DIRS: present".to_string());
      }
-@@ -4081,6 +4085,26 @@ mod tests {
-         );
+@@ -4291,6 +4295,26 @@
      }
  
-+    #[test]
+     #[test]
 +    fn terminal_check_accepts_partial_terminfo_dirs() {
 +        let tempdir = tempfile::tempdir().expect("create tempdir");
 +        let readable = tempdir.path().join("terminfo");
@@ -46,6 +44,7 @@ index c0f310e700..e0d41ebc4a 100644
 +        }));
 +    }
 +
-     #[test]
++    #[test]
      fn terminal_check_reports_remote_indicators_as_present_only() {
          let mut inputs = terminal_inputs();
+         set_terminal_env(&mut inputs, "SSH_CONNECTION", "10.0.0.1 1 10.0.0.2 22");

@@ -1,8 +1,7 @@
 diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
-index 7120462330..8a47348cbb 100644
 --- a/tui/src/chatwidget/status_surfaces.rs
 +++ b/tui/src/chatwidget/status_surfaces.rs
-@@ -866,7 +866,15 @@ impl ChatWidget {
+@@ -986,7 +986,15 @@
      }
  
      fn reasoning_display_name(&self) -> String {
@@ -20,10 +19,9 @@ index 7120462330..8a47348cbb 100644
      }
  
 diff --git a/tui/src/chatwidget/tests/status_and_layout.rs b/tui/src/chatwidget/tests/status_and_layout.rs
-index fe17933f52..b4aaffcd59 100644
 --- a/tui/src/chatwidget/tests/status_and_layout.rs
 +++ b/tui/src/chatwidget/tests/status_and_layout.rs
-@@ -23,6 +23,16 @@ fn take_workspace_headline_request_id(
+@@ -56,6 +56,16 @@
      }
  }
  

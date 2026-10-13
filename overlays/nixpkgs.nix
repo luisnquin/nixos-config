@@ -105,12 +105,15 @@
           ./patches/ccstatusline/responsive-width-profiles.patch
         ];
 
-      # Upstream installs the bundle straight out of $src, which would step
-      # over the patched copy in the build directory.
+      # Upstream installs only the entry point straight out of $src, which both
+      # steps over the patched copy and drops the chunks it imports.
       installPhase = ''
         runHook preInstall
-        install -Dm755 dist/ccstatusline.js $out/bin/ccstatusline
-        patchShebangs $out/bin/ccstatusline
+        mkdir -p $out/lib $out/bin
+        cp -r dist $out/lib/ccstatusline
+        chmod +x $out/lib/ccstatusline/ccstatusline.js
+        patchShebangs $out/lib/ccstatusline/ccstatusline.js
+        ln -s $out/lib/ccstatusline/ccstatusline.js $out/bin/ccstatusline
         runHook postInstall
       '';
     });

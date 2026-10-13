@@ -1,7 +1,7 @@
 diff --git a/tui/src/lib.rs b/tui/src/lib.rs
 --- a/tui/src/lib.rs
 +++ b/tui/src/lib.rs
-@@ -180,6 +180,7 @@
+@@ -184,6 +184,7 @@
  mod named_session_lookup;
  mod notifications;
  #[cfg(any(not(debug_assertions), test))]
@@ -9,7 +9,7 @@ diff --git a/tui/src/lib.rs b/tui/src/lib.rs
  mod npm_registry;
  pub(crate) mod onboarding;
  mod oss_selection;
-@@ -243,7 +244,9 @@
+@@ -247,7 +248,9 @@
  #[cfg(not(debug_assertions))]
  pub use update_action::get_update_action;
  mod update_prompt;

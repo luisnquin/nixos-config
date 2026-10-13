@@ -1,9 +1,8 @@
 diff --git a/pkg/gui/presentation/commits.go b/pkg/gui/presentation/commits.go
-index 67fa62ac8..831f5c237 100644
 --- a/pkg/gui/presentation/commits.go
 +++ b/pkg/gui/presentation/commits.go
-@@ -32,6 +32,11 @@ var (
- 	mutex        deadlock.Mutex
+@@ -36,6 +36,11 @@
+ 	pipeSetCacheAuthorColors = authors.ColorsVersion()
  )
  
 +var hiddenCommitAuthorEmails = []string{
@@ -14,7 +13,7 @@ index 67fa62ac8..831f5c237 100644
  type bisectBounds struct {
  	newIndex int
  	oldIndex int
-@@ -438,8 +443,18 @@ func displayCommit(
+@@ -523,8 +528,18 @@
  		authorLength = common.UserConfig().Gui.CommitAuthorLongLength
  	}
  	author := authors.AuthorWithLength(commit.AuthorName, authorLength)
@@ -34,10 +33,10 @@ index 67fa62ac8..831f5c237 100644
  	cols = append(
  		cols,
  		divergenceString,
-@@ -447,8 +462,7 @@ func displayCommit(
- 		bisectString,
- 		descriptionString,
- 		actionString,
+@@ -532,8 +547,7 @@
+ 		utils.WithPadding(bisectString, reservedWidths.bisect, utils.AlignLeft),
+ 		utils.WithPadding(descriptionString, reservedWidths.description, utils.AlignLeft),
+ 		utils.WithPadding(actionString, reservedWidths.action, utils.AlignLeft),
 -		author,
 -		graphLine+mark+tagString+theme.DefaultTextColor.Sprint(name),
 +		commitText,

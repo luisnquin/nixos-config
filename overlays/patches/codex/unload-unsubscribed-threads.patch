@@ -1,14 +1,3 @@
-diff --git a/app-server/src/thread_state.rs b/app-server/src/thread_state.rs
---- a/app-server/src/thread_state.rs
-+++ b/app-server/src/thread_state.rs
-@@ -547,7 +547,6 @@
-         true
-     }
- 
--    #[cfg(test)]
-     pub(crate) async fn has_subscribers(&self, thread_id: ThreadId) -> bool {
-         self.state
-             .lock()
 diff --git a/app-server/src/request_processors/thread_lifecycle.rs b/app-server/src/request_processors/thread_lifecycle.rs
 --- a/app-server/src/request_processors/thread_lifecycle.rs
 +++ b/app-server/src/request_processors/thread_lifecycle.rs
@@ -29,7 +18,7 @@ diff --git a/app-server/src/request_processors/thread_lifecycle.rs b/app-server/
 diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/src/request_processors/thread_processor.rs
 --- a/app-server/src/request_processors/thread_processor.rs
 +++ b/app-server/src/request_processors/thread_processor.rs
-@@ -1040,7 +1040,7 @@
+@@ -1025,7 +1025,7 @@
          let thread_id = ThreadId::from_string(&params.thread_id)
              .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
  
@@ -38,7 +27,7 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
              self.finalize_thread_teardown(thread_id).await;
              return Ok(ThreadUnsubscribeResponse {
                  status: ThreadUnsubscribeStatus::NotLoaded,
-@@ -1053,6 +1053,8 @@
+@@ -1038,6 +1038,8 @@
              .await;
  
          let status = if was_subscribed {
@@ -47,7 +36,7 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
              ThreadUnsubscribeStatus::Unsubscribed
          } else {
              ThreadUnsubscribeStatus::NotSubscribed
-@@ -1060,6 +1062,68 @@
+@@ -1045,6 +1047,68 @@
          Ok(ThreadUnsubscribeResponse { status })
      }
  
@@ -116,3 +105,14 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
      async fn prepare_thread_for_archive(
          &self,
          thread_id: ThreadId,
+diff --git a/app-server/src/thread_state.rs b/app-server/src/thread_state.rs
+--- a/app-server/src/thread_state.rs
++++ b/app-server/src/thread_state.rs
+@@ -559,7 +559,6 @@
+         true
+     }
+ 
+-    #[cfg(test)]
+     pub(crate) async fn has_subscribers(&self, thread_id: ThreadId) -> bool {
+         self.state
+             .lock()

@@ -1,7 +1,7 @@
 diff --git a/tui/src/startup_orchestration.rs b/tui/src/startup_orchestration.rs
 --- a/tui/src/startup_orchestration.rs
 +++ b/tui/src/startup_orchestration.rs
-@@ -24,7 +24,9 @@
+@@ -49,7 +49,9 @@
              ));
          }
      }

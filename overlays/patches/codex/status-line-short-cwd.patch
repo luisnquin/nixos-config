@@ -1,10 +1,10 @@
 diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
 --- a/tui/src/chatwidget/status_surfaces.rs
 +++ b/tui/src/chatwidget/status_surfaces.rs
-@@ -20,6 +20,22 @@ use codex_utils_sandbox_summary::summarize_permission_profile;
-
+@@ -23,6 +23,22 @@
+ 
  use super::status_state::TerminalTitleStatusKind;
-
+ 
 +/// Trailing path components kept by the `current-dir` status line item.
 +const STATUS_LINE_CWD_COMPONENTS: usize = 2;
 +
@@ -22,9 +22,9 @@ diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_s
 +}
 +
  /// Items shown in the terminal title when the user has not configured a
- /// custom selection. Intentionally minimal: activity indicator + project name.
- pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 2] = ["activity", "project-name"];
-@@ -657,12 +673,7 @@ impl ChatWidget<'_> {
+ /// custom selection. Unnamed threads omit the name until generation starts.
+ pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 3] =
+@@ -714,12 +730,7 @@
              StatusLineItem::ModelName => Some(self.model_display_name().to_string()),
              StatusLineItem::ModelWithReasoning => Some(self.model_with_reasoning_display_name()),
              StatusLineItem::Reasoning => Some(self.reasoning_display_name()),
@@ -36,5 +36,5 @@ diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_s
 -            }
 +            StatusLineItem::CurrentDir => Some(format_status_line_cwd(self.status_line_cwd())),
              StatusLineItem::ProjectRoot => self.status_line_project_root_name(),
+             StatusLineItem::Hostname => os_host_name(),
              StatusLineItem::GitBranch => self.status_line_branch.clone(),
-             StatusLineItem::PullRequestNumber => self

@@ -1,3 +1,22 @@
+diff --git a/config/src/loader/mod.rs b/config/src/loader/mod.rs
+--- a/config/src/loader/mod.rs
++++ b/config/src/loader/mod.rs
+@@ -1415,6 +1415,15 @@
+     projects_trust: &std::collections::HashMap<String, TrustLevel>,
+     lookup_key: &str,
+ ) -> Option<(String, TrustLevel)> {
++    Path::new(lookup_key).ancestors().find_map(|path| {
++        project_trust_for_exact_lookup_key(projects_trust, &path.to_string_lossy())
++    })
++}
++
++fn project_trust_for_exact_lookup_key(
++    projects_trust: &std::collections::HashMap<String, TrustLevel>,
++    lookup_key: &str,
++) -> Option<(String, TrustLevel)> {
+     if let Some(trust_level) = projects_trust.get(lookup_key).copied() {
+         return Some((lookup_key.to_string(), trust_level));
+     }
 diff --git a/config/src/project_trust.rs b/config/src/project_trust.rs
 --- a/config/src/project_trust.rs
 +++ b/config/src/project_trust.rs
@@ -16,29 +35,10 @@ diff --git a/config/src/project_trust.rs b/config/src/project_trust.rs
              if let Some(project) = projects.get(key) {
                  return Some(project.clone());
              }
-diff --git a/config/src/loader/mod.rs b/config/src/loader/mod.rs
---- a/config/src/loader/mod.rs
-+++ b/config/src/loader/mod.rs
-@@ -1401,6 +1401,15 @@
-     projects_trust: &std::collections::HashMap<String, TrustLevel>,
-     lookup_key: &str,
- ) -> Option<(String, TrustLevel)> {
-+    Path::new(lookup_key).ancestors().find_map(|path| {
-+        project_trust_for_exact_lookup_key(projects_trust, &path.to_string_lossy())
-+    })
-+}
-+
-+fn project_trust_for_exact_lookup_key(
-+    projects_trust: &std::collections::HashMap<String, TrustLevel>,
-+    lookup_key: &str,
-+) -> Option<(String, TrustLevel)> {
-     if let Some(trust_level) = projects_trust.get(lookup_key).copied() {
-         return Some((lookup_key.to_string(), trust_level));
-     }
 diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
 --- a/tui/src/config_update.rs
 +++ b/tui/src/config_update.rs
-@@ -263,19 +263,22 @@
+@@ -264,19 +264,22 @@
      };
      let project_entry = |key: &str| {
          let projects = projects?;

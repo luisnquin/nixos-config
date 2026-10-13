@@ -1,7 +1,7 @@
 diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_composer.rs
 --- a/tui/src/bottom_pane/chat_composer.rs
 +++ b/tui/src/bottom_pane/chat_composer.rs
-@@ -685,6 +685,21 @@
+@@ -680,6 +680,21 @@
      pub(crate) sparkle_draft: sparkle::SparkleDraft,
  }
  
@@ -23,16 +23,16 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
  impl ChatComposer {
      fn slash_input(&self) -> SlashInput<'_> {
          SlashInput::new(
-@@ -4923,7 +4938,7 @@
+@@ -4801,7 +4816,7 @@
              line.render(warning_area, buf);
          }
          let style = user_message_style();
 -        Block::default().style(style).render(composer_rect, buf);
 +        render_custom_input_bar(composer_rect, buf);
          if !remote_images_rect.is_empty() {
-             Paragraph::new(self.attachments.remote_image_lines())
-                 .style(style)
-@@ -4946,10 +4961,10 @@
+             let first = self
+                 .attachments
+@@ -4835,10 +4850,10 @@
                          .unwrap_or(1.0);
                      tier.prompt(charge)
                  } else {

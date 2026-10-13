@@ -1,7 +1,7 @@
 diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
 --- a/tui/src/config_update.rs
 +++ b/tui/src/config_update.rs
-@@ -73,6 +73,7 @@
+@@ -74,6 +74,7 @@
      format!("{err:#}")
  }
  
@@ -9,7 +9,7 @@ diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
  fn trusted_project_edit(project_path: &Path) -> ConfigEdit {
      let project_key = project_trust_key(project_path)
          .replace('\\', "\\\\")
-@@ -170,6 +171,7 @@
+@@ -171,6 +172,7 @@
          .wrap_err("config/batchWrite failed in TUI")
  }
  

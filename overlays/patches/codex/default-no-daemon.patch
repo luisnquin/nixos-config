@@ -1,6 +1,7 @@
+diff --git a/cli/src/main.rs b/cli/src/main.rs
 --- a/cli/src/main.rs
 +++ b/cli/src/main.rs
-@@ -2380,6 +2380,7 @@
+@@ -2409,6 +2409,7 @@
      remote_auth_token_env: Option<String>,
      arg0_paths: Arg0DispatchPaths,
  ) -> std::io::Result<AppExitInfo> {
