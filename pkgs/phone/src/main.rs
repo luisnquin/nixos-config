@@ -2244,6 +2244,7 @@ async fn wait(
     let started = std::time::Instant::now();
     let before = prior.map(|p| a11y::present(p, what) != gone);
     let mut stale = prior.filter(|p| !gone && a11y::present(p, what));
+    let mut erred = None;
     let mut first = true;
 
     loop {
@@ -2262,6 +2263,8 @@ async fn wait(
             stale = Some(p).filter(|p| present && !renewed(p, &s.nodes, what));
         }
 
+        halted(what, screen.as_ref().filter(|_| !gone && !present), &mut erred)?;
+
         let elapsed = started.elapsed();
 
         if present != gone && (stale.is_none() || elapsed >= timeout.min(APPEAR_GRACE)) {
@@ -2270,14 +2273,7 @@ async fn wait(
         }
 
         if elapsed >= timeout {
-            bail!(
-                "'{what}' was still {} after {:.0}s{}",
-                if gone { "there" } else { "missing" },
-                timeout.as_secs_f64(),
-                screen
-                    .filter(|_| !gone)
-                    .map_or_else(String::new, |s| instead(&s.nodes, what))
-            );
+            return Err(missing(what, gone, timeout, screen));
         }
 
         tokio::time::sleep(POLL).await;
@@ -2329,15 +2325,55 @@ fn waited(
     }
 }
 
+const ERROR_HOLD: Duration = Duration::from_secs(5);
+
+fn halted(
+    what: &str,
+    screen: Option<&a11y::Screen>,
+    since: &mut Option<std::time::Instant>,
+) -> Result<()> {
+    let Some(screen) = screen.filter(|s| up::error(&s.nodes).is_some()) else {
+        *since = None;
+        return Ok(());
+    };
+
+    if since.get_or_insert_with(std::time::Instant::now).elapsed() >= ERROR_HOLD {
+        bail!(
+            "'{what}' cannot come up past an error screen{}",
+            on_screen(&labels(&screen.nodes))
+        );
+    }
+
+    Ok(())
+}
+
+fn missing(
+    what: &str,
+    gone: bool,
+    timeout: std::time::Duration,
+    screen: Option<a11y::Screen>,
+) -> anyhow::Error {
+    anyhow::anyhow!(
+        "'{what}' was still {} after {:.0}s{}",
+        if gone { "there" } else { "missing" },
+        timeout.as_secs_f64(),
+        screen
+            .filter(|_| !gone)
+            .map_or_else(String::new, |s| instead(&s.nodes, what))
+    )
+}
+
+fn labels(nodes: &[a11y::Node]) -> Vec<String> {
+    a11y::rows(nodes)
+        .iter()
+        .filter(|r| r.within.is_none())
+        .map(|r| a11y::row_label(&r.label))
+        .collect()
+}
+
 fn instead(nodes: &[a11y::Node], what: &str) -> String {
     match a11y::near(nodes, what) {
-        close if close.is_empty() => on_screen(
-            &a11y::rows(nodes)
-                .iter()
-                .filter(|r| r.within.is_none())
-                .map(|r| a11y::row_label(&r.label))
-                .collect::<Vec<_>>(),
-        ),
+        close if close.is_empty() => on_screen(&labels(nodes)),
         close => close,
     }
 }

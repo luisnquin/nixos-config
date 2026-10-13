@@ -1072,17 +1072,25 @@ enum Front {
     Failed(String),
 }
 
+const HALTED: [&str; 4] = ["keeps stopping", "isn't responding", "Render Error", "Uncaught Error"];
+
+fn marked(nodes: &[crate::a11y::Node], marks: &[&str]) -> Option<String> {
+    nodes
+        .iter()
+        .map(|n| n.name())
+        .find(|name| {
+            let name = name.to_lowercase();
+            marks.iter().any(|m| name.contains(&m.to_lowercase()))
+        })
+        .map(str::to_string)
+}
+
+pub fn error(nodes: &[crate::a11y::Node]) -> Option<String> {
+    marked(nodes, &FAILED[..4]).or_else(|| marked(nodes, &HALTED))
+}
+
 fn front(nodes: &[crate::a11y::Node], ready: &[String]) -> Front {
-    let named = |marks: &[&str]| {
-        nodes
-            .iter()
-            .map(|n| n.name())
-            .find(|name| {
-                let name = name.to_lowercase();
-                marks.iter().any(|m| name.contains(&m.to_lowercase()))
-            })
-            .map(str::to_string)
-    };
+    let named = |marks: &[&str]| marked(nodes, marks);
 
     match (named(&FAILED), named(&LOADING)) {
         (Some(said), _) => Front::Failed(said),
@@ -2130,6 +2138,19 @@ mod tests {
         assert_eq!(front(&screen(&["Enter URL manually"]), &[]), Front::Failed("Enter URL manually".into()));
         assert_eq!(front(&screen(&["Bundling 42%"]), &[]), Front::Loading);
         assert_eq!(front(&screen(&["Operaciones en curso"]), &[]), Front::Shown);
+    }
+
+    #[test]
+    fn a_crash_dialog_or_load_error_is_an_error_screen_but_the_launcher_is_not() {
+        assert_eq!(
+            error(&screen(&["There was a problem loading the project.", "Reload"])),
+            Some("There was a problem loading the project.".into())
+        );
+        assert_eq!(error(&screen(&["Upgrade keeps stopping", "App info"])), Some("Upgrade keeps stopping".into()));
+        assert_eq!(error(&screen(&["System UI isn't responding", "Wait"])), Some("System UI isn't responding".into()));
+        assert_eq!(error(&screen(&["Render Error", "Dismiss"])), Some("Render Error".into()));
+        assert_eq!(error(&screen(&["Development servers"])), None);
+        assert_eq!(error(&screen(&["Operaciones en curso"])), None);
     }
 
     #[test]

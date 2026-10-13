@@ -142,6 +142,8 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
 - `wait` passes at once when its target is already on screen, and says so;
   in a `do` right after an act it first gives a new match 2s to come up.
   Wait for something the action creates, not for something already there.
+- `wait` gives up after 5s on a crash or ANR dialog, a redbox or a dev-client
+  load error, and prints that screen.
 
 ## What phone does not cover
 
