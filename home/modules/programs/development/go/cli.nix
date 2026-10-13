@@ -16,6 +16,9 @@
       GOPATH = "${config.home.homeDirectory}/go";
       GO111MODULE = "on";
       CGO_ENABLED = "0";
+      GOTOOLCHAIN = "local";
     };
+
+    telemetry.mode = "off";
   };
 }
