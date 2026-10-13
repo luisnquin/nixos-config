@@ -77,7 +77,7 @@ and exits with its status. Never export those by hand.
 
 ```
 phone snapshot                      # elements on screen, as text with @index
-phone tap "Log in" | @3 | X,Y       # name (or whole words of one label), snapshot row, or coordinate
+phone tap "Log in" | @3 | X,Y       # name (or whole words of one label), snapshot row, or coordinate (prints the element it hit)
 phone tap <what> --double | --fingers 2  # one double-tap gesture; 2-5 fingers
 phone press <what> --hold 2s        # long press
 phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]

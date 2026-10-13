@@ -1367,9 +1367,11 @@ async fn answered(s: &Session, command: Command, last: bool) -> Result<()> {
         early => early.and_then(Result::ok),
     };
 
+    s.read.replace(early.clone());
     step(s, command).await?;
 
-    let Some(before) = early.or_else(|| s.read.take()) else {
+    let stepped = s.read.take();
+    let Some(before) = early.or(stepped) else {
         tell(s, None);
         return Ok(());
     };
@@ -1872,11 +1874,15 @@ fn counted(fingers: usize) -> String {
 async fn tap(s: &Session, what: &str, double: bool, fingers: usize, force: bool) -> Result<String> {
     let t = &s.target;
     let ((x, y), name) = at(s, what, force).await?;
+    let hit = match &name {
+        Some(_) => String::new(),
+        None => hit(s.read.borrow().as_ref(), (x, y)),
+    };
 
     if !double && fingers == 1 {
         a11y::tap(t, x, y).await?;
 
-        return Ok(format!("tapped {}", aim((x, y), name)));
+        return Ok(format!("tapped {}{hit}", aim((x, y), name)));
     }
 
     let taps = if double { 2 } else { 1 };
@@ -1888,7 +1894,15 @@ async fn tap(s: &Session, what: &str, double: bool, fingers: usize, force: bool)
 
     let how = if double { "double-tapped" } else { "tapped" };
 
-    Ok(format!("{how} {}{}", aim((x, y), name), counted(fingers)))
+    Ok(format!("{how} {}{hit}{}", aim((x, y), name), counted(fingers)))
+}
+
+fn hit(screen: Option<&a11y::Screen>, at: (i32, i32)) -> String {
+    match screen.map(|s| s.under(at)) {
+        None => String::new(),
+        Some(Some(node)) => format!(" on {}", node.label()),
+        Some(None) => " (no element)".to_string(),
+    }
 }
 
 async fn swipe(
@@ -3380,6 +3394,14 @@ mod tests {
             ids(&candidates(&views, Some("pixel-9"), Aim::Running)),
             ["SERIALNUMBER01"]
         );
+    }
+
+    #[test]
+    fn a_coordinate_tap_says_when_it_hit_nothing() {
+        let empty = a11y::Screen { nodes: Vec::new(), keyboard: None, panel: None };
+
+        assert_eq!(hit(Some(&empty), (223, 940)), " (no element)");
+        assert_eq!(hit(None, (223, 940)), "", "an unread screen claims nothing");
     }
 
     #[test]

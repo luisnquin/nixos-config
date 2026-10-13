@@ -647,6 +647,13 @@ impl Screen {
     pub fn focused(&self) -> Option<&Node> {
         self.nodes.iter().find(|n| n.focused)
     }
+
+    pub fn under(&self, at: (i32, i32)) -> Option<&Node> {
+        self.nodes
+            .iter()
+            .filter(|n| n.bounds.holds(at))
+            .min_by_key(|n| (n.name().is_empty(), n.bounds.area(), std::cmp::Reverse(n.index)))
+    }
 }
 
 pub async fn dump(t: &Target) -> Result<Screen> {
@@ -1773,6 +1780,16 @@ mod tests {
   <node class="android.view.View" bounds="[40,700][1040,800]" clickable="true" text="" content-desc="" resource-id=""/>
  </node>
 </hierarchy>"#;
+
+    #[test]
+    fn a_point_names_the_smallest_named_element_holding_it() {
+        let screen = Screen { nodes: parse(SAMPLE).unwrap(), keyboard: None, panel: None };
+
+        assert_eq!(screen.under((100, 550)).map(Node::label).as_deref(), Some("Log in"));
+        assert_eq!(screen.under((100, 350)).map(Node::label).as_deref(), Some("Email"));
+        assert_eq!(screen.under((100, 750)).map(Node::label).as_deref(), Some("<View>"));
+        assert!(screen.under((2000, 3000)).is_none());
+    }
 
     #[test]
     fn every_window_is_read_but_the_bars_and_the_keyboard() {
