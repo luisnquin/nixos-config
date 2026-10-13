@@ -87,6 +87,7 @@ in {
         dark = "Tokyo Night";
       };
       icon_theme = "Material Icon Theme";
+      title_bar.show_sign_in = false;
       ui_font_size = 16;
       buffer_font_size = 16;
       buffer_font_family = "Cascadia Code";
