@@ -191,6 +191,11 @@ in {
           focus_on_activate = false;
           initial_workspace_tracking = 0;
           middle_click_paste = false;
+          vrr = 3;
+        };
+
+        render = {
+          direct_scanout = 2;
         };
 
         dwindle = {
@@ -347,11 +352,6 @@ in {
           center = true;
         }
       ];
-
-      device = {
-        name = "epic-mouse-v1";
-        sensitivity = -0.5;
-      };
 
       bind = import ./binds.nix (args // {inherit tmuxDrop;});
 
