@@ -32,7 +32,7 @@ lib.mkIf nixosConfig.virtualisation.podman.enable {
       };
 
       commandTemplates = {
-        dockerCompose = "docker-compose";
+        dockerCompose = "podman-compose";
         restartService = "{{ .DockerCompose }} restart {{ .Service.Name }}";
         up = "{{ .DockerCompose }} up -d";
         down = "{{ .DockerCompose }} down";
@@ -52,8 +52,8 @@ lib.mkIf nixosConfig.virtualisation.podman.enable {
       };
 
       oS = {
-        openCommand = "open {{filename}}";
-        openLinkCommand = "open {{link}}";
+        openCommand = "xdg-open {{filename}}";
+        openLinkCommand = "xdg-open {{link}}";
       };
 
       stats = {
