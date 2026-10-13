@@ -109,12 +109,13 @@ impl Lease {
     }
 
     pub fn owned_by(&self, me: &Agent) -> bool {
-        let same_process = match (self.pid, me.pid) {
-            (Some(pid), Some(mine)) => pid == mine && self.start == me.start,
-            _ => true,
-        };
+        let parent = me.id.split_once('/').is_some_and(|(session, _)| session == self.agent);
 
-        self.agent == me.id && self.host == me.host && same_process
+        self.held_by(me) || parent && self.host == me.host
+    }
+
+    pub fn held_by(&self, me: &Agent) -> bool {
+        self.agent == me.id && self.host == me.host
     }
 
     pub fn idle(&self, now: Unix) -> i64 {
@@ -706,7 +707,7 @@ pub async fn release_all(hosts: &[Where]) -> Result<Vec<String>> {
                 .ledger
                 .leases
                 .iter()
-                .filter(|(_, l)| l.owned_by(agent::me()))
+                .filter(|(_, l)| l.held_by(agent::me()))
                 .map(|(k, _)| k.clone())
                 .collect();
 
@@ -1001,10 +1002,41 @@ mod tests {
         assert!(matches!(standing(&ledger, &k, &j, &a, true), Standing::Mine(_)));
         assert!(matches!(standing(&ledger, &k, &j, &b, true), Standing::Held(_)));
 
-        let mut resumed = a.clone();
-        resumed.start = Some("777".into());
+        let mut drifted = a.clone();
+        drifted.pid = Some(11);
+        drifted.start = Some("777".into());
 
-        assert!(matches!(standing(&ledger, &k, &j, &resumed, true), Standing::Held(_)));
+        assert!(matches!(standing(&ledger, &k, &j, &drifted, true), Standing::Mine(_)));
+    }
+
+    #[test]
+    fn a_subagent_uses_its_sessions_device_but_not_the_reverse() {
+        let none = BTreeSet::new();
+        let j = judge(1_100, &none);
+        let session = me("1f636eb3-8a91");
+        let sub = Agent {
+            pid: Some(12),
+            start: Some("600".into()),
+            ..me("1f636eb3-8a91/a6a8204d")
+        };
+        let stranger = me("0199aaaa/a6a8204d");
+        let elsewhere = Agent {
+            host: "rose".into(),
+            ..sub.clone()
+        };
+        let mut ledger = Ledger::default();
+        let k = Key::from("avd:pixel");
+
+        ledger.put(&k, held(&session, 1_000));
+
+        assert!(matches!(standing(&ledger, &k, &j, &sub, true), Standing::Mine(_)));
+        assert!(matches!(standing(&ledger, &k, &j, &stranger, true), Standing::Held(_)));
+        assert!(matches!(standing(&ledger, &k, &j, &elsewhere, true), Standing::Held(_)));
+
+        ledger.put(&k, held(&sub, 1_000));
+
+        assert!(!ledger.leases[&k.id].owned_by(&session));
+        assert!(!ledger.leases[&k.id].held_by(&elsewhere));
     }
 
     #[test]
