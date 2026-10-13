@@ -34,6 +34,7 @@ in {
 
     settings = {
       onboarding = false;
+      update.version_check = false;
 
       # "terminal" keeps every background at Reset, which is what makes the
       # sidebar translucent — a named theme would paint panel_bg opaque. It also
@@ -64,6 +65,8 @@ in {
 
       ui = {
         hide_tab_bar_when_single_tab = true;
+        agent_panel_sort = "priority";
+        sound.enabled = true;
 
         toast = {
           delivery = "system";
