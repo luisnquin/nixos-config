@@ -19,24 +19,6 @@ in {
 
       permission = kit.mkAgentPermissions "opencode" {};
 
-      model = "litellm/qwen2.5-coder:7b";
-
-      provider = {
-        litellm = {
-          npm = "@ai-sdk/openai-compatible";
-          name = "LiteLLM";
-          options = {
-            "baseURL" = "http://rose.local:4000/v1";
-            "apiKey" = "dummy";
-          };
-          models = {
-            "qwen2.5-coder:7b" = {
-              "name" = "Qwen 2.5 - Coder";
-            };
-          };
-        };
-      };
-
       snapshot = true;
       autoupdate = false;
     };

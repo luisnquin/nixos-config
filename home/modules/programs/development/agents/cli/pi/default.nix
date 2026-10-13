@@ -37,7 +37,6 @@ in {
         "gpt-5.4*"
         "claude-opus-*"
         "claude-sonnet-*"
-        "qwen*"
       ];
 
       compaction = {
@@ -56,21 +55,6 @@ in {
       extensions = [
         "${pkgs.rtk}/share/rtk/hooks/pi/rtk.ts"
       ];
-    };
-
-    # https://pi.dev/docs/latest/models
-    models = {
-      providers.litellm = {
-        baseUrl = "http://rose.local:4000/v1";
-        api = "openai-completions";
-        apiKey = "dummy";
-        models = [
-          {
-            id = "qwen2.5-coder:7b";
-            name = "Qwen 2.5 - Coder";
-          }
-        ];
-      };
     };
 
     context = kit.memories;
