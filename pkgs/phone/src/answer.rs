@@ -23,6 +23,7 @@ pub struct Change {
     pub appeared: Vec<usize>,
     pub gone: Vec<String>,
     pub changing: Vec<String>,
+    pub waited: Duration,
 }
 
 #[derive(Default, PartialEq)]
@@ -62,6 +63,7 @@ pub async fn after(t: &Target, before: &Screen) -> Result<Change> {
 
         return Ok(Change {
             changing: changing.iter().map(named).collect(),
+            waited: started.elapsed(),
             ..compare(before, screen, how, &changing)
         });
     }
@@ -199,6 +201,7 @@ pub fn compare(before: &Screen, screen: Screen, how: How, noise: &[Signature]) -
         appeared,
         gone,
         changing: Vec::new(),
+        waited: Duration::ZERO,
     }
 }
 

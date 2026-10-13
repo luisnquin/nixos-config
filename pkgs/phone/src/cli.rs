@@ -370,7 +370,8 @@ if that element has moved or gone the tap is refused.
 An element the keyboard is drawn over is refused too, since the keyboard would
 take the tap: close it with `phone key hide_keyboard`, or pass --force.
 
-Then it waits for the screen to settle and prints what changed: the rows that
+Then it waits for the screen to settle, up to 6s, says how long on its own line
+(`tapped Login at 540,1200, settled in 840ms`), and prints what changed: the rows that
 came, each with an @index a later tap takes, and the ones that went; or
 `unchanged` when nothing moved within 3s. press, swipe, pinch, rotate, type,
 fill and key do the same.
@@ -684,8 +685,9 @@ once and runs each step against the same device, in one process.
 Each step is a whole command, quoted, and takes the flags it takes on its own.
 Steps run in order and stop at the first failure, which is reported with its
 number. Only verbs that read or press a screen can be sequenced, and -t/--focus
-belong on `do` rather than on a step. Only a last step that acts prints what it
-changed, as `tap` does; earlier ones leave that to the step after them."#)]
+belong on `do` rather than on a step. Every step that acts waits for the screen
+to settle before the next one runs, so no `sleep` is needed between them. Only
+a last step that acts prints what it changed, as `tap` does."#)]
     Do {
         /// Each a whole command, quoted: `phone do "tap Login" "wait Inbox"`
         #[arg(required = true)]

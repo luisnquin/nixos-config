@@ -223,7 +223,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         let session = Session::open(&mut reg, want.as_deref(), focus, Hold::Respected).await?;
         let _beat = lease::heartbeat(&session.view);
 
-        return answered(&session, command.expect("classified as a screen verb")).await;
+        return answered(&session, command.expect("classified as a screen verb"), true).await;
     }
 
     match command {
@@ -946,10 +946,17 @@ struct Session {
     focus: Option<(i32, i32)>,
     before: RefCell<Option<Vec<u8>>>,
     read: RefCell<Option<a11y::Screen>>,
+    said: RefCell<Option<String>>,
     acted: Cell<bool>,
 }
 
 impl Session {
+    fn say(&self, line: Result<String>) -> Result<()> {
+        *self.said.borrow_mut() = Some(line?);
+
+        Ok(())
+    }
+
     async fn open(
         reg: &mut Registry,
         want: Option<&str>,
@@ -965,6 +972,7 @@ impl Session {
             focus,
             before: RefCell::new(None),
             read: RefCell::new(None),
+            said: RefCell::new(None),
             acted: Cell::new(false),
         })
     }
@@ -1101,9 +1109,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             fingers,
             force,
         } => {
-            eprintln!("phone: {}", tap(s, &what, double, fingers.into(), force).await?);
-
-            Ok(())
+            s.say(tap(s, &what, double, fingers.into(), force).await)
         }
 
         Command::Press { what, hold, force } => {
@@ -1113,13 +1119,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             // a device tells a press from a tap by how long the touch lasts, not
             // by where it went, so a hold is a drag that stays where it started
             a11y::swipe(t, (x, y), (x, y), hold).await?;
-            eprintln!(
-                "phone: held {} for {}ms",
-                aim((x, y), name),
-                hold.as_millis()
-            );
-
-            Ok(())
+            s.say(Ok(format!("held {} for {}ms", aim((x, y), name), hold.as_millis())))
         }
 
         Command::Swipe { edge: Some(edge), amount, duration, .. } => scroll::edge(&s.target, edge, amount, duration).await,
@@ -1136,9 +1136,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
         } => {
             let (from, to) = ends(s, &from, to.as_deref(), amount, force).await?;
 
-            eprintln!("phone: {}", swipe(s, (from, to), duration, hold, fingers.into()).await?);
-
-            Ok(())
+            s.say(swipe(s, (from, to), duration, hold, fingers.into()).await)
         }
 
         Command::Pinch {
@@ -1148,9 +1146,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             angle,
             force,
         } => {
-            eprintln!("phone: {}", pinch(s, &what, factor, duration, angle, force).await?);
-
-            Ok(())
+            s.say(pinch(s, &what, factor, duration, angle, force).await)
         }
 
         Command::Rotate {
@@ -1159,9 +1155,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             duration,
             force,
         } => {
-            eprintln!("phone: {}", rotate(s, &what, degrees, duration, force).await?);
-
-            Ok(())
+            s.say(rotate(s, &what, degrees, duration, force).await)
         }
 
         Command::Wait {
@@ -1193,9 +1187,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             calls::typed(&text);
 
             a11y::type_text(t, &text).await?;
-            eprintln!("phone: typed {} characters", text.chars().count());
-
-            Ok(())
+            s.say(Ok(format!("typed {} characters", text.chars().count())))
         }
 
         Command::Fill {
@@ -1204,18 +1196,11 @@ async fn step(s: &Session, command: Command) -> Result<()> {
             force,
             keep_keyboard,
         } => {
-            eprintln!(
-                "phone: {}",
-                fill(s, &what, &text, force, keep_keyboard).await?
-            );
-
-            Ok(())
+            s.say(fill(s, &what, &text, force, keep_keyboard).await)
         }
 
         Command::Key { name } => {
-            eprintln!("phone: {}", a11y::key(&s.target, &name).await?);
-
-            Ok(())
+            s.say(a11y::key(&s.target, &name).await)
         }
         Command::Do { steps } => sequence(s, &steps).await,
 
@@ -1262,13 +1247,8 @@ async fn sequence(s: &Session, steps: &[String]) -> Result<()> {
         let acts = command.acts();
         let last = n + 1 == steps.len();
 
-        Box::pin(async move {
-            match last {
-                true => answered(s, command).await,
-                false => step(s, command).await,
-            }
-        })
-        .await
+        Box::pin(answered(s, command, last))
+            .await
         .map_err(|e| anyhow::anyhow!("step {} ({raw}): {e}", n + 1))?;
 
         s.acted.set(s.acted.get() || acts);
@@ -1291,13 +1271,51 @@ fn keep_keyboard_for_next_input(commands: &mut [Command]) {
     }
 }
 
-async fn answered(s: &Session, command: Command) -> Result<()> {
-    if !command.acts() {
+#[derive(Debug, PartialEq)]
+enum After {
+    Nothing,
+    Settle,
+    Report,
+}
+
+fn after_step(command: &Command, last: bool) -> After {
+    match (command.acts(), last) {
+        (false, _) => After::Nothing,
+        (true, true) => After::Report,
+        (true, false) => After::Settle,
+    }
+}
+
+fn acted(line: Option<String>, change: Option<&answer::Change>) -> Option<String> {
+    let settled = change.map(|c| match c.how {
+        answer::How::Restless => {
+            format!("settled: still changing after {}ms", c.waited.as_millis())
+        }
+        _ => format!("settled in {}ms", c.waited.as_millis()),
+    });
+
+    match (line, settled) {
+        (Some(line), Some(settled)) => Some(format!("{line}, {settled}")),
+        (line, settled) => line.or(settled),
+    }
+}
+
+fn tell(s: &Session, change: Option<&answer::Change>) {
+    if let Some(line) = acted(s.said.take(), change) {
+        eprintln!("phone: {line}");
+    }
+}
+
+async fn answered(s: &Session, command: Command, last: bool) -> Result<()> {
+    let after = after_step(&command, last);
+
+    if after == After::Nothing {
         return step(s, command).await;
     }
 
     s.read.take();
 
+    let report = after == After::Report;
     let first = reads_first(&command);
     let (early, frame) = tokio::join!(
         async {
@@ -1306,7 +1324,12 @@ async fn answered(s: &Session, command: Command) -> Result<()> {
                 false => Some(a11y::dump(&s.target).await),
             }
         },
-        frame(s),
+        async {
+            match report {
+                true => frame(s).await,
+                false => None,
+            }
+        },
     );
 
     let early = match early {
@@ -1319,16 +1342,22 @@ async fn answered(s: &Session, command: Command) -> Result<()> {
     step(s, command).await?;
 
     let Some(before) = early.or_else(|| s.read.take()) else {
+        tell(s, None);
         return Ok(());
     };
 
-    match answer::after(&s.target, &before).await {
-        Ok(change) if change.how == answer::How::Unmoved => {
+    let change = answer::after(&s.target, &before).await;
+
+    tell(s, change.as_ref().ok());
+
+    match (change, report) {
+        (Ok(change), true) if change.how == answer::How::Unmoved => {
             println!("{}", unmoved(s, frame, &change.screen).await)
         }
-        Ok(change) => print_change(s, &before, &change),
-        Err(e) if e.is::<a11y::Asleep>() => println!("the screen is off"),
-        Err(e) => eprintln!(
+        (Ok(change), true) => print_change(s, &before, &change),
+        (Ok(_), false) => *s.read.borrow_mut() = Some(before),
+        (Err(e), _) if e.is::<a11y::Asleep>() => println!("the screen is off"),
+        (Err(e), _) => eprintln!(
             "phone: the act went through, but the screen after it could not be read: {e:#}"
         ),
     }
@@ -1430,15 +1459,8 @@ async fn unmoved(s: &Session, before: Option<Vec<u8>>, screen: &a11y::Screen) ->
 fn print_change(s: &Session, before: &a11y::Screen, change: &answer::Change) {
     let screen = &change.screen;
 
-    let still = match change.how {
-        answer::How::Restless => {
-            format!(", still changing at {}s", actions::SETTLE_LIMIT.as_secs())
-        }
-        _ => String::new(),
-    };
-
     println!(
-        "changed    {} new, {} gone{still}",
+        "changed    {} new, {} gone",
         change.appeared.len(),
         change.gone.len()
     );
@@ -1498,21 +1520,23 @@ fn beyond(count: usize, shown: usize) -> String {
 const CHANGING_SHOWN: usize = 3;
 
 fn print_changing(change: &answer::Change) {
-    if change.changing.is_empty() {
-        return;
+    if let Some(line) = changing_line(change) {
+        println!("{line}");
+    }
+}
+
+fn changing_line(change: &answer::Change) -> Option<String> {
+    if change.changing.is_empty() || change.how != answer::How::Restless {
+        return None;
     }
 
     let shown = &change.changing[..change.changing.len().min(CHANGING_SHOWN)];
-    let why = match change.how {
-        answer::How::Restless => "",
-        _ => "; it was changing before the act too, so it was not waited out",
-    };
 
-    println!(
-        "changing   {}{}{why}",
+    Some(format!(
+        "changing   {}{}",
         shown.join(" | "),
         beyond(change.changing.len(), CHANGING_SHOWN)
-    );
+    ))
 }
 
 fn parse_step(n: usize, raw: &str) -> Result<Command> {
@@ -2940,6 +2964,72 @@ fn truncate(s: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tap(what: &str) -> Command {
+        Command::Tap {
+            what: what.to_string(),
+            double: false,
+            fingers: Default::default(),
+            force: false,
+        }
+    }
+
+    fn settled_after(how: answer::How, ms: u64, changing: &[&str]) -> answer::Change {
+        answer::Change {
+            screen: a11y::Screen { nodes: Vec::new(), keyboard: None, panel: None },
+            how,
+            appeared: Vec::new(),
+            gone: Vec::new(),
+            changing: changing.iter().map(|c| c.to_string()).collect(),
+            waited: std::time::Duration::from_millis(ms),
+        }
+    }
+
+    #[test]
+    fn a_sequence_settles_after_every_act_and_reports_the_last() {
+        let steps = [tap("Login"), tap("Next"), parse_step(2, "wait Inbox").unwrap(), tap("Inbox")];
+        let last = steps.len() - 1;
+        let plan: Vec<After> = steps
+            .iter()
+            .enumerate()
+            .map(|(n, c)| after_step(c, n == last))
+            .collect();
+
+        assert_eq!(plan, [After::Settle, After::Settle, After::Nothing, After::Report]);
+    }
+
+    #[test]
+    fn an_act_line_says_how_long_it_settled() {
+        let change = settled_after(answer::How::Moved, 840, &[]);
+
+        assert_eq!(
+            acted(Some("tapped Login at 540,1200".into()), Some(&change)).as_deref(),
+            Some("tapped Login at 540,1200, settled in 840ms")
+        );
+        assert_eq!(acted(None, Some(&change)).as_deref(), Some("settled in 840ms"));
+        assert_eq!(acted(Some("typed 3 characters".into()), None).as_deref(), Some("typed 3 characters"));
+    }
+
+    #[test]
+    fn an_act_that_hits_the_cap_says_it_is_still_changing() {
+        let change = settled_after(answer::How::Restless, 6000, &["Loading [0,0][10,10]"]);
+
+        assert_eq!(
+            acted(Some("tapped Sync at 10,10".into()), Some(&change)).as_deref(),
+            Some("tapped Sync at 10,10, settled: still changing after 6000ms")
+        );
+        assert_eq!(
+            changing_line(&change).as_deref(),
+            Some("changing   Loading [0,0][10,10]")
+        );
+    }
+
+    #[test]
+    fn rows_changing_before_the_act_are_not_reported() {
+        let change = settled_after(answer::How::Moved, 500, &["0:02 [0,0][10,10]"]);
+
+        assert_eq!(changing_line(&change), None);
+    }
 
     fn fill(what: &str, keep_keyboard: bool) -> Command {
         Command::Fill {
