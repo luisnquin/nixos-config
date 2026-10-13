@@ -4,6 +4,7 @@
     ./compat.nix
     ./dbus.nix
     ./kernel.nix
+    ./memory.nix
     ./systemd-journald.nix
     ./tools.nix
   ];
