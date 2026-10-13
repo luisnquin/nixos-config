@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -8,6 +9,7 @@ use tokio::sync::Mutex;
 use crate::actions::{self, Sink};
 use crate::connect::{self, Reporter, Step};
 use crate::discover;
+use crate::lease;
 use crate::hosts::Caps;
 use crate::model::{Blocked, Platform, Reach, View};
 use crate::registry::Registry;
@@ -29,6 +31,7 @@ pub struct LogLine {
 
 pub enum Msg {
     Views(Vec<View>),
+    Locks(BTreeSet<String>),
     Scanning(Vec<String>),
     Hosts(Vec<HostRow>),
     Step(Step),
@@ -109,6 +112,7 @@ pub struct App {
     pub hosts: Vec<HostRow>,
     pub host_state: ListState,
     pub scan: Option<Scan>,
+    pub locked: BTreeSet<String>,
     shot: Option<Queued>,
     tx: UnboundedSender<Msg>,
 }
@@ -132,6 +136,7 @@ impl App {
             hosts: Vec::new(),
             host_state: ListState::default(),
             scan: None,
+            locked: BTreeSet::new(),
             shot: None,
             tx,
         }
@@ -180,6 +185,7 @@ impl App {
 
                 self.drain_queue();
             }
+            Msg::Locks(locked) => self.locked = locked,
             Msg::Scanning(pending) => {
                 self.scan = (!pending.is_empty()).then(|| Scan {
                     pending,
@@ -293,10 +299,13 @@ impl App {
         let tx = self.tx.clone();
 
         tokio::spawn(async move {
+            let mut last = Vec::new();
+
             {
                 let mut guard = reg.lock().await;
 
                 discover::scan(&mut guard, |snap| {
+                    last = snap.views.clone();
                     let _ = tx.send(Msg::Views(snap.views));
                     let _ = tx.send(Msg::Scanning(snap.pending));
                 })
@@ -305,6 +314,7 @@ impl App {
                 let _ = guard.save();
             }
 
+            let _ = tx.send(Msg::Locks(lease::locks(&last).await));
             let _ = tx.send(Msg::Scanning(Vec::new()));
         });
     }
@@ -690,6 +700,25 @@ impl App {
             format!("mirror {}", device.label),
             move |_reg, _rep| async move { actions::mirror(&server, &device).await },
         );
+    }
+
+    pub fn lock_selected(&mut self) {
+        let Some(view) = self.selected().cloned() else { return };
+        let on = !self.locked.contains(&view.device.id);
+        let verb = if on { "lock" } else { "unlock" };
+        let (tx, mut locked) = (self.tx.clone(), self.locked.clone());
+
+        self.spawn(format!("{verb} {}", view.device.label), move |_reg, _rep| async move {
+            lease::lock(&view, on).await?;
+
+            match on {
+                true => locked.insert(view.device.id.clone()),
+                false => locked.remove(&view.device.id),
+            };
+            let _ = tx.send(Msg::Locks(locked));
+
+            anyhow::Ok(format!("{verb}ed {}", view.device.label))
+        });
     }
 
     pub fn pin_selected(&mut self) {

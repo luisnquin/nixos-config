@@ -1092,6 +1092,16 @@ pub fn book_of<'a>(books: &'a [Book], device: &Device) -> Option<&'a Book> {
     books.iter().find(|b| b.at == at)
 }
 
+pub async fn locks(views: &[View]) -> BTreeSet<String> {
+    let books = books(views).await;
+
+    views
+        .iter()
+        .filter(|v| book_of(&books, &v.device).is_some_and(|b| b.ledger.locks.contains_key(&key(&v.device).id)))
+        .map(|v| v.device.id.clone())
+        .collect()
+}
+
 pub fn holds(views: &[View], books: &[Book]) -> BTreeMap<String, Lease> {
     views
         .iter()

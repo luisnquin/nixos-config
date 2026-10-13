@@ -156,6 +156,7 @@ fn on_normal_key(app: &mut App, key: KeyEvent) {
             app.input.clear();
             app.mode = Mode::Prompt(Prompt::Logs);
         }
+        KeyCode::Char('L') => app.lock_selected(),
         KeyCode::Char('P') => {
             app.input.clear();
             app.mode = Mode::Prompt(Prompt::PairCode);

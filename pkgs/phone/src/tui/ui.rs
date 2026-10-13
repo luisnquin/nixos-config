@@ -13,6 +13,7 @@ const KEYS: &[(&str, &str)] = &[
     ("s", "screenshot (queues if away)"),
     ("m", "mirror"),
     ("l", "logs"),
+    ("L", "lock / unlock against agents"),
     ("p", "pin 5555"),
     ("P", "pair"),
     ("u", "use as default"),
@@ -218,6 +219,10 @@ fn render_list(frame: &mut Frame, app: &mut App, area: Rect) {
                 Span::styled(fit(&model, w_model), Style::default().fg(Color::Gray)),
                 Span::styled(fit(&reach, w_reach), reach_style(&view.reach)),
                 Span::styled(detail, detail_style(view.device.host.as_deref())),
+                Span::styled(
+                    if app.locked.contains(&view.device.id) { "  locked" } else { "" },
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
             ]))
         })
         .collect();
