@@ -5,6 +5,7 @@ use serde_json::{json, Map, Value};
 
 const NUDGE: &str = "phone CLI drives these devices (boot, leases, memory budget, taps, screenshots); load the phone skill and prefer it over raw adb/emulator/simctl.";
 const PROGRAMS: &[&str] = &["adb", "emulator", "avdmanager", "simctl"];
+const READ_ONLY: &[&str] = &["devices", "version", "--version"];
 const PRELUDE: &[&str] = &["nohup", "sudo", "env", "exec", "time", "nice", "command"];
 const SEPARATORS: &[char] = &['|', ';', '&', '\n', '(', ')', '`', '\'', '"'];
 
@@ -27,36 +28,36 @@ pub fn run(harness: Harness) {
 fn respond(harness: Harness, input: &str) -> Option<String> {
     let event: Value = serde_json::from_str(input).unwrap_or(Value::Null);
     let command = command_of(&event);
-    let hit = command.as_deref().is_some_and(raw);
+    let hit = command.as_deref().and_then(nudge);
 
     match harness {
         Harness::Cursor => Some(match hit {
-            true => json!({"additional_context": NUDGE}).to_string(),
-            false => "{}".to_string(),
+            Some(nudge) => json!({"additional_context": nudge}).to_string(),
+            None => "{}".to_string(),
         }),
-        Harness::Codex => hit.then(|| specific(Map::new(), true).to_string()),
+        Harness::Codex => hit.map(|nudge| specific(Map::new(), Some(nudge)).to_string()),
         Harness::Claude => claude(&event, command.as_deref(), hit),
     }
 }
 
-fn claude(event: &Value, command: Option<&str>, hit: bool) -> Option<String> {
+fn claude(event: &Value, command: Option<&str>, hit: Option<String>) -> Option<String> {
     let mut out = Map::new();
 
     if let Some(updated) = command.and_then(|c| inject(event, c)) {
         out.insert("updatedInput".into(), updated);
     }
 
-    match out.is_empty() && !hit {
+    match out.is_empty() && hit.is_none() {
         true => None,
         false => Some(specific(out, hit).to_string()),
     }
 }
 
-fn specific(mut out: Map<String, Value>, hit: bool) -> Value {
+fn specific(mut out: Map<String, Value>, hit: Option<String>) -> Value {
     out.insert("hookEventName".into(), "PreToolUse".into());
 
-    if hit {
-        out.insert("additionalContext".into(), NUDGE.into());
+    if let Some(nudge) = hit {
+        out.insert("additionalContext".into(), nudge.into());
     }
 
     json!({ "hookSpecificOutput": out })
@@ -141,10 +142,42 @@ fn invokes_phone(command: &str) -> bool {
         .any(|segment| lead(&mut segment.split_whitespace()).is_some_and(|w| name(w) == "phone"))
 }
 
-fn raw(command: &str) -> bool {
-    !phone_runs(command) && command
-        .split(SEPARATORS)
-        .any(|segment| leads(segment.split_whitespace()) || steers(segment))
+// The lease ledger lives on the device host, so checking it here would cost an
+// ssh round-trip on every Bash call; the nudge fires whether or not a lease is held.
+fn nudge(command: &str) -> Option<String> {
+    if phone_runs(command) {
+        return None;
+    }
+
+    let hits = command.split(SEPARATORS).filter_map(|segment| match steers(segment) {
+        true => Some(None),
+        false => invocation(segment).filter(|words| !read_only(words)).map(Some),
+    });
+
+    hits.reduce(|first, next| first.or(next)).map(|hit| match hit {
+        Some(words) if name(words[0]) == "adb" => format!(
+            "bare adb skips phone's leases and device targeting; run `phone run -- adb {}` instead.",
+            words[1..].join(" ")
+        ),
+        _ => NUDGE.to_string(),
+    })
+}
+
+fn invocation(segment: &str) -> Option<Vec<&str>> {
+    let mut words = segment.split_whitespace();
+    let first = lead(&mut words)?;
+    let rest: Vec<&str> = words.collect();
+    let whole = || [vec![first], rest.clone()].concat();
+
+    match name(first) {
+        "xcrun" => (rest.iter().find(|w| !w.starts_with('-')) == Some(&"simctl")).then(whole),
+        "ssh" | "sh" | "bash" | "zsh" => rest.iter().position(|w| PROGRAMS.contains(&name(w))).map(|at| rest[at..].to_vec()),
+        program => PROGRAMS.contains(&program).then(whole),
+    }
+}
+
+fn read_only(words: &[&str]) -> bool {
+    name(words[0]) == "adb" && words.get(1).is_some_and(|w| READ_ONLY.contains(w))
 }
 
 fn phone_runs(command: &str) -> bool {
@@ -166,18 +199,6 @@ fn lead<'a>(words: &mut impl Iterator<Item = &'a str>) -> Option<&'a str> {
     words.find(|w| !(w.contains('=') || w.starts_with('-') || PRELUDE.contains(&name(w))))
 }
 
-fn leads<'a>(mut words: impl Iterator<Item = &'a str>) -> bool {
-    let Some(first) = lead(&mut words) else {
-        return false;
-    };
-
-    match name(first) {
-        "xcrun" => words.find(|w| !w.starts_with('-')) == Some("simctl"),
-        "ssh" | "sh" | "bash" | "zsh" => words.any(|w| PROGRAMS.contains(&name(w))),
-        program => PROGRAMS.contains(&program),
-    }
-}
-
 fn name(word: &str) -> &str {
     word.rsplit('/').next().unwrap_or(word)
 }
@@ -195,8 +216,8 @@ mod tests {
             "ANDROID_SERIAL=emulator-5554 adb shell input tap 10 10",
             "cd app && $ANDROID_HOME/platform-tools/adb install -r app.apk",
             "sleep 5; avdmanager list avd",
-            "ssh rose adb devices",
-            "bash -lc 'adb devices'",
+            "ssh rose adb reboot",
+            "bash -lc 'adb shell ls'",
             "ssh -o BatchMode=yes rose \"adb -s emulator-5554 shell input tap 1 1\"",
             "ADB_SERVER_SOCKET=tcp:rose:5037 ./gradlew connectedAndroidTest",
             "export ADB_SERVER_SOCKET=tcp:rose:5037",
@@ -204,7 +225,7 @@ mod tests {
             "xcrun -v simctl list devices",
             "~/Library/Android/sdk/emulator/emulator -avd pixel_7-api36 -no-window",
         ] {
-            assert!(raw(line), "{line}");
+            assert!(nudge(line).is_some(), "{line}");
         }
     }
 
@@ -225,13 +246,13 @@ mod tests {
             "echo $ADB_SERVER_SOCKET",
             "",
         ] {
-            assert!(!raw(line), "{line}");
+            assert!(nudge(line).is_none(), "{line}");
         }
     }
 
     #[test]
     fn claude_and_codex_get_context_without_a_decision() {
-        let input = r#"{"tool_name":"Bash","tool_input":{"command":"adb devices"}}"#;
+        let input = r#"{"tool_name":"Bash","tool_input":{"command":"xcrun simctl list"}}"#;
 
         for harness in [Harness::Claude, Harness::Codex] {
             let out: Value = serde_json::from_str(&respond(harness, input).unwrap()).unwrap();
@@ -239,6 +260,39 @@ mod tests {
             assert_eq!(out["hookSpecificOutput"]["additionalContext"], NUDGE);
             assert!(out["hookSpecificOutput"].get("permissionDecision").is_none());
             assert!(out["hookSpecificOutput"].get("updatedInput").is_none());
+        }
+    }
+
+    fn context(harness: Harness, command: &str) -> Option<String> {
+        let input = json!({"tool_name": "Bash", "tool_input": {"command": command}});
+        let out: Value = serde_json::from_str(&respond(harness, &input.to_string())?).ok()?;
+
+        assert!(out["hookSpecificOutput"].get("permissionDecision").is_none());
+
+        out["hookSpecificOutput"]["additionalContext"].as_str().map(String::from)
+    }
+
+    #[test]
+    fn bare_adb_is_pointed_at_phone_run_with_the_same_args() {
+        for (command, route) in [
+            ("adb -s emulator-5554 shell input tap 1 1", "phone run -- adb -s emulator-5554 shell input tap 1 1"),
+            ("ssh rose adb shell pm clear com.x", "phone run -- adb shell pm clear com.x"),
+            ("ssh rose 'adb install -r a.apk'", "phone run -- adb install -r a.apk"),
+            ("adb devices && $ANDROID_HOME/platform-tools/adb uninstall com.x", "phone run -- adb uninstall com.x"),
+        ] {
+            for harness in [Harness::Claude, Harness::Codex] {
+                let said = context(harness, command).unwrap_or_default();
+
+                assert!(said.contains(&format!("`{route}`")), "{command}: {said}");
+                assert!(!said.contains('\n'), "{said}");
+            }
+        }
+    }
+
+    #[test]
+    fn read_only_adb_stays_silent() {
+        for command in ["adb devices", "adb devices -l", "adb version", "ssh rose adb devices", "bash -lc 'adb devices'"] {
+            assert_eq!(context(Harness::Claude, command), None, "{command}");
         }
     }
 
