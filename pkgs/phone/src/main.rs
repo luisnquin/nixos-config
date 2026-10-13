@@ -268,6 +268,8 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Release { target }) => release_cmd(&mut reg, want(target)).await,
+        Some(Command::Lock { target }) => lock_cmd(&mut reg, want(target), true).await,
+        Some(Command::Unlock { target }) => lock_cmd(&mut reg, want(target), false).await,
         Some(Command::Run { command }) => run_cmd(&mut reg, want(None), command).await,
         Some(Command::Display { size, density, font_scale, reset }) => {
             display_cmd(&mut reg, want(None), actions::Overrides { size, density, font_scale }, reset).await
@@ -407,7 +409,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
         }
 
         Some(Command::Mirror { target }) => {
-            let view = reaching(&mut reg, want(target).as_deref(), true, Hold::Ignored).await?;
+            let view = reaching_unlocked(&mut reg, want(target).as_deref()).await?;
 
             eprintln!(
                 "phone: {}",
@@ -575,6 +577,23 @@ async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
     Ok(())
 }
 
+async fn lock_cmd(reg: &mut Registry, want: Option<String>, on: bool) -> Result<()> {
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let view = choose(&views, reg, want.as_deref(), false, Aim::Bootable).await?;
+    let changed = lease::lock(&view, on).await?;
+
+    match (on, changed) {
+        (true, true) => eprintln!("phone: locked {}", view.device.label),
+        (true, false) => eprintln!("phone: {} was already locked", view.device.label),
+        (false, true) => eprintln!("phone: unlocked {}", view.device.label),
+        (false, false) => eprintln!("phone: {} was not locked", view.device.label),
+    }
+
+    Ok(())
+}
+
 async fn display_cmd(reg: &mut Registry, want: Option<String>, overrides: actions::Overrides, reset: bool) -> Result<()> {
     let view = driving(reg, want.as_deref(), true).await?;
 
@@ -667,7 +686,7 @@ async fn net(
 
 async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -> Result<()> {
     let view = match action {
-        AppAction::Install { .. } => reaching(reg, want.as_deref(), true, Hold::Ignored).await?,
+        AppAction::Install { .. } => reaching_unlocked(reg, want.as_deref()).await?,
         _ => driving(reg, want.as_deref(), true).await?,
     };
     let (server, device) = (&view.server, &view.device);
@@ -751,7 +770,7 @@ async fn stream_cmd(
     size: stream::Size,
     output: stream::Output,
 ) -> Result<()> {
-    let view = reaching(reg, want.as_deref(), true, Hold::Ignored).await?;
+    let view = reaching_unlocked(reg, want.as_deref()).await?;
 
     stream::stream(&view.server, &view.device, size, output).await
 }
@@ -2413,6 +2432,13 @@ async fn driving(reg: &mut Registry, want: Option<&str>, prefer_recent: bool) ->
 enum Hold {
     Respected,
     Ignored,
+}
+
+async fn reaching_unlocked(reg: &mut Registry, want: Option<&str>) -> Result<View> {
+    let view = reaching(reg, want, true, Hold::Ignored).await?;
+    lease::unlocked(&view).await?;
+
+    Ok(view)
 }
 
 async fn reaching(

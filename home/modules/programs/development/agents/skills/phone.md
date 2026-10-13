@@ -56,6 +56,8 @@ Exit status 3 means "not now", not broken: the device is held by another agent,
 or its host has no memory for a boot. The message names the holder, how long it
 has been idle and a free alternative. Do not pass `--take` or `--over-budget`
 without asking the user. When done with a device, `phone release` hands it back.
+A device "locked by" someone is the user's: stop and ask them. Never try to
+unlock it or reach it by other means (raw adb, simctl, another target).
 
 In a repo with `phone.toml`, run `phone up` first. It allocates one device per
 platform the project builds for, boots, forwards ports, installs a fresh build

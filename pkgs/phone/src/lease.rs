@@ -127,7 +127,15 @@ impl Lease {
         self.idle(now) * 4 >= self.ttl || !running && self.idle(now) * 2 >= BOOT
     }
 
+    pub fn is_lock(&self) -> bool {
+        self.agent.starts_with(LOCK)
+    }
+
     pub fn describe(&self, now: Unix) -> String {
+        if self.is_lock() {
+            return format!("{} (locked {} ago)", self.label, span(now - self.since));
+        }
+
         let harness = self.harness.map(|h| format!("{h:?}").to_lowercase());
 
         format!(
@@ -148,6 +156,33 @@ pub fn span(secs: i64) -> String {
     }
 }
 
+const LOCK: &str = "lock:";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Lock {
+    pub by: String,
+    pub host: String,
+    pub since: Unix,
+}
+
+impl Lock {
+    fn lease(&self) -> Lease {
+        Lease {
+            agent: format!("{LOCK}{}", self.by),
+            label: self.by.clone(),
+            harness: Some(Harness::User),
+            host: self.host.clone(),
+            pid: None,
+            start: None,
+            app: None,
+            since: self.since,
+            last_seen: self.since,
+            ttl: i64::MAX,
+            took: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ledger {
     pub v: u32,
@@ -157,6 +192,8 @@ pub struct Ledger {
     pub installed: BTreeMap<String, BTreeSet<String>>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub displays: BTreeSet<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub locks: BTreeMap<String, Lock>,
 }
 
 #[derive(Deserialize)]
@@ -213,6 +250,7 @@ impl Ledger {
             leases,
             installed: BTreeMap::new(),
             displays: BTreeSet::new(),
+            locks: BTreeMap::new(),
         }
     }
 
@@ -297,6 +335,10 @@ pub enum Standing {
 }
 
 pub fn standing(ledger: &Ledger, key: &Key, judge: &Judge, me: &Agent, running: bool) -> Standing {
+    if let Some(lock) = ledger.locks.get(&key.id).filter(|_| me.harness != Harness::User) {
+        return Standing::Held(lock.lease());
+    }
+
     let Some((_, lease)) = ledger.get(key) else {
         return Standing::Free(None);
     };
@@ -613,7 +655,7 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     let lease = match standing {
         Standing::Mine(lease) if !lease.due(now, running) && book.trusted(now) => return Step::Done(Got::Held(lease)),
         Standing::Mine(_) | Standing::Held(_) if !book.fresh => return Step::Refresh,
-        Standing::Held(lease) if take == Take::Respect => return Step::Done(Got::Busy(lease)),
+        Standing::Held(lease) if stops(&lease, take) => return Step::Done(Got::Busy(lease)),
         Standing::Mine(lease) => Lease { last_seen: now, ..lease },
         Standing::Held(lease) => Lease {
             took: Some(format!("{} by {:?}", lease.label, me.harness).to_lowercase()),
@@ -639,7 +681,7 @@ pub enum Moment {
 /// A display override is the holder's alone: it is undone when the hold ends,
 /// and by whoever next holds the device when the hold lapsed without that.
 fn reverts(standing: &Standing, take: Take, moment: Moment, overridden: bool) -> bool {
-    let refused = matches!((standing, take), (Standing::Held(_), Take::Respect));
+    let refused = refuses(standing, take);
     let renewal = matches!(standing, Standing::Mine(_)) && moment == Moment::Acquire;
 
     overridden && !refused && !renewal
@@ -771,7 +813,7 @@ fn handed_back(touched: Duration, since_my_last_verb: Option<Unix>) -> bool {
 
 fn letting_go(standing: Standing, take: Take) -> Option<Result<Lease, Lease>> {
     match (standing, take) {
-        (Standing::Held(lease), Take::Respect) => Some(Err(lease)),
+        (Standing::Held(lease), _) if stops(&lease, take) => Some(Err(lease)),
         (Standing::Free(None), _) => None,
         (Standing::Mine(lease) | Standing::Held(lease) | Standing::Free(Some(lease)), _) => Some(Ok(lease)),
     }
@@ -782,6 +824,10 @@ fn busy(view: &View, lease: Lease) -> Result<Option<Lease>> {
 }
 
 pub fn refusal(view: &View, lease: &Lease) -> crate::Refused {
+    if lease.is_lock() {
+        return locked(&view.device.label, lease);
+    }
+
     crate::Refused(format!(
         "{} is held by {}; its holder's `phone release -t {}` frees it, `--take` takes it",
         view.device.label,
@@ -793,10 +839,100 @@ pub fn refusal(view: &View, lease: &Lease) -> crate::Refused {
 pub async fn guard(view: &View) -> Result<()> {
     let book = Book::fetch(&actions::where_of(&view.device)).await?;
 
-    match (book.standing(&view.device, actions::running(&view.reach)), take()) {
-        (Standing::Held(lease), Take::Respect) => Err(refusal(view, &lease).into()),
+    match book.standing(&view.device, actions::running(&view.reach)) {
+        Standing::Held(lease) if stops(&lease, take()) => Err(refusal(view, &lease).into()),
         _ => Ok(()),
     }
+}
+
+pub async fn unlocked(view: &View) -> Result<()> {
+    let book = Book::fetch(&actions::where_of(&view.device)).await?;
+
+    match book.standing(&view.device, true) {
+        Standing::Held(lease) if lease.is_lock() => Err(refusal(view, &lease).into()),
+        _ => Ok(()),
+    }
+}
+
+fn refuses(standing: &Standing, take: Take) -> bool {
+    matches!(standing, Standing::Held(lease) if stops(lease, take))
+}
+
+fn stops(lease: &Lease, take: Take) -> bool {
+    take == Take::Respect || lease.is_lock()
+}
+
+pub async fn lock(view: &View, on: bool) -> Result<bool> {
+    let me = agent::me();
+
+    if me.harness != Harness::User {
+        return Err(crate::Refused(format!(
+            "only a human shell may {} a device; ask the user to run `phone {} -t {}`",
+            if on { "lock" } else { "unlock" },
+            if on { "lock" } else { "unlock" },
+            view.device.label
+        ))
+        .into());
+    }
+
+    let at = actions::where_of(&view.device);
+    let mut book = Book::fetch(&at).await?;
+    let key = key(&view.device);
+
+    for _ in 0..RETRIES {
+        let mut ledger = book.ledger.clone();
+        let changed = match on {
+            true if ledger.locks.contains_key(&key.id) => false,
+            true => {
+                let lock = Lock {
+                    by: me.label.clone(),
+                    host: me.host.clone(),
+                    since: model::now(),
+                };
+
+                ledger.locks.insert(key.id.clone(), lock);
+                ledger.drop_key(&key);
+                true
+            }
+            false => ledger.locks.remove(&key.id).is_some(),
+        };
+
+        if !changed {
+            return Ok(false);
+        }
+
+        match book.commit(&ledger, &[]).await? {
+            Ok(_) => return Ok(true),
+            Err(newer) => book = newer,
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+fn alarm(device: &str, lease: &Lease) {
+    let me = agent::me();
+    let body = format!(
+        "{} ({:?} on {}) tried to use it; locked by {}",
+        me.label, me.harness, me.host, lease.label
+    )
+    .to_lowercase();
+
+    let _ = std::process::Command::new("notify-send")
+        .args(["--app-name=phone", "--urgency=critical", "--", &format!("{device} is locked"), &body])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+}
+
+pub fn locked(device: &str, lease: &Lease) -> crate::Refused {
+    alarm(device, lease);
+
+    crate::Refused(format!(
+        "{device} is locked by {}: the user is using it and has been notified. Stop and ask them; `--take` does not lift a lock",
+        lease.describe(model::now())
+    ))
 }
 
 pub async fn here_tree() -> Option<String> {
@@ -961,6 +1097,10 @@ pub fn holds(views: &[View], books: &[Book]) -> BTreeMap<String, Lease> {
         .iter()
         .filter_map(|view| {
             let book = book_of(books, &view.device)?;
+
+            if let Some(lock) = book.ledger.locks.get(&key(&view.device).id) {
+                return Some((view.device.id.clone(), lock.lease()));
+            }
 
             match book.standing(&view.device, actions::running(&view.reach)) {
                 Standing::Mine(lease) | Standing::Held(lease) => Some((view.device.id.clone(), lease)),
@@ -1240,6 +1380,40 @@ mod tests {
         assert!(held(&outside, 1_000).owned_by(&sandboxed));
         assert!(held(&sandboxed, 1_000).owned_by(&outside));
         assert!(!held(&sandboxed, 1_000).owned_by(&me("b")));
+    }
+
+    #[test]
+    fn a_lock_holds_off_every_agent_take_or_not_but_not_the_human() {
+        let none = BTreeSet::new();
+        let j = judge(1_000_000, &none);
+        let k = Key::from("avd:pixel");
+        let human = Agent {
+            harness: Harness::User,
+            pid: None,
+            start: None,
+            ..me("luisnquin@nyx")
+        };
+        let mut ledger = Ledger::default();
+
+        ledger.locks.insert(
+            k.id.clone(),
+            Lock {
+                by: "luisnquin@nyx".into(),
+                host: "nyx".into(),
+                since: 1_000,
+            },
+        );
+
+        let Standing::Held(lock) = standing(&ledger, &k, &j, &me("a"), false) else {
+            panic!("an agent sees a locked device as held, running or not, long past any ttl");
+        };
+
+        assert!(lock.is_lock());
+        assert_eq!(letting_go(Standing::Held(lock.clone()), Take::Override), Some(Err(lock.clone())));
+        assert!(refuses(&Standing::Held(lock.clone()), Take::Override));
+        assert_eq!(standing(&ledger, &k, &j, &human, true), Standing::Free(None));
+        assert!(Ledger::parse(&ledger.body()).unwrap().locks.contains_key("avd:pixel"));
+        assert!(!Ledger::default().body().contains("locks"));
     }
 
     #[test]

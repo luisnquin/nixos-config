@@ -58,7 +58,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
 The commands
 
-  project  up down release run status
+  project  up down release lock unlock run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications push
@@ -200,6 +200,24 @@ is used; a lease left idle past its ttl, or whose agent has exited, lapses on it
 own. This frees one now. Handing a device to a subagent is a `phone release -t X`
 here, then any verb there. Without -t, every lease this agent holds is freed."#)]
     Release {
+        #[arg(id = "device")]
+        target: Option<String>,
+    },
+
+    #[command(about = "Keep every agent off a device until you unlock it", after_help = r#"Examples:
+  phone lock -t pixel_7
+  phone unlock -t pixel_7
+
+Human shells only: refused under Claude, Codex or PHONE_AGENT. A lock has no ttl
+and `--take` does not lift it. Any agent verb on a locked device is refused and
+raises a desktop notification on the machine the agent runs on."#)]
+    Lock {
+        #[arg(id = "device")]
+        target: Option<String>,
+    },
+
+    #[command(about = "Lift `phone lock`")]
+    Unlock {
         #[arg(id = "device")]
         target: Option<String>,
     },

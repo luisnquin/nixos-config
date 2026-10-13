@@ -745,6 +745,11 @@ async fn claim(wanted: &[Climb]) -> Result<Vec<lease::Beat>> {
 
     for (name, _, view) in wanted {
         if let lease::Got::Busy(holder) = lease::acquire(view, lease::take()).await? {
+            if holder.is_lock() {
+                refused.push(lease::locked(name, &holder).0);
+                continue;
+            }
+
             refused.push(format!(
                 "{name} is held by {}; its holder's `phone release` frees it, `--take` takes it",
                 holder.describe(model::now())
