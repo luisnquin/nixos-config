@@ -44,6 +44,8 @@
         "audio/ogg" = vlc;
 
         "text/x-python" = zed;
+        "text/plain" = zed;
+        "application/json" = zed;
       };
     in {
       enable = true;
