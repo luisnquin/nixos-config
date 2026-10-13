@@ -24,6 +24,12 @@ let
     then entry
     else mkExtensionEntry {id = entry;});
 in {
+  AIControls = {
+    Default = {
+      Value = "blocked";
+      Locked = true;
+    };
+  };
   AutofillAddressEnabled = true;
   AutofillCreditCardEnabled = false;
   DisableAppUpdate = true;
