@@ -2638,6 +2638,7 @@ async fn chosen(
     let want = want
         .map(str::to_string)
         .or_else(|| std::env::var("PHONE_TARGET").ok())
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
 
     if let Some((host, kind)) = want.as_deref().and_then(|w| host_target(views, w)) {
@@ -2648,7 +2649,10 @@ async fn chosen(
 
     if candidates.is_empty() {
         bail!(match want {
-            Some(w) => format!("no device matching '{w}'"),
+            Some(w) => match close_labels(views, &w).as_slice() {
+                [] => format!("no device matching '{w}'"),
+                near => format!("no device matching '{w}'; close: {}", near.join(", ")),
+            },
             None => "no device reachable (check: adb devices, tailscale status)".to_string(),
         });
     }
@@ -2691,6 +2695,26 @@ fn untargeted(candidates: &[View], reg: &Registry, prefer_recent: bool) -> Optio
     };
 
     current.or_else(recent).cloned()
+}
+
+fn close_labels(views: &[View], want: &str) -> Vec<String> {
+    let words = |s: &str| -> Vec<String> {
+        s.split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .map(str::to_lowercase)
+            .collect()
+    };
+    let wanted = words(want);
+
+    let mut scored: Vec<(usize, &str)> = views
+        .iter()
+        .map(|v| (words(&v.device.label).iter().filter(|w| wanted.contains(w)).count(), v.device.label.as_str()))
+        .filter(|(score, _)| *score > 0)
+        .collect();
+
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    scored.dedup_by(|a, b| a.1 == b.1);
+    scored.into_iter().take(3).map(|(_, label)| crate::quoted(label)).collect()
 }
 
 fn candidates(views: &[View], want: Option<&str>, aim: Aim) -> Vec<View> {
@@ -3394,6 +3418,19 @@ mod tests {
             ids(&candidates(&views, Some("pixel-9"), Aim::Running)),
             ["SERIALNUMBER01"]
         );
+    }
+
+    #[test]
+    fn an_unknown_device_name_lists_labels_sharing_a_word() {
+        let views = [
+            emu("android_id:1111", "pixel_7-api36", attached("emulator-5554")),
+            emu("android_id:2222", "pixel_7-api36-b", attached("emulator-5556")),
+            View::new(Device::new("UDID-1", "iPhone 17 Pro", Platform::Simulator), Reach::Online).on(mac()),
+        ];
+
+        assert_eq!(close_labels(&views, "iPhone 17 2205D353"), vec!["\"iPhone 17 Pro\""]);
+        assert_eq!(close_labels(&views, "pixel_7-api36-c"), vec!["pixel_7-api36", "pixel_7-api36-b"]);
+        assert!(close_labels(&views, "galaxy").is_empty());
     }
 
     #[test]
