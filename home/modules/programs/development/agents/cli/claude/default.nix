@@ -13,9 +13,20 @@ in {
   ];
 
   # not `programs.claude-code.plugins`: its per-entry links put mod files
-  # outside the plugin directory, which claude refuses
-  home.file."${config.programs.claude-code.configDir}/skills/phone".source = pkgs.phone.claudePlugin;
-  home.file."${config.programs.claude-code.configDir}/skills/chat-clean".source = sources.chat-clean;
+  # outside the plugin directory, which claude refuses. Not `home.file` either:
+  # its link retargets to a new home-manager-files path on every switch, which
+  # makes live sessions reload each mod even when its store path is unchanged
+  home.activation.claudeMods = let
+    skills = "${config.programs.claude-code.configDir}/skills";
+  in
+    lib.hm.dag.entryAfter ["linkGeneration"] ''
+      claudeMod() {
+        [ "$(readlink "${skills}/$1" 2>/dev/null)" = "$2" ] || run ln -sfnT "$2" "${skills}/$1"
+      }
+      run mkdir -p "${skills}"
+      claudeMod phone ${pkgs.phone.claudePlugin}
+      claudeMod chat-clean ${sources.chat-clean}
+    '';
 
   xdg.configFile."ccstatusline/settings.json" = let
     settingsJson = builtins.fromJSON (builtins.readFile ./ccstatusline-settings.json);
