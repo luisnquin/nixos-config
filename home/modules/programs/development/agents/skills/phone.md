@@ -139,7 +139,8 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
 - `unchanged` means no row moved within 3s: the act hit nothing, or its result
   is slow (network, low memory). Never repeat the act on that alone; `wait`
   for the result or check with `shot --grid`.
-- `wait` passes at once when its target is already on screen, and says so.
+- `wait` passes at once when its target is already on screen, and says so;
+  in a `do` right after an act it first gives a new match 2s to come up.
   Wait for something the action creates, not for something already there.
 
 ## What phone does not cover

@@ -2242,6 +2242,8 @@ async fn wait(
     prior: Option<&[a11y::Node]>,
 ) -> Result<()> {
     let started = std::time::Instant::now();
+    let before = prior.map(|p| a11y::present(p, what) != gone);
+    let mut stale = prior.filter(|p| !gone && a11y::present(p, what));
     let mut first = true;
 
     loop {
@@ -2256,27 +2258,18 @@ async fn wait(
             .as_ref()
             .map_or(gone, |s| a11y::present(&s.nodes, what));
 
-        if present != gone {
-            let state = if gone { "gone" } else { "on screen" };
+        if let (Some(p), Some(s)) = (stale, &screen) {
+            stale = Some(p).filter(|p| present && !renewed(p, &s.nodes, what));
+        }
 
-            match (first, prior.map(|p| a11y::present(p, what) != gone)) {
-                (true, Some(true)) => {
-                    eprintln!("phone: '{what}' was already {state} before the last step; nothing changed")
-                }
-                (true, None) => eprintln!(
-                    "phone: '{what}' is {state} at the first look, so this wait cannot tell whether your last action did it"
-                ),
-                _ => eprintln!(
-                    "phone: '{what}' {} after {:.1}s",
-                    if gone { "left" } else { "appeared" },
-                    started.elapsed().as_secs_f64()
-                ),
-            }
+        let elapsed = started.elapsed();
 
+        if present != gone && (stale.is_none() || elapsed >= timeout.min(APPEAR_GRACE)) {
+            eprintln!("phone: {}", waited(what, gone, first, before, stale.is_some(), elapsed));
             return Ok(());
         }
 
-        if started.elapsed() >= timeout {
+        if elapsed >= timeout {
             bail!(
                 "'{what}' was still {} after {:.0}s{}",
                 if gone { "there" } else { "missing" },
@@ -2289,6 +2282,50 @@ async fn wait(
 
         tokio::time::sleep(POLL).await;
         first = false;
+    }
+}
+
+/// Whether a match is new since `prior`: a list row that holds the name of the
+/// screen it opens still matches once that screen is up, and is no answer.
+fn renewed(prior: &[a11y::Node], nodes: &[a11y::Node], what: &str) -> bool {
+    let was: Vec<a11y::Signature> = prior
+        .iter()
+        .filter(|n| n.matches(what))
+        .map(a11y::Node::signature)
+        .collect();
+
+    nodes
+        .iter()
+        .filter(|n| n.matches(what))
+        .any(|n| !was.contains(&n.signature()))
+}
+
+fn waited(
+    what: &str,
+    gone: bool,
+    first: bool,
+    before: Option<bool>,
+    stale: bool,
+    elapsed: std::time::Duration,
+) -> String {
+    let state = if gone { "gone" } else { "on screen" };
+
+    match (stale, first, before) {
+        (true, _, _) => format!(
+            "'{what}' is the same element that was on screen before the last step, and nothing new matched it in {:.1}s; this wait proved nothing",
+            elapsed.as_secs_f64()
+        ),
+        (false, true, Some(true)) if gone => {
+            format!("'{what}' was already {state} before the last step; nothing changed")
+        }
+        (false, true, None) => format!(
+            "'{what}' is {state} at the first look, so this wait cannot tell whether your last action did it"
+        ),
+        _ => format!(
+            "'{what}' {} after {:.1}s",
+            if gone { "left" } else { "appeared" },
+            elapsed.as_secs_f64()
+        ),
     }
 }
 
@@ -3056,6 +3093,44 @@ mod tests {
             changing: changing.iter().map(|c| c.to_string()).collect(),
             waited: std::time::Duration::from_millis(ms),
         }
+    }
+
+    fn labelled(text: &str, y: i32) -> a11y::Node {
+        a11y::Node {
+            index: 0,
+            text: text.to_string(),
+            desc: String::new(),
+            res_id: String::new(),
+            class: "android.widget.TextView".to_string(),
+            clickable: false,
+            bounds: a11y::Bounds { x1: 0, y1: y, x2: 100, y2: y + 50 },
+            ancestors: Vec::new(),
+            focused: false,
+            hint: String::new(),
+            password: false,
+            parent: None,
+        }
+    }
+
+    #[test]
+    fn a_wait_does_not_take_the_row_that_opened_a_screen_for_its_title() {
+        let list = [labelled("Viaje QA Cusco, colecta fija", 700)];
+        let still = [labelled("Viaje QA Cusco, colecta fija", 700)];
+        let detail = [labelled("Viaje QA Cusco", 200), labelled("Recaudado", 400)];
+
+        assert!(!renewed(&list, &still, "Viaje QA Cusco"));
+        assert!(renewed(&list, &detail, "Viaje QA Cusco"));
+    }
+
+    #[test]
+    fn a_wait_that_only_saw_the_old_element_says_it_proved_nothing() {
+        let line = waited("Inicio", false, false, Some(true), true, Duration::from_secs(2));
+
+        assert!(line.contains("proved nothing"), "{line}");
+        assert_eq!(
+            waited("Inicio", false, true, Some(true), false, Duration::ZERO),
+            "'Inicio' appeared after 0.0s"
+        );
     }
 
     #[test]
