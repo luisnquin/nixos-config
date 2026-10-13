@@ -32,6 +32,8 @@ title=""
 message=""
 image=""
 ntfy_url=""
+app=""
+context=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -41,9 +43,29 @@ while [ "$#" -gt 0 ]; do
     --message) message="$2"; shift 2 ;;
     --image) image="$2"; shift 2 ;;
     --ntfy-url) ntfy_url="$2"; shift 2 ;;
+    --app) app="$2"; shift 2 ;;
+    --context) context=1; shift ;;
     *) echo "agent-notify: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+app="${app:-$title}"
+
+if [ "$context" = 1 ]; then
+  payload="$(cat || true)"
+  project="$(jq -r '.cwd // empty | split("/") | map(select(. != "")) | last // empty' <<<"$payload" 2>/dev/null || true)"
+  detail="$(jq -r '.message // empty' <<<"$payload" 2>/dev/null || true)"
+  tool="$(jq -r '.tool_name // empty' <<<"$payload" 2>/dev/null || true)"
+
+  if [ -n "$project" ]; then
+    title="$title · $project"
+  fi
+  if [ -n "$detail" ]; then
+    message="$detail"
+  elif [ -n "$tool" ]; then
+    message="$message · $tool"
+  fi
+fi
 
 unit=""
 if [ -n "$id" ]; then
@@ -60,7 +82,7 @@ cleanup_unit() {
 }
 
 do_fire() {
-  notify-send -a "$title" -i "$image" "$title" "$message" || true
+  notify-send -a "$app" -i "$image" "$title" "$message" || true
   if [ -n "$ntfy_url" ]; then
     curl -fsS -H "Title: $title" -d "$message" "$ntfy_url" >/dev/null 2>&1 || true
   fi
@@ -83,7 +105,7 @@ case "$action" in
     # were called by so systemd-run gets an absolute, PATH-independent exec.
     self="$(readlink -f "$0")"
 
-    fire_args=(fire --title "$title" --message "$message" --image "$image")
+    fire_args=(fire --app "$app" --title "$title" --message "$message" --image "$image")
     if [ -n "$ntfy_url" ]; then
       fire_args+=(--ntfy-url "$ntfy_url")
     fi

@@ -18,7 +18,7 @@ in {
               matcher = "startup";
               commands = [
                 (kit.mkTerminalStatusCmd "clear" "codex")
-                (kit.mkAudioCmd [kit.sounds.ifdarm])
+                (kit.mkAudioCmd [kit.sounds.ifarm])
               ];
             })
             (kit.mkCmdEntry {commands = [herdrSession];})
@@ -59,7 +59,7 @@ in {
             (kit.mkCmdEntry {
               commands = [
                 (kit.mkTerminalStatusCmd "waiting" "codex · permission")
-                (kit.mkNotificationCmd kit.images.codex "Codex" "Permission required" {})
+                (kit.mkNotificationCmd kit.images.codex "Codex" "Permission required" {context = true;})
                 (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
               ];
             })

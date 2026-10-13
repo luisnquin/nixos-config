@@ -182,7 +182,7 @@
 
     agentNotify = pkgs.writeShellApplication {
       name = "agent-notify";
-      runtimeInputs = [pkgs.curl pkgs.systemd pkgs.libnotify pkgs.coreutils];
+      runtimeInputs = [pkgs.curl pkgs.systemd pkgs.libnotify pkgs.coreutils pkgs.jq];
       text = builtins.readFile ./notify/agent-notify.sh;
     };
 
@@ -208,13 +208,24 @@
     inherit memories claudeMemories allowedDomains;
     inherit mkAgentPermissions;
 
+    # Detached so the agent never waits on playback; the lock keeps sounds in
+    # order instead of overlapping, and drops one that waited too long to matter.
     mkAudioCmd = files:
-      builtins.concatStringsSep " && " (map audioCommand files);
+      lib.concatStringsSep " " [
+        "${pkgs.util-linux}/bin/setsid -f"
+        "${pkgs.util-linux}/bin/flock -w 3 \"\${XDG_RUNTIME_DIR:-/tmp}/agent-sound.lock\""
+        "${pkgs.runtimeShell} -c"
+        (lib.escapeShellArg (builtins.concatStringsSep " && " (map audioCommand files)))
+        "</dev/null >/dev/null 2>&1"
+      ];
 
     # A delay + sequenceId means the notification must be cancelable, so it is
     # held in a local systemd timer via agent-notify. Without them it fires
     # immediately through libx.notify (desktop + ntfy), unchanged.
-    mkNotificationCmd = image: title: message: {ntfy ? {}}: let
+    mkNotificationCmd = image: title: message: {
+      ntfy ? {},
+      context ? false,
+    }: let
       isScheduled = (ntfy ? delay) && (ntfy ? sequenceId);
 
       host = nixosConfig.services.ntfy-sh.settings.base-url;
@@ -224,16 +235,22 @@
         then ""
         else "${lib.removeSuffix "/" host}/${topic}";
     in
-      if isScheduled
+      if isScheduled || context
       then
         lib.concatStringsSep " " (
-          [
-            (lib.getExe agentNotify)
-            "schedule"
-            "--id"
-            (lib.escapeShellArg ntfy.sequenceId)
-            "--delay"
-            (lib.escapeShellArg ntfy.delay)
+          [(lib.getExe agentNotify)]
+          ++ (
+            if isScheduled
+            then [
+              "schedule"
+              "--id"
+              (lib.escapeShellArg ntfy.sequenceId)
+              "--delay"
+              (lib.escapeShellArg ntfy.delay)
+            ]
+            else ["fire"]
+          )
+          ++ [
             "--title"
             (lib.escapeShellArg title)
             "--message"
@@ -241,6 +258,7 @@
             "--image"
             (lib.escapeShellArg image)
           ]
+          ++ lib.optional context "--context"
           ++ lib.optionals (ntfyUrl != "") [
             "--ntfy-url"
             (lib.escapeShellArg ntfyUrl)

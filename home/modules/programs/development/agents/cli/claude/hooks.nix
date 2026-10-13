@@ -35,9 +35,11 @@ in {
     {
       Notification = [
         (kit.mkCmdEntry {
+          matcher = "idle_prompt";
           commands = [
             (kit.mkTerminalStatusCmd "waiting" "claude · input")
             (kit.mkNotificationCmd kit.images.claude "Claude Code" "Awaiting your input" {
+              context = true;
               ntfy = {
                 delay = "10s";
                 sequenceId = "claude-awaiting-input";
@@ -109,7 +111,7 @@ in {
         (kit.mkCmdEntry {
           commands = [
             (kit.mkTerminalStatusCmd "waiting" "claude · permission")
-            (kit.mkNotificationCmd kit.images.claude "Claude Code" "Permission required" {})
+            (kit.mkNotificationCmd kit.images.claude "Claude Code" "Permission required" {context = true;})
             (kit.mkAudioCmd [kit.sounds.ifdngr kit.sounds.permission-required])
           ];
         })
