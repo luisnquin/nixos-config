@@ -47,6 +47,9 @@ in {
         } {
           plugins = ["phone-skill"];
         })
+      (mkSkill {src = ./skills;} {
+        plugins = ["nix-patch" "nix-triage" "squad" "dev-flow"];
+      })
       (anthropics.skills {
         prefix = "anthropics-";
         plugins = [
