@@ -25,8 +25,6 @@
 
     # https://nixos.org/manual/nix/stable/command-ref/conf-file.html
     settings = rec {
-      # Nix automatically detects files in the store that have identical contents, and replaces them with hard links to a single copy.
-      auto-optimise-store = true;
       keep-outputs = true;
       warn-dirty = false;
       download-attempts = 3;
