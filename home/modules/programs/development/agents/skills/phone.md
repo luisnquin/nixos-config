@@ -22,12 +22,13 @@ A call costs about a second; the tool round trip costs more. So:
   inside it: `"wait 'Order history'"`. Chain only names you have already seen:
   a step after an act names something on the next screen, and one guessed
   wrong aborts every step after it.
-- An act (`tap`, `press`, `swipe`, `pinch`, `rotate`, `key`, `type`, `fill`), alone or
-  as the last step of a `do`, waits for the screen to settle and prints what
-  changed: `changed N new, M gone`, the new rows with an `@index` you can use,
-  then what went; or `unchanged`. Do not follow it with `snapshot` or `wait`
-  to check. `wait` is for something slower than the settle, like a network
-  result still loading.
+- Every act (`tap`, `press`, `swipe`, `pinch`, `rotate`, `key`, `type`, `fill`),
+  including each step of a `do`, waits for the screen to settle and says how
+  long: `tapped Login at 540,1200, settled in 840ms`. Alone or as the last step
+  of a `do` it then prints what changed: `changed N new, M gone`, the new rows
+  with an `@index` you can use, then what went; or `unchanged`. Do not follow
+  it with `snapshot` or `wait` to check. `wait` is for something slower than
+  the settle, like a network result still loading.
 - Never `sleep` between an act and a read. `wait <what>` and `shot --settle`
   return as soon as the screen catches up.
 - Never pipe `phone` through `head` or `tail`: its output is already trimmed,
@@ -76,7 +77,7 @@ and exits with its status. Never export those by hand.
 
 ```
 phone snapshot                      # elements on screen, as text with @index
-phone tap "Log in" | @3 | X,Y       # whole name, snapshot row, or coordinate
+phone tap "Log in" | @3 | X,Y       # name (or whole words of one label), snapshot row, or coordinate
 phone tap <what> --double | --fingers 2  # one double-tap gesture; 2-5 fingers
 phone press <what> --hold 2s        # long press
 phone swipe up|down|left|right [--amount 0.6] | swipe <from> <to> [--hold 1500ms]
@@ -86,8 +87,9 @@ phone swipe --edge left|right|top|bottom  # system edge gesture: back, shade, ho
 phone pinch <what> 2 | 0.5 [--angle 90]  # two fingers: >1 zooms in, <1 out
 phone rotate <what> 45 | -90        # two fingers turning: positive is clockwise
 phone type "text"                   # into whatever has focus
-phone fill <field> "text"           # focus, clear, type, read back
+phone fill <field> "text"           # focus, clear, type, read back, close the keyboard [--keep-keyboard]
 phone key back|home|enter|tab|…     # go back with `key back`, not a named arrow; iOS: an edge swipe
+phone keyboard hide                 # close the keyboard without navigating
 phone wait <what> [--gone] [--timeout 15s]
 phone shot -o /tmp/s.png [--crop <what>|@N [--expand 1]] [--scale 0.3 --jpeg 60] [--settle] [--grid]
 phone size                          # panel size and scale
@@ -95,7 +97,9 @@ phone do "fill Email a@b.co" "tap 'Log in'"  # the last act prints what changed
 phone record -s 5 --frames changed
 phone device list|boot|shutdown|connect|reverse 8081
 phone device net off|on [--only wifi|data]   # off then on resets stale sockets
-phone app install app.apk | stop <id> | open <url> | logs <id> | notifications [<id>]
+phone app install app.apk | stop <id> | open <url> | notifications [<id>]
+phone app logs <id> [--since 5m] [-f] # prints the running process's lines and exits; -f streams
+phone display [--size 720x1600] [--density 320] [--font-scale 1.3] [--reset]  # android; reverted on release
 phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extras
 phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir, via run-as
 ```
@@ -103,7 +107,12 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
 `-t <device>` and `--focus X,Y` work on any verb; with `do` they go on `do`, not inside a step.
 
 - A coordinate is one argument, `540,1200`, never `540 1200`.
-- `key del` is backspace; `key back` leaves the screen.
+- `key del` is backspace; `key back` leaves the screen. After `fill` the keyboard
+  is already closed, so never send `key back` to dismiss it.
+- A partial name works only when its whole words belong to one label; the act
+  line ends in `(partial)`. Otherwise the refusal lists the `@index` to use.
+- Never `timeout` or wrap `app logs`, and never call raw `logcat`, `wm size`
+  or `settings put` by hand: `app logs` and `display` do it under the lease.
 - `app open` takes a url. An app id goes to `app launch <id>`. Nothing opens
   `data:` urls: serve the page over http and `phone device reverse <port>`.
 - `down` takes no device name. One device: `phone release -t <name>`, or
