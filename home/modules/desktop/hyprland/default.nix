@@ -87,9 +87,10 @@ in {
   };
 
   xdg.portal = {
-    enable = true;
+    enable = lib.mkForce true;
     # xdgOpenUsePortal = true;
     extraPortals = with pkgs; [
+      xdg-desktop-portal-hyprland
       xdg-desktop-portal-gtk
       kdePackages.xdg-desktop-portal-kde
     ];
@@ -109,6 +110,7 @@ in {
     enable = true;
     configType = "lua";
     extraConfig = extWorkspace;
+    portalPackage = null;
 
     settings = {
       monitor = [
