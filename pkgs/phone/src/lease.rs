@@ -18,6 +18,7 @@ const CONFLICT: i32 = 75;
 const RETRIES: usize = 6;
 pub const BOOT: i64 = 300;
 const CACHED: i64 = 60;
+const HANDOFF: i64 = 180;
 
 const LEDGER: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
 mkdir -p "$state" || exit 1
@@ -250,6 +251,7 @@ pub struct Judge<'a> {
     pub here: &'a str,
     pub alive: fn(u32, &str) -> bool,
     pub blind: bool,
+    pub verb: fn(&str, &str) -> Option<Unix>,
 }
 
 impl Judge<'_> {
@@ -257,6 +259,14 @@ impl Judge<'_> {
         let idle = lease.idle(self.now);
 
         idle < lease.ttl && (running || idle < BOOT) && self.living(lease)
+    }
+
+    /// A subagent shares its session's pid, so its last verb on the device is
+    /// what tells an idle subagent from one still driving.
+    pub fn handed_up(&self, lease: &Lease, me: &Agent, device: &str) -> bool {
+        let child = lease.agent.split_once('/').is_some_and(|(session, _)| session == me.id);
+
+        child && lease.host == me.host && (self.verb)(&lease.agent, device).is_some_and(|at| self.now - at >= HANDOFF)
     }
 
     fn living(&self, lease: &Lease) -> bool {
@@ -288,7 +298,7 @@ pub fn standing(ledger: &Ledger, key: &Key, judge: &Judge, me: &Agent, running: 
         return Standing::Free(None);
     };
 
-    match (judge.valid(lease, running), lease.owned_by(me)) {
+    match (judge.valid(lease, running), lease.owned_by(me) || judge.handed_up(lease, me, &key.id)) {
         (true, true) => Standing::Mine(lease.clone()),
         (true, false) => Standing::Held(lease.clone()),
         (false, _) => Standing::Free(Some(lease.clone())),
@@ -473,6 +483,7 @@ impl Book {
             here: &agent::me().host,
             alive: agent::alive,
             blind: agent::blind(),
+            verb: verbs::at,
         }
     }
 
@@ -555,16 +566,24 @@ pub async fn acquire(view: &View, take: Take) -> Result<Got> {
 
     for _ in 0..RETRIES {
         match attempt(view, take, &book) {
-            Step::Done(got) => return Ok(got),
+            Step::Done(got) => return Ok(acted(view, got)),
             Step::Refresh => book = Book::fetch(&at).await?,
             Step::Write(ledger, lease) => match book.commit(&ledger, &stamp(view, &book).await).await? {
-                Ok(_) => return Ok(settled(view, lease)),
+                Ok(_) => return Ok(acted(view, settled(view, lease))),
                 Err(newer) => book = newer,
             },
         }
     }
 
     bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+fn acted(view: &View, got: Got) -> Got {
+    if let Got::Held(_) = got {
+        verbs::stamp(&key(&view.device).id);
+    }
+
+    got
 }
 
 enum Step {
@@ -879,6 +898,32 @@ pub mod sticky {
     }
 }
 
+pub mod verbs {
+    use super::*;
+
+    fn read(agent: &str) -> BTreeMap<String, Unix> {
+        std::fs::read(agent::file("verbs", agent))
+            .ok()
+            .and_then(|body| serde_json::from_slice(&body).ok())
+            .unwrap_or_default()
+    }
+
+    pub fn at(agent: &str, device: &str) -> Option<Unix> {
+        read(agent).get(device).copied()
+    }
+
+    pub fn stamp(device: &str) {
+        let me = &agent::me().id;
+        let path = agent::file("verbs", me);
+        let mut verbs = read(me);
+
+        verbs.insert(device.to_string(), model::now());
+
+        let _ = path.parent().map(std::fs::create_dir_all);
+        let _ = serde_json::to_vec(&verbs).map(|body| std::fs::write(path, body));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -924,6 +969,7 @@ mod tests {
             here: "nyx",
             alive: living,
             blind: false,
+            verb: verbed,
         }
     }
 
@@ -1037,6 +1083,40 @@ mod tests {
 
         assert!(!ledger.leases[&k.id].owned_by(&session));
         assert!(!ledger.leases[&k.id].held_by(&elsewhere));
+    }
+
+    fn verbed(agent: &str, device: &str) -> Option<Unix> {
+        (agent == "1f636eb3-8a91/a6a8204d" && device == "avd:pixel").then_some(1_000)
+    }
+
+    #[test]
+    fn a_session_uses_its_subagents_device_once_the_subagent_goes_quiet() {
+        let none = BTreeSet::new();
+        let session = me("1f636eb3-8a91");
+        let sub = me("1f636eb3-8a91/a6a8204d");
+        let unstamped = me("1f636eb3-8a91/0000ffff");
+        let elsewhere = Agent {
+            host: "rose".into(),
+            ..session.clone()
+        };
+        let mut ledger = Ledger::default();
+        let k = Key::from("avd:pixel");
+        let at = |now: Unix, who: &Agent, ledger: &Ledger| standing(ledger, &k, &judge(now, &none), who, true);
+
+        ledger.put(&k, held(&sub, 1_000));
+
+        assert!(matches!(at(1_009, &session, &ledger), Standing::Held(_)), "9s after the subagent's last verb");
+        assert!(matches!(at(1_000 + HANDOFF - 1, &session, &ledger), Standing::Held(_)));
+        assert!(matches!(at(1_000 + HANDOFF, &session, &ledger), Standing::Mine(_)));
+        assert!(matches!(at(1_000 + HANDOFF, &me("0199aaaa"), &ledger), Standing::Held(_)));
+        assert!(matches!(at(1_000 + HANDOFF, &elsewhere, &ledger), Standing::Held(_)));
+        assert!(!ledger.leases[&k.id].held_by(&session), "release --all stays exact-holder");
+
+        ledger.put(&k, held(&sub, 800));
+        assert!(matches!(at(1_100, &session, &ledger), Standing::Held(_)), "last_seen lags the last verb");
+
+        ledger.put(&k, held(&unstamped, 1_000));
+        assert!(matches!(at(1_000 + HANDOFF, &session, &ledger), Standing::Held(_)), "no verb on record");
     }
 
     #[test]
