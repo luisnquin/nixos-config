@@ -97,10 +97,12 @@ in {
       language = "english";
       cleanupPeriodDays = 20;
       tui = "fullscreen";
+      showThinkingSummaries = true;
+      autoCompactWindow = 200000;
 
       env = {
-        "CLAUDE_CODE_AUTO_COMPACT_WINDOW" = "200000";
-        "CLAUDE_CODE_ENABLE_TELEMETRY" = "0";
+        "DISABLE_TELEMETRY" = "1";
+        "DISABLE_ERROR_REPORTING" = "1";
         "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" = "1";
         "DISABLE_AUTOUPDATER" = "1";
         "PINENTRY_USER_DATA" = "gui";
