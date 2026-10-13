@@ -306,6 +306,7 @@ it to go idle first. That is refused with the reason rather than retried."#)]
   phone shot --crop 0,2000,1080,300  # an explicit X,Y,W,H rectangle
   phone shot --scale 0.3 --jpeg 60   # the whole screen for a fraction of the bytes
   phone shot --settle                # let the screen stop changing first
+  phone do "tap Save" "shot --settle --crop Saved"  # act and look in one call
 
 A full frame costs roughly 1500 tokens to read, and most looks are aimed at one
 control. Crop it, or scale it down, or use `snapshot` instead when the answer is
@@ -379,6 +380,7 @@ iOS screenshot has to be divided by `scale` before it can be tapped."#)]
   phone tap 540,1200  # by coordinate, where there are no elements to name
   phone tap Map --double         # two taps 100ms apart, as one gesture
   phone tap Map --fingers 2      # fingers side by side around the point
+  phone do "tap 'Log in'" "wait Inbox" "shot --crop Inbox"  # several steps, one call
 
 An ambiguous name is refused with the candidates listed as @index rather than
 guessed at, except when every match sits inside one pressable match — a button
@@ -1652,6 +1654,15 @@ mod tests {
 
         assert!(parse_duration("soon").is_err());
         assert!(parse_duration("15 fortnights").is_err());
+    }
+
+    #[test]
+    fn tap_and_shot_help_point_at_do() {
+        for verb in ["tap", "shot"] {
+            let help = Cli::command().find_subcommand_mut(verb).unwrap().render_long_help().to_string();
+
+            assert!(help.contains("phone do "), "{verb}: {help}");
+        }
     }
 
     #[test]
