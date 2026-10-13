@@ -297,6 +297,21 @@ impl Size {
     }
 }
 
+/// Needs a digit, so a name that lost a space or an email that lost a dot
+/// still fails.
+fn masked_alike(shown: &str, typed: &str) -> bool {
+    let bare = |s: &str| -> String {
+        s.chars()
+            .filter(|c| !c.is_whitespace() && !"-().".contains(*c))
+            .collect()
+    };
+    let typed = bare(typed);
+
+    typed.chars().all(char::is_alphanumeric)
+        && typed.chars().any(|c| c.is_ascii_digit())
+        && bare(shown) == typed
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct Node {
     /// Stable only within one dump.
@@ -353,7 +368,9 @@ impl Node {
     pub fn reads(&self, wanted: &str) -> bool {
         match wanted.is_empty() {
             true => self.is_empty_field(),
-            false => !self.is_empty_field() && self.text == wanted,
+            false => {
+                !self.is_empty_field() && (self.text == wanted || masked_alike(&self.text, wanted))
+            }
         }
     }
 
@@ -2237,6 +2254,36 @@ mod tests {
         let secret = pick(&screen.nodes, "secret").unwrap();
         assert!(secret.password);
         assert_eq!(secret.describe_field(), "secret (EditText) password");
+    }
+
+    #[test]
+    fn a_mask_that_spaces_out_the_value_still_reads_as_it() {
+        let screen = read_dump(true, 0, FORM).unwrap();
+        let mut phone = screen
+            .focused()
+            .expect("the search field holds focus")
+            .clone();
+
+        phone.text = "955 123 447".to_string();
+        assert!(phone.reads("955123447"));
+
+        phone.text = "(955) 123-447".to_string();
+        assert!(phone.reads("955.123.447"));
+
+        phone.text = "955 123 448".to_string();
+        assert!(
+            !phone.reads("955123447"),
+            "a different digit is a different value"
+        );
+
+        phone.text = "johndoe@mail.com".to_string();
+        assert!(
+            !phone.reads("john.doe@mail.com"),
+            "a dropped dot outside an alphanumeric value is a real change"
+        );
+
+        phone.text = "Tia Rosa".to_string();
+        assert!(!phone.reads("TiaRosa"));
     }
 
     #[test]
