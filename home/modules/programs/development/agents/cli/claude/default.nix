@@ -56,7 +56,7 @@ in {
     };
 
     marketplaces = {
-      inherit (sources) claude-plugins-official claude-image-view;
+      inherit (sources) claude-plugins-official claude-image-view oikon48;
     };
 
     context = ''
@@ -69,6 +69,7 @@ in {
     settings = {
       enabledPlugins = {
         "image-view@claude-image-view" = true;
+        "prompt-rail@oikon48" = true;
         "rust-analyzer-lsp@claude-plugins-official" = true;
         "swift-lsp@claude-plugins-official" = true;
       };
