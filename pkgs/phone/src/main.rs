@@ -693,13 +693,7 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
 
             return Ok(());
         }
-        AppAction::Logs { app } => {
-            let mut cmd = actions::logs_command(server, device, &app).await?;
-
-            calls::exec(&cmd);
-
-            bail!("{}", cmd.exec())
-        }
+        AppAction::Logs { app, follow, since } => return logs_cmd(server, device, &app, follow, since).await,
     };
 
     eprintln!("phone: {said}");
@@ -707,6 +701,39 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
     pids::forget(&device.id);
 
     Ok(())
+}
+
+async fn logs_cmd(
+    server: &Server,
+    device: &model::Device,
+    app: &str,
+    follow: bool,
+    since: Option<Duration>,
+) -> Result<()> {
+    let mut cmd = match follow {
+        true => actions::logs_command(server, device, app).await?,
+        false => match actions::logs_dump(server, device, app, since).await? {
+            actions::LogDump::Stream(cmd) => cmd,
+            actions::LogDump::NotRunning(said) => {
+                eprintln!("phone: {said}");
+
+                return Ok(());
+            }
+            actions::LogDump::Lines(text, dropped) => {
+                if dropped > 0 {
+                    eprintln!("phone: {dropped} earlier lines dropped; --since narrows the window");
+                }
+
+                print!("{text}");
+
+                return Ok(());
+            }
+        },
+    };
+
+    calls::exec(&cmd);
+
+    bail!("{}", cmd.exec())
 }
 
 async fn stream_cmd(

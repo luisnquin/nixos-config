@@ -1138,13 +1138,26 @@ The device resolves the url, so a deep link lands in whichever app registered
 the scheme and an http url lands in the browser. Quote it: a shell reads `?` and
 `&` before this ever sees them."#)]
     Open { url: String },
-    /// Stream logs for a package name or bundle id
+    /// Print an app's recent logs, or stream them with --follow
     #[command(after_help = r#"Examples:
   phone app logs com.example.app
-  phone app logs -t pixel-9 com.example.app
+  phone app logs --since 10m com.example.app
+  phone app logs -f -t pixel-9 com.example.app
 
-A package name on Android, a bundle id on a simulator or an iPhone."#)]
-    Logs { app: String },
+A package name on Android, a bundle id on a simulator or an iPhone.
+
+Without --follow it prints the running process's lines and exits: those since
+it started, at most the last 2m, at most the last 300 lines. An app that is not
+running prints nothing and says so. An iPhone only streams."#)]
+    Logs {
+        app: String,
+
+        #[arg(short, long, conflicts_with = "since", help = "Keep streaming instead of printing and exiting")]
+        follow: bool,
+
+        #[arg(long, value_parser = parse_duration, help = "How far back to print (30s, 5m), in place of the process's age")]
+        since: Option<Duration>,
+    },
     /// List the notifications posted on the device, optionally for one app
     #[command(after_help = r#"Examples:
   phone app notifications
@@ -1559,6 +1572,25 @@ mod tests {
             Cli::try_parse_from(["phone", "wait", "Inbox", "--timeout", "10"]).is_ok(),
             "a timeout keeps its bare seconds"
         );
+    }
+
+    #[test]
+    fn app_logs_dumps_by_default_and_streams_with_follow() {
+        let logs = |args: &[&str]| match Cli::try_parse_from(args).map(|c| c.command) {
+            Ok(Some(Command::App { action: AppAction::Logs { app, follow, since } })) => {
+                Ok((app, follow, since))
+            }
+            Ok(_) => panic!("not app logs"),
+            Err(e) => Err(e.kind()),
+        };
+
+        assert_eq!(logs(&["phone", "app", "logs", "com.x"]), Ok(("com.x".into(), false, None)));
+        assert_eq!(logs(&["phone", "app", "logs", "-f", "com.x"]), Ok(("com.x".into(), true, None)));
+        assert_eq!(
+            logs(&["phone", "app", "logs", "--since", "5m", "com.x"]),
+            Ok(("com.x".into(), false, Some(Duration::from_secs(300))))
+        );
+        assert!(logs(&["phone", "app", "logs", "-f", "--since", "30s", "com.x"]).is_err());
     }
 
     #[test]

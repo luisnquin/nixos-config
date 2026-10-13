@@ -598,6 +598,120 @@ pub async fn logs_command(
     Ok(cmd)
 }
 
+const LOG_LINES: usize = 300;
+const LOG_WINDOW: Duration = Duration::from_secs(120);
+
+pub enum LogDump {
+    Lines(String, usize),
+    NotRunning(String),
+    Stream(std::process::Command),
+}
+
+pub async fn logs_dump(
+    server: &Server,
+    device: &Device,
+    app: &str,
+    since: Option<Duration>,
+) -> Result<LogDump> {
+    let app = crate::apps::app_id(app)?;
+
+    let text = match device.platform {
+        Platform::Ios => return Ok(LogDump::Stream(logs_command(server, device, app).await?)),
+        Platform::Simulator => {
+            simctl::logs_dump(&where_of(device), simctl::udid(device)?, app, since).await?
+        }
+        _ => logcat_dump(server, device, app, since).await?,
+    };
+
+    let Some(text) = text else {
+        return Ok(LogDump::NotRunning(format!("{app} is not running on {}", device.label)));
+    };
+
+    let (kept, dropped) = last_lines(&text, LOG_LINES);
+
+    Ok(LogDump::Lines(kept, dropped))
+}
+
+async fn logcat_dump(
+    server: &Server,
+    device: &Device,
+    app: &str,
+    since: Option<Duration>,
+) -> Result<Option<String>> {
+    let serial = serial_of(server, device).await?;
+
+    let Some(pid) = adb::pidof(server, &serial, app).await else {
+        return Ok(None);
+    };
+
+    let probe = format!("date +%s; ps -o ETIME -p {pid}");
+    let out = adb::run_timeout(server, &["-s", &serial, "shell", &probe], Duration::from_secs(6)).await?;
+    let mut lines = out.trimmed().lines();
+
+    let now: u64 = lines
+        .next()
+        .and_then(|l| l.trim().parse().ok())
+        .ok_or_else(|| anyhow!("no clock read off {}", device.label))?;
+    let age = lines.last().and_then(parse_etime);
+
+    let args = logcat_dump_args(&serial, &pid, now, log_window(since, age));
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+
+    let out = adb::run_timeout(server, &args, Duration::from_secs(30)).await?;
+
+    if !out.ok() {
+        bail!("logcat failed: {}", out.stderr.trim());
+    }
+
+    Ok(Some(out.stdout))
+}
+
+pub fn log_window(since: Option<Duration>, age: Option<Duration>) -> Duration {
+    since.unwrap_or_else(|| age.map_or(LOG_WINDOW, |age| age.min(LOG_WINDOW)))
+}
+
+fn logcat_dump_args(serial: &str, pid: &str, now: u64, window: Duration) -> Vec<String> {
+    let start = now.saturating_sub(window.as_secs());
+
+    ["-s", serial, "logcat", "-d", &format!("--pid={pid}"), "-t", &format!("{start}.000")]
+        .map(str::to_string)
+        .to_vec()
+}
+
+pub fn parse_etime(s: &str) -> Option<Duration> {
+    let s = s.trim();
+    let (days, rest) = s.split_once('-').unwrap_or(("0", s));
+    let days: u64 = days.parse().ok()?;
+
+    let mut secs = 0;
+    for part in rest.split(':') {
+        secs = secs * 60 + part.parse::<u64>().ok()?;
+    }
+
+    Some(Duration::from_secs(days * 86400 + secs))
+}
+
+fn last_lines(text: &str, keep: usize) -> (String, usize) {
+    let lines: Vec<&str> = text.lines().collect();
+    let dropped = lines.len().saturating_sub(keep);
+
+    let kept = lines[dropped..].iter().fold(String::new(), |mut acc, l| {
+        acc.push_str(l);
+        acc.push('\n');
+        acc
+    });
+
+    (kept, dropped)
+}
+
+pub fn sim_probe(out: &str) -> Option<(String, u64, Option<Duration>)> {
+    let mut lines = out.lines();
+    let pid = lines.next()?.trim().to_string();
+    let now = lines.next()?.trim().parse().ok()?;
+
+    Some((pid, now, lines.next().and_then(parse_etime)))
+}
+
 /// What to ask `adb reverse` for.
 #[derive(Clone, Copy, Debug)]
 pub enum Reverse {
@@ -1298,6 +1412,55 @@ mod tests {
             stdout: stdout.into(),
             stderr: stderr.into(),
         }
+    }
+
+    #[test]
+    fn elapsed_time_reads_both_ps_formats() {
+        assert_eq!(parse_etime("00:07"), Some(Duration::from_secs(7)));
+        assert_eq!(parse_etime("  12:34\n"), Some(Duration::from_secs(754)));
+        assert_eq!(parse_etime("01:02:03"), Some(Duration::from_secs(3723)));
+        assert_eq!(parse_etime("2-01:02:03"), Some(Duration::from_secs(2 * 86400 + 3723)));
+        assert_eq!(parse_etime("ELAPSED"), None);
+        assert_eq!(parse_etime(""), None);
+    }
+
+    #[test]
+    fn the_window_is_the_process_age_capped_at_two_minutes_unless_asked() {
+        let s = Duration::from_secs;
+
+        assert_eq!(log_window(None, Some(s(40))), s(40));
+        assert_eq!(log_window(None, Some(s(3600))), s(120));
+        assert_eq!(log_window(None, None), s(120));
+        assert_eq!(log_window(Some(s(600)), Some(s(40))), s(600));
+    }
+
+    #[test]
+    fn a_dump_asks_logcat_for_one_pid_since_a_moment() {
+        assert_eq!(
+            logcat_dump_args("emulator-5554", "4242", 1_700_000_000, Duration::from_secs(120)),
+            ["-s", "emulator-5554", "logcat", "-d", "--pid=4242", "-t", "1699999880.000"]
+        );
+    }
+
+    #[test]
+    fn a_dump_keeps_the_last_lines_and_counts_the_rest() {
+        let text: String = (1..=305).map(|n| format!("line {n}\n")).collect();
+        let (kept, dropped) = last_lines(&text, LOG_LINES);
+
+        assert_eq!(dropped, 5);
+        assert_eq!(kept.lines().count(), 300);
+        assert!(kept.starts_with("line 6\n") && kept.ends_with("line 305\n"));
+
+        assert_eq!(last_lines("a\nb\n", LOG_LINES), ("a\nb\n".to_string(), 0));
+    }
+
+    #[test]
+    fn the_simulator_parse_reads_pid_clock_and_age() {
+        assert_eq!(
+            sim_probe("4242\n1700000000\n   01:05\n"),
+            Some(("4242".to_string(), 1_700_000_000, Some(Duration::from_secs(65))))
+        );
+        assert_eq!(sim_probe(""), None);
     }
 
     #[test]

@@ -175,6 +175,42 @@ pub fn logs_command(at: &Where, udid: &str, app: &str) -> Result<std::process::C
     })
 }
 
+pub async fn logs_dump(
+    at: &Where,
+    udid: &str,
+    app: &str,
+    since: Option<Duration>,
+) -> Result<Option<String>> {
+    check(udid)?;
+
+    const PROBE: &str = r#"pid="$(xcrun simctl spawn "$1" launchctl list | awk -v id="UIKitApplication:$2[" 'index($3, id) == 1 { print $1 }')"
+case "$pid" in
+  ""|*[!0-9]*) exit 0;;
+esac
+echo "$pid"; date +%s; ps -o etime= -p "$pid""#;
+
+    let ran = at.exec(PROBE, &[udid, app], Duration::from_secs(30)).await?;
+    let text = ran.text();
+
+    landed(at, "simctl launchctl list", ran)?;
+
+    let Some((pid, now, age)) = crate::actions::sim_probe(&text) else {
+        return Ok(None);
+    };
+
+    let start = now.saturating_sub(crate::actions::log_window(since, age).as_secs());
+
+    const SHOW: &str = r#"exec xcrun simctl spawn "$1" log show --style compact \
+  --start "$(date -r "$3" '+%Y-%m-%d %H:%M:%S')" --predicate "processIdentifier == $2""#;
+
+    let mut ran = at.exec(SHOW, &[udid, &pid, &start.to_string()], Duration::from_secs(90)).await?;
+    let out = String::from_utf8_lossy(&std::mem::take(&mut ran.stdout)).into_owned();
+
+    landed(at, "simctl log show", ran)?;
+
+    Ok(Some(out))
+}
+
 /// Installs a `.app` bundle. Unlike adb — where the client reads the file and
 /// pushes the bytes through the server — simctl only ever opens a path on its
 /// own filesystem, so the bundle is copied over first.
