@@ -51,7 +51,7 @@
 
     features = {
       telemetry = false;
-      feedback = true;
+      feedback = false;
       codebase_indexing = true;
       lsp_tools = true;
     };
