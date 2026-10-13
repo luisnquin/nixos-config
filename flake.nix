@@ -116,13 +116,6 @@
         home-manager.follows = "home-manager";
       };
     };
-    hermes-agent = {
-      url = "github:NousResearch/hermes-agent";
-      inputs = {
-        flake-parts.follows = "flake-parts";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
     flake-programs-sqlite = {
       url = "github:wamserma/flake-programs-sqlite";
       inputs = {

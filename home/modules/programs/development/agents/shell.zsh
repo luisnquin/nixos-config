@@ -10,7 +10,6 @@ agent-picker() {
     'agent'
     'opencode'
     'grok'
-    'hermes'
     'pi'
   )
 

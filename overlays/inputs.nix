@@ -32,5 +32,4 @@ with inputs; [
   hyprdysmorphic.overlays.default
   nixpkgs-extra.overlays.default
   agentic-flake.overlays.default
-  hermes-agent.overlays.default
 ]
