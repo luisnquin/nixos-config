@@ -23,6 +23,10 @@
       DO_NOT_TRACK = 1;
       ENABLE_TELEMETRY = 0;
       TELEMETRY_ENABLED = 0;
+      CHECKPOINT_DISABLE = 1;
+      DISABLE_EAS_ANALYTICS = 1;
+      EXPO_NO_TELEMETRY = 1;
+      GH_TELEMETRY = 0;
     };
   };
 
