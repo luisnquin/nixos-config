@@ -649,9 +649,11 @@ impl Screen {
     }
 
     pub fn under(&self, at: (i32, i32)) -> Option<&Node> {
+        let whole = |n: &Node| self.nodes.iter().all(|o| n.bounds.contains(&o.bounds));
+
         self.nodes
             .iter()
-            .filter(|n| n.bounds.holds(at))
+            .filter(|n| n.bounds.holds(at) && !whole(n))
             .min_by_key(|n| (n.name().is_empty(), n.bounds.area(), std::cmp::Reverse(n.index)))
     }
 }
@@ -1801,6 +1803,7 @@ mod tests {
         assert_eq!(screen.under((100, 550)).map(Node::label).as_deref(), Some("Log in"));
         assert_eq!(screen.under((100, 350)).map(Node::label).as_deref(), Some("Email"));
         assert_eq!(screen.under((100, 750)).map(Node::label).as_deref(), Some("<View>"));
+        assert!(screen.under((100, 1000)).is_none(), "the window holding every element is no answer");
         assert!(screen.under((2000, 3000)).is_none());
     }
 
