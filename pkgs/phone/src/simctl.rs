@@ -214,7 +214,7 @@ echo "$pid"; date +%s; ps -o etime= -p "$pid""#;
 /// Installs a `.app` bundle. Unlike adb — where the client reads the file and
 /// pushes the bytes through the server — simctl only ever opens a path on its
 /// own filesystem, so the bundle is copied over first.
-pub async fn install(at: &Where, udid: &str, path: &std::path::Path) -> Result<()> {
+pub async fn install(at: &Where, udid: &str, path: &std::path::Path) -> Result<Option<String>> {
     check(udid)?;
 
     let bundle = match at.host() {
@@ -255,14 +255,15 @@ pub async fn install(at: &Where, udid: &str, path: &std::path::Path) -> Result<(
     // one of the two carries the status back
     let ran = at
         .exec(
-            "xcrun simctl install \"$1\" \"$2\" >&2",
+            "xcrun simctl install \"$1\" \"$2\" >&2 || exit\n/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \"$2/Info.plist\" 2>/dev/null\nexit 0",
             &[udid, &bundle],
             Duration::from_secs(120),
         )
         .await?;
+    let id = Some(ran.text()).filter(|id| !id.is_empty());
 
     match (ran.status, ran.said) {
-        (ssh::Status::Code(0), _) => Ok(()),
+        (ssh::Status::Code(0), _) => Ok(id),
         (_, reason) if !reason.is_empty() => bail!("{reason}"),
         _ => bail!("{} did not say whether the install landed", at.label()),
     }

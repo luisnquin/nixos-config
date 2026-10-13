@@ -130,7 +130,7 @@ pub async fn launch(
             .await?;
 
         if !ran.ok() {
-            bail!("{}", missing(&ran.said, app));
+            bail!("{}", refused(server, device, &ran.said, app).await);
         }
 
         // simctl answers `com.example.app: 51234`
@@ -154,7 +154,7 @@ pub async fn launch(
     let said = format!("{}{}", out.stdout, out.stderr);
 
     if !out.ok() || said.contains("Error") {
-        bail!("{}", missing(&said, app));
+        bail!("{}", refused(server, device, &said, app).await);
     }
 
     // the pid is the only proof that separates a started app from an intent the
@@ -189,18 +189,107 @@ async fn settled_pid(server: &Server, serial: &str, app: &str) -> Option<String>
 /// The three ways a launch fails read very differently on the wire and mean the
 /// same thing, so all of them are answered with the step that fixes it. A
 /// simulator names no bundle and no reason, only `code=4`.
-fn missing(said: &str, app: &str) -> String {
+fn absent(said: &str) -> bool {
     let said = said.trim();
 
-    if said.contains("does not exist")
+    said.contains("does not exist")
         || said.contains("unable to resolve")
         || said.contains("FBSOpenApplicationServiceErrorDomain, code=4")
         || said.is_empty()
-    {
-        return format!("nothing launchable named {app}; `phone app install` it first");
+}
+
+async fn refused(server: &Server, device: &Device, said: &str, app: &str) -> String {
+    let ids = match absent(said) {
+        true => installed_ids(server, device).await.unwrap_or_default(),
+        false => Vec::new(),
+    };
+
+    missing(said, app, &ids)
+}
+
+fn missing(said: &str, app: &str, ids: &[String]) -> String {
+    if !absent(said) {
+        return detail(said.trim()).to_string();
     }
 
-    detail(said).to_string()
+    match nearest(app, ids).as_slice() {
+        [] => format!("nothing launchable named {app}; `phone app install` it first"),
+        near => format!(
+            "nothing launchable named {app}; installed and close: {} (or `phone app install` it)",
+            near.join(", ")
+        ),
+    }
+}
+
+async fn installed_ids(server: &Server, device: &Device) -> Result<Vec<String>> {
+    if device.platform == Platform::Simulator {
+        let ran = crate::actions::where_of(device)
+            .exec(r#"xcrun simctl listapps "$1""#, &[simctl::udid(device)?], LAUNCH_TIMEOUT)
+            .await?;
+
+        return Ok(ran
+            .text()
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("CFBundleIdentifier = "))
+            .map(|id| id.trim_end_matches(';').trim_matches('"').to_string())
+            .collect());
+    }
+
+    let serial = attached(server, device).await?;
+    let out = adb::run_timeout(server, &["-s", &serial, "shell", "pm list packages"], LAUNCH_TIMEOUT).await?;
+
+    Ok(out
+        .stdout
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("package:"))
+        .map(str::to_string)
+        .collect())
+}
+
+const GENERIC_SEGMENTS: &[&str] = &["com", "org", "net", "io", "dev", "app", "apps", "android", "ios", "debug", "release", "mobile"];
+
+fn segments(id: &str) -> Vec<String> {
+    id.split(['.', '_', '-'])
+        .map(str::to_ascii_lowercase)
+        .filter(|s| s.len() > 1 && !GENERIC_SEGMENTS.contains(&s.as_str()))
+        .collect()
+}
+
+fn nearest(app: &str, ids: &[String]) -> Vec<String> {
+    let want = segments(app);
+
+    let mut scored: Vec<(usize, &String)> = ids
+        .iter()
+        .filter(|id| id.as_str() != app)
+        .map(|id| (segments(id).iter().filter(|s| want.contains(s)).count(), id))
+        .filter(|(score, _)| *score > 0)
+        .collect();
+
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    scored.into_iter().take(3).map(|(_, id)| id.clone()).collect()
+}
+
+/// The installed base.apk is the streamed file byte for byte, so size picks it.
+pub async fn just_installed(server: &Server, serial: &str, size: u64) -> Option<String> {
+    let script = r#"pm list packages -f -3 | while IFS= read -r l; do l=${l#package:}; stat -c "%Y %s ${l##*=}" "${l%=*}" 2>/dev/null; done"#;
+    let out = adb::run_timeout(server, &["-s", serial, "shell", script], LAUNCH_TIMEOUT).await.ok()?;
+
+    newest_of_size(&out.stdout, size)
+}
+
+fn newest_of_size(listing: &str, size: u64) -> Option<String> {
+    listing
+        .lines()
+        .filter_map(|l| {
+            let mut words = l.split_whitespace();
+            let mtime: u64 = words.next()?.parse().ok()?;
+            let bytes: u64 = words.next()?.parse().ok()?;
+            let id = words.next()?;
+
+            (bytes == size).then(|| (mtime, id.to_string()))
+        })
+        .max_by_key(|(mtime, _)| *mtime)
+        .map(|(_, id)| id)
 }
 
 pub async fn stop(server: &Server, device: &Device, app: &str) -> Result<String> {
@@ -525,6 +614,28 @@ mod tests {
     }
 
     #[test]
+    fn a_missing_app_id_suggests_installed_ids_sharing_a_name_segment() {
+        let ids: Vec<String> = ["com.android.settings", "dev.luisnquin.dazzle", "dev.luisnquin.upgrade", "com.google.android.apps.photos"]
+            .map(String::from)
+            .to_vec();
+
+        assert_eq!(nearest("com.dazzle.app", &ids), vec!["dev.luisnquin.dazzle"]);
+        assert_eq!(nearest("dev.upgrade", &ids), vec!["dev.luisnquin.upgrade"]);
+        assert!(nearest("com.example.app", &ids).is_empty(), "com and app are not a name");
+
+        let said = missing("Error: Activity class does not exist.", "com.dazzle.app", &ids);
+        assert!(said.contains("installed and close: dev.luisnquin.dazzle"), "{said}");
+    }
+
+    #[test]
+    fn the_installed_package_is_the_newest_of_the_apk_size() {
+        let listing = "1700000000 4096 com.other\n1700000500 123456 dev.luisnquin.dazzle\n1600000000 123456 com.stale\ngarbage\n";
+
+        assert_eq!(newest_of_size(listing, 123456).as_deref(), Some("dev.luisnquin.dazzle"));
+        assert_eq!(newest_of_size(listing, 1), None);
+    }
+
+    #[test]
     fn refuses_an_app_id_that_could_carry_shell_syntax() {
         assert!(app_id("com.example.app").is_ok());
         assert!(app_id("host.exp.Exponent").is_ok());
@@ -581,7 +692,7 @@ mod tests {
 
     #[test]
     fn a_launch_that_resolves_nothing_says_what_to_do_about_it() {
-        let said = missing("Error: Activity class does not exist.", "com.example.app");
+        let said = missing("Error: Activity class does not exist.", "com.example.app", &[]);
 
         assert!(said.contains("phone app install"), "{said}");
     }
@@ -642,7 +753,7 @@ mod tests {
         const NOT_INSTALLED: &str = "An error was encountered processing the command (domain=FBSOpenApplicationServiceErrorDomain, code=4):\nSimulator device failed to launch com.example.nope.";
         const NO_HANDLER: &str = "An error was encountered processing the command (domain=LSApplicationWorkspaceErrorDomain, code=115):\nSimulator device failed to open exp+nope://x.";
 
-        assert!(missing(NOT_INSTALLED, "com.example.nope").contains("phone app install"));
+        assert!(missing(NOT_INSTALLED, "com.example.nope", &[]).contains("phone app install"));
         assert_eq!(
             unhandled(NO_HANDLER, "exp+nope://x"),
             "no app on this device handles exp+nope: urls"

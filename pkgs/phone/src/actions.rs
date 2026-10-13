@@ -1158,9 +1158,9 @@ pub async fn install(
 
     if device.platform == Platform::Simulator {
         rep.try_(format!("install {}", bundle.display()));
-        simctl::install(&where_of(device), simctl::udid(device)?, bundle).await?;
+        let id = simctl::install(&where_of(device), simctl::udid(device)?, bundle).await?;
 
-        return Ok(format!("installed on {}", device.label));
+        return Ok(installed_line("installed", id, device));
     }
 
     let serial = serial_of(server, device).await?;
@@ -1168,10 +1168,12 @@ pub async fn install(
     rep.try_(format!("install {}", bundle.display()));
 
     let path = bundle.to_string_lossy().to_string();
+    let size = std::fs::metadata(bundle).map(|m| m.len()).unwrap_or(0);
     let out = adb::run(server, &["-s", &serial, "install", "-r", &path]).await?;
 
     let Some(failure) = install_failure(&out) else {
-        return Ok(format!("installed on {}", device.label));
+        let id = crate::apps::just_installed(server, &serial, size).await;
+        return Ok(installed_line("installed", id, device));
     };
 
     if !failure.contains("INSTALL_FAILED_VERSION_DOWNGRADE") {
@@ -1182,8 +1184,15 @@ pub async fn install(
     let out = adb::run(server, &["-s", &serial, "install", "-r", "-d", &path]).await?;
 
     match install_failure(&out) {
-        None => Ok(format!("downgraded on {}", device.label)),
+        None => Ok(installed_line("downgraded", crate::apps::just_installed(server, &serial, size).await, device)),
         Some(failure) => bail!("{}", refused_downgrade(&failure)),
+    }
+}
+
+fn installed_line(verb: &str, id: Option<String>, device: &Device) -> String {
+    match id {
+        Some(id) => format!("{verb} {id} on {}", device.label),
+        None => format!("{verb} on {}", device.label),
     }
 }
 
