@@ -1056,19 +1056,43 @@ pub async fn install(
     let path = bundle.to_string_lossy().to_string();
     let out = adb::run(server, &["-s", &serial, "install", "-r", &path]).await?;
 
-    if !out.ok() || out.stdout.contains("Failure") {
-        bail!(
-            "{}",
-            out.stderr
-                .trim()
-                .lines()
-                .chain(out.stdout.trim().lines())
-                .find(|l| !l.is_empty())
-                .unwrap_or("install failed")
-        );
+    let Some(failure) = install_failure(&out) else {
+        return Ok(format!("installed on {}", device.label));
+    };
+
+    if !failure.contains("INSTALL_FAILED_VERSION_DOWNGRADE") {
+        bail!("{failure}");
     }
 
-    Ok(format!("installed on {}", device.label))
+    rep.try_(format!("install {} as a downgrade", bundle.display()));
+    let out = adb::run(server, &["-s", &serial, "install", "-r", "-d", &path]).await?;
+
+    match install_failure(&out) {
+        None => Ok(format!("downgraded on {}", device.label)),
+        Some(failure) => bail!("{}", refused_downgrade(&failure)),
+    }
+}
+
+/// adb reports a refused install as `Failure [REASON: ...]`, on stdout or on
+/// stderr depending on the install mode, after progress lines that say nothing.
+fn install_failure(out: &adb::Output) -> Option<String> {
+    let lines = || out.stderr.lines().chain(out.stdout.lines()).map(str::trim);
+
+    if let Some(at) = lines().find_map(|l| l.find("Failure [").map(|at| l[at..].to_string())) {
+        return Some(at);
+    }
+
+    if out.ok() {
+        return None;
+    }
+
+    Some(lines().find(|l| !l.is_empty()).unwrap_or("install failed").to_string())
+}
+
+fn refused_downgrade(failure: &str) -> String {
+    format!(
+        "{failure}\nthe device refuses a downgrade even with -d; uninstalling the newer build would wipe the app's data, so phone leaves it — `phone run -- adb uninstall <package>` first if that is fine"
+    )
 }
 
 /// Whether a device is up, which each platform says differently: an emulator
@@ -1265,6 +1289,31 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn adb_said(code: i32, stdout: &str, stderr: &str) -> adb::Output {
+        use std::os::unix::process::ExitStatusExt as _;
+
+        adb::Output {
+            status: std::process::ExitStatus::from_raw(code << 8),
+            stdout: stdout.into(),
+            stderr: stderr.into(),
+        }
+    }
+
+    #[test]
+    fn a_refused_install_names_adbs_reason_over_its_progress_lines() {
+        let downgrade = "Failure [INSTALL_FAILED_VERSION_DOWNGRADE: Downgrade detected: Update version code 1 is older than current 585]";
+        let out = adb_said(
+            1,
+            &format!("Serving...\nPerforming Incremental Install\n{downgrade}\nPerforming Streamed Install\n"),
+            &format!("All files should be loaded. Notifying the device.\nadb: failed to install v1.apk: {downgrade}\n"),
+        );
+
+        assert_eq!(install_failure(&out).as_deref(), Some(downgrade));
+        assert_eq!(install_failure(&adb_said(0, "Performing Streamed Install\nSuccess\n", "")), None);
+        assert_eq!(install_failure(&adb_said(1, "", "adb: device offline\n")).as_deref(), Some("adb: device offline"));
+        assert!(refused_downgrade(downgrade).contains("wipe the app's data"));
+    }
 
     #[test]
     fn only_an_idle_simulator_or_emulator_is_cloned_or_deleted() {
