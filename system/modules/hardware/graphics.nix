@@ -32,11 +32,12 @@ in {
     graphics = {
       enable = true;
       enable32Bit = true;
+      extraPackages = [pkgs.intel-media-driver];
     };
 
     nvidia = {
       modesetting.enable = true;
-      # open source (nouveau)
+      # nvidia open kernel modules, not nouveau
       open = false;
       nvidiaSettings = true; # `$ nvidia-settings`
 
