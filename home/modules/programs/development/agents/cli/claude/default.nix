@@ -95,7 +95,7 @@ in {
       model = "opus";
       effortLevel = "high";
       language = "english";
-      cleanupPeriodDays = 20;
+      cleanupPeriodDays = 90;
       tui = "fullscreen";
       showThinkingSummaries = true;
       autoCompactWindow = 200000;
