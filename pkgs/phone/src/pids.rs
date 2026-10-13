@@ -185,7 +185,7 @@ mod tests {
 
     fn seen(pid: Option<&str>, updated: Option<&str>) -> Seen {
         Seen {
-            app: "dev.luisnquin.dazzle".to_string(),
+            app: "dev.luisnquin.upgrade".to_string(),
             pid: pid.map(str::to_string),
             updated: updated.map(str::to_string),
             at: model::now(),
@@ -212,7 +212,7 @@ mod tests {
         .unwrap();
 
         assert!(said
-            .starts_with("dev.luisnquin.dazzle restarted on pixel since this session's last verb"));
+            .starts_with("dev.luisnquin.upgrade restarted on pixel since this session's last verb"));
         assert!(said.contains("pid 100, now 200"));
         assert!(said.ends_with("lastUpdateTime 2026-09-25 06:23:07: reinstalled"));
     }

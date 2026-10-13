@@ -821,12 +821,12 @@ SwapFree:              0 kB
 
     #[test]
     fn invites_as_many_devices_as_the_budget_has_room_for() {
-        let room = room(&[("iPhone 17", 3.7, Some("dazzle"))], Level::Normal);
+        let room = room(&[("iPhone 17", 3.7, Some("upgrade"))], Level::Normal);
 
         assert!((room.left() - 6.3).abs() < 1e-9);
         assert!(room.admits(2.5).is_none());
         assert!(room.line().starts_with(
-            "rose: 16 GB, 6.0 reserved, 3.7 committed by 1 device (iPhone 17 3.7 held by dazzle ("
+            "rose: 16 GB, 6.0 reserved, 3.7 committed by 1 device (iPhone 17 3.7 held by upgrade ("
         ));
         assert_eq!(
             room.invite(),
@@ -838,7 +838,7 @@ SwapFree:              0 kB
     fn points_at_an_unheld_device_before_offering_to_boot_one() {
         let room = room(
             &[
-                ("iPhone 17", 3.7, Some("dazzle")),
+                ("iPhone 17", 3.7, Some("upgrade")),
                 ("pixel_7-api36", 2.5, None),
             ],
             Level::Normal,
@@ -854,7 +854,7 @@ SwapFree:              0 kB
     fn a_full_budget_refuses_and_says_to_wait() {
         let room = room(
             &[
-                ("iPhone 17", 3.7, Some("dazzle")),
+                ("iPhone 17", 3.7, Some("upgrade")),
                 ("pixel_7-api36", 2.5, Some("hotline")),
                 ("pixel_7-api36-b", 2.5, Some("clipz")),
             ],
@@ -876,7 +876,7 @@ SwapFree:              0 kB
             Platform::Emulator,
         );
 
-        let roomy = room(&[("iPhone 17", 3.7, Some("dazzle"))], Level::Normal);
+        let roomy = room(&[("iPhone 17", 3.7, Some("upgrade"))], Level::Normal);
 
         assert_eq!(
             roomy.fit(&avd),
@@ -885,7 +885,7 @@ SwapFree:              0 kB
 
         let full = room(
             &[
-                ("iPhone 17", 3.7, Some("dazzle")),
+                ("iPhone 17", 3.7, Some("upgrade")),
                 ("pixel_7-api36", 2.5, None),
                 ("pixel_7-api36-b", 2.5, Some("clipz")),
             ],
@@ -902,7 +902,7 @@ SwapFree:              0 kB
 
     #[test]
     fn the_brief_form_carries_the_same_figures_as_the_invitation() {
-        let open = room(&[("iPhone 17", 3.7, Some("dazzle"))], Level::Normal);
+        let open = room(&[("iPhone 17", 3.7, Some("upgrade"))], Level::Normal);
 
         assert_eq!(open.brief(), "room to boot 2 emu or 1 sim");
         assert_eq!(open.room_for(Platform::Emulator), Some(2));

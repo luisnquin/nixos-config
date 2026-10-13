@@ -1463,17 +1463,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1791244734,
-        "narHash": "sha256-oQj3aI3cKT1emZHbA3dGQGV8doHCgrAqg678jzHvId8=",
+        "lastModified": 1791850410,
+        "narHash": "sha256-ONHXNIw8l89vKw6i/kNdxo2Rk8Lx7OEZnBKjtVfU9PU=",
         "ref": "refs/heads/main",
-        "rev": "171961e79b9f6e7364d1efcf01cc2097da32478a",
-        "revCount": 508,
+        "rev": "a4ac3cc74bc685ea09733d9de71d7ce32457a721",
+        "revCount": 601,
         "type": "git",
-        "url": "ssh://git@github.com/0xc000022070/dazzle"
+        "url": "ssh://git@github.com/0xc000022070/upgrade"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@github.com/0xc000022070/dazzle"
+        "url": "ssh://git@github.com/0xc000022070/upgrade"
       }
     },
     "uv2nix": {

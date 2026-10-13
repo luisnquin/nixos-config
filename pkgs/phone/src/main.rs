@@ -2886,8 +2886,8 @@ mod tests {
         let labels = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
 
         assert_eq!(
-            on_screen(&labels(&["/ DAZZLE / HOSTS", "SSH", "TOOLS"])),
-            "; on screen: / DAZZLE / HOSTS | SSH | TOOLS"
+            on_screen(&labels(&["/ UPGRADE / HOSTS", "SSH", "TOOLS"])),
+            "; on screen: / UPGRADE / HOSTS | SSH | TOOLS"
         );
         assert_eq!(
             on_screen(&labels(&["a", "b", "c", "d", "e", "f", "g", "h"])),

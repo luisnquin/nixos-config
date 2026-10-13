@@ -135,7 +135,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     upgrade = {
-      url = "git+ssh://git@github.com/0xc000022070/dazzle";
+      url = "git+ssh://git@github.com/0xc000022070/upgrade";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";

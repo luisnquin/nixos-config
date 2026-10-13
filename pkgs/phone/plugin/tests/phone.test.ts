@@ -45,12 +45,12 @@ test('choices offers running devices with what they are and where', () => {
   expect(
     choices([
       { id: 'sim:a', label: 'iPhone 17 Pro', os: 'ios', kind: 'sim', host: 'rose', reach: 'online', hold: null },
-      { id: 'f', label: 'faraday', os: 'android', kind: 'phys', host: null, reach: 'attached/tcp', hold: { project: 'dazzle' } },
+      { id: 'f', label: 'faraday', os: 'android', kind: 'phys', host: null, reach: 'attached/tcp', hold: { project: 'upgrade' } },
       { id: 'avd:b', label: 'pixel_7-api36-b', os: 'android', kind: 'emu', host: 'rose', reach: 'off', hold: null },
     ]),
   ).toEqual([
     { label: 'iPhone 17 Pro · ios sim · rose', target: 'iPhone 17 Pro' },
-    { label: 'faraday · android phys · held by dazzle', target: 'faraday' },
+    { label: 'faraday · android phys · held by upgrade', target: 'faraday' },
   ])
 })
 
