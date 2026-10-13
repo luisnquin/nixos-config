@@ -268,6 +268,7 @@ label is listed by that label. Folded rows still answer to their name and
 
 A screen that animates without end cannot be read at all: uiautomator waits for
 it to go idle first. That is refused with the reason rather than retried."#)]
+    #[command(alias = "dump", alias = "ui", alias = "snap")]
     Snapshot {
         #[arg(id = "device")]
         target: Option<String>,
@@ -690,6 +691,7 @@ changed, as `tap` does; earlier ones leave that to the step after them."#)]
 
 A bare `phone device` lists. Everything a device is or has — its transport, its
 pairing, whether it is running — is under here."#)]
+    #[command(alias = "devices", alias = "ls", alias = "list")]
     Device {
         #[command(subcommand)]
         action: Option<DeviceAction>,
@@ -1256,6 +1258,24 @@ impl Command {
     }
 }
 
+impl Cli {
+    /// A device can be named host/name, so a `/` alone does not make a path.
+    pub fn misplaced_path(&self, env_target: Option<&str>) -> Option<String> {
+        let Some(Command::Shot { target: Some(given), out: None, .. }) = &self.command else {
+            return None;
+        };
+
+        let targeted = self.target.as_deref().or(env_target).is_some_and(|t| !t.is_empty());
+        let lower = given.to_ascii_lowercase();
+        let path = ["/", "./", "../", "~/"].iter().any(|p| given.starts_with(p))
+            || [".png", ".jpg", ".jpeg"].iter().any(|e| lower.ends_with(e));
+
+        (targeted && path).then(|| {
+            format!("'{given}' reads as a file, not a device; did you mean `phone shot -o {given}`?")
+        })
+    }
+}
+
 #[derive(Copy, Clone, ValueEnum)]
 pub enum Switch {
     On,
@@ -1718,5 +1738,48 @@ mod tests {
         assert!(bare(&["device"]));
         assert!(bare(&["host"]));
         assert!(!bare(&["app"]), "there is nothing to list without a device");
+    }
+
+    #[test]
+    fn the_verbs_agents_guess_reach_the_ones_that_exist() {
+        let verb = |args: &[&str]| {
+            Cli::try_parse_from(std::iter::once("phone").chain(args.iter().copied()))
+                .ok()
+                .and_then(|c| c.command)
+        };
+
+        for word in ["devices", "ls", "list"] {
+            assert!(
+                matches!(verb(&[word]), Some(Command::Device { action: None })),
+                "{word}"
+            );
+        }
+
+        for word in ["dump", "ui", "snap"] {
+            assert!(
+                matches!(verb(&[word, "--json"]), Some(Command::Snapshot { json: true, .. })),
+                "{word}"
+            );
+        }
+
+        assert!(verb(&["scroll", "down"]).is_none(), "scroll down is swipe up");
+    }
+
+    #[test]
+    fn a_shot_path_given_as_the_device_points_at_out() {
+        let check = |args: &[&str], env: Option<&str>| {
+            Cli::try_parse_from(std::iter::once("phone").chain(args.iter().copied()))
+                .unwrap()
+                .misplaced_path(env)
+        };
+
+        let err = check(&["-t", "pixel-9", "shot", "/tmp/x.png"], None).unwrap();
+        assert!(err.contains("-o /tmp/x.png"), "{err}");
+        assert!(check(&["shot", "x.jpg"], Some("pixel-9")).is_some());
+        assert!(check(&["shot", "./x"], Some("pixel-9")).is_some());
+
+        assert!(check(&["shot", "/tmp/x.png"], None).is_none(), "no target to compete with");
+        assert!(check(&["-t", "mac", "shot", "rose/emu"], None).is_none());
+        assert!(check(&["-t", "pixel-9", "shot", "-o", "/tmp/x.png"], None).is_none());
     }
 }

@@ -176,6 +176,10 @@ async fn configured(cli: Cli) -> Result<()> {
     config::load()?;
     lease::set_take(cli.take);
 
+    if let Some(hint) = cli.misplaced_path(std::env::var("PHONE_TARGET").ok().as_deref()) {
+        bail!("{hint}");
+    }
+
     dispatch(cli).await
 }
 
