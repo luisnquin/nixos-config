@@ -8,8 +8,8 @@
   "claude-image-view": {
     "owner": "jarrodwatts",
     "repo": "claude-image-view",
-    "rev": "b3c412bb6d167cafade79148e95f9114ee1aad7c",
-    "hash": "sha256-WCJJrInTO6iOrcrFIm2adgg+3J0L8J+KNANanYSB3Rc="
+    "rev": "370b8e7bc0708bebe9762e63534f7ca18bc3e802",
+    "hash": "sha256-cH2yGtD5k/zmOCE5WK8s9DoFicUnrCdzqfmp/GGoJW4="
   },
   "chat-clean": {
     "owner": "achammah",
