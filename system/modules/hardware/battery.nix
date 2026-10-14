@@ -56,7 +56,7 @@ in {
     }
   ];
 
-  programs.zsh.interactiveShellInit = ''
+  environment.interactiveShellInit = ''
     batty() {
       printf '%s%% (%s), limit %s%%\n' \
         "$(cat ${batteryPath}/capacity)" \
