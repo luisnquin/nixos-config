@@ -80,11 +80,10 @@ const PROJECT_ICONS: &[(&str, &str, &str)] = &[
     ("shell.nix", "nix", "\u{f313}"),
 ];
 
-/// Nerd Fonts draws neither brand, so `claude` and `codex` are private-use
-/// glyphs patched into the system font by `system/modules/desktop/fonts`.
+/// Nerd Fonts 3.5 Codicon brand glyphs.
 const AGENT_ICONS: &[(&str, &str)] = &[
-    ("claude", "\u{e9fb}"),
-    ("codex", "\u{e9fa}"),
+    ("claude", "\u{ecb2}"),
+    ("codex", "\u{ecb1}"),
     ("opencode", "\u{f489}"),
     ("pi", "\u{3c0}"),
 ];
@@ -1678,8 +1677,8 @@ mod tests {
     #[test]
     fn agent_icons_fall_back_and_bow_to_overrides() {
         let cfg = Config::default();
-        assert_eq!(cfg.agent_icon("Claude Sonnet"), "\u{e9fb}");
-        assert_eq!(cfg.agent_icon("codex"), "\u{e9fa}");
+        assert_eq!(cfg.agent_icon("Claude Sonnet"), "\u{ecb2}");
+        assert_eq!(cfg.agent_icon("codex"), "\u{ecb1}");
         assert_eq!(cfg.agent_icon("aider"), ICON_AGENT);
 
         let mut cfg = Config::default();
@@ -1688,7 +1687,7 @@ mod tests {
         assert_eq!(cfg.agent_icon("codex --sandbox"), "\u{f0e7}");
         assert_eq!(cfg.agent_icon("aider"), "\u{f0e7}");
         cfg.set("icon.codex", "");
-        assert_eq!(cfg.agent_icon("codex"), "\u{e9fa}");
+        assert_eq!(cfg.agent_icon("codex"), "\u{ecb1}");
     }
 
     #[test]
