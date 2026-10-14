@@ -1,0 +1,371 @@
+From 0288b39ff61740ff517b0f18026564dd608ac15d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Luis=20Qui=C3=B1ones?= <lpaandres2020@gmail.com>
+Date: Wed, 14 Oct 2026 12:13:02 -0500
+Subject: [PATCH] Open an image in a viewer pane from its tile or its tag in
+ the transcript
+
+A tile's #N label and each [Image #N] tag in a sent message are now buttons
+that open the image full size in a docked pane, its aspect ratio kept. The
+engine's message row is opaque to a hook, so a row holding tags is drawn by
+the mod, wrapped word by word; a collapsed row keeps the engine's drawing
+with the tags as buttons under it.
+
+Esc, pressing the same tag again, or the pane losing the keyboard it held
+closes the viewer. With text in the composer the pane can't take the
+keyboard, so the toggle is the way out there.
+---
+ hooks/layout.ts                 |  23 ++++++
+ hooks/register.tsx              | 115 +++++++++++++++++++++++++++++-
+ tests/claude-image-view.test.ts | 120 +++++++++++++++++++++++++++++++-
+ types/index.d.ts                |   2 +-
+ 4 files changed, 253 insertions(+), 7 deletions(-)
+
+diff --git a/hooks/layout.ts b/hooks/layout.ts
+index 85ffeea..5620e0f 100644
+--- a/hooks/layout.ts
++++ b/hooks/layout.ts
+@@ -63,6 +63,29 @@ export function fitRow(sizes: readonly (Size | null)[], maxRows: number, bodyCol
+   return cells.slice(0, count)
+ }
+ 
++export function fitBox(size: Size | null, columns: number, rows: number): Cells {
++  const { width, height } = size ?? FALLBACK
++  const wide = Math.round((rows * CELL_ASPECT * width) / height)
++  if (wide <= columns) return { columns: Math.max(1, wide), rows: Math.max(1, rows) }
++  return { columns: Math.max(1, columns), rows: Math.max(1, Math.round((columns * height) / (CELL_ASPECT * width))) }
++}
++
++export type Piece = { text: string } | { image: number; isSpaced: boolean }
++
++export function splitTags(text: string): Piece[][] {
++  return text.split('\n').map(line => {
++    const pieces: Piece[] = []
++    let before = ''
++    for (const part of line.split(/(\[Image #\d+\])/)) {
++      const tag = /^\[Image #(\d+)\]$/.exec(part)
++      if (tag) pieces.push({ image: Number(tag[1]), isSpaced: /\s$/.test(before) })
++      else for (const word of part.match(/\s*\S+/g) ?? []) pieces.push({ text: word })
++      before = part
++    }
++    return pieces
++  })
++}
++
+ function rowWidth(cells: readonly Cells[], hidden: number): number {
+   const tiles = cells.reduce((sum, c) => sum + c.columns + TILE_CHROME_COLUMNS, 0) + GAP * Math.max(0, cells.length - 1)
+   return hidden > 0 ? tiles + GAP + `+${hidden}`.length : tiles
+diff --git a/hooks/register.tsx b/hooks/register.tsx
+index bd30d20..f93c135 100644
+--- a/hooks/register.tsx
++++ b/hooks/register.tsx
+@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
+ import type { EngineInterface, Register } from 'claude-code'
+ 
+ import type { PastedImage } from '../types'
+-import { blockCells, drawsPictures, fitRow, imageNumbers, pngSize } from './layout'
++import { blockCells, drawsPictures, fitBox, fitRow, imageNumbers, pngSize, splitTags } from './layout'
+ import type { Size } from './layout'
+ import { decodeThumb } from './png'
+ import type { Thumb } from './png'
+@@ -12,6 +12,9 @@ import type { Thumb } from './png'
+ const POLL_MS = 200
+ 
+ const images = atom({ plugin: 'image-view', key: 'images' } as const, [] as PastedImage[])
++const viewing = atom({ plugin: 'image-view', key: 'viewing' } as const, null as PastedImage | null)
++
++const VIEWER = 'image-view'
+ 
+ let tmpRoot: string | undefined
+ let found: { sessionId: string; dir: string } | undefined
+@@ -146,6 +149,24 @@ async function check($: EngineInterface) {
+   }
+ }
+ 
++let viewingN: number | undefined
++let hadFocus = false
++
++// Opened before any await: only an open the press is still behind counts as asked, and an
++// unasked pane is left undrawn below 144 columns.
++async function view($: EngineInterface, n: number) {
++  if (viewingN === n) {
++    await $.ui.close({ id: VIEWER })
++    return
++  }
++  viewingN = n
++  hadFocus = false
++  const opened = $.ui.open({ id: VIEWER, title: `Image #${n}`, focus: true, closeOnEscape: true })
++  const image = await describe($, await imagesDir($), n)
++  if (viewingN === n) await update($, viewing, () => image)
++  await opened
++}
++
+ export const register: Register = on => {
+   on('session.start', async ($, e, next) => {
+     pictures = undefined
+@@ -158,7 +179,7 @@ export const register: Register = on => {
+     const list = await read($, images)
+     if (list.length === 0) return next(e)
+ 
+-    const { Box, Image, Raster, Text } = $.ui.resolve(e)
++    const { Box, Button, Image, Raster, Text } = $.ui.resolve(e)
+     const cells = fitRow(list.map(image => image.size), e.props.maxRows, e.props.bodyColumns)
+     if (cells.length === 0) return next(e)
+     const hidden = list.length - cells.length
+@@ -191,7 +212,13 @@ export const register: Register = on => {
+                     alt={`[Image #${image.n}]`}
+                   />
+                 )}
+-                <Text dimColor>#{image.n}</Text>
++                {image.path === null ? (
++                  <Text dimColor>#{image.n}</Text>
++                ) : (
++                  <Button key={`view-${image.n}`} plain dimColor onPress={() => void view($, image.n)}>
++                    {`#${image.n}`}
++                  </Button>
++                )}
+               </Box>
+             )
+           })}
+@@ -201,4 +228,86 @@ export const register: Register = on => {
+       </Box>
+     )
+   })
++
++  on('ui.close', { id: VIEWER }, async ($, e, next) => {
++    viewingN = undefined
++    await update($, viewing, () => null)
++    return next(e)
++  }).catch(($, e, next) => next(e))
++
++  on('ui.render', { component: 'Pane', requestId: VIEWER }, async ($, e, next) => {
++    if (e.surface !== 'terminal') return next(e)
++    const { Box, Image, Raster, Text } = $.ui.resolve(e)
++    const image = await read($, viewing)
++    if (image === null || image.path === null) return <Text dimColor>no preview</Text>
++
++    // Losing the keyboard is the closest a mod gets to a click outside the pane.
++    if (e.props.isFocused) hadFocus = true
++    else if (hadFocus) {
++      hadFocus = false
++      const shown = image.n
++      void $.clock.after(0, () => (viewingN === shown ? $.ui.close({ id: VIEWER }) : undefined))
++    }
++
++    const { columns, rows } = fitBox(image.size, e.props.bodyColumns, Math.max(1, e.props.scroll.bodyRows - 1))
++    const thumb = thumbs.get(image.path)
++    return (
++      <Box flexDirection="column" alignItems="center">
++        {thumb ? (
++          <Raster key={`viewer-blocks-${image.n}`} columns={columns} rows={rows} cells={blockCells(thumb, columns, rows)} />
++        ) : (
++          <Image
++            key={`viewer-${image.n}`}
++            source={{ file: image.path, format: 'png' }}
++            columns={columns}
++            rows={rows}
++            alt={`[Image #${image.n}]`}
++          />
++        )}
++        <Text dimColor wrap="truncate">{image.size ? `${image.size.width}×${image.size.height}` : ''}</Text>
++      </Box>
++    )
++  })
++
++  on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
++    if (e.surface !== 'terminal' || imageNumbers(e.props.text).length === 0) return next(e)
++    const { Box, Button, Text } = $.ui.resolve(e)
++    const press = (n: number) => () => void view($, n)
++
++    if (!e.props.isExpanded) {
++      const engine = await next(e)
++      return (
++        <Box flexDirection="column">
++          {engine}
++          <Box flexDirection="row" columnGap={1}>
++            {imageNumbers(e.props.text).map(n => (
++              <Button key={`tag-${n}`} plain dimColor onPress={press(n)}>{`[Image #${n}]`}</Button>
++            ))}
++          </Box>
++        </Box>
++      )
++    }
++
++    let count = 0
++    return (
++      <Box flexDirection="column">
++        {splitTags(e.props.text).map(line => (
++          <Box flexDirection="row" flexWrap="wrap">
++            {line.length === 0 && <Text> </Text>}
++            {line.map(piece =>
++              'text' in piece ? (
++                <Text>{piece.text}</Text>
++              ) : (
++                <Box marginLeft={piece.isSpaced ? 1 : 0}>
++                  <Button key={`tag-${piece.image}-${count++}`} plain onPress={press(piece.image)}>
++                    {`[Image #${piece.image}]`}
++                  </Button>
++                </Box>
++              ),
++            )}
++          </Box>
++        ))}
++      </Box>
++    )
++  })
+ }
+diff --git a/tests/claude-image-view.test.ts b/tests/claude-image-view.test.ts
+index aa7015c..c87ebe9 100644
+--- a/tests/claude-image-view.test.ts
++++ b/tests/claude-image-view.test.ts
+@@ -1,6 +1,7 @@
++import type { On } from 'claude-code'
+ import { expect, mock, test } from 'claude-code/testing'
+ 
+-import { blockCells, drawsPictures, fitCells, fitRow, imageNumbers, pngSize } from '../hooks/layout'
++import { blockCells, drawsPictures, fitBox, fitCells, fitRow, imageNumbers, pngSize, splitTags } from '../hooks/layout'
+ import { decodeThumb } from '../hooks/png'
+ 
+ function pngHead(width: number, height: number): string {
+@@ -155,8 +156,8 @@ test('tiles that don\'t fit become a +N label, and a band too short for one draw
+   await clock.advance(200)
+ 
+   const narrow = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, bodyColumns: 36 } })
+-  expect(await narrow.find({ type: 'Text', text: '#4' })).toBeDefined()
+-  expect(await narrow.find({ type: 'Text', text: '#5' })).toBeUndefined()
++  expect(await narrow.find({ key: 'view-4' })).toBeDefined()
++  expect(await narrow.find({ key: 'view-5' })).toBeUndefined()
+   expect(await narrow.find({ type: 'Text', text: '+6' })).toBeDefined()
+   await narrow.unmount()
+ 
+@@ -368,3 +369,116 @@ for (const [platform, env, root] of [
+     expect(listed[0]).toBe(root)
+   })
+ }
++
++test('a message splits into words and tags, keeping the space before each tag', () => {
++  expect(splitTags('see [Image #1] and [Image #2]\n\n[Image #3]')).toEqual([
++    [{ text: 'see' }, { image: 1, isSpaced: true }, { text: ' and' }, { image: 2, isSpaced: true }],
++    [],
++    [{ image: 3, isSpaced: false }],
++  ])
++})
++
++test('the viewer keeps the aspect ratio in the room it has', () => {
++  expect(fitBox({ width: 1600, height: 800 }, 100, 20)).toEqual({ columns: 80, rows: 20 })
++  expect(fitBox({ width: 1600, height: 800 }, 40, 20)).toEqual({ columns: 40, rows: 10 })
++})
++
++const PANE = {
++  plugin: 'image-view',
++  component: 'Pane',
++  requestId: 'image-view',
++  viewport: { columns: 200, rows: 50 },
++} as const
++const paneProps = (isFocused: boolean) =>
++  ({ title: 'Image #1', isFocused, bodyColumns: 100, placement: 'dock', scroll: { offset: 0, bodyRows: 21 }, view: {} }) as const
++
++function pasted(on: On, draft: string) {
++  const dir = '/tmp/claude-501/-work/sess-1/images'
++  const entry = { size: 0, mtimeMs: 0, isLink: false }
++  on('session.start', () => ({ cwd: '/work' }))
++  on('prompt.read', () => ({ value: { text: draft, cursor: draft.length } }))
++  on('env.get', ($, e) => ({ value: GHOSTTY[e.name] }))
++  on('process.run', () => ran('501\n'))
++  on('session.id', () => ({ value: 'sess-1' }))
++  on('fs.list', () => ({ value: [{ name: '-work', kind: 'dir', ...entry }] }))
++  on('fs.exists', ($, e) => ({ value: e.path === dir || e.path === `${dir}/1.png` }))
++  on('fs.read', () => ({ value: { base64: pngHead(1600, 800) } }))
++  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }))
++  const opened: unknown[] = []
++  const closed: unknown[] = []
++  on('ui.open', ($, e) => {
++    opened.push(e)
++    return { value: { isPlaced: true } }
++  })
++  on('ui.close', ($, e) => {
++    closed.push(e)
++    return { value: undefined }
++  })
++  return { dir, opened, closed }
++}
++
++test('pressing a tile label opens the viewer, and pressing it again closes it', async ($, on) => {
++  const clock = mock.clock(on)
++  const { dir, opened, closed } = pasted(on, 'see [Image #1]')
++  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
++  await clock.advance(200)
++
++  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
++  await band.press({ key: 'view-1' })
++  expect(opened).toEqual([expect.objectContaining({ id: 'image-view', title: 'Image #1', focus: true, closeOnEscape: true })])
++
++  const pane = await $.ui.mount({ ...PANE, surface: 'terminal', props: paneProps(false) })
++  expect((await pane.find({ type: 'Image' }))?.props).toMatchObject({ source: { file: `${dir}/1.png` }, columns: 80, rows: 20 })
++  await pane.unmount()
++
++  await band.press({ key: 'view-1' })
++  expect(closed).toEqual([expect.objectContaining({ id: 'image-view' })])
++})
++
++test('a tag in a sent message is a button that opens the viewer', async ($, on) => {
++  const clock = mock.clock(on)
++  const { opened } = pasted(on, '')
++  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
++  await clock.advance(200)
++
++  const message = (text: string, isExpanded = true) =>
++    $.ui.mount({
++      plugin: 'image-view',
++      component: 'UserMessage',
++      requestId: 'row-1',
++      surface: 'terminal',
++      viewport: { columns: 120, rows: 40 },
++      props: { text, isExpanded, origin: { kind: 'prompt' } },
++    } as never)
++
++  const plain = await message('no pictures here')
++  expect(await plain.find({ type: 'Text', text: 'engine row' })).toBeDefined()
++  await plain.unmount()
++
++  const row = await message('look [Image #1] here')
++  expect(await row.find({ type: 'Text', text: ' here' })).toBeDefined()
++  await row.press({ key: 'tag-1-0' })
++  expect(opened).toEqual([expect.objectContaining({ id: 'image-view', title: 'Image #1' })])
++  await row.unmount()
++
++  const collapsed = await message('look [Image #1] here', false)
++  expect(await collapsed.find({ type: 'Text', text: 'engine row' })).toBeDefined()
++  expect(await collapsed.find({ key: 'tag-1' })).toBeDefined()
++})
++
++test('the viewer closes once it loses the keyboard it held', async ($, on) => {
++  const clock = mock.clock(on)
++  const { closed } = pasted(on, 'see [Image #1]')
++  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
++  await clock.advance(200)
++  const band = await $.ui.mount({ ...BAND, surface: 'terminal' })
++  await band.press({ key: 'view-1' })
++
++  const focused = await $.ui.mount({ ...PANE, surface: 'terminal', props: paneProps(true) })
++  await focused.unmount()
++  expect(closed).toEqual([])
++  const blurred = await $.ui.mount({ ...PANE, surface: 'terminal', props: paneProps(false) })
++  await blurred.unmount()
++  await clock.advance(1)
++  expect(closed).toEqual([expect.objectContaining({ id: 'image-view' })])
++})
+diff --git a/types/index.d.ts b/types/index.d.ts
+index 76abf75..f21fe16 100644
+--- a/types/index.d.ts
++++ b/types/index.d.ts
+@@ -8,6 +8,6 @@ export type PastedImage = {
+ 
+ declare module 'claude-code' {
+   interface PluginState {
+-    'image-view': { images: PastedImage[] }
++    'image-view': { images: PastedImage[]; viewing: PastedImage | null }
+   }
+ }
+-- 
+2.55.0
+

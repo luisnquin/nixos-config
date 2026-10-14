@@ -6,7 +6,16 @@
   ...
 }: let
   kit = mkAgentKit {};
-  sources = builtins.mapAttrs (_: pkgs.fetchFromGitHub) (lib.importJSON ./plugins-sources.json);
+  fetched = builtins.mapAttrs (_: pkgs.fetchFromGitHub) (lib.importJSON ./plugins-sources.json);
+  sources =
+    fetched
+    // {
+      claude-image-view = pkgs.applyPatches {
+        name = "claude-image-view";
+        src = fetched.claude-image-view;
+        patches = [./patches/claude-image-view-viewer-pane.patch];
+      };
+    };
 in {
   imports = [
     ./hooks.nix
