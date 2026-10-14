@@ -1406,6 +1406,67 @@ static void XCWAXNormalizeWidgetRendererPointFrames(NSMutableArray<NSDictionary 
     }
 }
 
+static id XCWAXHitTest(id translator, CGPoint point, uint32_t display, NSString *token) {
+    id translation = ((id(*)(id, SEL, CGPoint, uint32_t, id))objc_msgSend)(
+        translator,
+        sel_registerName("objectAtPoint:displayId:bridgeDelegateToken:"),
+        point,
+        display,
+        token
+    );
+    XCWAXSetBridgeDelegateTokenOnTranslation(translation, token);
+    return XCWAXMacPlatformElementFromTranslation(translator, translation);
+}
+
+static BOOL XCWAXIsChildlessGroup(NSDictionary *node) {
+    return [node[@"role"] isEqual:@"AXGroup"]
+        && [node[@"children"] count] == 0
+        && XCWAXFrameArea(XCWAXSerializedNodeFrame(node)) > 0;
+}
+
+static void XCWAXAdoptHitElement(NSMutableDictionary *group, id element, NSString *token, NSMutableSet<NSString *> *seen) {
+    CGRect groupFrame = XCWAXSerializedNodeFrame(group);
+    CGRect frame = XCWAXFrame(element);
+    if (XCWAXFrameArea(frame) <= 0 || CGRectEqualToRect(frame, groupFrame) || !CGRectContainsRect(CGRectInset(groupFrame, -1, -1), frame)) {
+        return;
+    }
+
+    NSHashTable *visited = [NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality];
+    NSMutableDictionary *child = XCWAXSerializeElement(element, token, visited, 0, 4);
+    NSString *key = [NSString stringWithFormat:@"%@|%@|%@", child[@"role"], child[@"AXLabel"], NSStringFromRect(frame)];
+    if (child == nil || [seen containsObject:key]) {
+        return;
+    }
+    [seen addObject:key];
+
+    if (![group[@"children"] isKindOfClass:NSMutableArray.class]) {
+        group[@"children"] = [NSMutableArray array];
+    }
+    [group[@"children"] addObject:child];
+}
+
+// iOS 26 bars report the group as the parent of their controls yet answer an
+// empty children list, so only hit-testing inside the group reaches them.
+static void XCWAXFillChildlessGroups(NSMutableDictionary *node, id translator, uint32_t display, NSString *token) {
+    if (XCWAXIsChildlessGroup(node)) {
+        CGRect frame = XCWAXSerializedNodeFrame(node);
+        CGFloat step = MAX(16.0, sqrt(XCWAXFrameArea(frame) / 64.0));
+        NSMutableSet<NSString *> *seen = [NSMutableSet set];
+        for (CGFloat y = CGRectGetMinY(frame) + step / 2; y < CGRectGetMaxY(frame); y += step) {
+            for (CGFloat x = CGRectGetMinX(frame) + step / 2; x < CGRectGetMaxX(frame); x += step) {
+                XCWAXAdoptHitElement(node, XCWAXHitTest(translator, CGPointMake(x, y), display, token), token, seen);
+            }
+        }
+        return;
+    }
+
+    for (id child in node[@"children"]) {
+        if ([child isKindOfClass:NSMutableDictionary.class]) {
+            XCWAXFillChildlessGroups(child, translator, display, token);
+        }
+    }
+}
+
 @implementation XCWAccessibilityBridge
 
 + (nullable NSDictionary *)accessibilitySnapshotForSimulatorUDID:(NSString *)udid
@@ -1571,6 +1632,9 @@ static void XCWAXNormalizeWidgetRendererPointFrames(NSMutableArray<NSDictionary 
             NSHashTable *visited = [NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality];
             NSMutableDictionary *root = XCWAXSerializeElementWithOptions(element, token, visited, 0, MIN(maxDepth, XCWAXMaxDepth), interactiveOnly);
             if (root != nil) {
+                if (pointValue == nil) {
+                    XCWAXFillChildlessGroups(root, translator, [rootItem[@"displayID"] ?: resolvedDisplayID unsignedIntValue], token);
+                }
                 XCWAXApplyRecoveredRootMetadata(root, rootItem);
                 [serializedRootItems addObject:@{
                     @"root": root,
