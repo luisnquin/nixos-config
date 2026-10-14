@@ -101,8 +101,6 @@ in {
       autoCompactWindow = 200000;
 
       env = {
-        "DISABLE_TELEMETRY" = "1";
-        "DISABLE_ERROR_REPORTING" = "1";
         "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" = "1";
         "DISABLE_AUTOUPDATER" = "1";
         "PINENTRY_USER_DATA" = "gui";

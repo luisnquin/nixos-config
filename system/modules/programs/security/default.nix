@@ -1,6 +1,7 @@
 {
   imports = [
     ./apparmor.nix
+    ./do-not-track.nix
     ./gnupg.nix
     ./keyring.nix
     ./groups.nix
