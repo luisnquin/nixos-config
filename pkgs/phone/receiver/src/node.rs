@@ -263,6 +263,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn lists_contact_rows_reported_as_static_text() {
+        let tree: Value =
+            serde_json::from_str(include_str!("fixtures/contacts-ios26.json")).unwrap();
+        let labels: Vec<String> = flatten(&tree).into_iter().map(|n| n.desc).collect();
+
+        assert!(labels.contains(&"John Appleseed".to_string()), "{labels:?}");
+        assert!(labels.contains(&"Kate Bell".to_string()), "{labels:?}");
+    }
+
     /// `index` addresses a node in the emitted list, so it has to count what
     /// survived rather than where the element sat in the tree.
     #[test]

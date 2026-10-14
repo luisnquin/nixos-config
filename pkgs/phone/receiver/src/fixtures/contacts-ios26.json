@@ -1,0 +1,187 @@
+{
+  "source": "native-ax",
+  "roots": [
+    {
+      "AXLabel": "Contacts",
+      "AXUniqueId": null,
+      "AXValue": null,
+      "children": [
+        {
+          "AXLabel": "Back",
+          "AXUniqueId": "BackButton",
+          "AXValue": null,
+          "children": [],
+          "enabled": false,
+          "focused": false,
+          "frame": {
+            "height": 44,
+            "width": 44,
+            "x": 16,
+            "y": 62
+          },
+          "hidden": false,
+          "role": "AXButton",
+          "title": null,
+          "type": "Button"
+        },
+        {
+          "AXLabel": "Contacts",
+          "AXUniqueId": null,
+          "AXValue": null,
+          "children": [],
+          "enabled": false,
+          "focused": false,
+          "frame": {
+            "height": 20.66666666666667,
+            "width": 72.33333333333334,
+            "x": 164.66666666666666,
+            "y": 73.66666666666666
+          },
+          "hidden": false,
+          "role": "AXHeading",
+          "title": null,
+          "type": "Heading"
+        },
+        {
+          "AXLabel": null,
+          "AXUniqueId": null,
+          "AXValue": null,
+          "children": [
+            {
+              "AXLabel": "a",
+              "AXUniqueId": null,
+              "AXValue": null,
+              "children": [],
+              "enabled": false,
+              "focused": false,
+              "frame": {
+                "height": 38,
+                "width": 402,
+                "x": 0,
+                "y": 116
+              },
+              "hidden": false,
+              "role": "AXHeading",
+              "title": null,
+              "type": "Heading"
+            },
+            {
+              "AXLabel": "Section index",
+              "AXUniqueId": null,
+              "AXValue": null,
+              "children": [],
+              "enabled": false,
+              "focused": false,
+              "frame": {
+                "height": 672,
+                "width": 15,
+                "x": 387,
+                "y": 116
+              },
+              "hidden": false,
+              "role": "AXSlider",
+              "title": null,
+              "type": "Slider"
+            },
+            {
+              "AXLabel": "John Appleseed",
+              "AXUniqueId": null,
+              "AXValue": null,
+              "children": [],
+              "enabled": false,
+              "focused": false,
+              "frame": {
+                "height": 60,
+                "width": 384,
+                "x": 2,
+                "y": 154
+              },
+              "hidden": false,
+              "role": "AXStaticText",
+              "title": null,
+              "type": "StaticText"
+            },
+            {
+              "AXLabel": "b",
+              "AXUniqueId": null,
+              "AXValue": null,
+              "children": [],
+              "enabled": false,
+              "focused": false,
+              "frame": {
+                "height": 38,
+                "width": 402,
+                "x": 0,
+                "y": 214
+              },
+              "hidden": false,
+              "role": "AXHeading",
+              "title": null,
+              "type": "Heading"
+            },
+            {
+              "AXLabel": "Kate Bell",
+              "AXUniqueId": null,
+              "AXValue": null,
+              "children": [],
+              "enabled": false,
+              "focused": false,
+              "frame": {
+                "height": 60,
+                "width": 384,
+                "x": 2,
+                "y": 252
+              },
+              "hidden": false,
+              "role": "AXStaticText",
+              "title": null,
+              "type": "StaticText"
+            }
+          ],
+          "enabled": false,
+          "focused": false,
+          "frame": {
+            "height": 874,
+            "width": 402,
+            "x": 0,
+            "y": 0
+          },
+          "hidden": false,
+          "role": "AXGroup",
+          "title": null,
+          "type": "Group"
+        },
+        {
+          "AXLabel": "Toolbar",
+          "AXUniqueId": "Toolbar",
+          "AXValue": null,
+          "children": [],
+          "enabled": false,
+          "focused": false,
+          "frame": {
+            "height": 86,
+            "width": 402,
+            "x": 0,
+            "y": 788
+          },
+          "hidden": false,
+          "role": "AXGroup",
+          "title": null,
+          "type": "Group"
+        }
+      ],
+      "enabled": false,
+      "focused": false,
+      "frame": {
+        "height": 874,
+        "width": 402,
+        "x": 0,
+        "y": 0
+      },
+      "hidden": false,
+      "role": "AXApplication",
+      "title": null,
+      "type": "Application"
+    }
+  ]
+}

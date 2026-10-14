@@ -10,7 +10,6 @@
 //! controlling host already parses out of a `uiautomator` dump, so the matching
 //! and ambiguity rules stay in one implementation.
 
-mod accessibility;
 mod error;
 mod keys;
 mod native;
@@ -20,7 +19,6 @@ use std::io::Write as _;
 use std::process::ExitCode;
 use std::time::Duration;
 
-use accessibility::interactive_accessibility_snapshot;
 use anyhow::{anyhow, Result};
 use keys::hid_for_char;
 use native::bridge::NativeBridge;
@@ -206,7 +204,6 @@ fn read(bridge: &NativeBridge, verb: &str, rest: &[String]) -> Result<()> {
         "size" => println!("{}", serde_json::to_string(&bridge.display_size(udid(rest)?)?)?),
         "snapshot" => {
             let tree = bridge.accessibility_snapshot(udid(rest)?, None)?;
-            let tree = interactive_accessibility_snapshot(&tree);
 
             println!("{}", serde_json::to_string(&node::flatten(&tree))?);
         }
