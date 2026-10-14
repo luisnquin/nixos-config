@@ -65,7 +65,7 @@ in {
 
       ui = {
         hide_tab_bar_when_single_tab = true;
-        agent_panel_sort = "priority";
+        agent_panel_sort = "spaces";
         sound.enabled = true;
 
         toast = {
