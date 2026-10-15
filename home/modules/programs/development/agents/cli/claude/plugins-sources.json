@@ -22,5 +22,11 @@
     "repo": "prompt-rail",
     "rev": "2ac50fb87fc426fed89ba0f09f1784ef6f289ae8",
     "hash": "sha256-yKzZUp4dHfU5jVH2kgPm3ohw3/UaJNoJjIBN+G2JDKo="
+  },
+  "claude-blindfold": {
+    "owner": "luisnquin",
+    "repo": "claude-blindfold",
+    "rev": "a487d90dbaba4947c135a9a1f3e6a2561889db1a",
+    "hash": "sha256-P0JC6kMRjcMUG0qxaQGKqWRBcEq5hIccIaI4RVb48xU="
   }
 }

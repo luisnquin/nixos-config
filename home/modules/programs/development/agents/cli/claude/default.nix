@@ -83,7 +83,7 @@ in {
     };
 
     marketplaces = {
-      inherit (sources) claude-plugins-official claude-image-view oikon48;
+      inherit (sources) claude-plugins-official claude-image-view claude-blindfold oikon48;
     };
 
     context = ''
@@ -95,6 +95,7 @@ in {
     # https://code.claude.com/docs/en/settings#available-settings
     settings = {
       enabledPlugins = {
+        "blindfold@claude-blindfold" = true;
         "image-view@claude-image-view" = true;
         "prompt-rail@oikon48" = true;
         "rust-analyzer-lsp@claude-plugins-official" = true;
