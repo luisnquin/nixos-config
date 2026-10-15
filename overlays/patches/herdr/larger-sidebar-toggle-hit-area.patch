@@ -1,16 +1,46 @@
---- a/src/client/shell/state.rs
-+++ b/src/client/shell/state.rs
-@@ -159,6 +159,7 @@
-     pub(super) sidebar_divider: Rect,
-     pub(super) sidebar_section_divider: Rect,
-     pub(super) sidebar_toggle: Rect,
-+    pub(super) sidebar_toggle_hit: Rect,
-     pub(super) new_workspace: Rect,
-     pub(super) new_tab: Rect,
-     pub(super) tab_scroll_left: Rect,
+--- a/src/client/shell/endpoint_sidebar.rs
++++ b/src/client/shell/endpoint_sidebar.rs
+@@ -224,6 +224,8 @@ pub(super) fn render_collapsed(
+             1,
+         )
+     };
++    hits.sidebar_toggle_hit =
++        super::sidebar::collapsed_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
+     put_text(
+         buffer,
+         hits.sidebar_toggle.x,
+@@ -569,6 +571,8 @@ pub(super) fn render_expanded(
+         u16::from(area.width > 1),
+         u16::from(area.height > 0),
+     );
++    hits.sidebar_toggle_hit =
++        super::sidebar::expanded_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
+     put_text(
+         buffer,
+         hits.sidebar_toggle.x,
+--- a/src/client/shell/mouse.rs
++++ b/src/client/shell/mouse.rs
+@@ -1941,7 +1941,16 @@ impl ClientShellState {
+                 self.tab_press = None;
+                 self.chrome_drag = None;
+                 // The toggle is painted over the agent scrollbar's last cell.
+-                if super::contains(self.hits.sidebar_toggle, point) {
++                if super::contains(self.hits.sidebar_toggle, point)
++                    || (super::contains(self.hits.sidebar_toggle_hit, point)
++                        && ![
++                            self.hits.sidebar_section_divider,
++                            self.hits.workspace_scrollbar,
++                            self.hits.agent_scrollbar,
++                        ]
++                        .into_iter()
++                        .any(|rect| super::contains(rect, point)))
++                {
+                     self.sidebar_collapsed = !self.sidebar_collapsed;
+                     self.sidebar_collapsed_manual = true;
+                     self.invalidate_pane_surface();
 --- a/src/client/shell/sidebar.rs
 +++ b/src/client/shell/sidebar.rs
-@@ -24,6 +24,45 @@
+@@ -44,6 +44,45 @@ pub(in crate::client::shell) fn collapsed_sidebar_sections(
      )
  }
  
@@ -56,7 +86,7 @@
  pub(crate) fn render_collapsed_sidebar(
      buffer: &mut Buffer,
      area: Rect,
-@@ -164,6 +203,7 @@
+@@ -180,6 +219,7 @@ pub(crate) fn render_collapsed_sidebar(
              1,
          )
      };
@@ -64,7 +94,7 @@
      put_text(
          buffer,
          hits.sidebar_toggle.x,
-@@ -435,6 +475,7 @@
+@@ -445,6 +485,7 @@ pub(crate) fn render_sidebar(
          u16::from(area.width > 1),
          u16::from(area.height > 0),
      );
@@ -72,34 +102,13 @@
      put_text(
          buffer,
          hits.sidebar_toggle.x,
---- a/src/client/shell/endpoint_sidebar.rs
-+++ b/src/client/shell/endpoint_sidebar.rs
-@@ -138,6 +138,8 @@
-             1,
-         )
-     };
-+    hits.sidebar_toggle_hit =
-+        super::sidebar::collapsed_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
-     put_text(
-         buffer,
-         hits.sidebar_toggle.x,
-@@ -389,6 +391,8 @@
-         u16::from(area.width > 1),
-         u16::from(area.height > 0),
-     );
-+    hits.sidebar_toggle_hit =
-+        super::sidebar::expanded_sidebar_toggle_hit_rect(area, hits.sidebar_toggle);
-     put_text(
-         buffer,
-         hits.sidebar_toggle.x,
---- a/src/client/shell/mouse.rs
-+++ b/src/client/shell/mouse.rs
-@@ -1963,7 +1963,7 @@
-                     outcome.repaint = true;
-                     return;
-                 }
--                if super::contains(self.hits.sidebar_toggle, point) {
-+                if super::contains(self.hits.sidebar_toggle_hit, point) {
-                     self.sidebar_collapsed = !self.sidebar_collapsed;
-                     self.sidebar_collapsed_manual = true;
-                     self.invalidate_pane_surface();
+--- a/src/client/shell/state.rs
++++ b/src/client/shell/state.rs
+@@ -103,6 +103,7 @@ pub(super) struct ShellHitMap {
+     pub(super) sidebar_divider: Rect,
+     pub(super) sidebar_section_divider: Rect,
+     pub(super) sidebar_toggle: Rect,
++    pub(super) sidebar_toggle_hit: Rect,
+     pub(super) new_workspace: Rect,
+     pub(super) new_tab: Rect,
+     pub(super) tab_scroll_left: Rect,

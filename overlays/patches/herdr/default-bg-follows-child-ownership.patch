@@ -1,6 +1,6 @@
 --- a/src/pane/terminal.rs
 +++ b/src/pane/terminal.rs
-@@ -2316,6 +2316,7 @@
+@@ -2368,6 +2368,7 @@ impl GhosttyPaneTerminal {
          let host_theme = core.host_terminal_theme;
          let initial_default_foreground = core.initial_default_foreground;
          let initial_default_background = core.initial_default_background;
@@ -8,7 +8,7 @@
          let GhosttyPaneCore {
              terminal,
              render_state,
-@@ -2326,8 +2327,14 @@
+@@ -2378,8 +2379,14 @@ impl GhosttyPaneTerminal {
              return;
          }
          let colors = render_state.colors().ok();
@@ -25,7 +25,7 @@
          let default_fg = colors
              .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
          let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
-@@ -2578,6 +2585,7 @@
+@@ -2653,6 +2660,7 @@ fn ghostty_collect_dirty_patch(
      let host_theme = core.host_terminal_theme;
      let initial_default_foreground = core.initial_default_foreground;
      let initial_default_background = core.initial_default_background;
@@ -33,7 +33,7 @@
      let GhosttyPaneCore {
          terminal,
          render_state,
-@@ -2593,8 +2601,14 @@
+@@ -2668,8 +2676,14 @@ fn ghostty_collect_dirty_patch(
      }
  
      let colors = render_state.colors().ok();
@@ -50,7 +50,7 @@
      let default_fg = colors
          .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
      let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
-@@ -3451,7 +3465,11 @@
+@@ -3538,7 +3552,11 @@ fn ghostty_default_bg(
      color: crate::ghostty::RgbColor,
      host_theme: crate::terminal_theme::TerminalTheme,
      initial_default_background: Option<crate::ghostty::RgbColor>,
