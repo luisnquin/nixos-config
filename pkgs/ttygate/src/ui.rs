@@ -151,6 +151,10 @@ fn render_bar(f: &mut Frame, bar: Rect, app: &AppState, theme: &Theme) {
     } else {
         format!("LOGGING AS {}", app.user)
     };
+    let text = match app.session_choice() {
+        Some(name) => format!("{text}   ◂ {} ▸", name.to_uppercase()),
+        None => text,
+    };
     f.render_widget(
         Paragraph::new(text).alignment(Alignment::Center).style(
             Style::default()
@@ -213,10 +217,15 @@ fn status_line(app: &AppState, theme: &Theme, show_help: bool) -> (String, Style
             // Only reached with show_help on; otherwise the row is omitted.
             let _ = show_help;
             let base = "TAB switch field   ·   ENTER authenticate   ·   F2 logs";
+            let base = if app.session_choice().is_some() {
+                format!("{base}   ·   ←/→ session")
+            } else {
+                base.to_string()
+            };
             if app.demo {
                 (format!("{base}   ·   ESC quit  [demo]"), dim)
             } else {
-                (base.to_string(), dim)
+                (base, dim)
             }
         }
         Phase::Creating | Phase::Authenticating => {
@@ -311,6 +320,7 @@ fn wrapped_height(text: &str, width: u16) -> u16 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::tests::app;
     use crate::theme::Accent;
 
     fn chrome<'a>(theme: &'a Theme, disclaimer: Option<&'a str>, show_help: bool) -> Chrome<'a> {
@@ -348,14 +358,6 @@ mod tests {
             .collect()
     }
 
-    fn app() -> AppState {
-        AppState::new(
-            "AWAITING IDENTIFICATION".into(),
-            "0xc000022070".into(),
-            vec!["start-hyprland".into()],
-            true,
-        )
-    }
 
     #[test]
     fn login_screen_shows_user_and_fields_but_no_log_panel() {

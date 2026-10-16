@@ -36,6 +36,7 @@
   settings =
     prune {
       session_cmd = cfg.sessionCmd;
+      sessions = lib.mapNullable (map (s: {inherit (s) name; cmd = s.command;})) cfg.sessions;
       default_user = cfg.defaultUser;
       idle_status = cfg.idleStatus;
       log_cmd = cfg.logCmd;
@@ -74,6 +75,17 @@ in {
       default = null;
       example = ["start-hyprland"];
       description = "argv greetd execs as the session after auth. Not a shell string.";
+    };
+
+    sessions = lib.mkOption {
+      type = lib.types.nullOr (lib.types.listOf (lib.types.submodule {
+        options = {
+          name = lib.mkOption {type = lib.types.str;};
+          command = lib.mkOption {type = lib.types.listOf lib.types.str;};
+        };
+      }));
+      default = null;
+      description = "Sessions cycled with left/right before login; the first is preselected. Overrides `sessionCmd`.";
     };
 
     defaultUser = lib.mkOption {

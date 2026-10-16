@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use serde::Deserialize;
 
@@ -31,8 +31,8 @@ pub struct Cli {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// argv greetd execs as the session, not a shell string.
-    pub session_cmd: Vec<String>,
+    /// Never empty; the first entry is preselected.
+    pub sessions: Vec<Session>,
     pub default_user: String,
     pub idle_status: String,
     pub log_cmd: Vec<String>,
@@ -41,6 +41,24 @@ pub struct Config {
     pub disclaimer: Option<String>,
     pub show_help: bool,
     pub sound: SoundConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Session {
+    pub name: String,
+    pub cmd: Vec<String>,
+}
+
+impl Session {
+    pub fn from_cmd(cmd: Vec<String>) -> Session {
+        let name = cmd
+            .first()
+            .and_then(|program| program.rsplit('/').next())
+            .unwrap_or("session")
+            .to_string();
+        Session { name, cmd }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -63,7 +81,7 @@ impl Default for SoundConfig {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            session_cmd: vec!["start-hyprland".into()],
+            sessions: vec![Session::from_cmd(vec!["start-hyprland".into()])],
             default_user: String::new(),
             idle_status: "AWAITING IDENTIFICATION".into(),
             log_cmd: shell_words("journalctl -b -n 40 -f -o cat"),
@@ -81,6 +99,7 @@ impl Default for Config {
 #[serde(deny_unknown_fields)]
 struct FileConfig {
     session_cmd: Option<Vec<String>>,
+    sessions: Option<Vec<Session>>,
     default_user: Option<String>,
     idle_status: Option<String>,
     log_cmd: Option<Vec<String>>,
@@ -138,7 +157,13 @@ impl Config {
 
     fn apply_file(&mut self, file: FileConfig, cfg_path: &std::path::Path) -> Result<()> {
         if let Some(v) = file.session_cmd {
-            self.session_cmd = v;
+            self.sessions = vec![Session::from_cmd(v)];
+        }
+        if let Some(v) = file.sessions {
+            if v.is_empty() {
+                bail!("sessions in {} is empty", cfg_path.display());
+            }
+            self.sessions = v;
         }
         if let Some(v) = file.default_user {
             self.default_user = v;

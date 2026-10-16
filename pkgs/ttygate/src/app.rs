@@ -1,3 +1,4 @@
+use crate::config::Session;
 use crate::greetd::{AuthMessageType, ErrorType, Request, Response};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +69,8 @@ pub struct AppState {
     pub info: Option<String>,
     pub demo: bool,
     pub tick: u64,
-    session_cmd: Vec<String>,
+    sessions: Vec<Session>,
+    pub session: usize,
     /// The typed password still needs to be auto-fed to the first secret prompt.
     creds_pending: bool,
     /// A CancelSession is in flight; swallow greetd's single Success ack for it
@@ -86,6 +88,7 @@ pub enum Action {
     Char(char),
     Backspace,
     FocusToggle,
+    CycleSession(i32),
     Submit,
     Cancel,
     Greetd(Response),
@@ -97,7 +100,7 @@ pub enum Action {
 }
 
 impl AppState {
-    pub fn new(idle_status: String, user: String, session_cmd: Vec<String>, demo: bool) -> Self {
+    pub fn new(idle_status: String, user: String, sessions: Vec<Session>, demo: bool) -> Self {
         let focus = if user.is_empty() {
             Field::User
         } else {
@@ -112,12 +115,21 @@ impl AppState {
             info: None,
             demo,
             tick: 0,
-            session_cmd,
+            sessions,
+            session: 0,
             creds_pending: false,
             cancel_ack_pending: false,
             logs_open: false,
             log_scroll: 0,
         }
+    }
+
+    pub fn session_cmd(&self) -> &[String] {
+        self.sessions.get(self.session).map_or(&[], |s| &s.cmd)
+    }
+
+    pub fn session_choice(&self) -> Option<&str> {
+        (self.sessions.len() > 1).then(|| self.sessions[self.session].name.as_str())
     }
 
     fn in_auth_chain(&self) -> bool {
@@ -169,6 +181,13 @@ impl AppState {
                         Field::User => Field::Password,
                         Field::Password => Field::User,
                     };
+                }
+                Vec::new()
+            }
+            Action::CycleSession(step) => {
+                let n = self.sessions.len() as i64;
+                if n > 1 && matches!(self.phase, Phase::Idle | Phase::Failed(_)) {
+                    self.session = (self.session as i64 + i64::from(step)).rem_euclid(n) as usize;
                 }
                 Vec::new()
             }
@@ -295,7 +314,7 @@ impl AppState {
                 self.phase = Phase::Starting;
                 self.info = None;
                 vec![Effect::Send(Request::StartSession {
-                    cmd: self.session_cmd.clone(),
+                    cmd: self.session_cmd().to_vec(),
                     env: Vec::new(),
                 })]
             }
@@ -328,14 +347,14 @@ impl AppState {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
-    fn app() -> AppState {
+    pub(crate) fn app() -> AppState {
         AppState::new(
             "AWAITING IDENTIFICATION".into(),
             "0xc000022070".into(),
-            vec!["start-hyprland".into()],
+            vec![Session::from_cmd(vec!["start-hyprland".into()])],
             true,
         )
     }
@@ -518,7 +537,12 @@ mod tests {
 
     #[test]
     fn no_submit_without_username() {
-        let mut a = AppState::new("b".into(), String::new(), vec!["s".into()], true);
+        let mut a = AppState::new(
+            "b".into(),
+            String::new(),
+            vec![Session::from_cmd(vec!["s".into()])],
+            true,
+        );
         assert!(a.update(Action::Submit).is_empty());
         assert_eq!(a.phase, Phase::Idle);
     }
@@ -561,7 +585,12 @@ mod tests {
         let mut demo = app();
         assert_eq!(demo.update(Action::Cancel), vec![Effect::Quit]);
 
-        let mut real = AppState::new("b".into(), "u".into(), vec!["s".into()], false);
+        let mut real = AppState::new(
+            "b".into(),
+            "u".into(),
+            vec![Session::from_cmd(vec!["s".into()])],
+            false,
+        );
         assert!(real.update(Action::Cancel).is_empty());
     }
 }

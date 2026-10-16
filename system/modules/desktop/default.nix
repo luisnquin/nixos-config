@@ -18,7 +18,16 @@
 
   programs.ttygate = {
     enable = true;
-    sessionCmd = ["${pkgs.hyprland}/bin/start-hyprland"];
+    sessions = [
+      {
+        name = "hyprland";
+        command = ["${pkgs.hyprland}/bin/start-hyprland"];
+      }
+      {
+        name = "tty";
+        command = [(lib.getExe pkgs.zsh) "-l"];
+      }
+    ];
     accent = "amber";
     idleStatus = "AWAITING IDENTIFICATION";
     defaultUser = "luisnquin";

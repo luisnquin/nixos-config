@@ -72,7 +72,7 @@ async fn run(cli: &Cli, cfg: Config) -> Result<()> {
     let app = AppState::new(
         cfg.idle_status.clone(),
         cfg.default_user.clone(),
-        cfg.session_cmd.clone(),
+        cfg.sessions.clone(),
         demo,
     );
     let log_rx = spawn_logs(cfg.log_cmd.clone());
@@ -85,7 +85,15 @@ async fn run(cli: &Cli, cfg: Config) -> Result<()> {
 
     let sound = sound::open(&cfg.sound);
     let mut terminal = ratatui::init();
-    let outcome = event_loop(&mut terminal, app, channels, log_rx, &chrome, sound.as_ref()).await;
+    let outcome = event_loop(
+        &mut terminal,
+        app,
+        channels,
+        log_rx,
+        &chrome,
+        sound.as_ref(),
+    )
+    .await;
     ratatui::restore();
     if let Some(sound) = sound {
         sound.finish();
@@ -94,10 +102,7 @@ async fn run(cli: &Cli, cfg: Config) -> Result<()> {
     match outcome? {
         Outcome::Launch => {
             if demo {
-                println!(
-                    "[demo] authentication OK — would exec: {}",
-                    cfg.session_cmd.join(" ")
-                );
+                println!("[demo] authentication OK");
             }
             // Real mode: exiting hands the VT to greetd, which starts the session.
         }
@@ -125,6 +130,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
     let mut logs_dirty = false;
     let mut force_clear = false;
     let mut dirty = true;
+    let mut foreground = sound::Foreground::new();
 
     loop {
         if std::mem::take(&mut dirty) {
@@ -140,6 +146,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
             _ = ticker.tick() => {
                 app.update(Action::Tick);
                 if let Some(sound) = sound {
+                    foreground.sync(sound);
                     sound.tick(app.tick);
                 }
                 if logs_dirty {
@@ -223,6 +230,8 @@ fn map_key(code: KeyCode, logs_open: bool) -> Option<Action> {
     }
     match code {
         KeyCode::Enter => Some(Action::Submit),
+        KeyCode::Left => Some(Action::CycleSession(-1)),
+        KeyCode::Right | KeyCode::F(3) => Some(Action::CycleSession(1)),
         KeyCode::F(2) => Some(Action::ToggleLogs),
         KeyCode::Tab | KeyCode::BackTab | KeyCode::Down | KeyCode::Up => Some(Action::FocusToggle),
         KeyCode::Backspace => Some(Action::Backspace),
@@ -287,8 +296,8 @@ fn ascii_demo_draw(f: &mut Frame, tick: u64, theme: &Theme) {
             "ascii demo   ·   {}   ·   q / ESC quit",
             ascii_animation::current_name(tick)
         ))
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(theme.dim).add_modifier(Modifier::BOLD)),
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(theme.dim).add_modifier(Modifier::BOLD)),
         foot,
     );
 }

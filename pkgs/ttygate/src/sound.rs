@@ -17,11 +17,47 @@ pub fn open(cfg: &SoundConfig) -> Option<Sound> {
     Sound::open(options, crate::ascii_animation::carousel())
 }
 
+/// Switching VTs leaves the greeter running, so it watches whether its own VT
+/// is the one on screen. Off a VT (a pty in demo mode) it is always audible.
+pub struct Foreground {
+    vt: Option<String>,
+    audible: bool,
+}
+
+impl Foreground {
+    pub fn new() -> Self {
+        Foreground {
+            vt: own_vt(),
+            audible: true,
+        }
+    }
+
+    pub fn sync(&mut self, sound: &Sound) {
+        let Some(vt) = &self.vt else {
+            return;
+        };
+        let audible = std::fs::read_to_string("/sys/class/tty/tty0/active")
+            .map_or(true, |active| active.trim() == vt);
+        if audible != self.audible {
+            self.audible = audible;
+            sound.set_active(audible);
+        }
+    }
+}
+
+fn own_vt() -> Option<String> {
+    let path = std::fs::read_link("/proc/self/fd/0").ok()?;
+    let name = path.strip_prefix("/dev").ok()?.to_str()?;
+    let n = name.strip_prefix("tty")?;
+    (!n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())).then(|| name.to_string())
+}
+
 pub struct Snapshot {
     phase: Phase,
     typed: usize,
     focus: Field,
     logs_open: bool,
+    session: usize,
 }
 
 pub fn snapshot(app: &AppState) -> Snapshot {
@@ -30,12 +66,16 @@ pub fn snapshot(app: &AppState) -> Snapshot {
         typed: app.user.len() + app.password.len(),
         focus: app.focus,
         logs_open: app.logs_open,
+        session: app.session,
     }
 }
 
 pub fn cues(before: &Snapshot, app: &AppState) -> Vec<Cue> {
     let mut out = Vec::new();
-    if app.focus != before.focus || app.logs_open != before.logs_open {
+    if app.focus != before.focus
+        || app.logs_open != before.logs_open
+        || app.session != before.session
+    {
         out.push(Cue::Nav);
     }
     if app.phase == before.phase {
@@ -79,12 +119,10 @@ pub fn cues(before: &Snapshot, app: &AppState) -> Vec<Cue> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::tests::app;
     use crate::app::Action;
     use crate::greetd::{AuthMessageType, ErrorType, Response};
 
-    fn app() -> AppState {
-        AppState::new("b".into(), "user".into(), vec!["s".into()], true)
-    }
 
     fn step(app: &mut AppState, action: Action) -> Vec<Cue> {
         let before = snapshot(app);
