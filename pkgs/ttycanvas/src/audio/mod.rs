@@ -42,6 +42,7 @@ impl Default for Options {
 enum Msg {
     Tick(u64),
     Cue(Cue),
+    Active(bool),
 }
 
 pub struct Sound {
@@ -80,6 +81,10 @@ impl Sound {
         let _ = self.tx.send(Msg::Cue(cue));
     }
 
+    pub fn set_active(&self, active: bool) {
+        let _ = self.tx.send(Msg::Active(active));
+    }
+
     pub fn finish(self) {
         let _ = self.tx.send(Msg::Cue(Cue::Fade));
         let _ = self.done.recv_timeout(Duration::from_millis(1200));
@@ -87,11 +92,12 @@ impl Sound {
 }
 
 #[cfg_attr(not(feature = "audio"), allow(dead_code))]
-fn drain(rx: &Receiver<Msg>, engine: &mut engine::Engine) {
+fn drain(rx: &Receiver<Msg>, engine: &mut engine::Engine, active: &mut bool) {
     loop {
         match rx.try_recv() {
             Ok(Msg::Tick(t)) => engine.sync(t),
             Ok(Msg::Cue(c)) => engine.cue(c),
+            Ok(Msg::Active(a)) => *active = a,
             Err(std::sync::mpsc::TryRecvError::Empty) => return,
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                 engine.cue(Cue::Fade);

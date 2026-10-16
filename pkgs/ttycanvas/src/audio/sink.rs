@@ -4,12 +4,13 @@ use alsa::pcm::{Access, Format, HwParams, PCM};
 use alsa::{Direction, ValueOr};
 
 use super::engine::Engine;
-use super::{Msg, drain};
+use super::{Cue, Msg, drain};
 
 pub struct Sink {
     pcm: PCM,
     pub rate: u32,
     period: usize,
+    name: String,
 }
 
 /// The configured device, else ALSA's default, else every card's `plughw`
@@ -49,7 +50,12 @@ fn try_open(name: &str) -> alsa::Result<Sink> {
         sw.set_start_threshold((period * 2) as i64)?;
         pcm.sw_params(&sw)?;
     }
-    Ok(Sink { pcm, rate, period })
+    Ok(Sink {
+        pcm,
+        rate,
+        period,
+        name: name.to_string(),
+    })
 }
 
 impl Sink {
@@ -72,21 +78,53 @@ impl Sink {
     }
 }
 
-pub fn run(sink: Sink, mut engine: Engine, rx: Receiver<Msg>) {
+pub fn run(mut sink: Sink, mut engine: Engine, rx: Receiver<Msg>) {
+    while play(&sink, &mut engine, &rx) {
+        let name = std::mem::take(&mut sink.name);
+        drop(sink);
+        match reopen(&name, &mut engine, &rx) {
+            Some(s) => sink = s,
+            None => return,
+        }
+    }
+}
+
+fn play(sink: &Sink, engine: &mut Engine, rx: &Receiver<Msg>) -> bool {
     let mut samples = vec![0.0f32; sink.period * 2];
     let mut pcm = vec![0i16; sink.period * 2];
+    let mut active = true;
     loop {
-        drain(&rx, &mut engine);
+        drain(rx, engine, &mut active);
+        if !active {
+            return true;
+        }
         engine.render(&mut samples);
         for (dst, src) in pcm.iter_mut().zip(&samples) {
             *dst = (src.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
         }
         if !sink.write(&pcm) {
-            return;
+            return false;
         }
         if engine.finished() {
             let _ = sink.pcm.drain();
-            return;
+            return false;
+        }
+    }
+}
+
+fn reopen(name: &str, engine: &mut Engine, rx: &Receiver<Msg>) -> Option<Sink> {
+    let mut active = false;
+    loop {
+        match rx.recv().ok()? {
+            Msg::Active(a) => active = a,
+            Msg::Tick(t) => engine.sync(t),
+            Msg::Cue(Cue::Fade) => return None,
+            Msg::Cue(_) => {}
+        }
+        if active {
+            if let Ok(sink) = try_open(name) {
+                return Some(sink);
+            }
         }
     }
 }
