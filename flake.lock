@@ -1219,9 +1219,9 @@
         "preservation": "preservation",
         "rust-overlay": "rust-overlay",
         "sops-nix": "sops-nix",
+        "striked": "striked",
         "systems": "systems_2",
         "techdebt-cli": "techdebt-cli",
-        "upgrade": "upgrade",
         "zen-browser": "zen-browser"
       }
     },
@@ -1284,6 +1284,26 @@
         "owner": "Mic92",
         "repo": "sops-nix",
         "type": "github"
+      }
+    },
+    "striked": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792263408,
+        "narHash": "sha256-/cgL0bbDuWblk6R27ZQLt2rcPvsWe7JsSgqQXFS4GLw=",
+        "ref": "refs/heads/main",
+        "rev": "bc65f5d57deaa7e9babee5cf66461a6859f35632",
+        "revCount": 670,
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/striked"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/0xc000022070/striked"
       }
     },
     "systems": {
@@ -1355,26 +1375,6 @@
         "owner": "numtide",
         "repo": "treefmt-nix",
         "type": "github"
-      }
-    },
-    "upgrade": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1791850410,
-        "narHash": "sha256-ONHXNIw8l89vKw6i/kNdxo2Rk8Lx7OEZnBKjtVfU9PU=",
-        "ref": "refs/heads/main",
-        "rev": "a4ac3cc74bc685ea09733d9de71d7ce32457a721",
-        "revCount": 601,
-        "type": "git",
-        "url": "ssh://git@github.com/0xc000022070/upgrade"
-      },
-      "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/0xc000022070/upgrade"
       }
     },
     "xdph": {

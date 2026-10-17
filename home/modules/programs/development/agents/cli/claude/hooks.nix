@@ -9,11 +9,11 @@
   cbm = lib.getExe pkgs.codebase-memory-mcp;
   phone = lib.getExe pkgs.phone;
   herdrSession = kit.mkHerdrSessionCmd "claude";
-  upgraded = timeout: {
+  strikedddd = timeout: {
     hooks = [
       {
         type = "command";
-        command = "upgraded hook claude";
+        command = "strikedddd hook claude";
         inherit timeout;
       }
     ];
@@ -28,8 +28,8 @@
       "Stop"
       "StopFailure"
       "SessionEnd"
-    ] (_: [(upgraded 10)])
-    // {PermissionRequest = [(upgraded 90)];};
+    ] (_: [(strikedddd 10)])
+    // {PermissionRequest = [(strikedddd 90)];};
 in {
   programs.claude-code.settings.hooks = lib.zipAttrsWith (_: lib.concatLists) [
     {
