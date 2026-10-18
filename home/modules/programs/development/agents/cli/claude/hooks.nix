@@ -9,6 +9,11 @@
   cbm = lib.getExe pkgs.codebase-memory-mcp;
   phone = lib.getExe pkgs.phone;
   herdrSession = kit.mkHerdrSessionCmd "claude";
+  diffReview = pkgs.writeShellApplication {
+    name = "agent-diff-review";
+    runtimeInputs = [pkgs.git pkgs.jq pkgs.coreutils pkgs.gawk pkgs.gnugrep];
+    text = builtins.readFile ../../hooks/diff-review.sh;
+  };
   strikedddd = timeout: {
     hooks = [
       {
@@ -73,6 +78,12 @@ in {
             (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
             (kit.mkAudioCmd [kit.sounds.ifrtfy])
           ];
+        })
+      ];
+      PostToolUse = [
+        (kit.mkCmdEntry {
+          matcher = "Edit|Write|MultiEdit|NotebookEdit";
+          commands = ["${lib.getExe diffReview} 2>/dev/null || true"];
         })
       ];
       PostToolUseFailure = [
