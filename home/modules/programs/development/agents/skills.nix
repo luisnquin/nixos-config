@@ -101,6 +101,16 @@ in {
         })
       (mkSkill {
           src = pkgs.fetchFromGitHub {
+            owner = "ciembor";
+            repo = "agent-rules-books";
+            rev = "893a88a6fce3a80c565bf39ac65021b43a8b2990";
+            sha256 = "sha256-ZdYHWG/4ueNJXjUABAGU/AgzhS56eN5ZH5DU7YLlY3k=";
+          };
+        } {
+          plugins = ["refactoring-guru"];
+        })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
             rev = "0b8716793715fdcc2979e549bd5e5870e7188bd1";
