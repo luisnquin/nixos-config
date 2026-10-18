@@ -116,10 +116,7 @@ in {
         context_management.experimental_mode = true;
       };
 
-      tools = {
-        view_image = true;
-        web_search = permissions.web_search;
-      };
+      tools.web_search = permissions.web_search;
     };
 
     profiles = {

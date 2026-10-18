@@ -334,11 +334,14 @@
           };
 
         applyMappings = server:
-          lib.hm.mcp.addType server
-          // lib.optionalAttrs snakeCase (
-            lib.optionalAttrs (server ? disabledTools) {
-              disabled_tools = server.disabledTools;
-            }
+          (
+            if snakeCase
+            then
+              builtins.removeAttrs server ["disabledTools"]
+              // lib.optionalAttrs (server ? disabledTools) {
+                disabled_tools = server.disabledTools;
+              }
+            else lib.hm.mcp.addType server
           )
           // lib.optionalAttrs normalizeServerUrl (
             lib.optionalAttrs (server ? url && !(server ? serverUrl)) {
