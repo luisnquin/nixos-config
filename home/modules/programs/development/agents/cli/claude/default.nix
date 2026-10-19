@@ -6,16 +6,7 @@
   ...
 }: let
   kit = mkAgentKit {};
-  fetched = builtins.mapAttrs (_: pkgs.fetchFromGitHub) (lib.importJSON ./plugins-sources.json);
-  sources =
-    fetched
-    // {
-      claude-image-view = pkgs.applyPatches {
-        name = "claude-image-view";
-        src = fetched.claude-image-view;
-        patches = [./patches/claude-image-view-viewer-pane.patch];
-      };
-    };
+  sources = builtins.mapAttrs (_: pkgs.fetchFromGitHub) (lib.importJSON ./plugins-sources.json);
 in {
   imports = [
     ./hooks.nix
@@ -83,7 +74,7 @@ in {
     };
 
     marketplaces = {
-      inherit (sources) claude-plugins-official claude-image-view claude-blindfold oikon48;
+      inherit (sources) better-claude claude-plugins-official claude-blindfold oikon48;
     };
 
     context = ''
@@ -96,7 +87,7 @@ in {
     settings = {
       enabledPlugins = {
         "blindfold@claude-blindfold" = true;
-        "image-view@claude-image-view" = true;
+        "image-preview@better-claude" = true;
         "prompt-rail@oikon48" = true;
         "rust-analyzer-lsp@claude-plugins-official" = true;
         "swift-lsp@claude-plugins-official" = true;

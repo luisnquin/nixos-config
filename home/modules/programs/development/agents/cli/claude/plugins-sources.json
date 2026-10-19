@@ -5,12 +5,6 @@
     "rev": "b091cb4179d3b62a6e2a39910461c7ec7165b1ef",
     "hash": "sha256-uKDVcw6C1uzpiIY+hjgHxr4AU9wM1KF7t3v6zd9XBHk="
   },
-  "claude-image-view": {
-    "owner": "jarrodwatts",
-    "repo": "claude-image-view",
-    "rev": "370b8e7bc0708bebe9762e63534f7ca18bc3e802",
-    "hash": "sha256-cH2yGtD5k/zmOCE5WK8s9DoFicUnrCdzqfmp/GGoJW4="
-  },
   "chat-clean": {
     "owner": "achammah",
     "repo": "claude-chat-clean",
@@ -28,5 +22,11 @@
     "repo": "claude-blindfold",
     "rev": "a487d90dbaba4947c135a9a1f3e6a2561889db1a",
     "hash": "sha256-P0JC6kMRjcMUG0qxaQGKqWRBcEq5hIccIaI4RVb48xU="
+  },
+  "better-claude": {
+    "owner": "midudev",
+    "repo": "better-claude",
+    "rev": "8dca6f3bf689d3ccb8a6a47b962c750a441bb4f2",
+    "hash": "sha256-lOdK/elQ1FCViW+7umJ7MVwnctOHrjtBnJ6Tr3CWFWo="
   }
 }
