@@ -2,6 +2,7 @@
   mkAgentKit,
   config,
   pkgs,
+  lib,
   ...
 }: let
   kit = mkAgentKit {};
@@ -10,6 +11,8 @@ in {
   imports = [
     ./hooks.nix
   ];
+
+  home.sessionVariables.CODEX_OUTPUT_REDACTOR = lib.getExe pkgs.redact-secrets;
 
   programs.codex = {
     enable = true;

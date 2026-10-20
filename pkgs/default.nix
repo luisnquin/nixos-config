@@ -12,6 +12,7 @@ pkgs:
   outage = pkgs.callPackage ./outage {};
   phone = pkgs.callPackage ./phone {};
   pinentry-gate = pkgs.callPackage ./pinentry-gate {};
+  redact-secrets = pkgs.callPackage ./redact-secrets {};
   setup = pkgs.callPackage ./setup {};
   barfeed = pkgs.callPackage ./barfeed {};
   ttygate = pkgs.callPackage ./ttygate {};

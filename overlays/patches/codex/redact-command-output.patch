@@ -1,0 +1,89 @@
+diff --git a/core/src/tools/handlers/unified_exec/exec_command.rs b/core/src/tools/handlers/unified_exec/exec_command.rs
+index 5028482..9a75651 100644
+--- a/core/src/tools/handlers/unified_exec/exec_command.rs
++++ b/core/src/tools/handlers/unified_exec/exec_command.rs
+@@ -444,7 +444,7 @@ impl ExecCommandHandler {
+                     event_call_id: context.call_id.clone(),
+                     chunk_id: generate_chunk_id(),
+                     wall_time: output.duration,
+-                    raw_output: output_text.into_bytes(),
++                    raw_output: crate::tools::redact_for_model(output_text.into_bytes()),
+                     truncation_policy: step_context.settings.model_info.truncation_policy.into(),
+                     max_output_tokens,
+                     // Sandbox denial is terminal, so there is no live
+diff --git a/core/src/tools/mod.rs b/core/src/tools/mod.rs
+index 501ce5f..bf72114 100644
+--- a/core/src/tools/mod.rs
++++ b/core/src/tools/mod.rs
+@@ -125,13 +125,47 @@ pub fn format_exec_output_str(
+ 
+ /// Extracts exec output content and prepends a timeout message if the command timed out.
+ fn build_content_with_timeout(exec_output: &ExecToolCallOutput) -> String {
++    let text = redact_for_model(exec_output.aggregated_output.text.as_bytes().to_vec());
++    let text = String::from_utf8_lossy(&text);
+     if exec_output.timed_out {
+         format!(
+             "command timed out after {} milliseconds\n{}",
+             exec_output.duration.as_millis(),
+-            exec_output.aggregated_output.text
++            text
+         )
+     } else {
+-        exec_output.aggregated_output.text.clone()
++        text.into_owned()
+     }
+ }
++
++/// Pipes command output through the filter named by `CODEX_OUTPUT_REDACTOR`
++/// before the model sees it. Fails closed: output is withheld when the filter
++/// cannot run.
++pub(crate) fn redact_for_model(output: Vec<u8>) -> Vec<u8> {
++    use std::io::Write;
++    use std::process::Command;
++    use std::process::Stdio;
++
++    let Some(redactor) = std::env::var_os("CODEX_OUTPUT_REDACTOR") else {
++        return output;
++    };
++    if output.is_empty() {
++        return output;
++    }
++    let run = || -> std::io::Result<Vec<u8>> {
++        let mut child = Command::new(&redactor)
++            .stdin(Stdio::piped())
++            .stdout(Stdio::piped())
++            .stderr(Stdio::null())
++            .spawn()?;
++        let mut stdin = child.stdin.take().expect("piped");
++        let writer = std::thread::spawn(move || stdin.write_all(&output));
++        let result = child.wait_with_output()?;
++        writer.join().map_err(|_| std::io::Error::other("writer panicked"))??;
++        if !result.status.success() {
++            return Err(std::io::Error::other(format!("exited with {}", result.status)));
++        }
++        Ok(result.stdout)
++    };
++    run().unwrap_or_else(|err| format!("[output withheld: redactor failed: {err}]").into_bytes())
++}
+diff --git a/core/src/unified_exec/process_manager.rs b/core/src/unified_exec/process_manager.rs
+index cda8c59..745b39c 100644
+--- a/core/src/unified_exec/process_manager.rs
++++ b/core/src/unified_exec/process_manager.rs
+@@ -844,7 +844,7 @@ impl UnifiedExecProcessManager {
+             event_call_id: context.call_id.clone(),
+             chunk_id,
+             wall_time,
+-            raw_output: collected,
++            raw_output: crate::tools::redact_for_model(collected),
+             truncation_policy: context
+                 .step_context
+                 .settings
+@@ -1106,7 +1106,7 @@ impl UnifiedExecProcessManager {
+             event_call_id,
+             chunk_id,
+             wall_time,
+-            raw_output: collected,
++            raw_output: crate::tools::redact_for_model(collected),
+             truncation_policy: request.truncation_policy,
+             max_output_tokens: request.max_output_tokens,
+             process_id,

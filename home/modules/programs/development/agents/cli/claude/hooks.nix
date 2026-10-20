@@ -8,6 +8,7 @@
   kit = mkAgentKit {};
   cbm = lib.getExe pkgs.codebase-memory-mcp;
   phone = lib.getExe pkgs.phone;
+  redactSecrets = lib.getExe pkgs.redact-secrets;
   herdrSession = kit.mkHerdrSessionCmd "claude";
   diffReview = pkgs.writeShellApplication {
     name = "agent-diff-review";
@@ -135,6 +136,10 @@ in {
         (kit.mkCmdEntry {
           matcher = "Bash";
           commands = ["${phone} hook --harness claude"];
+        })
+        (kit.mkCmdEntry {
+          matcher = "Read";
+          commands = ["${redactSecrets} --read-hook"];
         })
         # Injects codebase-memory-mcp graph context into Grep/Glob calls.
         # Never blocks: forced exit 0 even when the project is unindexed.
