@@ -1293,11 +1293,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792263408,
-        "narHash": "sha256-/cgL0bbDuWblk6R27ZQLt2rcPvsWe7JsSgqQXFS4GLw=",
+        "lastModified": 1792377002,
+        "narHash": "sha256-+lw+BLZvmSx6qrZC2HuKC1ddct0NNzZYcYrrC4fDowM=",
         "ref": "refs/heads/main",
-        "rev": "bc65f5d57deaa7e9babee5cf66461a6859f35632",
-        "revCount": 670,
+        "rev": "601c48cc1ef7c826c4be2586a1f5b375bf2e9c76",
+        "revCount": 714,
         "type": "git",
         "url": "ssh://git@github.com/0xc000022070/striked"
       },
