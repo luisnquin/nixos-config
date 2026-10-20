@@ -36,7 +36,7 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
              ThreadUnsubscribeStatus::Unsubscribed
          } else {
              ThreadUnsubscribeStatus::NotSubscribed
-@@ -1045,6 +1047,68 @@
+@@ -1045,6 +1047,72 @@
          Ok(ThreadUnsubscribeResponse { status })
      }
  
@@ -85,8 +85,12 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
 +            if thread_manager.get_thread(thread_id).await.is_err() {
 +                return;
 +            }
-+            if !pending_thread_unloads.lock().await.insert(thread_id) {
-+                return;
++            {
++                let mut pending = pending_thread_unloads.lock().await;
++                if pending.contains_key(&thread_id) {
++                    return;
++                }
++                pending.insert(thread_id, watch::channel(()).0);
 +            }
 +
 +            super::thread_lifecycle::unload_thread_without_subscribers(
