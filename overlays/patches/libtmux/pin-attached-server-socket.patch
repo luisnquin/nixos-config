@@ -1,0 +1,15 @@
+diff --git a/src/libtmux/server.py b/src/libtmux/server.py
+index ba5c939..9b2b22f 100644
+--- a/src/libtmux/server.py
++++ b/src/libtmux/server.py
+@@ -188,6 +188,10 @@ class Server(
+             self.socket_name = socket_name
+         elif socket_name_factory is not None:
+             self.socket_name = socket_name_factory()
++        elif os.environ.get("TMUX"):
++            # new_session unsets $TMUX, so pin the attached server's socket
++            # before tmux falls back to $TMUX_TMPDIR and picks another one.
++            self.socket_path = os.environ["TMUX"].split(",", 1)[0]
+ 
+         tmux_tmpdir = pathlib.Path(os.getenv("TMUX_TMPDIR", "/tmp"))
+         socket_name = self.socket_name or "default"

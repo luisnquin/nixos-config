@@ -210,6 +210,21 @@
     });
   })
   (_final: prev: {
+    pythonPackagesExtensions =
+      prev.pythonPackagesExtensions
+      ++ [
+        (_pythonFinal: pythonPrev: {
+          libtmux = pythonPrev.libtmux.overridePythonAttrs (old: {
+            patches =
+              (old.patches or [])
+              ++ [
+                ./patches/libtmux/pin-attached-server-socket.patch
+              ];
+          });
+        })
+      ];
+  })
+  (_final: prev: {
     # Must stay after hyprdysmorphic, which replaces `hyprland` outright.
     # The grep turns a moved banner into a build failure instead of a no-op.
     hyprland = prev.hyprland.overrideAttrs (old: {
