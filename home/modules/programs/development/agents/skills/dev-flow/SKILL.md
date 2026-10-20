@@ -50,6 +50,8 @@ Do not skip a step. Do not take one the user did not allow.
 - For a host or app change, deliver only as far as allowed: rebuild the host,
   install on a device, or deploy. Then check that the live binary or app runs
   the new code.
+- Work from a ticket closes with the before/after proof posted on the ticket,
+  in the format the project's skill defines. Do not change its state.
 - Report:
   - what changed;
   - the proof;
