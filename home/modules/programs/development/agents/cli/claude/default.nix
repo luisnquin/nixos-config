@@ -116,7 +116,7 @@ in {
 
       statusLine = {
         "type" = "command";
-        "command" = lib.getExe pkgs.llm-agents.ccstatusline;
+        "command" = "strikedddd statusline ${lib.escapeShellArg (lib.getExe pkgs.llm-agents.ccstatusline)}";
         "padding" = 0;
         "refreshInterval" = 5;
       };
