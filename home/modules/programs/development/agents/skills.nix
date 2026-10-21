@@ -113,8 +113,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
-            rev = "0b8716793715fdcc2979e549bd5e5870e7188bd1";
-            sha256 = "sha256-wpsB1YfZCgsoK7SKR1r8l46bbBo9SXfUNic9MWyPfo4=";
+            rev = "6a893403dd231ec2deeba5e50c0b5f2e7f27194e";
+            sha256 = "sha256-ixPUGiwpRfaMNWOi5N8NR1XlRHYq8/JY7YSqVo8YGY8=";
           };
         } {
           plugins = [
@@ -124,6 +124,7 @@ in {
             "commit"
             "socratic-debate"
             "counter-attack"
+            "qa-fleet"
           ];
         })
 
