@@ -114,6 +114,7 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
   line ends in `(partial)`. Otherwise the refusal lists the `@index` to use.
 - Never `timeout` or wrap `app logs`, and never call raw `logcat`, `wm size`
   or `settings put` by hand: `app logs` and `display` do it under the lease.
+  The exception is a dead process; see "When the app dies".
 - `app open` takes a url. An app id goes to `app launch <id>`. Nothing opens
   `data:` urls: serve the page over http and `phone device reverse <port>`.
 - `down` takes no device name. One device: `phone release -t <name>`, or
@@ -146,6 +147,41 @@ phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir
   Wait for something the action creates, not for something already there.
 - `wait` gives up after 5s on a crash or ANR dialog, a redbox or a dev-client
   load error, and prints that screen.
+
+## When the app dies
+
+`app logs` reads only a running process: after a crash it prints nothing. The
+stack trace and the death reason live in logcat's crash and events buffers,
+which `app logs` does not read. This is the one raw logcat call to make, under
+the lease:
+
+```
+phone run -- adb logcat -d -b crash -t 200 | grep -A40 <app-id>
+phone run -- adb logcat -d -b events -t 400 | grep -E "am_crash|am_anr|am_kill|killinfo" | grep <app-id>
+```
+
+Both buffers hold every app's entries; filter by the app id.
+
+- `am_crash` with a stack in the crash buffer is the app's own exception.
+- `am_anr` is a frozen main thread, not a crash.
+- `killinfo` (lmkd), or `am_kill` whose reason names low memory, is the
+  system reclaiming memory. On an emulator with a tight RAM budget, rule this
+  out before reporting a crash.
+- `am_proc_died` follows every death, including the force-stop that
+  `app launch` does first; alone it proves nothing.
+
+On a simulator, crash reports land in the host's
+`~/Library/Logs/DiagnosticReports/` on the Mac that runs it.
+
+## Testing offline
+
+`device net off` cuts wifi and data. A port forwarded with `device reverse`
+rides adb, not the radios, so an app that talks to `localhost:<port>` stays
+online. A test of lost connectivity must cut the path the app actually uses:
+`phone device reverse --clear` (put it back with `phone device reverse <port>`
+afterwards). Stopping the server or tunnel behind it also works, but cuts
+every device that shares it. A simulator shares its host's network, so `net`
+does nothing there and only stopping what it reaches takes it offline.
 
 ## What phone does not cover
 
