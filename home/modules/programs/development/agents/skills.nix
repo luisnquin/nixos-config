@@ -130,6 +130,17 @@ in {
 
       (mkSkill {
           src = pkgs.fetchFromGitHub {
+            owner = "leonxlnx";
+            repo = "taste-skill";
+            rev = "6010f91a9935f1c167dfc500fb1a475681892e6b";
+            hash = "sha256-25Hc9DiKiDSq+Ae3bTwv9nnk7KziP0cp3Q8srpXE47U=";
+          };
+        } {
+          plugins = ["taste-skill"];
+        })
+
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
             owner = "lkshrk";
             repo = "linear-ai";
             rev = "5b94f09eff649ad9125a1d4a57a815fa9fab536d";
@@ -148,6 +159,35 @@ in {
             "linear-review"
             "linear-repo-reconcile"
           ];
+        })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "hyperb1iss";
+            repo = "hyperskills";
+            rev = "a0e30e791c5a9ef65f438a24b6ea7bffb912ac70";
+            hash = "sha256-Rl0BBK/Hnf7xOwWvNMqkmm64sRnMEtl0+walbkq79P8=";
+            rootDir = "skills";
+          };
+        } {
+          plugins = ["tui-design"];
+        })
+      (mkSkill {
+          src = pkgs.applyPatches {
+            name = "ui-ux-pro-max-skill";
+            src = pkgs.fetchFromGitHub {
+              owner = "nextlevelbuilder";
+              repo = "ui-ux-pro-max-skill";
+              rev = "076a2b3a31394ad788afaa71f55d0bf789e7b3ec";
+              hash = "sha256-oUr1p0GuTH5nXegrf+3Q4qOWUCDOhEEEEpcGaRBvepE=";
+              rootDir = ".claude/skills";
+            };
+            postPatch = ''
+              substituteInPlace ui-ux-pro-max/SKILL.md \
+                --replace-fail '"''${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max/' "\"$out/ui-ux-pro-max/"
+            '';
+          };
+        } {
+          plugins = ["ui-ux-pro-max"];
         })
     ];
   };
