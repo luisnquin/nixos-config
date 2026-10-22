@@ -28,8 +28,8 @@ in {
     '';
 
     settings = {
-      model = "gpt-6-luna";
-      model_reasoning_effort = "xhigh";
+      model = "gpt-6.1-sol";
+      model_reasoning_effort = "medium";
       project_doc_fallback_filenames = ["CLAUDE.md"];
 
       analytics.enabled = false;
