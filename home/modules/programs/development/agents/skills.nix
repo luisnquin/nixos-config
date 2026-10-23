@@ -172,6 +172,17 @@ in {
           plugins = ["tui-design"];
         })
       (mkSkill {
+          # Its install and self-update sections reach for npm -g and curl, which would shadow the nix-built pen.
+          src = pkgs.runCommand "pen-design-skill" {} ''
+            mkdir -p $out/pen-design
+            sed -e '/^### Check installation/,/^### Authentication/{/^### Authentication/!d}' \
+                -e '/^### Staying up to date/,/^## Creating a Design/{/^## Creating a Design/!d}' \
+                ${pkgs.pen-dev}/lib/node_modules/@pen.dev/cli/SKILL.md > $out/pen-design/SKILL.md
+          '';
+        } {
+          plugins = ["pen-design"];
+        })
+      (mkSkill {
           src = pkgs.applyPatches {
             name = "ui-ux-pro-max-skill";
             src = pkgs.fetchFromGitHub {
