@@ -16,6 +16,7 @@
     ./etc.nix
     ./linear.nix
     ./node.nix
+    ./pen.nix
     ./processors.nix
     ./python.nix
     ./rust.nix

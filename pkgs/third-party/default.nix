@@ -7,6 +7,7 @@ pkgs: {
   herdr-sesh = pkgs.callPackage ./herdr-sesh {};
   knots = pkgs.callPackage ./knots {};
   linear-tui = pkgs.callPackage ./linear-tui {};
+  pen-dev = pkgs.callPackage ./pen-dev {};
   px0 = pkgs.callPackage ./px0 {};
   vimix-gtk-themes = pkgs.callPackage ./vimix-gtk-themes {};
 }
