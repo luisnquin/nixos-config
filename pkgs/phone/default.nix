@@ -59,6 +59,10 @@ in
 
     nativeBuildInputs = [installShellFiles makeWrapper];
 
+    preCheck = lib.optionalString stdenv.hostPlatform.isDarwin ''
+      export PATH="$PATH:/bin"
+    '';
+
     postInstall = ''
       installShellCompletion --cmd phone \
         --bash <($out/bin/phone completions bash) \

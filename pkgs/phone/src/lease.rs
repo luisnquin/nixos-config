@@ -40,11 +40,11 @@ if [ "$1" != "-" ]; then
     printf '%s' "$2" > "$tmp" && mv "$tmp" "$f" || exit 1
     if [ -n "$3" ]; then
       u="$state/usage.tsv"
-      { cat "$u" 2>/dev/null; } | awk -F '\t' -v OFS='\t' -v d="$3" -v t="$4" -v at="$5" '
+      { cat "$u" 2>/dev/null; } | awk -F '\t' -v OFS='\t' -v d="$3" -v t="$4" -v at="$5" -v add="${6:-1}" '
 NF < 4 { next }
-$1 == d && $2 == t { $3 = at; $4 = $4 + 1; hit = 1 }
+$1 == d && $2 == t { $3 = at; $4 = $4 + add; hit = 1 }
 { print }
-END { if (!hit) print d, t, at, 1 }' > "$u.$$.tmp" && mv "$u.$$.tmp" "$u"
+END { if (!hit) print d, t, at, add }' > "$u.$$.tmp" && mv "$u.$$.tmp" "$u"
     fi
   else
     code=75
@@ -467,7 +467,7 @@ impl Book {
         }
     }
 
-    async fn commit(&self, ledger: &Ledger, stamp: &[String]) -> Result<Result<Self, Self>> {
+    pub(crate) async fn commit(&self, ledger: &Ledger, stamp: &[String]) -> Result<Result<Self, Self>> {
         let body = ledger.body();
         let mut args = vec![self.sum.as_str(), body.as_str()];
         args.extend(stamp.iter().map(String::as_str));
@@ -748,13 +748,9 @@ fn settled(view: &View, lease: Lease) -> Got {
 async fn stamp(view: &View, book: &Book) -> Vec<String> {
     let mine = book.ledger.get(&key(&view.device)).is_some_and(|(_, l)| l.owned_by(agent::me()));
 
-    if mine {
-        return Vec::new();
-    }
-
     let tree = here_tree().await.unwrap_or_default();
 
-    vec![key(&view.device).id, tree, model::now().to_string()]
+    vec![key(&view.device).id, tree, model::now().to_string(), if mine { "0" } else { "1" }.into()]
 }
 
 pub async fn release(view: &View) -> Result<Option<Lease>> {
@@ -1597,6 +1593,11 @@ mod tests {
         assert_eq!(wrote.ledger.leases["avd:pixel"].agent, "a");
         assert_ne!(wrote.sum, empty.sum);
         assert!(wrote.usage.of(&Device::new("avd:pixel", "pixel", Platform::Emulator), Some("/a")).project.is_some());
+
+        let (status, renewed) = run(&state, &[&wrote.sum, &body, "avd:pixel", "/a", "10", "0"]).await;
+        assert_eq!(status, Status::Code(0));
+        let used = renewed.usage.of(&Device::new("avd:pixel", "pixel", Platform::Emulator), Some("/a")).project.unwrap();
+        assert_eq!((used.at, used.count), (10, 1));
 
         let (status, stale) = run(&state, &[&empty.sum, "{}"]).await;
         assert_eq!(status, Status::Code(CONFLICT));

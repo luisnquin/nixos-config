@@ -40,6 +40,7 @@ mod calls;
 mod cli;
 mod config;
 mod connect;
+mod daemon;
 mod discover;
 mod doctor;
 mod grid;
@@ -99,7 +100,7 @@ async fn main() -> ExitCode {
     let cli = help::parse();
 
     match &cli.command {
-        Some(Command::Hook { .. } | Command::Completions { .. }) => calls::skip(),
+        Some(Command::Hook { .. } | Command::Completions { .. } | Command::Daemon { .. }) => calls::skip(),
         None | Some(Command::Stream { .. } | Command::Mirror { .. } | Command::Record { .. }) => {
             calls::quiet()
         }
@@ -178,6 +179,10 @@ async fn configured(cli: Cli) -> Result<()> {
 
     if let Some(hint) = cli.misplaced_path(std::env::var("PHONE_TARGET").ok().as_deref()) {
         bail!("{hint}");
+    }
+
+    if let Some(Command::Daemon { idle, interval, keep, adopt, once, dry_run }) = &cli.command {
+        return daemon::run(*idle, *interval, keep, adopt, *once, *dry_run).await;
     }
 
     dispatch(cli).await
@@ -521,6 +526,8 @@ async fn clone_device(reg: &mut Registry, target: &str, new: &str) -> Result<()>
         );
     }
 
+    lease::hold(&view).await?;
+    let _beat = lease::heartbeat(&view);
     eprintln!(
         "phone: {}",
         actions::clone(&view.device, &view.reach, new).await?
@@ -658,7 +665,8 @@ async fn boot_device(
     reg.save()?;
 
     let view = choose(&views, reg, want.as_deref(), true, Aim::Bootable).await?;
-    lease::guard(&view).await?;
+    lease::hold(&view).await?;
+    let _beat = lease::heartbeat(&view);
 
     if !actions::running(&view.reach) {
         memory::admit(reg, &views, &[&view.device], over_budget).await?;

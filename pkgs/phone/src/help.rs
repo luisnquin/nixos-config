@@ -11,7 +11,7 @@ const GROUPS: &[(&str, &[&str])] = &[
     ("Wait and chain", &["wait", "do"]),
     ("Devices and apps", &["device", "display", "app", "host"]),
     ("Watch", &["mirror", "stream", "record"]),
-    ("Help", &["doctor", "hook", "help"]),
+    ("Help", &["doctor", "daemon", "hook", "help"]),
 ];
 
 pub fn parse() -> Cli {

@@ -64,7 +64,7 @@ The commands
   app      install launch stop open logs notifications push
   host     list enable disable budget
   panel    display
-  this     mirror stream record doctor hook
+  this     mirror stream record doctor daemon hook
 
 What to know before scripting it
 
@@ -897,6 +897,23 @@ as a transition_animation_scale pinned above 0; those are warnings, not
 failures. Run it when a command fails in a way that looks like a tool is absent,
 not when a device will not respond."#)]
     Doctor,
+    /// Maintain this host's leases and retire unused temporary devices
+    #[command(after_help = "Clones are recorded as temporary on their host. After --idle without use, the daemon deletes them only while off, unleased and unlocked. --keep preserves named devices; --adopt records existing temporary devices once. One daemon runs per user's state directory. --once --dry-run previews cleanup without changing state.")]
+    Daemon {
+        #[arg(long, default_value = "168h", value_parser = parse_duration)]
+        idle: Duration,
+        #[arg(long, default_value = "1h", value_parser = parse_duration)]
+        interval: Duration,
+        #[arg(long)]
+        keep: Vec<String>,
+        #[arg(long)]
+        adopt: Vec<String>,
+        #[arg(long)]
+        once: bool,
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Print one line pointing an agent at phone when a harness is about to run raw adb, emulator or simctl
     #[command(after_help = r#"Examples:
   phone hook --harness claude

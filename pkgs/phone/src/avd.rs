@@ -278,6 +278,38 @@ pub async fn delete(at: &Where, name: &str) -> Result<()> {
     )
 }
 
+pub async fn in_use(name: &str) -> Result<bool> {
+    let out = tokio::process::Command::new("ps")
+        .args(["-axo", "command="])
+        .output()
+        .await?;
+    if !out.status.success() {
+        bail!("could not inspect running emulator processes");
+    }
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let words: Vec<&str> = line.split_whitespace().collect();
+        let Some(binary) = words.first() else {
+            continue;
+        };
+        let binary = binary.rsplit('/').next().unwrap_or(binary);
+        if !binary.starts_with("qemu-system-")
+            && binary != "emulator"
+            && binary != ".emulator-wrapped"
+        {
+            continue;
+        }
+        let avd = words
+            .windows(2)
+            .find(|pair| pair[0] == "-avd")
+            .map(|pair| pair[1])
+            .or_else(|| words.iter().find_map(|word| word.strip_prefix('@')));
+        if avd.is_none_or(|avd| avd == name) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn valid(name: &str) -> Result<()> {
     let ok = !name.is_empty()
         && !name.starts_with(['.', '-'])

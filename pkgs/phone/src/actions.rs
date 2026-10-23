@@ -1397,9 +1397,13 @@ pub async fn clone(device: &Device, reach: &Reach, new: &str) -> Result<String> 
 
     match device.platform {
         Platform::Simulator => {
-            simctl::clone(&at, simctl::udid(device)?, new).await?;
+            let id = simctl::clone(&at, simctl::udid(device)?, new).await?;
+            crate::daemon::track(&at, &id).await?;
         }
-        _ => avd::clone(&at, label, new).await?,
+        _ => {
+            avd::clone(&at, label, new).await?;
+            crate::daemon::track(&at, &format!("{}{}", crate::model::AVD_PREFIX, new)).await?;
+        }
     }
 
     Ok(format!(

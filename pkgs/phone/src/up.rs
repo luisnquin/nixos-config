@@ -711,6 +711,8 @@ async fn seated(
 
 async fn cloned(reg: &mut Registry, views: &mut Vec<View>, source: &View) -> Result<View> {
     let name = alloc::clone_name(views, source);
+    lease::hold(source).await?;
+    let _beat = lease::heartbeat(source);
 
     eprintln!(
         "phone: {}",
