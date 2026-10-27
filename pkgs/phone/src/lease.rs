@@ -447,6 +447,7 @@ impl Book {
     }
 
     pub async fn fetch(at: &Where) -> Result<Self> {
+        crate::daemon::used(at);
         let ran = at
             .exec(LEDGER, &["-"], TIMEOUT)
             .await
@@ -461,6 +462,7 @@ impl Book {
     }
 
     pub async fn open(at: &Where) -> Result<Self> {
+        crate::daemon::used(at);
         match Self::cached(at) {
             Some(book) => Ok(book),
             None => Self::fetch(at).await,

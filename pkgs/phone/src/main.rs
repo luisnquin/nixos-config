@@ -87,8 +87,7 @@ use model::{Platform, View};
 use project::Project;
 use registry::Registry;
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     // Rust ignores SIGPIPE, so a write to a closed pipe comes back as an error
     // that `println!` panics on. `phone snapshot | head` is how a long dump is
     // read, and it must end the run quietly rather than in a backtrace.
@@ -113,7 +112,7 @@ async fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let code = match configured(cli).await {
+    let code = match runtime(&cli).and_then(|runtime| runtime.block_on(configured(cli))) {
         Ok(()) => 0,
         Err(e) if e.is::<Exited>() => e.downcast::<Exited>().map_or(1, |Exited(code)| code as u8),
         Err(e) => {
@@ -131,6 +130,14 @@ async fn main() -> ExitCode {
     calls::finish(Some(i32::from(code)), None);
 
     ExitCode::from(code)
+}
+
+fn runtime(cli: &Cli) -> Result<tokio::runtime::Runtime> {
+    let mut builder = match &cli.command {
+        Some(Command::Daemon { .. }) => tokio::runtime::Builder::new_current_thread(),
+        _ => tokio::runtime::Builder::new_multi_thread(),
+    };
+    Ok(builder.enable_all().build()?)
 }
 
 #[derive(Debug)]
@@ -181,11 +188,16 @@ async fn configured(cli: Cli) -> Result<()> {
         bail!("{hint}");
     }
 
-    if let Some(Command::Daemon { idle, interval, keep, adopt, once, dry_run }) = &cli.command {
-        return daemon::run(*idle, *interval, keep, adopt, *once, *dry_run).await;
+    if let Some(Command::Daemon { idle, interval, keep, adopt, timeout, ensure, scheduled, dry_run, .. }) = &cli.command {
+        if *ensure {
+            return daemon::start_due();
+        }
+        return daemon::run(*idle, *interval, keep, adopt, *timeout, *dry_run, *scheduled).await;
     }
 
-    dispatch(cli).await
+    let result = dispatch(cli).await;
+    daemon::ensure_used().await;
+    result
 }
 
 async fn dispatch(cli: Cli) -> Result<()> {
@@ -3514,7 +3526,7 @@ mod tests {
         );
         assert!(
             err("swipe up --timeout 3")
-                .ends_with("; --timeout belongs to `up`, `wait`, `device boot`"),
+                .ends_with("; --timeout belongs to `up`, `wait`, `device boot`, `daemon`"),
             "an exact flag elsewhere beats clap's look-alike on this verb"
         );
         assert_eq!(

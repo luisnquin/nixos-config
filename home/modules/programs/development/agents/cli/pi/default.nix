@@ -33,7 +33,7 @@ in {
         else "ask";
 
       enabledModels = [
-        "gpt-6-sol"
+        "openai/gpt-6*"
       ];
 
       compaction = {

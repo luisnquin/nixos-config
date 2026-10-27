@@ -897,8 +897,8 @@ as a transition_animation_scale pinned above 0; those are warnings, not
 failures. Run it when a command fails in a way that looks like a tool is absent,
 not when a device will not respond."#)]
     Doctor,
-    /// Maintain this host's leases and retire unused temporary devices
-    #[command(after_help = "Clones are recorded as temporary on their host. After --idle without use, the daemon deletes them only while off, unleased and unlocked. --keep preserves named devices; --adopt records existing temporary devices once. One daemon runs per user's state directory. --once --dry-run previews cleanup without changing state.")]
+    /// Run one bounded cleanup pass on this host and exit
+    #[command(after_help = "Normal phone commands automatically start cleanup in the background when tracked clones are old enough. One worker per host runs at most hourly, removes at most three devices, and exits after one pass. It has a two-minute runtime limit, a 32 MiB resident-memory budget checked every 100ms, and no idle loop. --keep preserves named devices; explicit device pools are also kept. --adopt records existing temporary devices once. --dry-run previews cleanup without changing device state.")]
     Daemon {
         #[arg(long, default_value = "168h", value_parser = parse_duration)]
         idle: Duration,
@@ -908,8 +908,14 @@ not when a device will not respond."#)]
         keep: Vec<String>,
         #[arg(long)]
         adopt: Vec<String>,
-        #[arg(long)]
+        #[arg(long, hide = true)]
         once: bool,
+        #[arg(long, default_value = "2m", value_parser = parse_duration)]
+        timeout: Duration,
+        #[arg(long, hide = true)]
+        ensure: bool,
+        #[arg(long, hide = true)]
+        scheduled: bool,
         #[arg(long)]
         dry_run: bool,
     },

@@ -1,4 +1,4 @@
-use std::fs::{self, File};
+use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -10,6 +10,10 @@ use crate::model::{self, Device, Platform, Unix};
 use crate::registry;
 use crate::ssh::{landed, Where};
 use crate::{avd, simctl, stamps};
+
+mod lifecycle;
+mod memory;
+pub use lifecycle::{ensure_used, start_due, used};
 
 const OWNER: &str = "phone automatic cleanup";
 
@@ -55,84 +59,106 @@ pub async fn run(
     interval: Duration,
     keep: &[String],
     adopt: &[String],
-    once: bool,
+    timeout: Duration,
     dry_run: bool,
+    scheduled: bool,
 ) -> Result<()> {
     if idle.is_zero() || interval.is_zero() {
         bail!("--idle and --interval must be greater than zero");
     }
-
-    fs::create_dir_all(registry::state_dir())?;
-    let singleton = File::options()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(registry::state_dir().join("daemon.lock"))?;
-    singleton
-        .try_lock()
-        .context("another phone daemon is already running for this state directory")?;
-
+    let _singleton = lifecycle::singleton()?;
+    if scheduled && !lifecycle::scheduled() {
+        return Ok(());
+    }
+    lifecycle::deadline(timeout)?;
     if !dry_run {
+        lifecycle::cooldown(interval)?;
         release(None).await?;
     }
+    let mut keep = keep.to_vec();
+    keep.extend(crate::config::get().pools.values().flatten().cloned());
     eprintln!(
-        "phone: maintenance started, idle {}h, interval {}s{}",
-        idle.as_secs() / 3600,
-        interval.as_secs(),
+        "phone: cleanup pass started, max runtime {}s{}",
+        timeout.as_secs(),
         if dry_run { ", preview only" } else { "" }
     );
-
-    loop {
-        if let Err(error) = sweep(idle, keep, adopt, dry_run).await {
-            if once {
-                return Err(error);
-            }
-            eprintln!("phone: cleanup failed: {error:#}");
-        }
-        if once {
-            return Ok(());
-        }
-        tokio::time::sleep(interval).await;
-    }
+    sweep(idle, &keep, adopt, dry_run).await
 }
 
-async fn inventory() -> Vec<(Device, bool)> {
-    let mut devices = simctl::devices(&Where::Here).await.unwrap_or_default();
-    for (name, _) in avd::list(&Where::Here).await {
-        devices.push((
-            Device::new(model::avd_id(None, &name), name, Platform::Emulator),
-            false,
-        ));
+fn records() -> Result<Vec<Temporary>> {
+    let entries = match fs::read_dir(directory()) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut records = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        if entry.path().extension().is_some_and(|ext| ext == "json") {
+            records.push(read_record(&entry.path())?);
+        }
+    }
+    Ok(records)
+}
+
+fn pending(idle: Duration) -> Result<Vec<Temporary>> {
+    Ok(records()?
+        .into_iter()
+        .filter(|record| due(record.created, None, model::now(), idle))
+        .collect())
+}
+
+fn has_pending(idle: Duration) -> Result<bool> {
+    Ok(!pending(idle)?.is_empty())
+}
+
+async fn inventory(records: &[Temporary], adopt: &[String]) -> Vec<(Device, bool)> {
+    let sims = records
+        .iter()
+        .any(|record| !record.id.starts_with(model::AVD_PREFIX));
+    let avds = records
+        .iter()
+        .any(|record| record.id.starts_with(model::AVD_PREFIX));
+    let mut devices = Vec::new();
+    if sims || !adopt.is_empty() {
+        devices.extend(simctl::devices(&Where::Here).await.unwrap_or_default());
+    }
+    if avds || !adopt.is_empty() {
+        for (name, _) in avd::list(&Where::Here).await {
+            devices.push((
+                Device::new(model::avd_id(None, &name), name, Platform::Emulator),
+                false,
+            ));
+        }
     }
     devices
 }
 
 async fn sweep(idle: Duration, keep: &[String], adopt: &[String], dry_run: bool) -> Result<()> {
-    let devices = inventory().await;
+    let records = pending(idle)?;
+    if records.is_empty() && adopt.is_empty() {
+        return Ok(());
+    }
+    let devices = inventory(&records, adopt).await;
     let mut book = Book::fetch(&Where::Here).await?;
     if !dry_run {
         book = prune(book).await?;
         adopt_existing(&devices, adopt).await?;
     }
-
-    let entries = match fs::read_dir(directory()) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error.into()),
-    };
-    for entry in entries {
-        let entry = entry?;
-        if entry.path().extension().is_none_or(|ext| ext != "json") {
-            continue;
-        }
-        let temporary = read_record(&entry.path())?;
+    let mut deleted = 0;
+    for temporary in records {
         let Some((device, running)) = devices
             .iter()
             .find(|(device, _)| lease::key(device).id == temporary.id)
         else {
             continue;
         };
-        consider(&temporary, device, *running, &book, idle, keep, dry_run).await?;
+        if consider(&temporary, device, *running, &book, idle, keep, dry_run).await? {
+            deleted += 1;
+            if deleted == 3 {
+                break;
+            }
+        }
     }
     Ok(())
 }
@@ -198,9 +224,9 @@ async fn consider(
     idle: Duration,
     keep: &[String],
     dry_run: bool,
-) -> Result<()> {
+) -> Result<bool> {
     if !eligible(temporary, device, running, book, idle, keep).await? {
-        return Ok(());
+        return Ok(false);
     }
     if dry_run {
         if !blocked(book, device) {
@@ -210,10 +236,10 @@ async fn consider(
                 idle.as_secs() / 3600
             );
         }
-        return Ok(());
+        return Ok(false);
     }
     if !reserve(device, temporary, idle).await? {
-        return Ok(());
+        return Ok(false);
     }
     let deleted = retire(device).await;
     release(Some(&temporary.id)).await?;
@@ -225,11 +251,12 @@ async fn consider(
                 device.label,
                 model::now()
             );
+            return Ok(true);
         }
         Ok(false) => {}
         Err(error) => eprintln!("phone: could not retire {}: {error:#}", device.label),
     }
-    Ok(())
+    Ok(false)
 }
 
 fn blocked(book: &Book, device: &Device) -> bool {
