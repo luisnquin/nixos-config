@@ -1,6 +1,6 @@
 ---
 name: dev-flow
-description: Default loop for a bug or change: scope to what was asked, reproduce on the real target, fix the cause, instrument instead of guessing after two failed attempts, prove with before/after evidence, then deliver only as far as allowed. Use for any bug fix or feature implementation.
+description: Default loop for a bug or change. Scope to what was asked, reproduce on the real target, fix the cause, instrument instead of guessing after two failed attempts, prove with before/after evidence, then deliver only as far as allowed. Use for any bug fix or feature implementation.
 ---
 
 # Dev flow

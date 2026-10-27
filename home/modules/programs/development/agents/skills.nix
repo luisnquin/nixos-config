@@ -13,7 +13,7 @@ in {
     skills = with pkgs.agent-skills; [
       (mkInlineSkill {
           "nixgrep" = {
-            description = "Find /nix/store paths by name with `nixgrep <search-term>`: a package's outputs, its .drv files and companion derivations such as go-modules. Use it instead of `ls /nix/store | grep`. Prints store basenames, one per line, without the /nix/store/ prefix.";
+            description = "Find /nix/store paths by name with `nixgrep <search-term>`, covering a package's outputs, its .drv files and companion derivations such as go-modules. Use it instead of `ls /nix/store | grep`. Prints store basenames, one per line, without the /nix/store/ prefix.";
             tags = ["utils"];
             content = ''
               # Quick Reference
@@ -113,8 +113,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
-            rev = "aa84b2e59136951aa47ccc9aceec0dc1dfc228db";
-            sha256 = "sha256-FpCw3aKanPUvUrDz3+lM2I5uCeIWp/ilh90Hf87ikG4=";
+            rev = "02e5581607a674584b6510677ec3562a7af5a34e";
+            sha256 = "sha256-xg+a9DqDtNRts9X4+yYvT5RKsYbTV9Y7quT1WbLIZfg=";
           };
         } {
           plugins = [

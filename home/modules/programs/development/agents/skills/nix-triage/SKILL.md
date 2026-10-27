@@ -1,6 +1,6 @@
 ---
 name: nix-triage
-description: Diagnose a pasted nixos-rebuild, home-manager switch or nix build failure or eval warning: name the failing derivation and what pulls it in, check upstream, then bump, patch, override or comment out, without running the build. Use when the user pastes a Nix error or asks which package breaks the build.
+description: Diagnose a pasted nixos-rebuild, home-manager switch or nix build failure or eval warning. Name the failing derivation and what pulls it in, check upstream, then bump, patch, override or comment out, without running the build. Use when the user pastes a Nix error or asks which package breaks the build.
 ---
 
 # Nix triage
