@@ -2,20 +2,20 @@
   "claude-plugins-official": {
     "owner": "anthropics",
     "repo": "claude-plugins-official",
-    "rev": "b091cb4179d3b62a6e2a39910461c7ec7165b1ef",
-    "hash": "sha256-uKDVcw6C1uzpiIY+hjgHxr4AU9wM1KF7t3v6zd9XBHk="
+    "rev": "f8c5e7a1dcb71b10cb74586224b5401f3de5db28",
+    "hash": "sha256-lmJbRtHsAN/rxqzm5hzxxu8lx+iiqRCtocJ7YET03Lg="
   },
   "chat-clean": {
     "owner": "achammah",
     "repo": "claude-chat-clean",
-    "rev": "aea885f62bd1ce139418d17e45560ba5dc8af49c",
-    "hash": "sha256-u6TsPn1BSefLT3SvD/z3SNZhVsml/oMEppyOlxXH8zQ="
+    "rev": "ea50e19b5c3b39665cb06ff205323660889fcc85",
+    "hash": "sha256-PK9Gb38yx8axpanoE91423sAsGovEA69MzGsyW7LjWY="
   },
   "oikon48": {
     "owner": "oikon48",
     "repo": "prompt-rail",
-    "rev": "2ac50fb87fc426fed89ba0f09f1784ef6f289ae8",
-    "hash": "sha256-yKzZUp4dHfU5jVH2kgPm3ohw3/UaJNoJjIBN+G2JDKo="
+    "rev": "933ab7345446cfb86e81e12e31850c4278d50d3f",
+    "hash": "sha256-cOgz4RNAqnfrqvC6uv7YHy6eILiTR8jVketdkc8SKm8="
   },
   "claude-blindfold": {
     "owner": "luisnquin",
@@ -26,7 +26,7 @@
   "better-claude": {
     "owner": "midudev",
     "repo": "better-claude",
-    "rev": "8dca6f3bf689d3ccb8a6a47b962c750a441bb4f2",
-    "hash": "sha256-lOdK/elQ1FCViW+7umJ7MVwnctOHrjtBnJ6Tr3CWFWo="
+    "rev": "5abacf0ff67a0f6e343a400d7953f78afba57017",
+    "hash": "sha256-hc+tyN34s+iqXgDzUNJBS04khZY7+bbwG95RW4SLRyw="
   }
 }
