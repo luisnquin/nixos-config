@@ -17,7 +17,7 @@ in {
     # https://pi.dev/docs/latest/settings
     settings = {
       defaultProvider = "openai";
-      defaultModel = "gpt-5.5";
+      defaultModel = "gpt-6-sol";
       defaultThinkingLevel = "medium";
 
       theme = "dark";
@@ -33,10 +33,7 @@ in {
         else "ask";
 
       enabledModels = [
-        "gpt-5.5*"
-        "gpt-5.4*"
-        "claude-opus-*"
-        "claude-sonnet-*"
+        "gpt-6-sol"
       ];
 
       compaction = {
