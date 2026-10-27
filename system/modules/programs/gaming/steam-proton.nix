@@ -1,5 +1,6 @@
 {
   pkgs,
+  libx,
   user,
   ...
 }: {
@@ -17,6 +18,7 @@
   programs = {
     steam = {
       enable = true;
+      package = pkgs.steam.override {extraEnv = libx.nvidia.offloadEnv;};
       gamescopeSession.enable = true;
     };
 

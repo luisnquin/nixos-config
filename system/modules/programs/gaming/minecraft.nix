@@ -1,4 +1,4 @@
-{...}: {
+{libx, ...}: {
   # environment.systemPackages = [
   #   inputs.prismlauncher.packages.${pkgs.stdenv.hostPlatform.system}.default # jailbreak offline accounts
   # ];
@@ -10,4 +10,6 @@
       origin = "flathub";
     }
   ];
+
+  services.flatpak.overrides."io.mrarm.mcpelauncher".Environment = libx.nvidia.offloadEnv;
 }

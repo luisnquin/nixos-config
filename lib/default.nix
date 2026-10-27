@@ -9,5 +9,6 @@ in
     base64 = ./base64.nix;
     fs = ./fs.nix;
     notify = ./notify.nix;
+    nvidia = ./nvidia.nix;
   }
   // import ./metadata.nix {inherit lib;}
