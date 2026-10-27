@@ -201,14 +201,19 @@
     # session-group check runs against the last session for every iteration and
     # `continue` skips all of them: choose-tree/choose-window/choose-session draw
     # nothing whenever a grouped session exists (ssh-gateway makes one). Fixed
-    # upstream after 3.7b; drop once nixpkgs ships 3.8.
-    tmux = prev.tmux.overrideAttrs (old: {
-      patches =
-        (old.patches or [])
-        ++ [
-          ./patches/tmux/window-tree-per-session-group-check.patch
-        ];
-    });
+    # upstream in 3.8, where the patch no longer applies; drop once every
+    # consumer's nixpkgs ships 3.8.
+    tmux =
+      if prev.lib.versionOlder prev.tmux.version "3.8"
+      then
+        prev.tmux.overrideAttrs (old: {
+          patches =
+            (old.patches or [])
+            ++ [
+              ./patches/tmux/window-tree-per-session-group-check.patch
+            ];
+        })
+      else prev.tmux;
   })
   (_final: prev: {
     pythonPackagesExtensions =
