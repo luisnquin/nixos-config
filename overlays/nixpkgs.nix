@@ -263,6 +263,8 @@
     #    match against the one server-global `host_terminal_theme`, so a second
     #    client with a different background baked an opaque literal into every
     #    cell. Asks `child_default_background_changed` like the OSC path does.
+    # 6. Backports ghostty-org/ghostty#14832; drop once herdr vendors past
+    #    ghostty bcfe5775.
     herdr = prev.llm-agents.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
@@ -272,6 +274,7 @@
           ./patches/herdr/stage-agent-resume-command.patch
           ./patches/herdr/claude-resume-skip-permissions.patch
           ./patches/herdr/default-bg-follows-child-ownership.patch
+          ./patches/herdr/drop-kitty-images-in-erased-history.patch
         ];
     });
   })
