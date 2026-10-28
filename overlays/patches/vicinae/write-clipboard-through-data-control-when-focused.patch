@@ -1,0 +1,11 @@
+diff --git a/src/server/src/services/clipboard/data-control/data-control-clipboard-server.cpp b/src/server/src/services/clipboard/data-control/data-control-clipboard-server.cpp
+index ec4001b..0fa4986 100644
+--- a/src/server/src/services/clipboard/data-control/data-control-clipboard-server.cpp
++++ b/src/server/src/services/clipboard/data-control/data-control-clipboard-server.cpp
+@@ -158,5 +158,5 @@ void DataControlClipboardServer::handleRead() {
+ bool DataControlClipboardServer::writeClipboard(QMimeData *data, const Clipboard::CopyOptions &options) {
+-  if (!QGuiApplication::focusWindow() && m_process.state() == QProcess::Running) {
++  if (m_process.state() == QProcess::Running) {
+     clipboard_proto::Selection selection;
+     for (const auto &format : data->formats()) {
+       QByteArray raw = data->data(format);
