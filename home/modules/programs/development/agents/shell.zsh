@@ -5,12 +5,12 @@ agent-picker() {
 
   local -a candidates=(
     'claude --dangerously-skip-permissions'
+    'pi'
     'codex'
     'freebuff'
     'agent'
     'opencode'
     'grok'
-    'pi'
   )
 
   local -a available=()
