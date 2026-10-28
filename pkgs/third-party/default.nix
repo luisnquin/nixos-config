@@ -8,6 +8,7 @@ pkgs: {
   knots = pkgs.callPackage ./knots {};
   linear-tui = pkgs.callPackage ./linear-tui {};
   pen-dev = pkgs.callPackage ./pen-dev {};
+  inherit (pkgs.callPackages ./pi-packages {}) pi-diff-review pi-subagents;
   px0 = pkgs.callPackage ./px0 {};
   vimix-gtk-themes = pkgs.callPackage ./vimix-gtk-themes {};
 }

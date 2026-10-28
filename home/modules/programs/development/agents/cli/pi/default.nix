@@ -38,9 +38,9 @@ in {
       quietStartup = true;
       terminal.showTerminalProgress = true;
 
-      packages = [
-        "npm:pi-subagents@0.83.0"
-        "npm:pi-diff-review@0.1.29"
+      packages = map (p: "${p}/${p.piPath}") [
+        pkgs.pi-subagents
+        pkgs.pi-diff-review
       ];
 
       enableInstallTelemetry = false;
