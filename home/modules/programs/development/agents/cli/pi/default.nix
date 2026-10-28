@@ -11,6 +11,8 @@
   # trust. Mirror the kit's autonomous switch used by the other agents.
   isAutonomous = (config.agents.permissions.profile or "standard") == "autonomous";
 in {
+  home.file.".pi/agent/themes/iceberg.json".source = ./iceberg.json;
+
   home.file.".pi/agent/mcp.json".text = builtins.toJSON {
     mcpServers = lib.mapAttrs (_: server:
       builtins.intersectAttrs {
@@ -33,7 +35,7 @@ in {
       defaultModel = "gpt-6-sol";
       defaultThinkingLevel = "medium";
 
-      theme = "dark";
+      theme = "iceberg";
       externalEditor = "nano";
       quietStartup = true;
       terminal.showTerminalProgress = true;
