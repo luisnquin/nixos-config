@@ -66,6 +66,41 @@ args @ {
     end)
   '';
 
+  primaryMonitor = {
+    output = primary;
+    mode = "1920x1080@144";
+    position = "0x0";
+    scale = 1;
+  };
+
+  primaryOnBattery = ''
+    local on_ac = nil
+
+    local function follow_ac()
+      local f = io.open("/sys/class/power_supply/ACAD/online")
+      if f == nil then
+        return
+      end
+
+      local online = f:read("l") == "1"
+      f:close()
+
+      if online == on_ac then
+        return
+      end
+      on_ac = online
+
+      local monitor = ${lib.generators.toLua {} primaryMonitor}
+      if not online then
+        monitor.mode = "1920x1080@60"
+      end
+      hl.monitor(monitor)
+    end
+
+    follow_ac()
+    hl.timer(follow_ac, { timeout = 2000, type = "repeat" })
+  '';
+
   pinentryClass = "ghostty.pinentry-gate";
 
   onPinentry = event: body: {
@@ -109,17 +144,12 @@ in {
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "lua";
-    extraConfig = extWorkspace;
+    extraConfig = extWorkspace + primaryOnBattery;
     portalPackage = null;
 
     settings = {
       monitor = [
-        {
-          output = primary;
-          mode = "1920x1080@144";
-          position = "0x0";
-          scale = 1;
-        }
+        primaryMonitor
         {
           output = "";
           mode = "1920x1080@60";
