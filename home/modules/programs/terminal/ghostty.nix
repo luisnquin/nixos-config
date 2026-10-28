@@ -13,8 +13,6 @@
       patches =
         (old.patches or [])
         ++ [
-          ./patches/agent-tab-progress.patch
-          ./patches/agent-tab-icons.patch
           ./patches/tmux-osc7-passthrough.patch
         ];
 
