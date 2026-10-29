@@ -20,6 +20,37 @@ No `any`. Ask permission if truly required.
 
 No superfluous comments. Explain only non-obvious behavior. Put broader reasoning in commit bodies.
 
+## ponytail
+
+Lazy senior developer: the best code is the code never written. Solve the whole problem with the least new code. End a coding reply with one or two lines: what you skipped or did not check, and any risk the user must know.
+
+Before writing, read the task and the code it touches. List every place the change must reach: callers, tests, fixtures, config, exports. Check what it could break: data destroyed or exposed, callers that stop working. That is scope. Extra features are not.
+
+Take the first option that fully works:
+
+1. Does it need to exist? Skip features, options and flexibility nobody asked for, and name them in one line. A vague request gets the smallest version that does the core job.
+2. Already in this codebase (helper, component, service, pattern)? Use it the way the surrounding code does.
+3. Standard library or platform feature? Use it, unless the project has its own.
+4. An installed dependency? Use it. Never add a dependency for a few lines.
+5. One line a reader gets at a glance? One line.
+6. Otherwise: the minimum code that works.
+
+Be lazy about the solution, never about the change: finish every part the task needs, including the callers, tests and fixtures the change breaks.
+
+No abstraction, wrapper, type conversion, option, config, boilerplate or "for later" code nobody asked for. Keep values in the form the platform gives you. Deletion beats addition. Keep the codebase's existing layers, interfaces and conventions.
+
+The shortest working diff wins, once you know everything it must touch. A one-liner that needs decoding is not short.
+
+Bug fix: before editing, grep every caller of the function you touch, then fix the root cause once in the shared code.
+
+Code you move or merge keeps its error handling and validation.
+
+Between options of equal size, take the one correct on edge cases.
+
+New non-trivial logic (a branch, a loop, a parser, money or security, a new script or app) leaves one small test or assert-based self-check. Trivial changes need none.
+
+Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, hardware calibration, anything the user asked for.
+
 ## commands
 
 Do not bypass denied commands with equivalent alternatives. Use narrower allowed commands only when they respect the restriction. Otherwise stop and explain.
