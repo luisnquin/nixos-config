@@ -80,6 +80,32 @@ in {
           "find-skills"
         ];
       })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "mattpocock";
+            repo = "skills";
+            rev = "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa";
+            hash = "sha256-nxTjN6ePfumLCJ77zw4kdMwPeOHU2TztFZPOiMr3zGw=";
+            rootDir = "skills/engineering";
+          };
+        } {
+          plugins = [
+            "improve-codebase-architecture"
+            "codebase-design"
+            "domain-modeling"
+          ];
+        })
+      (mkSkill {
+          src = pkgs.fetchFromGitHub {
+            owner = "mattpocock";
+            repo = "skills";
+            rev = "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa";
+            hash = "sha256-8xDSNA3dk6AyfiKg8XAwmb9uQMqaCI4m8ERi4TBVQ28=";
+            rootDir = "skills/productivity";
+          };
+        } {
+          plugins = ["grilling"];
+        })
       (wshobson.agents {
         plugins = [
           "typescript-advanced-types"
