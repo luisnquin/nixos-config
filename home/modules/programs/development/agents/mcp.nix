@@ -64,6 +64,17 @@ in {
         ];
         reapWhenIdle = true;
       }
+      {
+        name = "chrome-devtools";
+        package = pkgs.chrome-devtools-mcp;
+        args = [
+          "--executablePath"
+          (lib.getExe config.programs.chromium.package)
+          "--headless"
+          "--isolated"
+        ];
+        reapWhenIdle = true;
+      }
     ];
   };
 
