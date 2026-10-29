@@ -135,6 +135,5 @@
 - Bash(npx prisma studio)
 - Bash(npx prisma dev)
 - Bash(encore version update)
-- Bash(encore secret set:*)
 - Bash(encore secret delete:*)
 - Bash(npm publish:*)
