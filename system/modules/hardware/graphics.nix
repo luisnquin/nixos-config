@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }: {
@@ -9,6 +10,14 @@
 
   # boot.blacklistedKernelModules = ["nouveau"];
   # boot.initrd.kernelModules = ["nvidia" "nvidia_modeset" "nvidia-uvm" "nvidia_drm" "kvm-intel"];
+
+  # nvidia autoloads from its PCI modalias; nvidia_drm follows via udev.
+  environment.etc."modules-load.d/nixos.conf".source = lib.mkForce (pkgs.writeText "nixos.conf" (
+    lib.concatLines (lib.subtractLists ["nvidia" "nvidia_modeset" "nvidia_drm"] config.boot.kernelModules)
+  ));
+  services.udev.extraRules = ''
+    ACTION=="add", SUBSYSTEM=="module", KERNEL=="nvidia", RUN+="${pkgs.kmod}/bin/modprobe nvidia_drm"
+  '';
 
   hardware = {
     # renamed from `hardware.opengl`
