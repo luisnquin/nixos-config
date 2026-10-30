@@ -147,45 +147,6 @@
     });
   })
   (_final: prev: {
-    # Temporary pin past upstream #510; drop once nixpkgs ships 0.9.1 or newer.
-    # print_help and handle_subcommand both moved, so nixpkgs' own
-    # remove-install-update.diff no longer applies and is replaced by a copy
-    # refreshed against this rev — the self-install/update subcommands still
-    # have to go, they would write into a store-managed install.
-    codebase-memory-mcp = prev.codebase-memory-mcp.overrideAttrs (_old: rec {
-      version = "0.9.1-rc.1-unstable-2026-07-31";
-      src = prev.fetchFromGitHub {
-        owner = "DeusData";
-        repo = "codebase-memory-mcp";
-        rev = "d6be58ef9d43c574a2d1b0827ecc1e3c4846f0fe";
-        hash = "sha256-4Z3DjDXOM3XMMdzz1aZQIAO2qjhlNXiCpTw1faltH30=";
-      };
-      npmDeps = prev.fetchNpmDeps {
-        inherit src;
-        sourceRoot = "${src.name}/graph-ui";
-        hash = "sha256-6NUv6JCUAPHmq7RbgkgaQVrKgeL09QfUksz4uvh5UAA=";
-      };
-      patches = [
-        ./patches/codebase-memory-mcp/remove-install-update.patch
-        ./patches/codebase-memory-mcp/index-in-xdg-data-home.patch
-      ];
-      # embed-frontend.sh moved to `#!/usr/bin/env bash`, so nixpkgs' hardcoded
-      # /bin/bash --replace-fail has nothing left to hit; patchShebangs resolves
-      # it instead. The npm ci strip stays, npmDeps already vendored the tree.
-      postPatch = ''
-        substituteInPlace Makefile.cbm \
-          --replace-fail "npm ci &&" ""
-
-        patchShebangs scripts/embed-frontend.sh
-      '';
-      buildPhase = ''
-        runHook preBuild
-        make -j$NIX_BUILD_CORES -f Makefile.cbm cbm CFLAGS_EXTRA='-DCBM_VERSION=\"${version}\"'
-        runHook postBuild
-      '';
-    });
-  })
-  (_final: prev: {
     browsers = prev.browsers.overrideAttrs (old: {
       patches =
         (old.patches or [])
@@ -195,25 +156,6 @@
           ./patches/browsers/fix-url-argument-injection.patch
         ];
     });
-  })
-  (_final: prev: {
-    # 3.7b's window_tree_build reads `s = l[n - 1]` once outside the loop, so the
-    # session-group check runs against the last session for every iteration and
-    # `continue` skips all of them: choose-tree/choose-window/choose-session draw
-    # nothing whenever a grouped session exists (ssh-gateway makes one). Fixed
-    # upstream in 3.8, where the patch no longer applies; drop once every
-    # consumer's nixpkgs ships 3.8.
-    tmux =
-      if prev.lib.versionOlder prev.tmux.version "3.8"
-      then
-        prev.tmux.overrideAttrs (old: {
-          patches =
-            (old.patches or [])
-            ++ [
-              ./patches/tmux/window-tree-per-session-group-check.patch
-            ];
-        })
-      else prev.tmux;
   })
   (_final: prev: {
     pythonPackagesExtensions =
