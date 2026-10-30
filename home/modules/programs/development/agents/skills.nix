@@ -188,7 +188,7 @@ in {
             src = pkgs.fetchFromGitHub {
               owner = "nextlevelbuilder";
               repo = "ui-ux-pro-max-skill";
-              rev = "076a2b3a31394ad788afaa71f55d0bf789e7b3ec";
+              rev = "d14efff8ed1faa4187f004f79926f428c8074ec7";
               hash = "sha256-oUr1p0GuTH5nXegrf+3Q4qOWUCDOhEEEEpcGaRBvepE=";
               rootDir = ".claude/skills";
             };
