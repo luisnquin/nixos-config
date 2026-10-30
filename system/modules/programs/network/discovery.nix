@@ -11,24 +11,23 @@
 
   services.avahi = {
     enable = true;
-    ipv6 = true;
     nssmdns4 = true;
     openFirewall = true;
 
-    publish = {
-      enable = true;
-      addresses = true;
-      workstation = false;
-      userServices = true;
+    settings = {
+      server = {
+        use-ipv6 = true;
+        allow-interfaces = ["eno2" "wlo1"];
+      };
+      publish = {
+        disable-publishing = false;
+        disable-user-service-publishing = false;
+        publish-addresses = true;
+        publish-workstation = false;
+        publish-a-on-ipv6 = false;
+        publish-aaaa-on-ipv4 = false;
+      };
     };
-
-    allowInterfaces = ["eno2" "wlo1"];
-
-    extraConfig = ''
-      [publish]
-      publish-a-on-ipv6=no
-      publish-aaaa-on-ipv4=no
-    '';
 
     extraServiceFiles.workstation = ''
       <?xml version="1.0" standalone='no'?>

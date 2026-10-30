@@ -45,5 +45,5 @@ in {
 
   networking.firewall.trustedInterfaces = [interface];
 
-  services.avahi.allowInterfaces = [interface];
+  services.avahi.settings.server.allow-interfaces = [interface];
 }
