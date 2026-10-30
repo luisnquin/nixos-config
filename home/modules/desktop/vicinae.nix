@@ -42,7 +42,10 @@ in {
         layer = "overlay";
       };
 
-      providers.applications.entrypoints."zen-beta".alias = "zen";
+      providers.applications = {
+        entrypoints."zen-beta".alias = "zen";
+        preferences.launchPrefix = "systemd-run --user --scope --slice=app.slice --";
+      };
 
       # Allowlist: a full $HOME scan indexes ~1M files, nearly all of it caches
       # the built-in excludes don't cover (.dartServer, .pub-cache, agent state).
