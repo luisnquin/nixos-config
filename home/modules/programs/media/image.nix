@@ -20,7 +20,7 @@
   feh = mkWithDesktopItemWrapper {
     package = pkgs.feh;
     desktopName = "feh";
-    exec = "feh --bg-scale %f";
+    exec = "feh --fullscreen %f";
     genericName = "Image Viewer";
   };
 
