@@ -1,21 +1,23 @@
 diff --git a/core/src/tools/handlers/unified_exec/exec_command.rs b/core/src/tools/handlers/unified_exec/exec_command.rs
-index 5028482..9a75651 100644
 --- a/core/src/tools/handlers/unified_exec/exec_command.rs
 +++ b/core/src/tools/handlers/unified_exec/exec_command.rs
-@@ -444,7 +444,7 @@ impl ExecCommandHandler {
+@@ -251,10 +251,10 @@ impl ExecCommandHandler {
                      event_call_id: context.call_id.clone(),
                      chunk_id: generate_chunk_id(),
                      wall_time: output.duration,
--                    raw_output: output_text.into_bytes(),
-+                    raw_output: crate::tools::redact_for_model(output_text.into_bytes()),
+-                    raw_output: CapturedStream {
++                    raw_output: crate::tools::redact_captured(CapturedStream {
+                         text: output_text,
+                         omitted_bytes: output_omitted_bytes.map_or(0, std::num::NonZeroUsize::get),
+-                    },
++                    }),
                      truncation_policy: step_context.settings.model_info.truncation_policy.into(),
                      max_output_tokens,
                      // Sandbox denial is terminal, so there is no live
 diff --git a/core/src/tools/mod.rs b/core/src/tools/mod.rs
-index 501ce5f..bf72114 100644
 --- a/core/src/tools/mod.rs
 +++ b/core/src/tools/mod.rs
-@@ -125,13 +125,47 @@ pub fn format_exec_output_str(
+@@ -128,13 +128,57 @@ pub fn format_exec_output_str(
  
  /// Extracts exec output content and prepends a timeout message if the command timed out.
  fn build_content_with_timeout(exec_output: &ExecToolCallOutput) -> String {
@@ -31,8 +33,8 @@ index 501ce5f..bf72114 100644
      } else {
 -        exec_output.aggregated_output.text.clone()
 +        text.into_owned()
-     }
- }
++    }
++}
 +
 +/// Pipes command output through the filter named by `CODEX_OUTPUT_REDACTOR`
 +/// before the model sees it. Fails closed: output is withheld when the filter
@@ -65,25 +67,34 @@ index 501ce5f..bf72114 100644
 +    };
 +    run().unwrap_or_else(|err| format!("[output withheld: redactor failed: {err}]").into_bytes())
 +}
++
++pub(crate) fn redact_captured(
++    stream: crate::unified_exec::output::CapturedStream,
++) -> crate::unified_exec::output::CapturedStream {
++    let text = redact_for_model(stream.text.into_bytes());
++    crate::unified_exec::output::CapturedStream {
++        text: String::from_utf8_lossy(&text).into_owned(),
++        ..stream
+     }
+ }
 diff --git a/core/src/unified_exec/process_manager.rs b/core/src/unified_exec/process_manager.rs
-index cda8c59..745b39c 100644
 --- a/core/src/unified_exec/process_manager.rs
 +++ b/core/src/unified_exec/process_manager.rs
-@@ -844,7 +844,7 @@ impl UnifiedExecProcessManager {
+@@ -856,7 +856,7 @@ impl UnifiedExecProcessManager {
              event_call_id: context.call_id.clone(),
              chunk_id,
              wall_time,
 -            raw_output: collected,
-+            raw_output: crate::tools::redact_for_model(collected),
++            raw_output: crate::tools::redact_captured(collected),
              truncation_policy: context
                  .step_context
                  .settings
-@@ -1106,7 +1106,7 @@ impl UnifiedExecProcessManager {
+@@ -1122,7 +1122,7 @@ impl UnifiedExecProcessManager {
              event_call_id,
              chunk_id,
              wall_time,
 -            raw_output: collected,
-+            raw_output: crate::tools::redact_for_model(collected),
++            raw_output: crate::tools::redact_captured(collected),
              truncation_policy: request.truncation_policy,
              max_output_tokens: request.max_output_tokens,
              process_id,

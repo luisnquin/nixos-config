@@ -1,7 +1,7 @@
 diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
 --- a/tui/src/chatwidget/status_surfaces.rs
 +++ b/tui/src/chatwidget/status_surfaces.rs
-@@ -23,6 +23,22 @@
+@@ -25,6 +25,22 @@ use codex_utils_sandbox_summary::summarize_permission_profile;
  
  use super::status_state::TerminalTitleStatusKind;
  
@@ -22,12 +22,12 @@ diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_s
 +}
 +
  /// Items shown in the terminal title when the user has not configured a
- /// custom selection. Unnamed threads omit the name until generation starts.
+ /// custom selection. Unnamed threads omit the name until one is available.
  pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 3] =
-@@ -714,12 +730,7 @@
-             StatusLineItem::ModelName => Some(self.model_display_name().to_string()),
-             StatusLineItem::ModelWithReasoning => Some(self.model_with_reasoning_display_name()),
-             StatusLineItem::Reasoning => Some(self.reasoning_display_name()),
+@@ -741,12 +757,7 @@ impl ChatWidget {
+             StatusLineItem::Provider => self
+                 .thread_id
+                 .map(|_| format!("provider: {}", self.config.model_provider_id)),
 -            StatusLineItem::CurrentDir => {
 -                Some(format_directory_display(
 -                    self.status_line_cwd(),

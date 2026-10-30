@@ -1,9 +1,9 @@
 diff --git a/app-server/src/request_processors/thread_lifecycle.rs b/app-server/src/request_processors/thread_lifecycle.rs
 --- a/app-server/src/request_processors/thread_lifecycle.rs
 +++ b/app-server/src/request_processors/thread_lifecycle.rs
-@@ -4,6 +4,13 @@
- use codex_extension_api::ThreadIdleCause;
- use codex_protocol::config_types::MultiAgentMode;
+@@ -13,6 +13,13 @@ use codex_protocol::protocol::SessionSource;
+ #[path = "thread_listener_shutdown_tests.rs"]
+ mod listener_shutdown_tests;
  
 +/// Grace period applied when a client explicitly sends `thread/unsubscribe` and no subscriber is
 +/// left, as opposed to a thread that merely fell idle or lost its connection. Keeping the thread
@@ -18,17 +18,17 @@ diff --git a/app-server/src/request_processors/thread_lifecycle.rs b/app-server/
 diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/src/request_processors/thread_processor.rs
 --- a/app-server/src/request_processors/thread_processor.rs
 +++ b/app-server/src/request_processors/thread_processor.rs
-@@ -1025,7 +1025,7 @@
-         let thread_id = ThreadId::from_string(&params.thread_id)
-             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
+@@ -1138,7 +1138,7 @@ impl ThreadRequestProcessor {
+             .unsubscribe_connection_from_thread(thread_id, connection_id)
+             .await;
  
 -        if self.thread_manager.get_thread(thread_id).await.is_err() {
 +        let Ok(thread) = self.thread_manager.get_thread(thread_id).await else {
-             self.finalize_thread_teardown(thread_id).await;
-             return Ok(ThreadUnsubscribeResponse {
-                 status: ThreadUnsubscribeStatus::NotLoaded,
-@@ -1038,6 +1038,8 @@
-             .await;
+             if !self.thread_state_manager.has_subscribers(thread_id).await {
+                 self.finalize_thread_teardown(thread_id).await;
+             }
+@@ -1148,6 +1148,8 @@ impl ThreadRequestProcessor {
+         };
  
          let status = if was_subscribed {
 +            self.schedule_unsubscribed_thread_unload(thread_id, thread)
@@ -36,7 +36,7 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
              ThreadUnsubscribeStatus::Unsubscribed
          } else {
              ThreadUnsubscribeStatus::NotSubscribed
-@@ -1045,6 +1047,72 @@
+@@ -1155,6 +1157,72 @@ impl ThreadRequestProcessor {
          Ok(ThreadUnsubscribeResponse { status })
      }
  
@@ -109,14 +109,3 @@ diff --git a/app-server/src/request_processors/thread_processor.rs b/app-server/
      async fn prepare_thread_for_archive(
          &self,
          thread_id: ThreadId,
-diff --git a/app-server/src/thread_state.rs b/app-server/src/thread_state.rs
---- a/app-server/src/thread_state.rs
-+++ b/app-server/src/thread_state.rs
-@@ -559,7 +559,6 @@
-         true
-     }
- 
--    #[cfg(test)]
-     pub(crate) async fn has_subscribers(&self, thread_id: ThreadId) -> bool {
-         self.state
-             .lock()
