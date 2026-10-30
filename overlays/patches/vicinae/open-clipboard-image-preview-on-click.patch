@@ -1,0 +1,96 @@
+diff --git a/src/server/src/builtins/clipboard/history/clipboard-history-view-host.cpp b/src/server/src/builtins/clipboard/history/clipboard-history-view-host.cpp
+index 41851eb..b3ca9af 100644
+--- a/src/server/src/builtins/clipboard/history/clipboard-history-view-host.cpp
++++ b/src/server/src/builtins/clipboard/history/clipboard-history-view-host.cpp
+@@ -3,6 +3,7 @@
+ #include "builtins/clipboard/history/clipboard-history-controller.hpp"
+ #include "ui/views/view-utils.hpp"
+ #include "service-registry.hpp"
++#include "services/app-service/app-service.hpp"
+ #include "services/clipboard/clipboard-service.hpp"
+ #include "services/paste/paste-service.hpp"
+ #include "utils/utils.hpp"
+@@ -178,6 +179,14 @@ void ClipboardHistoryViewHost::toggleMonitoring() {
+   command()->setPreferenceValues({{"monitoring", !m_clipman->monitoring()}});
+ }
+ 
++void ClipboardHistoryViewHost::openDetailImage() {
++  if (m_detailImagePath.isEmpty()) return;
++  auto appDb = context()->services->appDb();
++  auto app = appDb->findDefaultOpener(m_detailImagePath);
++  if (!app || !appDb->launch(*app, {m_detailImagePath})) return;
++  context()->navigation->closeWindow();
++}
++
+ void ClipboardHistoryViewHost::setKindFilter(int kind) {
+   if (m_currentKindFilter == kind) return;
+   m_currentKindFilter = kind;
+@@ -214,6 +223,7 @@ void ClipboardHistoryViewHost::loadDetail(const ClipboardHistoryEntry &entry) {
+   unwatchDetailFile();
+   m_detailTextContent.clear();
+   m_detailImageSource.clear();
++  m_detailImagePath.clear();
+   m_hasDetailError = false;
+   m_detailErrorTitle.clear();
+   m_detailErrorDescription.clear();
+@@ -274,6 +284,7 @@ void ClipboardHistoryViewHost::loadDetail(const ClipboardHistoryEntry &entry) {
+           auto preview = qml::resolveFilePreview(path, m_mimeDb);
+           watchDetailFile(path);
+           m_detailImageSource = preview.imageSource;
++          m_detailImagePath = m_detailFile;
+           m_detailTextContent = preview.textContent;
+           m_hasDetail = true;
+           emit detailChanged();
+@@ -293,6 +304,7 @@ void ClipboardHistoryViewHost::loadDetail(const ClipboardHistoryEntry &entry) {
+       f.close();
+     }
+     m_detailImageSource = qml::imageSourceFor(ImageURL::local(path));
++    m_detailImagePath = path;
+     m_hasDetail = true;
+     emit detailChanged();
+     return;
+@@ -354,6 +366,7 @@ void ClipboardHistoryViewHost::clearDetail() {
+   m_hasDetailError = false;
+   m_detailTextContent.clear();
+   m_detailImageSource.clear();
++  m_detailImagePath.clear();
+   m_detailType.clear();
+   m_detailSize.clear();
+   m_detailCopiedAt.clear();
+diff --git a/src/server/src/builtins/clipboard/history/clipboard-history-view-host.hpp b/src/server/src/builtins/clipboard/history/clipboard-history-view-host.hpp
+index 06b0fe0..308c945 100644
+--- a/src/server/src/builtins/clipboard/history/clipboard-history-view-host.hpp
++++ b/src/server/src/builtins/clipboard/history/clipboard-history-view-host.hpp
+@@ -53,6 +53,7 @@ public:
+ 
+   Q_INVOKABLE void toggleMonitoring();
+   Q_INVOKABLE void setKindFilter(int kind);
++  Q_INVOKABLE void openDetailImage();
+ 
+   SectionListModel *listModel() const override { return const_cast<SectionListModel *>(&m_model); }
+   CompletionModel *kindFilterModel() { return &m_kindFilterModel; }
+@@ -114,6 +115,7 @@ private:
+   QString m_detailType;
+   QString m_detailTextContent;
+   QString m_detailImageSource;
++  QString m_detailImagePath;
+   QString m_detailSize;
+   QString m_detailCopiedAt;
+   QString m_detailMd5;
+diff --git a/src/server/src/ui/qml/views/ClipboardHistoryView.qml b/src/server/src/ui/qml/views/ClipboardHistoryView.qml
+index e5b0af1..247ebe1 100644
+--- a/src/server/src/ui/qml/views/ClipboardHistoryView.qml
++++ b/src/server/src/ui/qml/views/ClipboardHistoryView.qml
+@@ -238,6 +238,12 @@ Item {
+                 sourceComponent: ImagePreview {
+                     source: root.host.detailImageSource
+                     cache: false
++
++                    MouseArea {
++                        anchors.fill: parent
++                        cursorShape: Qt.PointingHandCursor
++                        onClicked: root.host.openDetailImage()
++                    }
+                 }
+             }
+ 
