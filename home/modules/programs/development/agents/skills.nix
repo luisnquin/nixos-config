@@ -84,7 +84,7 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "mattpocock";
             repo = "skills";
-            rev = "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa";
+            rev = "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d";
             hash = "sha256-nxTjN6ePfumLCJ77zw4kdMwPeOHU2TztFZPOiMr3zGw=";
             rootDir = "skills/engineering";
           };
@@ -99,7 +99,7 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "mattpocock";
             repo = "skills";
-            rev = "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa";
+            rev = "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d";
             hash = "sha256-8xDSNA3dk6AyfiKg8XAwmb9uQMqaCI4m8ERi4TBVQ28=";
             rootDir = "skills/productivity";
           };
