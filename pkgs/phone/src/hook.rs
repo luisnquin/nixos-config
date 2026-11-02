@@ -155,10 +155,18 @@ fn nudge(command: &str) -> Option<String> {
     });
 
     hits.reduce(|first, next| first.or(next)).map(|hit| match hit {
-        Some(words) if name(words[0]) == "adb" => format!(
-            "bare adb skips phone's leases and device targeting; run `phone run -- adb {}` instead.",
-            words[1..].join(" ")
-        ),
+        Some(words) if name(words[0]) == "adb" => {
+            let mut args = words[1..].to_vec();
+            let target = match args.iter().position(|w| *w == "-s") {
+                Some(at) if at + 1 < args.len() => format!("-t {} ", args.drain(at..=at + 1).nth(1).unwrap_or_default()),
+                _ => String::new(),
+            };
+
+            format!(
+                "bare adb skips phone's leases and device targeting; run `phone run {target}-- adb {}` instead.",
+                args.join(" ")
+            )
+        }
         _ => NUDGE.to_string(),
     })
 }
@@ -275,7 +283,8 @@ mod tests {
     #[test]
     fn bare_adb_is_pointed_at_phone_run_with_the_same_args() {
         for (command, route) in [
-            ("adb -s emulator-5554 shell input tap 1 1", "phone run -- adb -s emulator-5554 shell input tap 1 1"),
+            ("adb -s emulator-5554 shell input tap 1 1", "phone run -t emulator-5554 -- adb shell input tap 1 1"),
+            ("adb -s faraday:5555 logcat -d", "phone run -t faraday:5555 -- adb logcat -d"),
             ("ssh rose adb shell pm clear com.x", "phone run -- adb shell pm clear com.x"),
             ("ssh rose 'adb install -r a.apk'", "phone run -- adb install -r a.apk"),
             ("adb devices && $ANDROID_HOME/platform-tools/adb uninstall com.x", "phone run -- adb uninstall com.x"),
