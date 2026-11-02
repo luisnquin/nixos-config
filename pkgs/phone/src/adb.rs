@@ -432,7 +432,8 @@ pub struct Panel {
 
 const PANEL: &str = concat!(
     r#"v=$(dumpsys display | grep -F 'DisplayViewport{'); echo "$v"; "#,
-    r#"id=$(echo "$v" | tr '{' '\n' | grep -F isActive=true | grep -o 'displayId=[0-9]*' | head -n 1 | cut -d= -f2); "#,
+    r#"a=$(echo "$v" | tr '{' '\n' | grep -F isActive=true); "#,
+    r#"id=$({ echo "$a" | grep -F type=EXTERNAL; echo "$a"; } | grep -o 'displayId=[0-9]*' | head -n 1 | cut -d= -f2); "#,
     r#"echo "@@size $id"; wm size ${id:+-d $id}"#,
 );
 
@@ -478,6 +479,8 @@ pub fn parse_panel(text: &str) -> Panel {
 
 /// The panel that is live. Foldables expose several and both `screencap` and
 /// `input` otherwise fall to the first, as often as not the one that is closed.
+/// In desktop mode the handset stays live beside the monitor, and the monitor
+/// is where the work is.
 pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
     panel(server, serial).await.display
 }
@@ -486,11 +489,16 @@ pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
 /// input system's own record of which panel is live, and SurfaceFlinger never
 /// names the logical id at all.
 pub fn active_viewport(text: &str) -> Option<Display> {
-    let record = text
+    let live: Vec<&str> = text
         .split("DisplayViewport{")
         .skip(1)
         .map(|record| &record[..record.find('}').unwrap_or(record.len())])
-        .find(|record| field(record, "isActive=") == Some("true"))?;
+        .filter(|record| field(record, "isActive=") == Some("true"))
+        .collect();
+    let record = live
+        .iter()
+        .find(|record| field(record, "type=") == Some("EXTERNAL"))
+        .or(live.first())?;
 
     Some(Display {
         physical: field(record, "uniqueId='local:")?.parse().ok()?,
@@ -621,6 +629,25 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
             Some(Display {
                 physical: 4619827677550801153,
                 logical: 3,
+            })
+        );
+    }
+
+    #[test]
+    fn desktop_mode_aims_at_the_monitor() {
+        let desktop = FOLD.replacen(
+            "}]",
+            "}, DisplayViewport{type=EXTERNAL, valid=true, isActive=true, displayId=10, \
+uniqueId='local:4639998387753570818', physicalPort=2, orientation=0, deviceWidth=1920, \
+deviceHeight=1200}]",
+            1,
+        );
+
+        assert_eq!(
+            active_viewport(&desktop),
+            Some(Display {
+                physical: 4639998387753570818,
+                logical: 10,
             })
         );
     }
