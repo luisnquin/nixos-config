@@ -18,5 +18,5 @@
     ./skills.nix
   ];
 
-  services.strikedddd.enable = true;
+  services.upgraded.enable = true;
 }

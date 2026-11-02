@@ -15,11 +15,11 @@
     runtimeInputs = [pkgs.git pkgs.jq pkgs.coreutils pkgs.gawk pkgs.gnugrep];
     text = builtins.readFile ../../hooks/diff-review.sh;
   };
-  strikedddd = timeout: {
+  upgraded = timeout: {
     hooks = [
       {
         type = "command";
-        command = "strikedddd hook claude";
+        command = "upgraded hook claude";
         inherit timeout;
       }
     ];
@@ -34,8 +34,8 @@
       "Stop"
       "StopFailure"
       "SessionEnd"
-    ] (_: [(strikedddd 10)])
-    // {PermissionRequest = [(strikedddd 90)];};
+    ] (_: [(upgraded 10)])
+    // {PermissionRequest = [(upgraded 90)];};
 in {
   programs.claude-code.settings.hooks = lib.zipAttrsWith (_: lib.concatLists) [
     {

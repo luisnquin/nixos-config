@@ -127,8 +127,8 @@
       url = "github:0xc000022070/techdebt-cli";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    striked = {
-      url = "git+ssh://git@github.com/0xc000022070/striked";
+    upgrade = {
+      url = "git+ssh://git@github.com/0xc000022070/upgrade";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-flatpak.url = "github:gmodena/nix-flatpak?ref=latest";
@@ -219,7 +219,7 @@
       inputs."3mf2stl".homeModules.default
       inputs.encore.homeModules.default
       inputs.techdebt-cli.homeModules.default
-      inputs.striked.homeModules.default
+      inputs.upgrade.homeModules.default
       ./pkgs/hm-modules
       ./home/options
       (./home/profiles + "/${metadata.user.alias}")
