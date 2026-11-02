@@ -69,6 +69,7 @@ pub struct Shot {
     /// read rather than the frame that was still on screen when it landed.
     pub settle: bool,
     pub grid: Option<f64>,
+    pub display: Option<adb::Display>,
 }
 
 impl Shot {
@@ -159,10 +160,10 @@ pub async fn screenshot_after(
     shot: &Shot,
     before: Option<Vec<u8>>,
 ) -> Result<String> {
-    let mut png = capture(server, device, rep).await?;
+    let mut png = capture_on(server, device, rep, shot.display).await?;
 
     if shot.settle {
-        png = settle(server, device, rep, png, before).await?;
+        png = settle(server, device, rep, png, before, shot.display).await?;
     }
 
     let png = render(png, shot)?;
@@ -181,6 +182,7 @@ async fn settle(
     rep: &Reporter,
     first: Vec<u8>,
     before: Option<Vec<u8>>,
+    display: Option<adb::Display>,
 ) -> Result<Vec<u8>> {
     let started = std::time::Instant::now();
     let mut settling = Settling::new(before, first);
@@ -188,7 +190,7 @@ async fn settle(
     loop {
         tokio::time::sleep(SETTLE_STEP).await;
 
-        let next = capture(server, device, rep).await?;
+        let next = capture_on(server, device, rep, display).await?;
 
         match settling.see(next, started.elapsed()) {
             Settled::Still => continue,
@@ -376,6 +378,15 @@ pub fn render(png: Vec<u8>, shot: &Shot) -> Result<Vec<u8>> {
 }
 
 pub async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result<Vec<u8>> {
+    capture_on(server, device, rep, None).await
+}
+
+pub async fn capture_on(
+    server: &Server,
+    device: &Device,
+    rep: &Reporter,
+    display: Option<adb::Display>,
+) -> Result<Vec<u8>> {
     let _spent = crate::calls::time(crate::calls::Cost::Capture);
 
     let png = match device.platform {
@@ -400,7 +411,10 @@ pub async fn capture(server: &Server, device: &Device, rep: &Reporter) -> Result
         _ => {
             let serial = serial_of(server, device).await?;
 
-            let display = adb::active_display(server, &serial).await;
+            let display = match display {
+                Some(d) => Some(d),
+                None => adb::active_display(server, &serial).await,
+            };
 
             // exec-out keeps CRLF translation off the PNG but folds stderr
             // into it, so the redirect has to run device-side

@@ -10,7 +10,7 @@ use crate::model::Reach;
 const KEYS: &[(&str, &str)] = &[
     ("enter/c", "connect"),
     ("d", "disconnect"),
-    ("s", "screenshot (queues if away)"),
+    ("s", "screenshot (queues if away; asks which screen in desktop mode)"),
     ("m", "mirror"),
     ("l", "logs"),
     ("L", "lock / unlock against agents"),
@@ -74,6 +74,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     if matches!(app.mode, Mode::Hosts | Mode::Prompt(Prompt::Host)) {
         render_hosts(frame, app, frame.area());
+    }
+
+    if matches!(app.mode, Mode::Panels) {
+        render_panels(frame, app, frame.area());
     }
 }
 
@@ -162,6 +166,31 @@ fn render_hosts(frame: &mut Frame, app: &mut App, area: Rect) {
         );
 
     frame.render_stateful_widget(list, area, &mut app.host_state);
+}
+
+fn render_panels(frame: &mut Frame, app: &mut App, area: Rect) {
+    let [area] = Layout::horizontal([Constraint::Length(44)])
+        .flex(Flex::Center)
+        .areas(area);
+
+    let [area] = Layout::vertical([Constraint::Length(app.panels.len() as u16 + 2)])
+        .flex(Flex::Center)
+        .areas(area);
+
+    let title = format!(" shoot {} ", app.picking_label().unwrap_or_default());
+    let rows: Vec<ListItem> = app.panels.iter().map(|p| ListItem::new(p.label())).collect();
+
+    let list = List::new(rows)
+        .block(Block::bordered().title(title).title_bottom(" enter shoot · esc cancel "))
+        .highlight_symbol("▸ ")
+        .highlight_style(
+            Style::default()
+                .bg(Color::Rgb(40, 44, 52))
+                .add_modifier(Modifier::BOLD),
+        );
+
+    frame.render_widget(Clear, area);
+    frame.render_stateful_widget(list, area, &mut app.panel_state);
 }
 
 fn render_header(frame: &mut Frame, app: &App, area: Rect) {

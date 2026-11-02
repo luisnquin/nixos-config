@@ -73,6 +73,13 @@ fn on_event(app: &mut App, event: Event) {
     match app.mode {
         Mode::Help => app.mode = Mode::Normal,
         Mode::Hosts => on_hosts_key(app, key),
+        Mode::Panels => match key.code {
+            KeyCode::Char('j') | KeyCode::Down => app.move_panel_by(1),
+            KeyCode::Char('k') | KeyCode::Up => app.move_panel_by(-1),
+            KeyCode::Enter | KeyCode::Char('s') => app.shoot_panel(),
+            KeyCode::Esc | KeyCode::Char('q') => app.cancel_panel(),
+            _ => {}
+        },
         Mode::Filter => on_filter_key(app, key),
         Mode::Prompt(prompt) => on_prompt_key(app, key, prompt),
         Mode::Normal => on_normal_key(app, key),

@@ -28,6 +28,11 @@ pub struct Cli {
 
     #[arg(long, global = true, help = "Take the device even when another agent holds it; logged with its holder")]
     pub take: bool,
+
+    /// Android display to read and act on; without it, a monitor in desktop
+    /// mode while it is awake, else the handset's own panel
+    #[arg(long, global = true, value_enum)]
+    pub screen: Option<Screen>,
 }
 
 /// Shown under `--help`. An agent that arrives here with no other
@@ -1370,6 +1375,12 @@ impl Cli {
             format!("'{given}' reads as a file, not a device; did you mean `phone shot -o {given}`?")
         })
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Screen {
+    Main,
+    External,
 }
 
 #[derive(Copy, Clone, ValueEnum)]

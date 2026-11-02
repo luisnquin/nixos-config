@@ -7,6 +7,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
 use crate::actions::{self, Sink};
+use crate::adb::{Display, Live};
 use crate::connect::{self, Reporter, Step};
 use crate::discover;
 use crate::lease;
@@ -37,6 +38,7 @@ pub enum Msg {
     Step(Step),
     Finished(Result<String, String>),
     Exec(std::process::Command),
+    Panels(Queued, Vec<Live>),
 }
 
 pub struct Scan {
@@ -77,6 +79,7 @@ pub enum Mode {
     Prompt(Prompt),
     Help,
     Hosts,
+    Panels,
 }
 
 pub enum Outcome {
@@ -91,6 +94,7 @@ pub struct Queued {
     pub id: String,
     pub label: String,
     pub tries: u8,
+    pub display: Option<Display>,
 }
 
 const MAX_SHOT_TRIES: u8 = 3;
@@ -113,6 +117,9 @@ pub struct App {
     pub host_state: ListState,
     pub scan: Option<Scan>,
     pub locked: BTreeSet<String>,
+    pub panels: Vec<Live>,
+    pub panel_state: ListState,
+    picking: Option<Queued>,
     shot: Option<Queued>,
     tx: UnboundedSender<Msg>,
 }
@@ -137,6 +144,9 @@ impl App {
             host_state: ListState::default(),
             scan: None,
             locked: BTreeSet::new(),
+            panels: Vec::new(),
+            panel_state: ListState::default(),
+            picking: None,
             shot: None,
             tx,
         }
@@ -240,6 +250,15 @@ impl App {
                 }
             }
             Msg::Exec(cmd) => self.quit = Some(Outcome::Exec(cmd)),
+            Msg::Panels(shot, panels) => {
+                let default = crate::adb::pick(&panels, None)
+                    .and_then(|p| panels.iter().position(|q| q == p));
+
+                self.panel_state.select(default.or(Some(0)));
+                self.panels = panels;
+                self.picking = Some(shot);
+                self.mode = Mode::Panels;
+            }
         }
     }
 
@@ -265,15 +284,7 @@ impl App {
     }
 
     pub fn move_by(&mut self, delta: isize) {
-        if self.visible.is_empty() {
-            return;
-        }
-
-        let len = self.visible.len() as isize;
-        let cur = self.state.selected().unwrap_or(0) as isize;
-
-        self.state
-            .select(Some((cur + delta).rem_euclid(len) as usize));
+        step(&mut self.state, self.visible.len(), delta);
     }
 
     pub fn select_edge(&mut self, last: bool) {
@@ -354,15 +365,7 @@ impl App {
     }
 
     pub fn move_host_by(&mut self, delta: isize) {
-        if self.hosts.is_empty() {
-            return;
-        }
-
-        let len = self.hosts.len() as isize;
-        let cur = self.host_state.selected().unwrap_or(0) as isize;
-
-        self.host_state
-            .select(Some((cur + delta).rem_euclid(len) as usize));
+        step(&mut self.host_state, self.hosts.len(), delta);
     }
 
     fn selected_host(&self) -> Option<&HostRow> {
@@ -581,6 +584,7 @@ impl App {
             id: id.clone(),
             label: label.clone(),
             tries: 0,
+            display: None,
         });
 
         self.drain_queue();
@@ -622,9 +626,12 @@ impl App {
             return;
         };
 
-        let mut shot = self.queue.remove(pos);
-        shot.tries += 1;
+        let shot = self.queue.remove(pos);
 
+        self.fire(shot);
+    }
+
+    fn fire(&mut self, mut shot: Queued) {
         let Some((device, server)) = self
             .views
             .iter()
@@ -634,20 +641,77 @@ impl App {
             return;
         };
 
+        let (tx, asked) = (self.tx.clone(), shot.clone());
+
+        shot.tries += 1;
+
         let label = device.label.clone();
+        let mut display = shot.display;
 
         self.shot = Some(shot);
 
         self.spawn(format!("shot {label}"), move |_reg, rep| async move {
+            if display.is_none() && device.platform.is_adb() {
+                let serial = connect::serial_of(&server, &device).await?;
+                let panels = crate::adb::live_panels(&server, &serial).await;
+
+                if panels.len() > 1 {
+                    let _ = tx.send(Msg::Panels(asked, panels));
+
+                    return anyhow::Ok(String::new());
+                }
+
+                display = panels.first().map(|p| p.display);
+            }
+
             actions::screenshot(
                 &server,
                 &device,
                 &Sink::Clipboard,
                 &rep,
-                &actions::Shot::default(),
+                &actions::Shot {
+                    display,
+                    ..Default::default()
+                },
             )
             .await
         });
+    }
+
+    pub fn move_panel_by(&mut self, delta: isize) {
+        step(&mut self.panel_state, self.panels.len(), delta);
+    }
+
+    pub fn shoot_panel(&mut self) {
+        self.mode = Mode::Normal;
+
+        let Some(mut shot) = self.picking.take() else {
+            return;
+        };
+
+        shot.display = self
+            .panel_state
+            .selected()
+            .and_then(|i| self.panels.get(i))
+            .map(|p| p.display);
+
+        if self.busy.is_none() && self.ready_to_shoot(&shot.id) {
+            self.fire(shot);
+        } else {
+            self.queue.push(shot);
+        }
+    }
+
+    pub fn cancel_panel(&mut self) {
+        self.mode = Mode::Normal;
+
+        if let Some(shot) = self.picking.take() {
+            self.push_log(Level::Note, format!("dropped the shot for {}", shot.label));
+        }
+    }
+
+    pub fn picking_label(&self) -> Option<&str> {
+        self.picking.as_ref().map(|q| q.label.as_str())
     }
 
     /// A capture that died because the device went away is what the queue exists
@@ -961,6 +1025,16 @@ pub fn row_fields(view: &View) -> (String, String, String, String) {
     (d.label.clone(), d.model.clone(), view.reach.label(), detail)
 }
 
+fn step(state: &mut ListState, len: usize, delta: isize) {
+    if len == 0 {
+        return;
+    }
+
+    let cur = state.selected().unwrap_or(0) as isize;
+
+    state.select(Some((cur + delta).rem_euclid(len as isize) as usize));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1048,6 +1122,39 @@ mod tests {
     }
 
     #[test]
+    fn a_second_panel_asks_which_one_to_shoot() {
+        let mut app = app_with(vec![view("fold", Platform::Android, Reach::Online)]);
+        let panel = |logical: u32, external| Live {
+            display: Display { physical: logical.into(), logical },
+            external,
+            awake: true,
+            size: None,
+        };
+        let asked = Queued {
+            id: "fold".into(),
+            label: "fold".into(),
+            tries: 0,
+            display: None,
+        };
+
+        app.on_msg(Msg::Panels(asked, vec![panel(0, false), panel(10, true)]));
+
+        assert!(matches!(app.mode, Mode::Panels));
+        assert_eq!(app.panel_state.selected(), Some(1), "the awake monitor comes preselected");
+
+        app.move_panel_by(1);
+        app.shoot_panel();
+
+        assert!(matches!(app.mode, Mode::Normal));
+        assert_eq!(app.queue[0].display.map(|d| d.logical), Some(0));
+
+        app.on_msg(Msg::Panels(app.queue[0].clone(), vec![panel(0, false), panel(10, true)]));
+        app.cancel_panel();
+
+        assert!(app.picking.is_none());
+    }
+
+    #[test]
     fn a_failed_shot_goes_back_in_line_until_the_limit() {
         let mut app = app_with(Vec::new());
 
@@ -1055,6 +1162,7 @@ mod tests {
             id: "udid".into(),
             label: "udid".into(),
             tries: 1,
+            display: None,
         });
 
         assert_eq!(app.queue.len(), 1);
@@ -1064,6 +1172,7 @@ mod tests {
             id: "udid".into(),
             label: "udid".into(),
             tries: MAX_SHOT_TRIES,
+            display: None,
         });
 
         assert!(

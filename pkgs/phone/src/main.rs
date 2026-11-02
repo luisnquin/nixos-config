@@ -183,6 +183,7 @@ fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
 async fn configured(cli: Cli) -> Result<()> {
     config::load()?;
     lease::set_take(cli.take);
+    adb::set_screen(cli.screen);
 
     if let Some(hint) = cli.misplaced_path(std::env::var("PHONE_TARGET").ok().as_deref()) {
         bail!("{hint}");
@@ -1085,6 +1086,7 @@ async fn step(s: &Session, command: Command) -> Result<()> {
                 jpeg,
                 settle,
                 grid: grid_scale(s, grid).await?,
+                display: None,
             };
 
             let before = s.before.take();

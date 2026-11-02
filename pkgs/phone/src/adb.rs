@@ -1,10 +1,12 @@
 use std::process::Stdio;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Result};
 use tokio::process::Command;
 
 use crate::calls::{self, Cost};
+use crate::cli::Screen;
 use crate::model::{Platform, Transport};
 use crate::recent::Recent;
 use crate::ssh;
@@ -431,11 +433,18 @@ pub struct Panel {
 }
 
 const PANEL: &str = concat!(
-    r#"v=$(dumpsys display | grep -F 'DisplayViewport{'); echo "$v"; "#,
-    r#"a=$(echo "$v" | tr '{' '\n' | grep -F isActive=true); "#,
-    r#"id=$({ echo "$a" | grep -F type=EXTERNAL; echo "$a"; } | grep -o 'displayId=[0-9]*' | head -n 1 | cut -d= -f2); "#,
-    r#"echo "@@size $id"; wm size ${id:+-d $id}"#,
+    r#"d=$(dumpsys display); v=$(echo "$d" | grep -F 'DisplayViewport{'); echo "$v"; "#,
+    r#"echo "$d" | grep -F mBaseDisplayInfo= | grep -F ' state OFF,' | grep -o 'displayId [0-9]*' | sed 's/displayId/@@off/'; "#,
+    r#"ids=$(echo "$v" | tr '{' '\n' | grep -F isActive=true | grep -o 'displayId=[0-9]*' | cut -d= -f2); "#,
+    r#"[ -n "$ids" ] || { echo "@@size "; wm size; }; "#,
+    r#"for id in $ids; do echo "@@size $id"; wm size -d $id; done"#,
 );
+
+static SCREEN: OnceLock<Option<Screen>> = OnceLock::new();
+
+pub fn set_screen(screen: Option<Screen>) {
+    let _ = SCREEN.set(screen);
+}
 
 static PANELS: Recent<(Server, String), Panel> = Recent::new(Duration::from_secs(20));
 
@@ -443,67 +452,124 @@ fn known_panel(server: &Server, serial: &str) -> Option<Panel> {
     PANELS.get(&(server.clone(), serial.to_string()))
 }
 
+async fn read_panels(server: &Server, serial: &str) -> Option<String> {
+    run_timeout(server, &["-s", serial, "shell", PANEL], Duration::from_secs(8))
+        .await
+        .ok()
+        .map(|out| out.stdout)
+}
+
 pub async fn panel(server: &Server, serial: &str) -> Panel {
     if let Some(panel) = known_panel(server, serial) {
         return panel;
     }
 
-    let Ok(out) = run_timeout(
-        server,
-        &["-s", serial, "shell", PANEL],
-        Duration::from_secs(8),
-    )
-    .await
-    else {
+    let Some(text) = read_panels(server, serial).await else {
         return Panel::default();
     };
 
-    let panel = parse_panel(&out.stdout);
+    let panel = parse_panel(&text, SCREEN.get().copied().flatten());
 
     PANELS.put((server.clone(), serial.to_string()), panel);
 
     panel
 }
 
-pub fn parse_panel(text: &str) -> Panel {
-    let (viewports, sized) = text.split_once("@@size").unwrap_or((text, ""));
-    let display = active_viewport(viewports);
-    let (aimed, wm) = sized.split_once('\n').unwrap_or((sized, ""));
-    let want = display.map(|d| d.logical.to_string()).unwrap_or_default();
+pub async fn live_panels(server: &Server, serial: &str) -> Vec<Live> {
+    read_panels(server, serial)
+        .await
+        .map(|text| parse_live(&text))
+        .unwrap_or_default()
+}
 
-    Panel {
-        display,
-        size: (aimed.trim() == want).then(|| parse_wm_size(wm)).flatten(),
+pub fn parse_panel(text: &str, screen: Option<Screen>) -> Panel {
+    match pick(&parse_live(text), screen) {
+        Some(live) => Panel {
+            display: Some(live.display),
+            size: live.size,
+        },
+        None => Panel {
+            display: None,
+            size: size_of(text, ""),
+        },
     }
+}
+
+fn size_of(text: &str, id: &str) -> Option<(i32, i32)> {
+    text.split("@@size")
+        .skip(1)
+        .map(|block| block.split_once('\n').unwrap_or((block, "")))
+        .find(|(aimed, _)| aimed.trim() == id)
+        .and_then(|(_, wm)| parse_wm_size(wm))
 }
 
 /// The panel that is live. Foldables expose several and both `screencap` and
 /// `input` otherwise fall to the first, as often as not the one that is closed.
 /// In desktop mode the handset stays live beside the monitor, and the monitor
-/// is where the work is.
+/// is where the work is until it sleeps, which leaves its viewport active.
 pub async fn active_display(server: &Server, serial: &str) -> Option<Display> {
     panel(server, serial).await.display
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Live {
+    pub display: Display,
+    pub external: bool,
+    pub awake: bool,
+    pub size: Option<(i32, i32)>,
+}
+
+impl Live {
+    pub fn label(&self) -> String {
+        let kind = if self.external { "external" } else { "main" };
+        let size = self.size.map(|(w, h)| format!("  {w}x{h}")).unwrap_or_default();
+        let asleep = if self.awake { "" } else { "  asleep" };
+
+        format!("{kind}{size}{asleep}")
+    }
+}
+
+pub fn pick(live: &[Live], screen: Option<Screen>) -> Option<&Live> {
+    match screen {
+        Some(Screen::External) => live.iter().find(|l| l.external),
+        Some(Screen::Main) => live.iter().find(|l| !l.external),
+        None => live
+            .iter()
+            .find(|l| l.external && l.awake)
+            .or(live.iter().find(|l| !l.external))
+            .or(live.first()),
+    }
 }
 
 /// Read here rather than from SurfaceFlinger's `powerMode`: `isActive` is the
 /// input system's own record of which panel is live, and SurfaceFlinger never
 /// names the logical id at all.
-pub fn active_viewport(text: &str) -> Option<Display> {
-    let live: Vec<&str> = text
-        .split("DisplayViewport{")
+fn parse_live(text: &str) -> Vec<Live> {
+    let head = text.split("@@size").next().unwrap_or_default();
+    let off: Vec<&str> = head
+        .lines()
+        .filter_map(|line| line.strip_prefix("@@off "))
+        .map(str::trim)
+        .collect();
+
+    head.split("DisplayViewport{")
         .skip(1)
         .map(|record| &record[..record.find('}').unwrap_or(record.len())])
         .filter(|record| field(record, "isActive=") == Some("true"))
-        .collect();
-    let record = live
-        .iter()
-        .find(|record| field(record, "type=") == Some("EXTERNAL"))
-        .or(live.first())?;
+        .filter_map(|record| {
+            let id = field(record, "displayId=")?;
 
-    Some(Display {
-        physical: field(record, "uniqueId='local:")?.parse().ok()?,
-        logical: field(record, "displayId=")?.parse().ok()?,
-    })
+            Some(Live {
+                display: Display {
+                    physical: field(record, "uniqueId='local:")?.parse().ok()?,
+                    logical: id.parse().ok()?,
+                },
+                external: field(record, "type=") == Some("EXTERNAL"),
+                awake: !off.contains(&id),
+                size: size_of(text, id),
+            })
+        })
+        .collect()
 }
 
 fn field<'a>(record: &'a str, key: &str) -> Option<&'a str> {
@@ -584,6 +650,10 @@ pub async fn pidof(server: &Server, serial: &str, package: &str) -> Option<Strin
 mod tests {
     use super::*;
 
+    fn active_viewport(text: &str, screen: Option<Screen>) -> Option<Display> {
+        pick(&parse_live(text), screen).map(|l| l.display)
+    }
+
     #[test]
     fn a_child_reaches_a_remote_device_through_its_forward() {
         let mac = Server::Remote { host: "rose".into(), port: 15037 };
@@ -610,7 +680,7 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
     #[test]
     fn pairs_the_live_panel_with_both_its_ids() {
         assert_eq!(
-            active_viewport(FOLD),
+            active_viewport(FOLD, None),
             Some(Display {
                 physical: 4619827677550801152,
                 logical: 0,
@@ -625,7 +695,7 @@ orientation=0, deviceWidth=1080, deviceHeight=2364}]
         let folded = folded.replace("isActive=false", "isActive=true");
 
         assert_eq!(
-            active_viewport(&folded),
+            active_viewport(&folded, None),
             Some(Display {
                 physical: 4619827677550801153,
                 logical: 3,
@@ -643,13 +713,28 @@ deviceHeight=1200}]",
             1,
         );
 
-        assert_eq!(
-            active_viewport(&desktop),
-            Some(Display {
-                physical: 4639998387753570818,
-                logical: 10,
-            })
+        let monitor = Some(Display {
+            physical: 4639998387753570818,
+            logical: 10,
+        });
+        let handset = Some(Display {
+            physical: 4619827677550801152,
+            logical: 0,
+        });
+        let asleep = format!("{desktop}\n@@off 10\n");
+
+        assert_eq!(active_viewport(&desktop, None), monitor);
+        assert_eq!(active_viewport(&desktop, Some(Screen::Main)), handset);
+        assert_eq!(active_viewport(&asleep, None), handset);
+        assert_eq!(active_viewport(&asleep, Some(Screen::External)), monitor);
+        assert_eq!(active_viewport(FOLD, Some(Screen::External)), None);
+
+        let sized = parse_panel(
+            &format!("{asleep}@@size 0\nPhysical size: 2076x2152\n@@size 10\nPhysical size: 1920x1200\n"),
+            Some(Screen::External),
         );
+
+        assert_eq!(sized.size, Some((1920, 1200)));
     }
 
     /// The failure this closes: `emu kill` returns before the process is gone
@@ -766,17 +851,17 @@ deviceHeight=1200}]",
 
     #[test]
     fn one_shell_reads_the_live_panel_and_its_size() {
-        let open = parse_panel(&format!("{FOLD}\n@@size 0\nPhysical size: 2076x2152\n"));
+        let open = parse_panel(&format!("{FOLD}\n@@size 0\nPhysical size: 2076x2152\n"), None);
 
         assert_eq!(open.display.map(|d| d.logical), Some(0));
         assert_eq!(open.size, Some((2076, 2152)));
 
-        let unnamed = parse_panel("@@size \nPhysical size: 1080x2400\n");
+        let unnamed = parse_panel("@@size \nPhysical size: 1080x2400\n", None);
 
         assert_eq!(unnamed.display, None);
         assert_eq!(unnamed.size, Some((1080, 2400)));
 
-        let crossed = parse_panel(&format!("{FOLD}\n@@size 3\nPhysical size: 1080x2364\n"));
+        let crossed = parse_panel(&format!("{FOLD}\n@@size 3\nPhysical size: 1080x2364\n"), None);
 
         assert_eq!(crossed.size, None, "a size read off another panel is dropped");
     }
@@ -784,7 +869,7 @@ deviceHeight=1200}]",
     #[test]
     fn answers_nothing_when_no_viewport_is_live() {
         assert_eq!(
-            active_viewport(&FOLD.replace("isActive=true", "isActive=false")),
+            active_viewport(&FOLD.replace("isActive=true", "isActive=false"), None),
             None
         );
     }
