@@ -11,10 +11,10 @@
 @ BashPrefix(rtk direnv exec * rtk)
 + Edit
 + Write
-+ Glob(*)
-+ Grep(*)
++ Glob
++ Grep
 + LS(*)
-+ Read(*)
++ Read
 + Search(*)
 + Task(*)
 + TodoWrite(*)
