@@ -29,6 +29,8 @@ pub const DEFAULT_PATHS: &[&str] = &[
     "~/.local/share/pnpm",
 ];
 
+const PURE_CACHES: &[&str] = &["~/.cache", "~/.local/share/target", "~/.npm"];
+
 impl Default for BuildCacheCollector {
     fn default() -> Self {
         Self {
@@ -83,7 +85,17 @@ impl BuildCacheCollector {
             // A tree that is cold end to end can be removed outright; a partly
             // cold one must be pruned file by file or the live half goes too.
             let entirely_cold = result.cold == result.bytes;
-            if coldest.as_ref().map_or(true, |(_, b, _)| result.cold > *b) {
+            if PURE_CACHES.contains(&label.as_str()) {
+                if result.cold > 0 {
+                    report.actions.push(self.cold_action(
+                        &label,
+                        result.cold,
+                        entirely_cold,
+                        Safety::Safe,
+                    ));
+                }
+            } else if result.cold > 0 && coldest.as_ref().map_or(true, |(_, b, _)| result.cold > *b)
+            {
                 coldest = Some((label.clone(), result.cold, entirely_cold));
             }
 
@@ -104,29 +116,31 @@ impl BuildCacheCollector {
         }
 
         if let Some((label, bytes, entirely_cold)) = coldest {
-            if bytes > 0 {
-                report.actions.push(Action {
-                    label: if entirely_cold {
-                        format!("remove {label}, cold throughout")
-                    } else {
-                        format!("clear cold artifacts in {label}")
-                    },
-                    frees: bytes,
-                    command: if entirely_cold {
-                        format!("rm -rf {label}")
-                    } else {
-                        // mtime, not atime: relatime makes access times an
-                        // unreliable signal, and the cold split above is
-                        // measured on mtime too.
-                        format!("find {label} -type f -mtime +{} -delete", self.cold_days)
-                    },
-                    safety: Safety::Safe,
-                });
-            }
+            report
+                .actions
+                .push(self.cold_action(&label, bytes, entirely_cold, Safety::Review));
         }
 
         report.truncate_entries(12);
         Ok(report)
     }
-}
 
+    fn cold_action(&self, label: &str, bytes: u64, entirely_cold: bool, safety: Safety) -> Action {
+        Action {
+            label: if entirely_cold {
+                format!("remove {label}, cold throughout")
+            } else {
+                format!("clear cold artifacts in {label}")
+            },
+            frees: bytes,
+            command: if entirely_cold {
+                format!("rm -rf {label}")
+            } else {
+                // mtime, not atime: relatime makes access times unreliable,
+                // and the cold split is measured on mtime too.
+                format!("find {label} -type f -mtime +{} -delete", self.cold_days)
+            },
+            safety,
+        }
+    }
+}

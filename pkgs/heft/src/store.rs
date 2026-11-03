@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-use crate::model::{DomainSlice, Mover, RankedAction, Rollup, Snapshot};
+use crate::model::{DomainSlice, Mover, RankedAction, Rollup, Safety, Snapshot};
 use crate::util::human_delta;
 
 pub fn data_dir() -> PathBuf {
@@ -189,6 +189,7 @@ pub fn build_rollup(current: &Snapshot, previous: Option<&Snapshot>) -> Rollup {
         actions: current
             .actions()
             .into_iter()
+            .filter(|a| a.safety != Safety::Safe)
             .take(5)
             .enumerate()
             .map(|(rank, action)| RankedAction {
@@ -203,7 +204,7 @@ pub fn build_rollup(current: &Snapshot, previous: Option<&Snapshot>) -> Rollup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Dedup, DomainReport, FsStat, SNAPSHOT_VERSION};
+    use crate::model::{Action, Dedup, DomainReport, FsStat, SNAPSHOT_VERSION};
     use chrono::Local;
 
     fn snapshot(used: u64, nix: u64) -> Snapshot {
@@ -249,6 +250,30 @@ mod tests {
         let previous = snapshot(500, 400);
         let rollup = build_rollup(&snapshot(400, 350), Some(&previous));
         assert_eq!(rollup.delta, Some(-100));
+    }
+
+    #[test]
+    fn rollup_lists_only_actions_that_need_a_human() {
+        let mut current = snapshot(400, 400);
+        for (frees, safety) in [
+            (30, Safety::Safe),
+            (20, Safety::Review),
+            (10, Safety::Destructive),
+        ] {
+            current.domains[0].actions.push(Action {
+                label: format!("{frees}"),
+                frees,
+                command: String::new(),
+                safety,
+            });
+        }
+        let rollup = build_rollup(&current, None);
+        let listed: Vec<_> = rollup
+            .actions
+            .iter()
+            .map(|a| (a.rank, a.action.frees))
+            .collect();
+        assert_eq!(listed, vec![(0, 20), (1, 10)]);
     }
 
     #[test]

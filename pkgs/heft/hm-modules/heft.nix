@@ -14,8 +14,8 @@ in {
 
     interval = mkOption {
       type = types.str;
-      default = "daily";
-      description = "OnCalendar expression for the regular census.";
+      default = "hourly";
+      description = "OnCalendar expression for `heft auto`, which decides whether to census or reclaim.";
     };
 
     deepInterval = mkOption {
@@ -30,7 +30,7 @@ in {
     warnFreeGiB = mkOption {
       type = types.int;
       default = 100;
-      description = "Free space below which the Waybar module turns amber.";
+      description = "Free space below which the Waybar module turns amber and `heft auto` runs safe actions.";
     };
 
     criticalFreeGiB = mkOption {
@@ -44,12 +44,16 @@ in {
     home.packages = [pkgs.heft];
 
     systemd.user.services.heft = {
-      Unit.Description = "Disk census";
+      Unit = {
+        Description = "Disk census and safe reclaim";
+        ConditionACPower = true;
+      };
       Service = {
         Type = "oneshot";
-        ExecStart = scan "--quiet";
+        ExecStart = "${lib.getExe pkgs.heft} auto --warn-free ${toString cfg.warnFreeGiB}";
         # a census must never compete with interactive work
         Nice = 19;
+        CPUWeight = "idle";
         IOSchedulingClass = "idle";
         NoNewPrivileges = true;
         RestrictSUIDSGID = true;
@@ -60,7 +64,7 @@ in {
     };
 
     systemd.user.timers.heft = {
-      Unit.Description = "Run the disk census ${cfg.interval}";
+      Unit.Description = "Decide on a disk census or reclaim ${cfg.interval}";
       Timer = {
         OnCalendar = cfg.interval;
         # a laptop that was asleep at the scheduled time still gets its census

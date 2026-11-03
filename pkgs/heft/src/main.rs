@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod auto;
 mod collect;
 mod model;
 mod report;
@@ -55,6 +56,12 @@ enum Command {
         #[arg(default_value = "-0")]
         after: String,
     },
+    /// Decide whether a census is due, and below the warn line run every safe
+    /// action. Skips when memory or the disk is busy.
+    Auto {
+        #[arg(long, default_value_t = 100)]
+        warn_free: u64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -67,7 +74,72 @@ fn main() -> Result<()> {
         } => waybar(warn_free, critical_free),
         Command::Eww => eww(),
         Command::Diff { before, after } => diff(&before, &after),
+        Command::Auto { warn_free } => run_auto(warn_free),
     }
+}
+
+fn run_auto(warn_free: u64) -> Result<()> {
+    let filesystem = Config::default().filesystem;
+    if let Some(why) = auto::busy(&filesystem)? {
+        eprintln!("skipping: {why}");
+        return Ok(());
+    }
+
+    let before = util::statvfs(&filesystem)?;
+    let decision = auto::decide(
+        before,
+        store::latest_snapshot().as_ref(),
+        chrono::Local::now(),
+        &auto::Policy::new(warn_free),
+    );
+    eprintln!("{} free: {decision:?}", human(before.free));
+
+    match decision {
+        auto::Decision::Rest => return Ok(()),
+        auto::Decision::Census => return scan(false, true),
+        auto::Decision::Reclaim => scan(false, true)?,
+    }
+
+    let snapshot =
+        store::latest_snapshot().ok_or_else(|| anyhow::anyhow!("census left no snapshot"))?;
+    let mut ran = Vec::new();
+    for action in snapshot
+        .actions()
+        .into_iter()
+        .filter(|a| a.safety == model::Safety::Safe)
+    {
+        match std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&action.command)
+            .status()
+        {
+            Ok(status) if status.success() => ran.push(action.label.as_str()),
+            Ok(status) => eprintln!("`{}` failed: {status}", action.command),
+            Err(e) => eprintln!("`{}` did not start: {e}", action.command),
+        }
+    }
+    if ran.is_empty() {
+        return Ok(());
+    }
+
+    let freed = util::statvfs(&filesystem)?.free.saturating_sub(before.free);
+    let summary = format!("freed {}", human(freed));
+    eprintln!("{summary}: {}", ran.join(", "));
+    if let Err(e) = std::process::Command::new("notify-send")
+        .args(["--app-name=heft", &summary, &ran.join("\n")])
+        .status()
+    {
+        eprintln!("notify-send did not start: {e}");
+    }
+    scan(false, true)
+}
+
+fn live(mut rollup: model::Rollup) -> model::Rollup {
+    if let Ok(fs) = util::statvfs(&Config::default().filesystem) {
+        rollup.filesystem = fs;
+        rollup.pct_used = fs.pct_used();
+    }
+    rollup
 }
 
 fn scan(deep: bool, quiet: bool) -> Result<()> {
@@ -117,7 +189,7 @@ fn waybar(warn_free: u64, critical_free: u64) -> Result<()> {
     // A missing rollup is the normal state before the first scan. The bar must
     // still render something rather than leaving a gap.
     let output = match store::read_rollup() {
-        Ok(rollup) => surface::waybar(&rollup, &thresholds),
+        Ok(rollup) => surface::waybar(&live(rollup), &thresholds),
         Err(_) => surface::WaybarOutput {
             text: "󰋊 …".into(),
             tooltip: "heft has not scanned yet".into(),
@@ -132,7 +204,7 @@ fn waybar(warn_free: u64, critical_free: u64) -> Result<()> {
 
 fn eww() -> Result<()> {
     match store::read_rollup() {
-        Ok(rollup) => println!("{}", serde_json::to_string(&rollup)?),
+        Ok(rollup) => println!("{}", serde_json::to_string(&live(rollup))?),
         Err(_) => println!(
             "{}",
             serde_json::json!({
