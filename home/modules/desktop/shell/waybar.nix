@@ -29,6 +29,7 @@
           ];
 
           modules-right = [
+            "custom/pile"
             "custom/heft"
             "custom/tailscale"
             "group/ssh"

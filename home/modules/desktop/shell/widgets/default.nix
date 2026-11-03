@@ -35,6 +35,7 @@
   };
 in
   map load [
+    "pile"
     "shade"
     "sysmon"
     "battery"

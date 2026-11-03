@@ -4,7 +4,7 @@
 pkgs:
 {
   ee-workbench = pkgs.callPackage ./ee-workbench {};
-  hark = pkgs.callPackage ./hark {};
+  pile = pkgs.callPackage ./pile {};
   heft = pkgs.callPackage ./heft {};
   herdr-autoname = pkgs.callPackage ./herdr-autoname {};
   herdr-recall = pkgs.callPackage ./herdr-recall {};

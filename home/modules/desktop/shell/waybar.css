@@ -47,6 +47,7 @@ window > box {
 #tray,
 #clock,
 #custom-heft,
+#custom-pile,
 #custom-tailscale,
 #custom-ssh-icon,
 #custom-ssh-solo,
@@ -216,6 +217,13 @@ window > box {
     background-color: rgba(232, 206, 245, 0.10);
 }
 
+#custom-pile {
+    color: #cbcacf;
+    font-size: 5.5pt;
+    padding: 0 10px;
+    margin: 0;
+}
+
 #sysmon {
     padding-left: 6px;
     padding-right: 6px;
@@ -320,6 +328,7 @@ window > box {
 #custom-launcher:hover,
 #tray:hover,
 #custom-heft:hover,
+#custom-pile:hover,
 #custom-tailscale:hover,
 #battery:hover,
 #network:hover,

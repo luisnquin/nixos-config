@@ -37,12 +37,6 @@
         default-timeout = 0;
       };
 
-      # hark drives this through `makoctl mode -t do-not-disturb`; the centre
-      # keeps collecting while the popups stay off screen.
-      "mode=do-not-disturb" = {
-        invisible = 1;
-      };
-
       "category=mpd" = {
         default-timeout = 2000;
         group-by = "category";
