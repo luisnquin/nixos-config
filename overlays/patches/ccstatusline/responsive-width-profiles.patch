@@ -1,7 +1,7 @@
-diff --git a/dist/ccstatusline-tgzfz3x2.js b/dist/ccstatusline-tgzfz3x2.js
---- a/dist/ccstatusline-tgzfz3x2.js
-+++ b/dist/ccstatusline-tgzfz3x2.js
-@@ -34184,6 +34184,7 @@
+diff --git a/dist/ccstatusline-9c4ne7jz.js b/dist/ccstatusline-9c4ne7jz.js
+--- a/dist/ccstatusline-9c4ne7jz.js
++++ b/dist/ccstatusline-9c4ne7jz.js
+@@ -37575,6 +37575,7 @@
      }
      return {
        ...result.data,
