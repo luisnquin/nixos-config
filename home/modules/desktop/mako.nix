@@ -43,6 +43,13 @@
         invisible = 1;
       };
 
+      # Captures and phone CLI chatter skip the popup and only pile up in hark.
+      # A lease alarm still pops: an agent was refused and is waiting on you.
+      "app-name=phone".invisible = 1;
+      "app-name=phone urgency=critical".invisible = 0;
+      "app-name=grimblast".invisible = 1;
+      "app-name=Hyprshot".invisible = 1;
+
       "category=mpd" = {
         default-timeout = 2000;
         group-by = "category";
