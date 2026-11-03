@@ -128,8 +128,6 @@
 - Bash(npx tsgo:*)
 - Bash(npx vitest:*)
 - Bash(npx jest:*)
-- Bash(rm -rf /*)
-- Bash(rm -rf /)
 - Bash(mkfs:*)
 - Bash(npx prisma migrate reset)
 - Bash(npx prisma studio)
