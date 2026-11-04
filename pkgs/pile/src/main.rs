@@ -8,7 +8,7 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
-const USAGE: &str = "usage: pile <push <id>|waybar|panel|drop <key>|clear>";
+const USAGE: &str = "usage: pile <push [--keep] <id>|waybar|panel|drop <key>|clear>";
 
 const PKILL: &str = "@pkill@";
 const SIGNAL: &str = "@signal@";
@@ -29,10 +29,10 @@ struct Entry {
 fn main() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let result = match arguments.iter().map(String::as_str).collect::<Vec<_>>()[..] {
-        ["push", id] => id
+        ["push", id] | ["push", "--keep", id] => id
             .parse()
             .map_err(|_| format!("bad id {id}").into())
-            .and_then(push),
+            .and_then(|id| push(id, arguments[1] == "--keep")),
         ["waybar"] => {
             println!("{}", waybar(&load()));
             Ok(())
@@ -59,7 +59,7 @@ fn main() -> ExitCode {
     }
 }
 
-fn push(id: u32) -> Result<(), Box<dyn Error>> {
+fn push(id: u32, keep: bool) -> Result<(), Box<dyn Error>> {
     let notification = mako::active(id)?;
     let mut entries = load();
 
@@ -78,7 +78,9 @@ fn push(id: u32) -> Result<(), Box<dyn Error>> {
     entries.truncate(KEEP);
     save(&entries)?;
 
-    mako::control(&["dismiss", "-n", &id.to_string(), "--no-history"])?;
+    if !keep {
+        mako::control(&["dismiss", "-n", &id.to_string(), "--no-history"])?;
+    }
     refresh();
     Ok(())
 }

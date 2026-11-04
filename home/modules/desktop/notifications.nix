@@ -21,5 +21,9 @@
         "summary~" = "(claude|codex|gemini|opencode|aider)";
       }
     ];
+    mirror = [
+      {app-name = "sevastopol";}
+      {app-name = "upgrade";}
+    ];
   };
 }

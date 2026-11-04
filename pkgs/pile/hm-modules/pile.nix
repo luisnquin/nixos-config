@@ -27,16 +27,32 @@ in {
         ]
       '';
     };
+
+    mirror = mkOption {
+      type = types.listOf (types.attrsOf types.str);
+      default = [];
+      description = ''
+        mako criteria like `rules`, but the notification still pops up; the
+        pile only keeps a copy.
+      '';
+      example = lib.literalExpression ''[{app-name = "sevastopol";}]'';
+    };
   };
 
   config = mkIf cfg.enable {
     home.packages = [pkgs.pile];
 
-    services.mako.settings = lib.listToAttrs (map (rule:
-      lib.nameValuePair (criteria rule) {
-        invisible = 1;
-        on-notify = ''exec ${lib.getExe pkgs.pile} push "$id"'';
-      })
-    cfg.rules);
+    services.mako.settings =
+      lib.listToAttrs (map (rule:
+        lib.nameValuePair (criteria rule) {
+          invisible = 1;
+          on-notify = ''exec ${lib.getExe pkgs.pile} push "$id"'';
+        })
+      cfg.rules)
+      // lib.listToAttrs (map (rule:
+        lib.nameValuePair (criteria rule) {
+          on-notify = ''exec ${lib.getExe pkgs.pile} push --keep "$id"'';
+        })
+      cfg.mirror);
   };
 }
