@@ -41,9 +41,15 @@ impl Sweep {
     where
         F: FnMut(usize, usize),
     {
-        let ip: IpAddr = host
-            .parse()
-            .with_context(|| format!("sweep needs a literal IP, got {host}"))?;
+        let ip: IpAddr = match host.parse() {
+            Ok(ip) => ip,
+            Err(_) => tokio::net::lookup_host((host, 0))
+                .await
+                .with_context(|| format!("sweep: resolve {host}"))?
+                .min_by_key(SocketAddr::is_ipv6)
+                .with_context(|| format!("sweep: {host} resolves to nothing"))?
+                .ip(),
+        };
 
         let total = (*range.end() as usize).saturating_sub(*range.start() as usize) + 1;
         let sem = Arc::new(Semaphore::new(self.concurrency));
@@ -103,4 +109,22 @@ pub async fn probe(host: &str, port: u16, timeout: Duration) -> bool {
         tokio::time::timeout(timeout, TcpStream::connect(&addr)).await,
         Ok(Ok(_))
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn scan_resolves_hostnames() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let open = Sweep::default()
+            .scan("localhost", port..=port, |_, _| {})
+            .await
+            .unwrap();
+
+        assert_eq!(open, vec![port]);
+    }
 }
