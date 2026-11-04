@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use std::error::Error;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const USAGE: &str = "usage: pile <push [--keep] <id>|waybar|panel|drop <key>|clear>";
 
@@ -16,6 +17,8 @@ const SIGNAL: &str = "@signal@";
 const KEEP: usize = 50;
 const ROW_CHARS: usize = 42;
 const ROW_ALPHA: [&str; 3] = ["100%", "70%", "45%"];
+const FLASH_MS: u64 = 2000;
+const FLASH_FRAMES: u32 = 10;
 
 struct Entry {
     id: u32,
@@ -34,7 +37,7 @@ fn main() -> ExitCode {
             .map_err(|_| format!("bad id {id}").into())
             .and_then(|id| push(id, arguments[1] == "--keep")),
         ["waybar"] => {
-            println!("{}", waybar(&load()));
+            println!("{}", waybar(&load(), now_ms()));
             Ok(())
         }
         ["panel"] => {
@@ -82,10 +85,14 @@ fn push(id: u32, keep: bool) -> Result<(), Box<dyn Error>> {
         mako::control(&["dismiss", "-n", &id.to_string(), "--no-history"])?;
     }
     refresh();
+    for _ in 0..FLASH_FRAMES {
+        std::thread::sleep(Duration::from_millis(FLASH_MS) / FLASH_FRAMES);
+        refresh();
+    }
     Ok(())
 }
 
-fn waybar(entries: &[Entry]) -> Value {
+fn waybar(entries: &[Entry], now: u64) -> Value {
     let row = |entry: &Entry| {
         let mut parts = vec![entry.app.trim_start_matches('.').trim_end_matches("-wrapped")];
         for part in entry.summary.split('·').map(str::trim) {
@@ -100,7 +107,14 @@ fn waybar(entries: &[Entry]) -> Value {
         .iter()
         .zip(ROW_ALPHA)
         .map(|(entry, alpha)| {
-            let colour = if entry.urgency == "critical" { " foreground=\"#ff5555\"" } else { "" };
+            let age = now.saturating_sub(entry.created_at);
+            let colour = if age < FLASH_MS {
+                format!(" foreground=\"#ffffff\" background=\"#ff5555\" bgalpha=\"{}%\"", 1 + 70 * (FLASH_MS - age) / FLASH_MS)
+            } else if entry.urgency == "critical" {
+                " foreground=\"#ff5555\"".to_owned()
+            } else {
+                String::new()
+            };
             format!("<span alpha=\"{alpha}\"{colour}>{}  {}</span>", format::clock(entry.created_at), row(entry))
         })
 
@@ -118,6 +132,10 @@ fn waybar(entries: &[Entry]) -> Value {
         .join("\n");
 
     json!({ "text": text, "tooltip": tooltip, "class": if entries.is_empty() { "empty" } else { "filled" } })
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |since| since.as_millis() as u64)
 }
 
 fn key(entry: &Entry) -> String {
@@ -225,8 +243,8 @@ mod tests {
             entry("Herdr", "claude finished", "normal"),
             entry("Claude Code", "dropped", "normal"),
         ];
-        let rendered = waybar(&entries);
-        let deduped = waybar(&[entry("Claude Code", "Claude Code · sevastopol", "normal")]);
+        let rendered = waybar(&entries, FLASH_MS);
+        let deduped = waybar(&[entry("Claude Code", "Claude Code · sevastopol", "normal")], FLASH_MS);
         assert!(deduped["text"].as_str().unwrap().ends_with(" Claude Code · sevastopol</span>"));
         let text = rendered["text"].as_str().unwrap();
         let rows: Vec<&str> = text.lines().collect();
@@ -236,6 +254,9 @@ mod tests {
         assert!(rows[1].starts_with("<span alpha=\"70%\">  grimblast"));
         assert!(rows[2].starts_with("<span alpha=\"45%\">  Herdr"));
         assert_eq!(rendered["tooltip"].as_str().unwrap().lines().count(), 4);
-        assert_eq!(waybar(&[])["class"], "empty");
+        assert_eq!(waybar(&[], 0)["class"], "empty");
+
+        let fresh = waybar(&[entry("phone", "lock", "critical")], FLASH_MS / 2);
+        assert!(fresh["text"].as_str().unwrap().starts_with("<span alpha=\"100%\" foreground=\"#ffffff\" background=\"#ff5555\" bgalpha=\"36%\">"));
     }
 }
