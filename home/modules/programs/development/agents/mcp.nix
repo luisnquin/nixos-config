@@ -55,16 +55,6 @@ in {
         reapWhenIdle = true;
       }
       {
-        name = "firefox-devtools";
-        package = pkgs.firefox-devtools-mcp;
-        args = [
-          "--connectExisting"
-          "--marionettePort"
-          "2828"
-        ];
-        reapWhenIdle = true;
-      }
-      {
         name = "chrome-devtools";
         package = pkgs.chrome-devtools-mcp;
         args = [
