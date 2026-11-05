@@ -1,0 +1,11 @@
+--- a/src/desktop/view/LayerSurface.cpp	2026-11-05 07:29:30.401297888 -0500
++++ b/src/desktop/view/LayerSurface.cpp	2026-11-05 07:29:30.403297892 -0500
+@@ -235,7 +235,7 @@
+ 
+     // If fullscreen window present check if layer is allowed above it
+     // Monitor only recognises a window as FS if it is FSMODE_FULLSCREEN so that's guaranteed here
+-    if (!Fullscreen::controller()->hasFullscreen(PMONITOR, true) || (m_flags & LAYER_FLAG_ABOVE_FULLSCREEN))
++    if (!Fullscreen::controller()->hasFullscreen(PMONITOR, true) || (m_flags & LAYER_FLAG_ABOVE_FULLSCREEN) || m_layer >= ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY)
+         m_animationController.apply(m_animationController.animateIn());
+ 
+     IPC::Socket2::sock()->postEvent({.event = "openlayer", .data = m_namespace});

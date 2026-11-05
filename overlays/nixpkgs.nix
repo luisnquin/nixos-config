@@ -180,6 +180,7 @@
         (old.patches or [])
         ++ [
           ./patches/hyprland/scrolling-fs-restore-offset.patch
+          ./patches/hyprland/overlay-layers-always-fade-in.patch
         ];
       postPatch =
         (old.postPatch or "")
