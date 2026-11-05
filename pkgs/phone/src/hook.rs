@@ -4,7 +4,8 @@ use clap::ValueEnum;
 use serde_json::{json, Map, Value};
 
 const NUDGE: &str = "phone CLI drives these devices (boot, leases, memory budget, taps, screenshots); load the phone skill and prefer it over raw adb/emulator/simctl.";
-const PROGRAMS: &[&str] = &["adb", "emulator", "avdmanager", "simctl"];
+const PROGRAMS: &[&str] = &["adb", "emulator", "avdmanager", "simctl", "scrcpy"];
+const CLEAR: &str = "adb logcat -c wipes every buffer on the device, crash history included, and cannot be undone. Read from now on with `phone app logs <pkg> --since 1m`, or save `adb logcat -b all -d` to a file first.";
 const READ_ONLY: &[&str] = &["devices", "version", "--version"];
 const PRELUDE: &[&str] = &["nohup", "sudo", "env", "exec", "time", "nice", "command"];
 const SEPARATORS: &[char] = &['|', ';', '&', '\n', '(', ')', '`', '\'', '"'];
@@ -28,6 +29,19 @@ pub fn run(harness: Harness) {
 fn respond(harness: Harness, input: &str) -> Option<String> {
     let event: Value = serde_json::from_str(input).unwrap_or(Value::Null);
     let command = command_of(&event);
+
+    if command.as_deref().is_some_and(clears) {
+        return Some(match harness {
+            Harness::Cursor => json!({"additional_context": CLEAR}).to_string(),
+            _ => json!({"hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": CLEAR,
+            }})
+            .to_string(),
+        });
+    }
+
     let hit = command.as_deref().and_then(nudge);
 
     match harness {
@@ -155,20 +169,85 @@ fn nudge(command: &str) -> Option<String> {
     });
 
     hits.reduce(|first, next| first.or(next)).map(|hit| match hit {
-        Some(words) if name(words[0]) == "adb" => {
+        Some(words) if matches!(name(words[0]), "adb" | "scrcpy") => {
             let mut args = words[1..].to_vec();
-            let target = match args.iter().position(|w| *w == "-s") {
+            let at = match name(words[0]) {
+                "adb" => serial_at(&args),
+                _ => args.iter().position(|w| *w == "-s"),
+            };
+            let target = match at {
                 Some(at) if at + 1 < args.len() => format!("-t {} ", args.drain(at..=at + 1).nth(1).unwrap_or_default()),
-                _ => String::new(),
+                _ => serial_env(command).map_or_else(String::new, |s| format!("-t {s} ")),
+            };
+
+            let pick = match target.is_empty() {
+                true => " `phone device list` shows the targets for -t.",
+                false => "",
             };
 
             format!(
-                "bare adb skips phone's leases and device targeting; run `phone run {target}-- adb {}` instead.",
+                "bare {0} skips phone's leases and device targeting; run `phone run {target}-- {0} {1}` instead.{pick} Wrap a script or loop whole: `phone run {target}-- sh -c '...'`.",
+                name(words[0]),
                 args.join(" ")
             )
         }
         _ => NUDGE.to_string(),
     })
+}
+
+pub fn serial_at(args: &[&str]) -> Option<usize> {
+    let mut at = 0;
+
+    while let Some(w) = args.get(at) {
+        match *w {
+            "-s" => return (at + 1 < args.len()).then_some(at),
+            "-t" | "-H" | "-P" | "-L" => at += 2,
+            w if w.starts_with('-') => at += 1,
+            _ => return None,
+        }
+    }
+
+    None
+}
+
+fn adb_args(command: &str) -> Vec<Vec<String>> {
+    command
+        .split(['|', ';', '&', '\n', '(', ')', '`'])
+        .filter_map(|segment| {
+            let unquoted = segment.replace(['\'', '"'], " ");
+            let segment = match phone_runs(&unquoted) {
+                true => unquoted.split_once(" -- ").map_or("", |(_, cmd)| cmd),
+                false => &unquoted,
+            };
+            let words = invocation(segment).filter(|words| name(words[0]) == "adb")?;
+
+            Some(words[1..].iter().map(|w| w.to_string()).collect())
+        })
+        .collect()
+}
+
+pub fn clears(command: &str) -> bool {
+    adb_args(command).iter().any(|args| {
+        args.iter()
+            .position(|w| w == "logcat")
+            .is_some_and(|at| args[at + 1..].iter().any(|w| matches!(w.as_str(), "-c" | "--clear")))
+    })
+}
+
+pub fn pinned_serial(command: &str) -> Option<String> {
+    adb_args(command).into_iter().find_map(|args| {
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+
+        serial_at(&args).map(|at| args[at + 1].to_string())
+    })
+}
+
+fn serial_env(command: &str) -> Option<&str> {
+    command
+        .split_whitespace()
+        .find_map(|w| w.strip_prefix("ANDROID_SERIAL="))
+        .map(|s| s.trim_matches(|c| c == '\'' || c == '"' || c == ';'))
+        .filter(|s| !s.is_empty() && !s.starts_with('$'))
 }
 
 fn invocation(segment: &str) -> Option<Vec<&str>> {
@@ -285,6 +364,8 @@ mod tests {
         for (command, route) in [
             ("adb -s emulator-5554 shell input tap 1 1", "phone run -t emulator-5554 -- adb shell input tap 1 1"),
             ("adb -s faraday:5555 logcat -d", "phone run -t faraday:5555 -- adb logcat -d"),
+            ("ANDROID_SERIAL=100.104.216.38:5555 adb shell input tap 1 1", "phone run -t 100.104.216.38:5555 -- adb shell input tap 1 1"),
+            ("export ANDROID_SERIAL='pavlov:5555'; adb logcat -d", "phone run -t pavlov:5555 -- adb logcat -d"),
             ("ssh rose adb shell pm clear com.x", "phone run -- adb shell pm clear com.x"),
             ("ssh rose 'adb install -r a.apk'", "phone run -- adb install -r a.apk"),
             ("adb devices && $ANDROID_HOME/platform-tools/adb uninstall com.x", "phone run -- adb uninstall com.x"),
@@ -296,6 +377,57 @@ mod tests {
                 assert!(!said.contains('\n'), "{said}");
             }
         }
+    }
+
+    #[test]
+    fn clearing_logcat_is_denied() {
+        for command in ["adb logcat -c", "ANDROID_SERIAL=x adb logcat -b all -c", "ssh rose 'adb -s e logcat --clear'", "phone run -- adb logcat -c"] {
+            let input = json!({"tool_name": "Bash", "tool_input": {"command": command}}).to_string();
+            let out: Value = serde_json::from_str(&respond(Harness::Claude, &input).unwrap()).unwrap();
+
+            assert_eq!(out["hookSpecificOutput"]["permissionDecision"], "deny", "{command}");
+        }
+
+        for command in ["adb shell 'logcat -c'", "adb shell \"logcat -b all -c\""] {
+            assert!(clears(command), "{command}");
+        }
+
+        for command in [
+            "adb logcat -d",
+            "sh -c 'adb logcat -d'",
+            "phone app logs x --since 1m",
+            "grep -rn \"adb logcat -c\" .",
+            "git commit -m 'refuse adb logcat -c'",
+        ] {
+            assert!(!clears(command), "{command}");
+        }
+    }
+
+    #[test]
+    fn only_adbs_own_dash_s_pins_a_serial() {
+        for (command, serial) in [
+            ("adb -s pavlov:5555 shell ls", Some("pavlov:5555")),
+            ("sh -c adb -s 'x:1' logcat -d | grep -s foo", Some("x:1")),
+            ("adb -H rose -P 5037 -s emulator-5554 shell ls", Some("emulator-5554")),
+            ("adb shell ls -s /sdcard", None),
+            ("adb shell grep -s foo f", None),
+            ("curl -s url; adb shell ls", None),
+        ] {
+            assert_eq!(pinned_serial(command).as_deref(), serial, "{command}");
+        }
+    }
+
+    #[test]
+    fn untargeted_hints_name_device_list_and_scrcpy_is_routed() {
+        let said = context(Harness::Claude, "adb shell ls").unwrap();
+        assert!(said.contains("phone device list"), "{said}");
+
+        let said = context(Harness::Claude, "adb shell ls -s /sdcard").unwrap();
+        assert!(said.contains("`phone run -- adb shell ls -s /sdcard`"), "{said}");
+
+        let said = context(Harness::Claude, "scrcpy -s pavlov:5555 --record a.mkv").unwrap();
+        assert!(said.contains("`phone run -t pavlov:5555 -- scrcpy --record a.mkv`"), "{said}");
+        assert!(!said.contains("phone device list"), "{said}");
     }
 
     #[test]

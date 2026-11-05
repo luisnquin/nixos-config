@@ -625,7 +625,27 @@ async fn display_cmd(reg: &mut Registry, want: Option<String>, overrides: action
 async fn run_cmd(reg: &mut Registry, want: Option<String>, command: Vec<String>) -> Result<()> {
     use std::os::unix::process::ExitStatusExt;
 
+    let line = command.join(" ");
+
+    if hook::clears(&line) {
+        bail!("refusing to clear logcat: it destroys every app's crash history; `phone app logs <pkg> --since 1m` reads from now on");
+    }
+
+    let pinned = hook::pinned_serial(&line);
+    let (want, from) = match (want, &pinned, std::env::var("ANDROID_SERIAL").ok()) {
+        (Some(t), _, _) => (Some(t), ""),
+        (None, Some(s), _) => (Some(s.clone()), ", from adb -s"),
+        (None, None, Some(s)) if !s.is_empty() => (Some(s), ", from ANDROID_SERIAL"),
+        _ => (None, ""),
+    };
     let view = driving(reg, want.as_deref(), true).await?;
+
+    if let (Some(pinned), Some(serial)) = (&pinned, view.reach.serial()) {
+        if pinned != serial {
+            lease::release(&view).await?;
+            bail!("the command pins adb -s {pinned} but phone holds {} ({serial}); use -t {pinned}", view.device.label);
+        }
+    }
 
     if view.device.platform.os() != "android" {
         lease::release(&view).await?;
@@ -635,6 +655,9 @@ async fn run_cmd(reg: &mut Registry, want: Option<String>, command: Vec<String>)
     let Some(serial) = view.reach.serial() else {
         bail!("{} has no adb serial", view.device.label);
     };
+
+    let host = view.server.host().unwrap_or("this machine");
+    eprintln!("phone: running on {} ({serial} via {host}{from}); -t picks another", view.device.label);
 
     let _beat = lease::heartbeat(&view);
     let (program, args) = command.split_first().expect("clap requires a command");
