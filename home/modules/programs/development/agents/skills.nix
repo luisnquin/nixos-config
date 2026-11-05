@@ -190,8 +190,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "hyperb1iss";
             repo = "hyperskills";
-            rev = "a0e30e791c5a9ef65f438a24b6ea7bffb912ac70";
-            hash = "sha256-Rl0BBK/Hnf7xOwWvNMqkmm64sRnMEtl0+walbkq79P8=";
+            rev = "0fd4cd37ad2f79c084333dbeb2d0c033629a61c8";
+            hash = "sha256-8VzVKDf83KOj6vfqRL4qayfHX0gud8xs3YM3A81hyWY=";
             rootDir = "skills";
           };
         } {
