@@ -10,7 +10,7 @@
       enable = false;
       targets = ["graphical-session.target"];
     };
-    style = builtins.readFile ./waybar.css;
+    style = builtins.readFile ./waybar.css + import ./widgets/battery/charging.nix {inherit lib pkgs;};
     settings = [
       ({
           "position" = "top";

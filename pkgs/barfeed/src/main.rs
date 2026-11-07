@@ -92,27 +92,37 @@ fn battery(mut args: impl Iterator<Item = String>) -> ExitCode {
     };
 
     let class = battery_class(capacity, warning, critical);
-    let mut icon = match capacity {
-        0..=11 => "\u{f244}",
-        12..=36 => "\u{f243}",
-        37..=61 => "\u{f242}",
-        62..=86 => "\u{f241}",
-        _ => "\u{f240}",
-    }
-    .to_owned();
+    let percent = format!("<span size=\"7.5pt\">{capacity}%</span>");
 
-    if status == "Charging" || (status != "Full" && online) {
-        icon.push_str(" \u{f0e7}");
-    }
+    // The charging icon is a CSS background picked by fill-N, one class per
+    // pixel of the icon's 13px fill.
+    let (text, classes) = if status == "Charging" || (status != "Full" && online) {
+        let fill = format!("fill-{}", charging_fill(capacity));
+        (percent, vec![class.to_owned(), "charging".to_owned(), fill])
+    } else {
+        let icon = match capacity {
+            0..=11 => "\u{f244}",
+            12..=36 => "\u{f243}",
+            37..=61 => "\u{f242}",
+            62..=86 => "\u{f241}",
+            _ => "\u{f240}",
+        };
+        (
+            format!("{percent} <span size=\"10pt\">{icon}</span>"),
+            vec![class.to_owned()],
+        )
+    };
 
     print_json(json!({
-        "text": format!(
-            "<span size=\"7.5pt\">{capacity}%</span> <span size=\"10pt\">{icon}</span>"
-        ),
+        "text": text,
         "tooltip": format!("{capacity}% · {status}"),
-        "class": class,
+        "class": classes,
     }));
     ExitCode::SUCCESS
+}
+
+fn charging_fill(capacity: u8) -> u16 {
+    (u16::from(capacity.min(100)) * 13).div_ceil(100)
 }
 
 fn battery_state(root: &Path) -> Option<(u8, String, bool)> {
@@ -718,9 +728,9 @@ fn print_json(value: Value) {
 #[cfg(test)]
 mod tests {
     use super::{
-        battery_class, decode_address, host_address, mosh_client_peer, mosh_pid, parse_connections,
-        parse_tailscale_response, ssh_login_matches, ssh_target, sshd_ports, who_entries,
-        DEFAULT_SSH_PORT,
+        battery_class, charging_fill, decode_address, host_address, mosh_client_peer, mosh_pid,
+        parse_connections, parse_tailscale_response, ssh_login_matches, ssh_target, sshd_ports,
+        who_entries, DEFAULT_SSH_PORT,
     };
 
     const TCP_TABLE: &str = concat!(
@@ -829,6 +839,15 @@ mod tests {
         assert_eq!(battery_class(5, 15, 5), "critical");
         assert_eq!(battery_class(15, 15, 5), "warning");
         assert_eq!(battery_class(16, 15, 5), "normal");
+    }
+
+    #[test]
+    fn maps_capacity_to_charging_fill() {
+        assert_eq!(charging_fill(0), 0);
+        assert_eq!(charging_fill(1), 1);
+        assert_eq!(charging_fill(8), 2);
+        assert_eq!(charging_fill(100), 13);
+        assert_eq!(charging_fill(255), 13);
     }
 
     #[test]
