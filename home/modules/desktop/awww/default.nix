@@ -77,6 +77,10 @@ in {
       hl.exec_cmd("${awwwImg}")
     end)
 
+    hl.on("monitor.added", function(m)
+      hl.exec_cmd("${awwwImg} -o " .. m.name)
+    end)
+
     hl.bind("SUPER + L", hl.dsp.exec_cmd("${lib.getExe switchWallpaper} ${wallpaperArgs}"))
   '';
 }
