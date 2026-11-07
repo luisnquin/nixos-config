@@ -1,21 +1,24 @@
 {
   fetchFromGitHub,
+  git,
   rustPlatform,
 }:
 rustPlatform.buildRustPackage rec {
   pname = "knots";
-  version = "1.17.0";
+  version = "2.2.0";
 
   src = fetchFromGitHub {
     owner = "brandon-arrendondo";
     repo = "knots";
     tag = "v${version}";
-    hash = "sha256-GyEIDTlkSieIfOeApJmQBJ9syiSNXuYjmHJ+FpDmjo4=";
+    hash = "sha256-QSaXVYmEPPIez5UED/HXhzQXJ8VhVoSEB3tQrfCopI4=";
   };
 
   patches = [./staged.patch];
 
-  cargoHash = "sha256-gJGX76WjF46AsVOy/g/jzp7Dhjdt2P/SKZwllGIX/R0=";
+  nativeCheckInputs = [git];
+
+  cargoHash = "sha256-SKTal1V0i1eAXbdP8NtDEBmkdmER/kklYWVLfGAzMV8=";
 
   meta.mainProgram = "knots";
 }

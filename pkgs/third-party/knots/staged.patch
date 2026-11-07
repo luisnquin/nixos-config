@@ -1,16 +1,16 @@
 diff --git a/src/main.rs b/src/main.rs
-index f7ba54a..6b0c576 100755
+index ea04029..8ecc62a 100755
 --- a/src/main.rs
 +++ b/src/main.rs
-@@ -22,6 +22,7 @@ mod config;
+@@ -57,6 +57,7 @@ mod config;
  mod duplicate_diff;
  mod duplicates;
  mod output;
 +mod staged;
- use config::KnotsToml;
- use knots::{
-     collect_function_metrics, is_parseable_extension, is_source_extension,
-@@ -54,7 +55,7 @@ struct Args {
+ mod streams;
+ use completion::{
+     conclude, contain, finish, Completion, IncompleteScan, InvocationError, LostInput, Stage,
+@@ -95,7 +96,7 @@ struct Args {
      /// Path(s) to source files or directories to analyze
      #[arg(
          value_name = "FILE",
@@ -19,7 +19,7 @@ index f7ba54a..6b0c576 100755
          num_args = 1..
      )]
      files: Vec<PathBuf>,
-@@ -164,6 +165,15 @@ struct Args {
+@@ -221,6 +222,15 @@ struct Args {
      #[arg(long)]
      changed: bool,
  
@@ -35,29 +35,24 @@ index f7ba54a..6b0c576 100755
      /// Explain what a metric measures and how to lower it, then exit. No files
      /// needed. E.g. `knots --explain aird`.
      #[arg(long, value_name = "METRIC", value_enum)]
-@@ -1115,7 +1125,9 @@ fn main() -> Result<()> {
-         .collect();
-     let language_filter = resolve_language_filter(&args.languages)?;
- 
--    let files = if let Some(cc) = &args.compile_commands {
-+    let files = if args.staged {
-+        Vec::new()
-+    } else if let Some(cc) = &args.compile_commands {
-         load_compile_commands(cc, &include_rules, &exclude_rules)?
-     } else if !args.files.is_empty() {
-         let mut collected = Vec::new();
-@@ -1134,7 +1146,7 @@ fn main() -> Result<()> {
-         anyhow::bail!("Either FILE or --compile-commands must be specified");
+@@ -1238,8 +1248,12 @@ fn run() -> Result<()> {
+         language_filter: &language_filter,
+         toml_exclude: &toml_exclude,
      };
- 
--    if files.is_empty() {
-+    if files.is_empty() && !args.staged {
+-    let (files, lost) = select_files(&args, &scope)?;
+-    if files.is_empty() && lost.is_empty() {
++    let (files, lost) = if args.staged {
++        (Vec::new(), Vec::new())
++    } else {
++        select_files(&args, &scope)?
++    };
++    if files.is_empty() && lost.is_empty() && !args.staged {
          return Ok(());
      }
- 
-@@ -1158,6 +1170,16 @@ fn main() -> Result<()> {
-         .map(|c| c.filter.exclude.clone())
-         .unwrap_or_default();
+     let mut completion = Completion::new(files.len(), lost);
+@@ -1257,6 +1271,16 @@ fn run() -> Result<()> {
+         unreachable_blocks: args.unreachable_blocks_threshold,
+     };
      let thresholds = EffectiveThresholds::new(cli_thresholds, &knots_toml);
 +    if args.staged {
 +        let filters = staged::Filters {
@@ -74,10 +69,10 @@ index f7ba54a..6b0c576 100755
      // gating. Handled before format/mode dispatch so `--write-baseline` behaves
 diff --git a/src/staged.rs b/src/staged.rs
 new file mode 100644
-index 0000000..6b649c2
+index 0000000..63818fe
 --- /dev/null
 +++ b/src/staged.rs
-@@ -0,0 +1,323 @@
+@@ -0,0 +1,334 @@
 +use super::*;
 +use duplicates::DuplicateMember;
 +use std::io::Write as _;
@@ -198,6 +193,7 @@ index 0000000..6b649c2
 +struct Snapshot {
 +    metrics: Vec<FunctionMetrics>,
 +    groups: Vec<Vec<DuplicateMember>>,
++    lost: Vec<String>,
 +}
 +
 +fn analyze(dir: &Path, files: &[PathBuf], ctx: &RunContext) -> Result<Snapshot> {
@@ -206,22 +202,29 @@ index 0000000..6b649c2
 +    }
 +    let back = std::env::current_dir()?;
 +    std::env::set_current_dir(dir)?;
-+    let (mut metrics, _) = collect_all_metrics(
++    let mut completion = Completion::new(files.len(), Vec::new());
++    let mut metrics = collect_all_metrics(
 +        files,
 +        &ctx.include_rules,
 +        &ctx.exclude_rules,
 +        &ctx.toml_exclude,
 +        ctx.count_anonymous_closures,
++        &mut completion,
 +    );
-+    compute_and_apply_file_coupling(files, ctx, &mut metrics);
++    compute_and_apply_file_coupling(files, ctx, &mut metrics, &mut completion);
 +    let groups = if ctx.find_duplicates {
-+        let fingerprints = collect_corpus_fingerprints(files, ctx.duplicate_tier);
++        let fingerprints = collect_corpus_fingerprints(files, ctx.duplicate_tier, &mut completion);
 +        duplicates::find_duplicate_groups(&fingerprints, ctx.duplicate_filters).groups
 +    } else {
 +        Vec::new()
 +    };
 +    std::env::set_current_dir(back)?;
-+    Ok(Snapshot { metrics, groups })
++    let lost = completion.lost().iter().map(|l| l.file.clone()).collect();
++    Ok(Snapshot {
++        metrics,
++        groups,
++        lost,
++    })
 +}
 +
 +fn relevant(path: &str, scope: &Scope, ctx: &RunContext) -> bool {
@@ -372,6 +375,9 @@ index 0000000..6b649c2
 +    ctx.baseline = Some(baseline);
 +
 +    let next = analyze(&next_dir, &next_files, &ctx)?;
++    if let Some(file) = next.lost.iter().find(|f| staged.contains(*f)) {
++        anyhow::bail!("staged file {file} could not be analysed");
++    }
 +    let gated: Vec<FunctionMetrics> = next
 +        .metrics
 +        .into_iter()
