@@ -1,5 +1,6 @@
 {
   name,
+  eww,
   lib,
   pkgs,
   ...
@@ -13,14 +14,14 @@
     '';
   };
 
-  # The panel copies an action by index rather than interpolating the command
-  # into a shell line: the commands contain paths, `&&` and quotes, and none of
-  # that should ever be re-parsed on the way to the clipboard.
-  heftCopy = pkgs.writeShellApplication {
-    name = "eww-heft-copy";
-    runtimeInputs = with pkgs; [heft jq wl-clipboard];
+  # By rank, not by command: the commands hold paths, `&&` and quotes that
+  # must never be re-parsed by the panel's shell line.
+  heftQueue = pkgs.writeShellApplication {
+    name = "eww-heft-queue";
+    runtimeInputs = [pkgs.heft];
     text = ''
-      heft eww | jq -j --argjson i "''${1:?index required}" '.actions[$i].command // ""' | wl-copy
+      heft queue "''${1:?rank required}"
+      ${eww} update heft_data="$(heft eww)"
     '';
   };
 in {
@@ -49,9 +50,9 @@ in {
         (progress :class "heft-bar" :orientation "h" :value {domain.pct})))
 
     (defwidget heft-action [action]
-      (button :class {"heft-action " + action.safety}
-        :tooltip "click to copy the command"
-        :onclick "${lib.getExe heftCopy} ''${action.rank}"
+      (button :class {"heft-action " + action.safety + (action.queued ? " queued" : "")}
+        :tooltip {action.queued ? "queued for the next cleanup, click to undo" : "click to queue for the next cleanup"}
+        :onclick "${lib.getExe heftQueue} ''${action.rank}"
         (box :orientation "v" :space-evenly false
           (box :orientation "h" :space-evenly false
             (label :class "heft-action-label" :halign "start" :hexpand true :limit-width 38 :text {action.label})

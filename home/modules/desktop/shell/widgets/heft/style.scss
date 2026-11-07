@@ -103,6 +103,16 @@
   border-left: 3px solid #f28fad;
 }
 
+.heft-action.queued {
+  background-color: rgba(242, 143, 173, 0.12);
+  border-color: rgba(242, 143, 173, 0.35);
+  border-left: 3px solid #f28fad;
+}
+
+.heft-action.queued .heft-action-label {
+  text-decoration-line: line-through;
+}
+
 .heft-action-label {
   color: #cdd6f4;
 }

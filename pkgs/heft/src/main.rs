@@ -62,6 +62,8 @@ enum Command {
         #[arg(long, default_value_t = 100)]
         warn_free: u64,
     },
+    /// Mark or unmark a listed action for the next `heft auto` run.
+    Queue { rank: usize },
 }
 
 fn main() -> Result<()> {
@@ -75,7 +77,47 @@ fn main() -> Result<()> {
         Command::Eww => eww(),
         Command::Diff { before, after } => diff(&before, &after),
         Command::Auto { warn_free } => run_auto(warn_free),
+        Command::Queue { rank } => toggle_queued(rank),
     }
+}
+
+fn toggle_queued(rank: usize) -> Result<()> {
+    let rollup = store::read_rollup()?;
+    let action = rollup
+        .actions
+        .iter()
+        .find(|a| a.rank == rank)
+        .ok_or_else(|| anyhow::anyhow!("no action ranked {rank}"))?;
+    let mut queue = store::read_queue();
+    if let Some(i) = queue.iter().position(|c| *c == action.action.command) {
+        queue.remove(i);
+    } else {
+        queue.push(action.action.command.clone());
+    }
+    store::write_queue(&queue)
+}
+
+fn run_actions<'a>(actions: impl IntoIterator<Item = &'a model::Action>) -> Vec<String> {
+    actions
+        .into_iter()
+        .map(|action| {
+            match std::process::Command::new("sh")
+                .arg("-c")
+                .arg(&action.command)
+                .status()
+            {
+                Ok(status) if status.success() => action.label.clone(),
+                Ok(status) => {
+                    eprintln!("`{}` failed: {status}", action.command);
+                    format!("failed: {}", action.label)
+                }
+                Err(e) => {
+                    eprintln!("`{}` did not start: {e}", action.command);
+                    format!("failed: {}", action.label)
+                }
+            }
+        })
+        .collect()
 }
 
 fn run_auto(warn_free: u64) -> Result<()> {
@@ -86,40 +128,47 @@ fn run_auto(warn_free: u64) -> Result<()> {
     }
 
     let before = util::statvfs(&filesystem)?;
+
+    // Only commands the panel still lists run: one a rescan rewrote is not
+    // what was clicked.
+    let queue = store::read_queue();
+    let mut ran = Vec::new();
+    if !queue.is_empty() {
+        store::write_queue(&[])?;
+        let listed = store::read_rollup().map(|r| r.actions).unwrap_or_default();
+        ran = run_actions(
+            listed
+                .iter()
+                .map(|a| &a.action)
+                .filter(|a| queue.contains(&a.command)),
+        );
+    }
+
+    let live = util::statvfs(&filesystem)?;
     let decision = auto::decide(
-        before,
+        live,
         store::latest_snapshot().as_ref(),
         chrono::Local::now(),
         &auto::Policy::new(warn_free),
     );
-    eprintln!("{} free: {decision:?}", human(before.free));
+    eprintln!("{} free: {decision:?}", human(live.free));
 
-    match decision {
-        auto::Decision::Rest => return Ok(()),
-        auto::Decision::Census => return scan(false, true),
-        auto::Decision::Reclaim => scan(false, true)?,
-    }
-
-    let snapshot =
-        store::latest_snapshot().ok_or_else(|| anyhow::anyhow!("census left no snapshot"))?;
-    let mut ran = Vec::new();
-    for action in snapshot
-        .actions()
-        .into_iter()
-        .filter(|a| a.safety == model::Safety::Safe)
-    {
-        match std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&action.command)
-            .status()
-        {
-            Ok(status) if status.success() => ran.push(action.label.as_str()),
-            Ok(status) => eprintln!("`{}` failed: {status}", action.command),
-            Err(e) => eprintln!("`{}` did not start: {e}", action.command),
-        }
+    if decision == auto::Decision::Reclaim {
+        scan(false, true)?;
+        let snapshot =
+            store::latest_snapshot().ok_or_else(|| anyhow::anyhow!("census left no snapshot"))?;
+        ran.extend(run_actions(
+            snapshot
+                .actions()
+                .into_iter()
+                .filter(|a| a.safety == model::Safety::Safe),
+        ));
     }
     if ran.is_empty() {
-        return Ok(());
+        return match decision {
+            auto::Decision::Census => scan(false, true),
+            _ => Ok(()),
+        };
     }
 
     let freed = util::statvfs(&filesystem)?.free.saturating_sub(before.free);
@@ -138,6 +187,10 @@ fn live(mut rollup: model::Rollup) -> model::Rollup {
     if let Ok(fs) = util::statvfs(&Config::default().filesystem) {
         rollup.filesystem = fs;
         rollup.pct_used = fs.pct_used();
+    }
+    let queue = store::read_queue();
+    for action in &mut rollup.actions {
+        action.queued = queue.contains(&action.action.command);
     }
     rollup
 }

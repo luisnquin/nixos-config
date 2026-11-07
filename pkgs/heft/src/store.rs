@@ -25,6 +25,23 @@ pub fn rollup_path() -> PathBuf {
     data_dir().join("latest.json")
 }
 
+const MIN_LISTED_FREES: u64 = 100 * 1024 * 1024;
+
+fn queue_path() -> PathBuf {
+    data_dir().join("queue.json")
+}
+
+pub fn read_queue() -> Vec<String> {
+    fs::read_to_string(queue_path())
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+pub fn write_queue(commands: &[String]) -> Result<()> {
+    write_atomic(&queue_path(), &serde_json::to_string(commands)?)
+}
+
 /// Write through a temporary file in the same directory, then rename. A reader
 /// polling this path either sees the previous complete file or the new one,
 /// never a half-written document.
@@ -189,12 +206,13 @@ pub fn build_rollup(current: &Snapshot, previous: Option<&Snapshot>) -> Rollup {
         actions: current
             .actions()
             .into_iter()
-            .filter(|a| a.safety != Safety::Safe)
+            .filter(|a| a.safety != Safety::Safe && a.frees >= MIN_LISTED_FREES)
             .take(5)
             .enumerate()
             .map(|(rank, action)| RankedAction {
                 rank,
                 action: action.clone(),
+                queued: false,
             })
             .collect(),
         newcomers,
@@ -256,9 +274,10 @@ mod tests {
     fn rollup_lists_only_actions_that_need_a_human() {
         let mut current = snapshot(400, 400);
         for (frees, safety) in [
-            (30, Safety::Safe),
-            (20, Safety::Review),
-            (10, Safety::Destructive),
+            (MIN_LISTED_FREES + 30, Safety::Safe),
+            (MIN_LISTED_FREES + 20, Safety::Review),
+            (MIN_LISTED_FREES + 10, Safety::Destructive),
+            (MIN_LISTED_FREES - 1, Safety::Review),
         ] {
             current.domains[0].actions.push(Action {
                 label: format!("{frees}"),
@@ -273,7 +292,10 @@ mod tests {
             .iter()
             .map(|a| (a.rank, a.action.frees))
             .collect();
-        assert_eq!(listed, vec![(0, 20), (1, 10)]);
+        assert_eq!(
+            listed,
+            vec![(0, MIN_LISTED_FREES + 20), (1, MIN_LISTED_FREES + 10)]
+        );
     }
 
     #[test]

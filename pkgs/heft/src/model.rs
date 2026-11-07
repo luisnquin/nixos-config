@@ -239,14 +239,15 @@ pub struct Rollup {
     pub newcomers: Vec<Entry>,
 }
 
-/// An action the panel can address by number. Copying a command to the
-/// clipboard by rank keeps arbitrary command text — paths, `&&`, quotes — out
-/// of the shell line that does the copying.
+/// An action the panel can address by number. Queueing by rank keeps arbitrary
+/// command text (paths, `&&`, quotes) out of the panel's shell line.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RankedAction {
     pub rank: usize,
     #[serde(flatten)]
     pub action: Action,
+    #[serde(default)]
+    pub queued: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
