@@ -1,0 +1,14 @@
+[package]
+name = "drift"
+version = "0.1.0"
+edition = "2021"
+description = "how far each repo of a superproject drifted from its upstream"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+ratatui = "0.30"
+
+[profile.release]
+lto = true
+strip = true

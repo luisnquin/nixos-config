@@ -11,7 +11,7 @@
     ./etc.nix
   ];
 
-  home.packages = [pkgs.knots];
+  home.packages = [pkgs.knots pkgs.drift];
 
   shared = {
     git = {

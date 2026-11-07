@@ -5,6 +5,7 @@ pkgs:
 {
   ee-workbench = pkgs.callPackage ./ee-workbench {};
   pile = pkgs.callPackage ./pile {};
+  drift = pkgs.callPackage ./drift {};
   heft = pkgs.callPackage ./heft {};
   herdr-autoname = pkgs.callPackage ./herdr-autoname {};
   herdr-recall = pkgs.callPackage ./herdr-recall {};
