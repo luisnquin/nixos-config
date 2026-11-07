@@ -2,7 +2,15 @@
   lib,
   pkgs,
   ...
-}: {
+}: let
+  tmuxReady = pkgs.writeShellScript "tmux-ready" ''
+    for _ in $(seq 100); do
+      [ -S "$TMUX_TMPDIR/tmux-$(id -u)/default" ] && exit 0
+      sleep 0.1
+    done
+    exit 1
+  '';
+in {
   imports = [
     ./ghostty.nix
     ./herdr.nix
@@ -34,4 +42,25 @@
   programs.tmux.extraConfig = ''
     set -g allow-passthrough on
   '';
+
+  systemd.user.services.tmux = {
+    Unit = {
+      Description = "tmux server";
+      X-SwitchMethod = "keep-old";
+    };
+
+    Service = {
+      ExecStart = "${lib.getExe pkgs.tmux} -D";
+      ExecStartPost = "${tmuxReady}";
+      WorkingDirectory = "%h";
+      Environment = [
+        "TMUX_TMPDIR=%t"
+        "WAYLAND_DISPLAY=wayland-1"
+      ];
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+
+    Install.WantedBy = ["default.target"];
+  };
 }

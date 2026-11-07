@@ -7,10 +7,16 @@ args @ {
 }: let
   inherit (lib.generators) mkLuaInline;
 
+  tmuxDropSession = pkgs.writeShellScript "tmux-drop-session" ''
+    export TMUX_TMPDIR="$XDG_RUNTIME_DIR"
+    systemctl --user start tmux.service || true
+    exec ${lib.getExe pkgs.tmux} new-session -A -s drop
+  '';
+
   tmuxDrop = import ./drop.nix {inherit pkgs lib;} {
     name = "ghostty-tmux";
     class = "ghostty.tmux";
-    command = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux -e ${lib.getExe pkgs.tmux} new-session -A -s drop";
+    command = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux -e ${tmuxDropSession}";
   };
 
   waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''

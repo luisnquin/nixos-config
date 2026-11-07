@@ -35,6 +35,7 @@
   };
 in
   map load [
+    "session"
     "pile"
     "shade"
     "sysmon"

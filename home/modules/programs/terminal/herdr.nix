@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   ...
@@ -28,7 +29,42 @@
   pluginRegistry = pkgs.writeText "herdr-plugins.json" (
     builtins.toJSON (map pluginEntry plugins)
   );
+
+  hubUp = pkgs.writeShellScript "herdr-hub-up" ''
+    ${lib.getExe pkgs.herdr} --session hub status server | ${lib.getExe pkgs.gnugrep} -q '^status: running'
+  '';
+
+  hubReady = pkgs.writeShellScript "herdr-hub-ready" ''
+    for _ in $(seq 100); do
+      ${hubUp} && exit 0
+      sleep 0.1
+    done
+    exit 1
+  '';
 in {
+  systemd.user.services.herdr-hub = {
+    Unit = {
+      Description = "herdr hub server";
+      X-SwitchMethod = "keep-old";
+    };
+
+    Service = {
+      ExecCondition = "${pkgs.runtimeShell} -c '! ${hubUp}'";
+      ExecStart = "${lib.getExe pkgs.herdr} server";
+      ExecStartPost = "${hubReady}";
+      WorkingDirectory = "%h";
+      Environment = [
+        "HERDR_SESSION=hub"
+        "ZDOTDIR=${config.programs.zsh.dotDir}"
+        "WAYLAND_DISPLAY=wayland-1"
+      ];
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+
+    Install.WantedBy = ["default.target"];
+  };
+
   programs.herdr = {
     enable = true;
 

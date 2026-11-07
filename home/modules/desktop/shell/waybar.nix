@@ -67,11 +67,6 @@
             };
           };
 
-          "custom/launcher" = {
-            "format" = " ";
-            "tooltip" = false;
-          };
-
           "custom/ssh-icon" = {
             format = "󰣀";
             tooltip = false;

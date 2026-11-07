@@ -6,6 +6,7 @@
 }: let
   herdrSession = pkgs.writeShellScript "herdr-scratchpad-session" ''
     export ZDOTDIR=${lib.escapeShellArg config.programs.zsh.dotDir}
+    systemctl --user start herdr-hub.service || true
     exec ${lib.getExe pkgs.herdr} --session hub
   '';
 

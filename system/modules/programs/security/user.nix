@@ -17,6 +17,7 @@
         home = ''/home/${user.alias}/'';
         hashedPasswordFile = config.sops.secrets."users/${user.alias}-password-hash".path;
         isNormalUser = true;
+        linger = true;
 
         extraGroups = [
           "networkmanager"
