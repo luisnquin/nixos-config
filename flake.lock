@@ -1329,11 +1329,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793638126,
-        "narHash": "sha256-GKK0acSNnzUmNzQ+VZqJgpLBULjmiQanfByG0cuOkig=",
+        "lastModified": 1794162087,
+        "narHash": "sha256-rQqlNefGaw/DM8RCS2/XxRjnWQUb5o36XP9TWosKUgA=",
         "ref": "refs/heads/main",
-        "rev": "5ed8424e06aa12a0fe2b0fc2ac2c1118bf8161d5",
-        "revCount": 780,
+        "rev": "e9bdfdc2d07f6c08d9b9e5b842c8656b452c6e7a",
+        "revCount": 895,
         "type": "git",
         "url": "ssh://git@github.com/0xc000022070/upgrade"
       },
