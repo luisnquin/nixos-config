@@ -13,6 +13,7 @@
       + " --warn-free ${toString config.services.heft.warnFreeGiB}"
       + " --critical-free ${toString config.services.heft.criticalFreeGiB}";
     return-type = "json";
+    escape = false;
     interval = 30;
     tooltip = true;
     on-click = toggle;

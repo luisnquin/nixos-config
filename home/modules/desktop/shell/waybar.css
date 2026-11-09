@@ -140,8 +140,8 @@ window > box {
 
 #custom-heft {
     color: rgba(181, 232, 224, 0.55);
-    padding-left: 7px;
-    padding-right: 7px;
+    padding-left: 5px;
+    padding-right: 5px;
 }
 
 #custom-heft.tight {

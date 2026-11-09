@@ -72,11 +72,15 @@ pub fn waybar(rollup: &Rollup, thresholds: &Thresholds) -> WaybarOutput {
     lines.push(format!("updated {}", rollup.updated_label));
 
     WaybarOutput {
-        text: format!("󰋊 {}", human(free)),
+        text: compact(&human(free)),
         tooltip: escape_pango(&lines.join("\n")),
         class: class.into(),
         percentage: rollup.pct_used.round().clamp(0.0, 100.0) as u64,
     }
+}
+
+pub fn compact(free: &str) -> String {
+    format!("<span size=\"9pt\">󰋊</span> <span size=\"7.5pt\">{free}</span>")
 }
 
 /// Waybar renders tooltips as Pango markup, so a stray `&` or `<` in a game

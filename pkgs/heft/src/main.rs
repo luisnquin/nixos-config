@@ -244,7 +244,7 @@ fn waybar(warn_free: u64, critical_free: u64) -> Result<()> {
     let output = match store::read_rollup() {
         Ok(rollup) => surface::waybar(&live(rollup), &thresholds),
         Err(_) => surface::WaybarOutput {
-            text: "󰋊 …".into(),
+            text: surface::compact("…"),
             tooltip: "heft has not scanned yet".into(),
             class: "loading".into(),
             percentage: 0,
