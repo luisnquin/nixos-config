@@ -1,7 +1,7 @@
-diff --git a/dist/ccstatusline-9c4ne7jz.js b/dist/ccstatusline-9c4ne7jz.js
---- a/dist/ccstatusline-9c4ne7jz.js
-+++ b/dist/ccstatusline-9c4ne7jz.js
-@@ -37575,6 +37575,7 @@
+diff --git a/dist/ccstatusline-78jxrt1v.js b/dist/ccstatusline-78jxrt1v.js
+--- a/dist/ccstatusline-78jxrt1v.js
++++ b/dist/ccstatusline-78jxrt1v.js
+@@ -38727,6 +38727,7 @@
      }
      return {
        ...result.data,
@@ -12,7 +12,7 @@ diff --git a/dist/ccstatusline-9c4ne7jz.js b/dist/ccstatusline-9c4ne7jz.js
 diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
 --- a/dist/ccstatusline.js
 +++ b/dist/ccstatusline.js
-@@ -416,8 +416,28 @@
+@@ -1089,8 +1089,28 @@
      return null;
    }
  }
@@ -31,7 +31,7 @@ diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
 +    ...typeof profile.flexMode === "string" ? { flexMode: profile.flexMode } : {}
 +  };
 +}
- async function renderMultipleLines(data) {
+ async function renderMultipleLines(data, rawData) {
 -  const settings = await loadSettings();
 +  const baseSettings = await loadSettings();
 +  const detectedTerminalWidth = getTerminalWidth({
@@ -42,7 +42,7 @@ diff --git a/dist/ccstatusline.js b/dist/ccstatusline.js
    const configError = getConfigLoadError();
    source_default.level = settings.colorLevel;
    updateColorMap();
-@@ -472,10 +492,7 @@
+@@ -1151,10 +1171,7 @@
      transcriptThinkingEffort: needsTranscriptThinkingEffort ? transcriptAnalysis?.thinkingEffort ?? null : undefined,
      skillsMetrics,
      compactionData,

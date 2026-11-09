@@ -1,7 +1,7 @@
 diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_composer.rs
 --- a/tui/src/bottom_pane/chat_composer.rs
 +++ b/tui/src/bottom_pane/chat_composer.rs
-@@ -709,6 +709,21 @@ pub(crate) struct ComposerDraftSnapshot {
+@@ -722,6 +722,21 @@
      pub(crate) sparkle_draft: sparkle::SparkleDraft,
  }
  
@@ -23,16 +23,16 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
  impl ChatComposer {
      fn slash_input(&self) -> SlashInput<'_> {
          SlashInput::new(
-@@ -4920,7 +4935,7 @@ impl ChatComposer {
+@@ -4933,7 +4948,7 @@
              selection.register(footer_rect.intersection(buf.area), changed);
          }
          let style = user_message_style();
 -        Block::default().style(style).render(composer_rect, buf);
 +        render_custom_input_bar(composer_rect, buf);
-         if !remote_images_rect.is_empty() {
-             let first = self
-                 .attachments
-@@ -4954,10 +4969,10 @@ impl ChatComposer {
+         if let Some(previews) = options.image_previews {
+             previews.render(
+                 thumbnails,
+@@ -4975,10 +4990,10 @@
                          .unwrap_or(1.0);
                      tier.prompt(charge)
                  } else {
@@ -48,7 +48,7 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
 diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
 --- a/tui/src/history_cell/messages.rs
 +++ b/tui/src/history_cell/messages.rs
-@@ -5,7 +5,6 @@ use super::markdown_render_cache::MarkdownRenderCache;
+@@ -5,7 +5,6 @@
  use super::*;
  use crate::async_question_reply::AsyncQuestionReply;
  use crate::style::accent_color_on;
@@ -56,7 +56,7 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
  use crate::terminal_hyperlinks::annotate_web_urls;
  use crate::terminal_hyperlinks::lines_with_sources_eq;
  use crate::terminal_hyperlinks::remap_source_wrapped_line;
-@@ -222,6 +221,10 @@ impl UserHistoryCell {
+@@ -222,6 +221,10 @@
      }
  }
  
@@ -67,7 +67,7 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
  impl HistoryCell for UserHistoryCell {
      fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
          visible_lines(self.display_hyperlink_lines(width))
-@@ -246,8 +249,8 @@ impl HistoryCell for UserHistoryCell {
+@@ -246,8 +249,8 @@
              )
              .max(/*other*/ 1);
  
@@ -78,7 +78,7 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
  
          let wrapped_images = plain_hyperlink_lines(adaptive_wrap_lines(
              self.image_labels_not_in_message()
-@@ -261,9 +264,9 @@ impl HistoryCell for UserHistoryCell {
+@@ -261,9 +264,9 @@
                  super::async_replies::render(replies, cwd, usize::from(wrap_width))
              } else {
                  let marker = if self.is_spoken() {
@@ -90,7 +90,7 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
                  };
                  prefix_hyperlink_lines(
                      wrap_user_message(message, text_elements, style, wrap_width),
-@@ -274,7 +277,7 @@ impl HistoryCell for UserHistoryCell {
+@@ -274,7 +277,7 @@
          if wrapped_images.is_empty() && wrapped_message.is_empty() {
              return Vec::new();
          }
@@ -99,7 +99,7 @@ diff --git a/tui/src/history_cell/messages.rs b/tui/src/history_cell/messages.rs
          if !wrapped_images.is_empty() {
              lines.extend(prefix_hyperlink_lines(
                  wrapped_images,
-@@ -293,7 +296,7 @@ impl HistoryCell for UserHistoryCell {
+@@ -293,7 +296,7 @@
              first.line.style.fg = None;
          }
          lines.extend(wrapped_message);

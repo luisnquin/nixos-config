@@ -1,8 +1,8 @@
 diff --git a/tui/src/bottom_pane/chat_composer/footer_state.rs b/tui/src/bottom_pane/chat_composer/footer_state.rs
 --- a/tui/src/bottom_pane/chat_composer/footer_state.rs
 +++ b/tui/src/bottom_pane/chat_composer/footer_state.rs
-@@ -360,6 +360,7 @@
-     pub(super) status_line_hyperlink_url: Option<String>,
+@@ -366,6 +366,7 @@
+     pub(super) status_line_value: Option<FooterContent>,
      pub(super) status_line_enabled: bool,
      pub(super) side_conversation_context_label: Option<String>,
 +    pub(super) thread_title_label: Option<String>,
@@ -12,8 +12,8 @@ diff --git a/tui/src/bottom_pane/chat_composer/footer_state.rs b/tui/src/bottom_
 diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_composer.rs
 --- a/tui/src/bottom_pane/chat_composer.rs
 +++ b/tui/src/bottom_pane/chat_composer.rs
-@@ -436,6 +436,8 @@
- use std::time::Instant;
+@@ -465,6 +465,8 @@
+ pub(crate) use vim_register::KillBufferSnapshot;
  
  use ratatui::style::Color;
 +use unicode_width::UnicodeWidthChar;
@@ -21,7 +21,7 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
  
  /// If the pasted content exceeds this number of characters, replace it with a
  /// placeholder in the UI.
-@@ -680,7 +682,15 @@
+@@ -722,7 +724,15 @@
      pub(crate) sparkle_draft: sparkle::SparkleDraft,
  }
  
@@ -38,7 +38,7 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
      if area.width == 0 || area.height == 0 {
          return;
      }
-@@ -693,6 +703,66 @@
+@@ -735,6 +745,66 @@
          let bottom_y = area.y.saturating_add(area.height.saturating_sub(1));
          buf.set_string(area.x, bottom_y, &rail, rail_style);
      }
@@ -105,15 +105,15 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
  }
  
  impl ChatComposer {
-@@ -763,6 +833,7 @@
-                 status_line_hyperlink_url: None,
+@@ -805,6 +875,7 @@
+                 status_line_value: None,
                  status_line_enabled: false,
                  side_conversation_context_label: None,
 +                thread_title_label: None,
                  active_agent_label: None,
                  external_editor_key: default_keymap
                      .primary_hint(KeymapContext::Global, "open_external_editor"),
-@@ -4327,6 +4398,14 @@
+@@ -4472,6 +4543,14 @@
          true
      }
  
@@ -128,8 +128,8 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
      /// Replaces the contextual footer label for the currently viewed agent.
      ///
      /// Returning `false` means the value was unchanged, so callers can skip redraw work. This
-@@ -4816,7 +4895,11 @@
-             line.render(warning_area, buf);
+@@ -4948,7 +5027,11 @@
+             selection.register(footer_rect.intersection(buf.area), changed);
          }
          let style = user_message_style();
 -        render_custom_input_bar(composer_rect, buf);
@@ -138,13 +138,13 @@ diff --git a/tui/src/bottom_pane/chat_composer.rs b/tui/src/bottom_pane/chat_com
 +            buf,
 +            self.footer.thread_title_label.as_deref(),
 +        );
-         if !remote_images_rect.is_empty() {
-             let first = self
-                 .attachments
+         if let Some(previews) = options.image_previews {
+             previews.render(
+                 thumbnails,
 diff --git a/tui/src/bottom_pane/mod.rs b/tui/src/bottom_pane/mod.rs
 --- a/tui/src/bottom_pane/mod.rs
 +++ b/tui/src/bottom_pane/mod.rs
-@@ -2410,6 +2410,12 @@
+@@ -2624,6 +2624,12 @@
              self.request_redraw();
          }
      }
@@ -160,7 +160,7 @@ diff --git a/tui/src/bottom_pane/mod.rs b/tui/src/bottom_pane/mod.rs
 diff --git a/tui/src/chatwidget/status_surfaces.rs b/tui/src/chatwidget/status_surfaces.rs
 --- a/tui/src/chatwidget/status_surfaces.rs
 +++ b/tui/src/chatwidget/status_surfaces.rs
-@@ -321,10 +321,25 @@
+@@ -330,10 +330,25 @@
          self.warn_invalid_status_line_items_once(&selections.invalid_status_line_items);
          self.warn_invalid_terminal_title_items_once(&selections.invalid_terminal_title_items);
          self.sync_status_surface_shared_state(&selections);
