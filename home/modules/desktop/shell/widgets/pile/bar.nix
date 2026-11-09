@@ -11,7 +11,7 @@
     interval = "once";
     signal = pkgs.pile.signal;
     hide-empty-text = true;
-    tooltip = true;
+    tooltip = false;
     on-click = toggle;
   };
 }

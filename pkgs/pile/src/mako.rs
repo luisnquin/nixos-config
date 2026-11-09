@@ -11,6 +11,7 @@ pub struct Notification {
     pub summary: String,
     pub body: String,
     pub urgency: String,
+    pub app_icon: String,
 }
 
 pub fn active(id: u32) -> Result<Notification, Box<dyn Error>> {
@@ -50,5 +51,6 @@ fn parse(entry: &Value) -> Notification {
         summary: text("summary"),
         body: text("body"),
         urgency: text("urgency"),
+        app_icon: text("app_icon"),
     }
 }

@@ -10,11 +10,6 @@ pub fn clock(then_ms: u64) -> String {
     utc.with_timezone(&Local).format("%H:%M").to_string()
 }
 
-pub fn preview(body: &str, limit: usize) -> String {
-    let flattened = body.split_whitespace().collect::<Vec<_>>().join(" ");
-    truncate(&flattened, limit)
-}
-
 pub fn truncate(text: &str, limit: usize) -> String {
     if text.chars().count() <= limit {
         return text.to_owned();

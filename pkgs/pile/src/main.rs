@@ -5,7 +5,7 @@ mod mako;
 
 use serde_json::{json, Value};
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -27,6 +27,7 @@ struct Entry {
     summary: String,
     body: String,
     urgency: String,
+    image: String,
 }
 
 fn main() -> ExitCode {
@@ -76,6 +77,7 @@ fn push(id: u32, keep: bool) -> Result<(), Box<dyn Error>> {
             summary: notification.summary,
             body: notification.body,
             urgency: notification.urgency,
+            image: attachment(notification.app_icon),
         },
     );
     entries.truncate(KEEP);
@@ -92,16 +94,22 @@ fn push(id: u32, keep: bool) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn waybar(entries: &[Entry], now: u64) -> Value {
-    let row = |entry: &Entry| {
-        let mut parts = vec![entry.app.trim_start_matches('.').trim_end_matches("-wrapped")];
-        for part in entry.summary.split('·').map(str::trim) {
-            if !part.is_empty() && !parts.iter().any(|kept| kept.eq_ignore_ascii_case(part)) {
-                parts.push(part);
-            }
+fn attachment(app_icon: String) -> String {
+    if app_icon.starts_with('/') && !app_icon.starts_with("/nix/store/") { app_icon } else { String::new() }
+}
+
+fn line(entry: &Entry) -> String {
+    let mut parts = vec![entry.app.trim_start_matches('.').trim_end_matches("-wrapped")];
+    for part in entry.summary.split('·').map(str::trim) {
+        if !part.is_empty() && !parts.iter().any(|kept| kept.eq_ignore_ascii_case(part)) {
+            parts.push(part);
         }
-        format::escape_markup(&format::truncate(&parts.join(" · "), ROW_CHARS))
-    };
+    }
+    parts.join(" · ")
+}
+
+fn waybar(entries: &[Entry], now: u64) -> Value {
+    let row = |entry: &Entry| format::escape_markup(&format::truncate(&line(entry), ROW_CHARS));
 
     let text = entries
         .iter()
@@ -121,17 +129,7 @@ fn waybar(entries: &[Entry], now: u64) -> Value {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let tooltip = entries
-        .iter()
-        .map(|entry| {
-            let body = format::escape_markup(&format::preview(&entry.body, 70));
-            let head = format!("<b>{}</b>  {}", format::clock(entry.created_at), row(entry));
-            if body.is_empty() { head } else { format!("{head}\n       {body}") }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    json!({ "text": text, "tooltip": tooltip, "class": if entries.is_empty() { "empty" } else { "filled" } })
+    json!({ "text": text, "class": if entries.is_empty() { "empty" } else { "filled" } })
 }
 
 fn now_ms() -> u64 {
@@ -148,15 +146,15 @@ fn panel(entries: &[Entry]) -> Value {
         .map(|entry| {
             json!({
                 "key": key(entry),
-                "app": entry.app,
-                "summary": entry.summary,
-                "body": format::preview(&entry.body, 120),
+                "line": line(entry),
+                "body": entry.body.trim(),
                 "clock": format::clock(entry.created_at),
                 "urgency": entry.urgency,
+                "images": std::iter::once(&entry.image).filter(|image| Path::new(image).is_file()).collect::<Vec<_>>(),
             })
         })
         .collect();
-    let height = (entries.len() * 64).clamp(64, 420);
+    let height = (entries.len() * 22).clamp(22, 420);
     json!({ "empty": entries.is_empty(), "count": entries.len(), "height": height, "entries": rows })
 }
 
@@ -185,6 +183,7 @@ fn load() -> Vec<Entry> {
             summary: text(entry, "summary"),
             body: text(entry, "body"),
             urgency: text(entry, "urgency"),
+            image: text(entry, "image"),
         })
         .collect()
 }
@@ -204,6 +203,7 @@ fn save(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
                 "summary": entry.summary,
                 "body": entry.body,
                 "urgency": entry.urgency,
+                "image": entry.image,
             })
         })
         .collect();
@@ -232,7 +232,18 @@ mod tests {
             summary: summary.into(),
             body: String::new(),
             urgency: urgency.into(),
+            image: String::new(),
         }
+    }
+
+    #[test]
+    fn only_off_store_paths_are_attachments() {
+        assert_eq!(attachment("/tmp/shot.png".into()), "/tmp/shot.png");
+        assert_eq!(attachment("/nix/store/x-sys-sound/volume.png".into()), "");
+        assert_eq!(attachment("dialog-information".into()), "");
+        let mut gone = entry("Hyprshot", "Screenshot saved", "normal");
+        gone.image = "/nonexistent/shot.png".into();
+        assert_eq!(panel(&[gone])["entries"][0]["images"], json!([]));
     }
 
     #[test]
@@ -253,7 +264,7 @@ mod tests {
         assert!(rows[0].starts_with("<span alpha=\"100%\" foreground=\"#ff5555\">  phone · lock &lt;pixel&gt;"));
         assert!(rows[1].starts_with("<span alpha=\"70%\">  grimblast"));
         assert!(rows[2].starts_with("<span alpha=\"45%\">  Herdr"));
-        assert_eq!(rendered["tooltip"].as_str().unwrap().lines().count(), 4);
+        assert!(rendered.get("tooltip").is_none());
         assert_eq!(waybar(&[], 0)["class"], "empty");
 
         let fresh = waybar(&[entry("phone", "lock", "critical")], FLASH_MS / 2);
