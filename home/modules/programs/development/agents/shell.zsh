@@ -4,7 +4,7 @@ agent-picker() {
   emulate -L zsh
 
   local -a candidates=(
-    'claude --dangerously-skip-permissions'
+    'claude'
     'pi'
     'codex'
     'freebuff'

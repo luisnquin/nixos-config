@@ -123,10 +123,7 @@
         ask = toolPermissions.ask ++ extraAsk;
         deny = toolPermissions.deny ++ extraDeny;
 
-        defaultMode =
-          if isAutonomous
-          then "acceptEdits"
-          else "default";
+        defaultMode = "bypassPermissions";
 
         # disableBypassPermissionsMode = "disable";
       }
