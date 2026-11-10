@@ -19,6 +19,10 @@ in {
     Host rose
       User luisnquin
 
+    Host chimera chimera.local
+      Port 998
+      User luisnquin
+
     Host ori0n ori0n.local
       Port 963
       User luisnquin

@@ -14,6 +14,21 @@
     daemonCPUSchedPolicy = "idle";
     daemonIOSchedClass = "idle";
 
+    # Native aarch64 instead of binfmt emulation; port and host key come from ssh config and identity.
+    distributedBuilds = true;
+    buildMachines = [
+      {
+        hostName = "chimera";
+        sshUser = user.alias;
+        sshKey = "/home/${user.alias}/.ssh/id_ed25519";
+        protocol = "ssh-ng";
+        systems = ["aarch64-linux"];
+        maxJobs = 4;
+        speedFactor = 2;
+        supportedFeatures = ["benchmark" "big-parallel" "kvm" "nixos-test"];
+      }
+    ];
+
     gc = {
       automatic = true;
       dates = "daily";
@@ -45,11 +60,16 @@
       build-dir = "/persist/tmp/nix-builds";
       # https://nix.dev/recipes/faq#what-to-do-if-a-binary-cache-is-down-or-unreachable
 
+      builders-use-substitutes = true;
       trusted-substituters = [
         "https://cache.nixos.org"
       ];
       substituters = [
         "https://cache.nixos.org"
+        "https://nixos-raspberrypi.cachix.org"
+      ];
+      trusted-public-keys = [
+        "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
       ];
     };
   };
