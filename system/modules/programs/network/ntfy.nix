@@ -13,7 +13,7 @@
       ];
       auth-access =
         ["or1on:*:ro"]
-        ++ map (topic: "*:${topic}:wo") ["ssh" "agents" "notifications" "nyx"];
+        ++ map (topic: "*:${topic}:wo") ["ssh" "agents" "notifications" "nyx" "skinner"];
     };
   };
 
