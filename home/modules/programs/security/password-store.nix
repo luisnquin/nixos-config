@@ -9,8 +9,8 @@
     enable = true;
     package =
       if isWayland
-      then pkgs.pass-wayland
-      else pkgs.pass;
+      then pkgs.pass-wayland.withExtensions (exts: [exts.pass-otp])
+      else pkgs.pass.withExtensions (exts: [exts.pass-otp]);
   };
 
   home.sessionVariables = {
