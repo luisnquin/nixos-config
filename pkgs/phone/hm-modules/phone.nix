@@ -90,7 +90,7 @@ in {
       type = types.nullOr types.str;
       default = null;
       example = "nyx";
-      description = "Host that keeps the leases of handsets reached over the network, so every machine hands them out from one ledger.";
+      description = "Host that keeps every handset's leases, so all machines hand them out from one ledger. While it is unreachable each machine falls back to its own.";
     };
 
     devices = mkOption {

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
@@ -9,7 +10,7 @@ use serde_json::Value;
 use crate::agent::{self, Agent, Harness};
 use crate::model::{self, Device, Platform, Unix, View, AVD_PREFIX};
 use crate::project::Project;
-use crate::ssh::{Status, Where};
+use crate::ssh::{Ran, Status, Where};
 use crate::usage::Usage;
 use crate::{actions, config, registry, stamps, up};
 
@@ -19,6 +20,8 @@ const RETRIES: usize = 6;
 pub const BOOT: i64 = 300;
 const CACHED: i64 = 60;
 const HANDOFF: i64 = 180;
+
+static HOME_DOWN: AtomicBool = AtomicBool::new(false);
 
 const LEDGER: &str = r#"state="${XDG_STATE_HOME:-$HOME/.local/state}/phone"
 mkdir -p "$state" || exit 1
@@ -448,12 +451,11 @@ impl Book {
 
     pub async fn fetch(at: &Where) -> Result<Self> {
         crate::daemon::used(at);
-        let ran = at
-            .exec(LEDGER, &["-"], TIMEOUT)
+        let (at, ran) = run_ledger(at, &["-"])
             .await
             .with_context(|| format!("reading the leases on {}", at.label()))?;
 
-        let book = Self::parse(at, &String::from_utf8_lossy(&ran.stdout))
+        let book = Self::parse(&at, &String::from_utf8_lossy(&ran.stdout))
             .with_context(|| format!("the leases on {} came back unreadable: {}", at.label(), ran.said))?;
 
         book.cache();
@@ -474,13 +476,11 @@ impl Book {
         let mut args = vec![self.sum.as_str(), body.as_str()];
         args.extend(stamp.iter().map(String::as_str));
 
-        let ran = self
-            .at
-            .exec(LEDGER, &args, TIMEOUT)
+        let (at, ran) = run_ledger(&self.at, &args)
             .await
             .with_context(|| format!("writing the leases on {}", self.at.label()))?;
 
-        let book = Self::parse(&self.at, &String::from_utf8_lossy(&ran.stdout));
+        let book = Self::parse(&at, &String::from_utf8_lossy(&ran.stdout));
 
         match (ran.status, book) {
             (Status::Code(0), Ok(book)) => Ok(Ok(book.cached_now())),
@@ -1060,21 +1060,35 @@ pub async fn tree(project: &Project) -> Result<String> {
     Ok(tree)
 }
 
-/// A handset on the network hangs off no host, so every machine that reaches
-/// it would otherwise keep its own ledger for it and hand it out twice.
+/// A handset on the network is reached through whichever adb server sees it
+/// first, so filing it by host would give each machine its own ledger for it.
 pub fn ledger_of(device: &Device) -> Where {
-    ledger_at(device, config::get().ledger.as_deref(), &agent::me().host)
+    let home = config::get().ledger.as_deref().filter(|_| !HOME_DOWN.load(Ordering::Relaxed));
+
+    ledger_at(device, home, &agent::me().host)
+}
+
+async fn run_ledger(at: &Where, args: &[&str]) -> Result<(Where, Ran)> {
+    let ran = at.exec(LEDGER, args, TIMEOUT).await;
+    let down = ran.as_ref().map_or(true, |r| r.status == Status::Missing);
+
+    if !down || at.host().is_none() || at.host() != config::get().ledger.as_deref() {
+        return Ok((at.clone(), ran?));
+    }
+
+    if !HOME_DOWN.swap(true, Ordering::Relaxed) {
+        eprintln!("phone: {} is unreachable; leasing network handsets from this machine's ledger", at.label());
+    }
+
+    Ok((Where::Here, Where::Here.exec(LEDGER, args, TIMEOUT).await?))
 }
 
 fn ledger_at(device: &Device, home: Option<&str>, me: &str) -> Where {
     match home {
-        Some(home)
-            if device.host.is_none()
-                && matches!(device.platform, Platform::Android | Platform::Ios)
-                && !config::is_me(home, me) =>
-        {
-            Where::On(home.to_string())
-        }
+        Some(home) if matches!(device.platform, Platform::Android | Platform::Ios) => match config::is_me(home, me) {
+            true => Where::Here,
+            false => Where::On(home.to_string()),
+        },
         _ => actions::where_of(device),
     }
 }
@@ -1592,9 +1606,14 @@ mod tests {
         let local_avd = Device::new("avd:pixel", "pixel", Platform::Emulator);
         let mut hosted = Device::new("avd:rose/pixel", "pixel", Platform::Emulator);
         hosted.host = Some("rose".to_string());
+        let mut via_chimera = Device::new("chimera/R58N", "faraday", Platform::Android);
+        via_chimera.host = Some("chimera".to_string());
 
         let nyx = Where::On("nyx".to_string());
 
+        assert_eq!(ledger_at(&via_chimera, Some("nyx"), "rose"), nyx);
+        assert_eq!(ledger_at(&via_chimera, Some("nyx"), "nyx"), Where::Here);
+        assert_eq!(ledger_at(&via_chimera, None, "nyx"), Where::On("chimera".to_string()));
         assert_eq!(ledger_at(&handset, Some("nyx"), "chimera"), nyx);
         assert_eq!(ledger_at(&handset, Some("nyx"), "rose"), nyx);
         assert_eq!(ledger_at(&handset, Some("nyx"), "nyx"), Where::Here);
