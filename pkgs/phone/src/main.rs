@@ -819,6 +819,19 @@ async fn stream_cmd(
     stream::stream(&view.server, &view.device, size, output).await
 }
 
+fn disable_host(reg: &mut Registry, name: &str) -> Result<()> {
+    if config::get().declares(name) {
+        bail!("{name} is enabled in {}; take it out there", config::path().display());
+    }
+
+    reg.host_mut(name).enabled = false;
+    reg.save()?;
+
+    eprintln!("phone: {name} disabled");
+
+    Ok(())
+}
+
 async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()> {
     let found = hosts::discover().await;
     let names: Vec<String> = found.iter().map(|h| h.name.clone()).collect();
@@ -883,14 +896,7 @@ async fn hosts_cmd(reg: &mut Registry, action: Option<HostAction>) -> Result<()>
             Ok(())
         }
 
-        Some(HostAction::Disable { name }) => {
-            reg.host_mut(&name).enabled = false;
-            reg.save()?;
-
-            eprintln!("phone: {name} disabled");
-
-            Ok(())
-        }
+        Some(HostAction::Disable { name }) => disable_host(reg, &name),
 
         None | Some(HostAction::List) => {
             if reg.hosts.is_empty() {

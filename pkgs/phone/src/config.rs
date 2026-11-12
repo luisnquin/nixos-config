@@ -24,6 +24,8 @@ pub struct Config {
     pub pools: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub devices: BTreeMap<String, Entry>,
+    #[serde(default)]
+    pub ledger: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -38,6 +40,8 @@ pub struct Lease {
 pub struct Host {
     #[serde(default)]
     pub clone: bool,
+    #[serde(default)]
+    pub enable: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -148,6 +152,18 @@ impl Config {
         host.and_then(|h| self.hosts.get(h)).is_some_and(|h| h.clone)
     }
 
+    pub fn declared(&self, me: &str) -> Vec<&str> {
+        self.hosts
+            .iter()
+            .filter(|(name, h)| h.enable && !is_me(name, me))
+            .map(|(name, _)| name.as_str())
+            .collect()
+    }
+
+    pub fn declares(&self, host: &str) -> bool {
+        self.hosts.get(host).is_some_and(|h| h.enable)
+    }
+
     pub fn pooled(&self, device: &Device) -> bool {
         match self.pools.get(device.platform.os()) {
             Some(pool) => {
@@ -158,6 +174,10 @@ impl Config {
             None => true,
         }
     }
+}
+
+pub fn is_me(host: &str, me: &str) -> bool {
+    me == host || me.split('.').next() == Some(host)
 }
 
 pub fn name(device: &Device) -> String {
@@ -224,6 +244,21 @@ ttl = "2m"
         assert!(Config::parse("[lease]\nttl = \"2 fortnights\"").is_err());
         assert!(Config::parse("[devices.x]\npick = \"sometimes\"").is_err());
         assert!(Config::parse("[hosts.rose]\nclones = true").is_err());
+    }
+
+    #[test]
+    fn a_shared_host_list_skips_the_machine_reading_it() {
+        let c = Config::parse(
+            "ledger = \"nyx\"\n[hosts.nyx]\nenable = true\n[hosts.rose]\nenable = true\n[hosts.ori0n]\nclone = true",
+        )
+        .unwrap();
+
+        assert_eq!(c.ledger.as_deref(), Some("nyx"));
+        assert_eq!(c.declared("nyx"), ["rose"]);
+        assert_eq!(c.declared("rose.local"), ["nyx"]);
+        assert_eq!(c.declared("chimera"), ["nyx", "rose"]);
+        assert!(c.declares("rose"));
+        assert!(!c.declares("ori0n"));
     }
 
     #[test]

@@ -397,6 +397,8 @@ impl App {
                     Some(caps) => Some(caps),
                     None => anyhow::bail!("{name} did not answer; `ssh {name} true` says why"),
                 }
+            } else if crate::config::get().declares(&name) {
+                anyhow::bail!("{name} is enabled in {}; take it out there", crate::config::path().display());
             } else {
                 None
             };

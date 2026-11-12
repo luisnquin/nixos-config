@@ -773,7 +773,7 @@ async fn claim(wanted: &[Climb]) -> Result<Vec<lease::Beat>> {
 async fn hold_on(view: &View) -> Option<(Lease, bool)> {
     reached(view)?;
 
-    let book = Book::fetch(&actions::where_of(&view.device)).await.ok()?;
+    let book = Book::fetch(&lease::ledger_of(&view.device)).await.ok()?;
 
     match book.standing(&view.device, actions::running(&view.reach)) {
         Standing::Mine(lease) => Some((lease, true)),

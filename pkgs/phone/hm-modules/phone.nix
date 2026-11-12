@@ -35,19 +35,23 @@
   };
 
   host = types.submodule {
-    options.clone = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Whether the allocator may clone an AVD on this host once the pool is exhausted.";
+    options = {
+      enable = mkEnableOption "surveying this host from every machine sharing the config; the machine itself is skipped";
+
+      clone = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether the allocator may clone an AVD on this host once the pool is exhausted.";
+      };
     };
   };
 
   leaseOf = l: optionalAttrs (l.ttl != null) {lease.ttl = l.ttl;};
 
   rendered =
-    filterAttrs (_: v: v != {}) {
+    filterAttrs (_: v: v != {} && v != null) {
       lease = optionalAttrs (cfg.lease.ttl != null) {inherit (cfg.lease) ttl;};
-      inherit (cfg) hosts pools;
+      inherit (cfg) hosts pools ledger;
       devices =
         mapAttrs (
           _: d:
@@ -80,6 +84,13 @@ in {
       default = {};
       example = {android = ["pixel_7-api36" "pixel_7-api36-b"];};
       description = "Devices an untargeted verb may be handed, per platform. A platform with no pool hands out any of its devices.";
+    };
+
+    ledger = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "nyx";
+      description = "Host that keeps the leases of handsets reached over the network, so every machine hands them out from one ledger.";
     };
 
     devices = mkOption {

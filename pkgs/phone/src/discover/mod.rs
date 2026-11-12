@@ -144,6 +144,13 @@ async fn scan_local() -> Found {
 
 async fn scan_host(mut state: HostState) -> (HostState, Found) {
     let name = state.name.clone();
+
+    if state.probed.is_none() {
+        if let Some(caps) = hosts::probe(&name).await {
+            hosts::stamp(&mut state, caps);
+        }
+    }
+
     let caps = state.caps;
 
     let opened = if caps.adb {
@@ -302,7 +309,11 @@ async fn scan_until(
         };
 
         if let Some(state) = state {
-            reg.host_mut(&name).tunnel_port = state.tunnel_port;
+            let host = reg.host_mut(&name);
+
+            host.tunnel_port = state.tunnel_port;
+            host.caps = state.caps;
+            host.probed = state.probed;
         }
 
         found.absorb(rank, one);

@@ -40,7 +40,13 @@ pub fn state_dir() -> PathBuf {
 
 impl Registry {
     pub fn load() -> Result<Self> {
-        Self::load_from(&state_dir().join("devices.json"))
+        let mut reg = Self::load_from(&state_dir().join("devices.json"))?;
+
+        for name in crate::config::get().declared(&crate::agent::me().host) {
+            reg.host_mut(name).enabled = true;
+        }
+
+        Ok(reg)
     }
 
     pub fn load_from(path: &Path) -> Result<Self> {

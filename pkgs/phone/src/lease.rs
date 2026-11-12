@@ -577,7 +577,7 @@ pub async fn hold(view: &View) -> Result<Lease> {
 
     if take == Take::Respect && config::get().physical(&view.device) {
         if let Some(age) = actions::last_human(&view.server, &view.device).await.filter(|a| *a < ttl) {
-            let book = Book::open(&actions::where_of(&view.device)).await?;
+            let book = Book::open(&ledger_of(&view.device)).await?;
             let since = match book.standing(&view.device, actions::running(&view.reach)) {
                 Standing::Mine(lease) => Some(model::now() - lease.last_seen),
                 _ => None,
@@ -608,7 +608,7 @@ pub enum Got {
 }
 
 pub async fn acquire(view: &View, take: Take) -> Result<Got> {
-    let at = actions::where_of(&view.device);
+    let at = ledger_of(&view.device);
     let mut book = Book::open(&at).await?;
 
     for _ in 0..RETRIES {
@@ -703,7 +703,7 @@ async fn revert_display(view: &View) {
 }
 
 pub async fn displayed(view: &View, on: bool) -> Result<()> {
-    let at = actions::where_of(&view.device);
+    let at = ledger_of(&view.device);
     let mut book = Book::fetch(&at).await?;
     let key = key(&view.device);
 
@@ -756,7 +756,7 @@ async fn stamp(view: &View, book: &Book) -> Vec<String> {
 }
 
 pub async fn release(view: &View) -> Result<Option<Lease>> {
-    let at = actions::where_of(&view.device);
+    let at = ledger_of(&view.device);
     let mut book = Book::fetch(&at).await?;
     let mut reverted = false;
 
@@ -835,7 +835,7 @@ pub fn refusal(view: &View, lease: &Lease) -> crate::Refused {
 }
 
 pub async fn guard(view: &View) -> Result<()> {
-    let book = Book::fetch(&actions::where_of(&view.device)).await?;
+    let book = Book::fetch(&ledger_of(&view.device)).await?;
 
     match book.standing(&view.device, actions::running(&view.reach)) {
         Standing::Held(lease) if stops(&lease, take()) => Err(refusal(view, &lease).into()),
@@ -844,7 +844,7 @@ pub async fn guard(view: &View) -> Result<()> {
 }
 
 pub async fn unlocked(view: &View) -> Result<()> {
-    let book = Book::fetch(&actions::where_of(&view.device)).await?;
+    let book = Book::fetch(&ledger_of(&view.device)).await?;
 
     match book.standing(&view.device, true) {
         Standing::Held(lease) if lease.is_lock() => Err(refusal(view, &lease).into()),
@@ -873,7 +873,7 @@ pub async fn lock(view: &View, on: bool) -> Result<bool> {
         .into());
     }
 
-    let at = actions::where_of(&view.device);
+    let at = ledger_of(&view.device);
     let mut book = Book::fetch(&at).await?;
     let key = key(&view.device);
 
@@ -983,7 +983,7 @@ async fn revert_held(views: &[View], at: &Where, mine: &[String], displays: &BTr
     let due: Vec<&String> = mine.iter().filter(|k| displays.contains(*k) && !reverted.contains(*k)).collect();
 
     for id in due {
-        let view = views.iter().find(|v| actions::where_of(&v.device) == *at && key(&v.device).id == *id);
+        let view = views.iter().find(|v| ledger_of(&v.device) == *at && key(&v.device).id == *id);
 
         if let Some(view) = view.filter(|v| v.reach.is_attached()) {
             if reset_on_release(view).await {
@@ -994,7 +994,7 @@ async fn revert_held(views: &[View], at: &Where, mine: &[String], displays: &BTr
 }
 
 pub async fn installed(view: &View, app: &str) -> Result<()> {
-    let at = actions::where_of(&view.device);
+    let at = ledger_of(&view.device);
     let mut book = Book::open(&at).await?;
     let key = key(&view.device);
 
@@ -1060,11 +1060,30 @@ pub async fn tree(project: &Project) -> Result<String> {
     Ok(tree)
 }
 
+/// A handset on the network hangs off no host, so every machine that reaches
+/// it would otherwise keep its own ledger for it and hand it out twice.
+pub fn ledger_of(device: &Device) -> Where {
+    ledger_at(device, config::get().ledger.as_deref(), &agent::me().host)
+}
+
+fn ledger_at(device: &Device, home: Option<&str>, me: &str) -> Where {
+    match home {
+        Some(home)
+            if device.host.is_none()
+                && matches!(device.platform, Platform::Android | Platform::Ios)
+                && !config::is_me(home, me) =>
+        {
+            Where::On(home.to_string())
+        }
+        _ => actions::where_of(device),
+    }
+}
+
 pub fn hosts_of(views: &[View]) -> Vec<Where> {
     let mut hosts: Vec<Where> = Vec::new();
 
     for view in views {
-        let at = actions::where_of(&view.device);
+        let at = ledger_of(&view.device);
 
         if !hosts.contains(&at) {
             hosts.push(at);
@@ -1085,7 +1104,7 @@ pub async fn books(views: &[View]) -> Vec<Book> {
 }
 
 pub fn book_of<'a>(books: &'a [Book], device: &Device) -> Option<&'a Book> {
-    let at = actions::where_of(device);
+    let at = ledger_of(device);
 
     books.iter().find(|b| b.at == at)
 }
@@ -1565,6 +1584,23 @@ mod tests {
         assert_eq!(key(&avd).id, "avd:pixel");
         assert_eq!(key(&sim).id, "AAAA1111");
         assert_eq!(key(&Device::new("android_id:4444", "p", Platform::Emulator)).id, "android_id:4444");
+    }
+
+    #[test]
+    fn a_networked_handset_is_leased_on_one_home_from_every_machine() {
+        let handset = Device::new("R58N", "faraday", Platform::Android);
+        let local_avd = Device::new("avd:pixel", "pixel", Platform::Emulator);
+        let mut hosted = Device::new("avd:rose/pixel", "pixel", Platform::Emulator);
+        hosted.host = Some("rose".to_string());
+
+        let nyx = Where::On("nyx".to_string());
+
+        assert_eq!(ledger_at(&handset, Some("nyx"), "chimera"), nyx);
+        assert_eq!(ledger_at(&handset, Some("nyx"), "rose"), nyx);
+        assert_eq!(ledger_at(&handset, Some("nyx"), "nyx"), Where::Here);
+        assert_eq!(ledger_at(&handset, None, "chimera"), Where::Here);
+        assert_eq!(ledger_at(&local_avd, Some("nyx"), "chimera"), Where::Here);
+        assert_eq!(ledger_at(&hosted, Some("nyx"), "chimera"), Where::On("rose".to_string()));
     }
 
     async fn run(state: &str, args: &[&str]) -> (Status, Book) {
