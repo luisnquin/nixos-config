@@ -15,6 +15,11 @@
     runtimeInputs = [pkgs.git pkgs.jq pkgs.coreutils pkgs.gawk pkgs.gnugrep];
     text = builtins.readFile ../../hooks/diff-review.sh;
   };
+  emailGuard = pkgs.writeShellApplication {
+    name = "agent-email-guard";
+    runtimeInputs = [pkgs.jq pkgs.gnugrep];
+    text = builtins.readFile ../../hooks/email-guard.sh;
+  };
   upgraded = timeout: {
     hooks = [
       {
@@ -129,6 +134,9 @@ in {
         })
       ];
       PreToolUse = [
+        (kit.mkCmdEntry {
+          commands = [(lib.getExe emailGuard)];
+        })
         (kit.mkCmdEntry {
           matcher = "Bash";
           commands = [config.programs.claude-code.hooks."rtk-rewrite.sh"];
