@@ -74,6 +74,8 @@ in {
       context7.url = "https://mcp.context7.com/mcp";
 
       linear.url = "https://mcp.linear.app/mcp";
+
+      chi.url = "https://chi.nshard.com/mcp";
     };
   };
 }
