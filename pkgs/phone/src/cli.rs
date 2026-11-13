@@ -29,6 +29,9 @@ pub struct Cli {
     #[arg(long, global = true, help = "Take the device even when another agent holds it; logged with its holder")]
     pub take: bool,
 
+    #[arg(long, global = true, help = "What this agent holds the device for; shown to any agent its hold turns away. Also read from PHONE_WHY")]
+    pub why: Option<String>,
+
     /// Android display to read and act on; without it, a monitor in desktop
     /// mode while it is awake, else the handset's own panel
     #[arg(long, global = true, value_enum)]
@@ -63,7 +66,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
 The commands
 
-  project  up down release lock unlock run status
+  project  up down release ask lock unlock run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications push
@@ -207,6 +210,21 @@ here, then any verb there. Without -t, every lease this agent holds is freed."#)
     Release {
         #[arg(id = "device")]
         target: Option<String>,
+    },
+
+    #[command(about = "Ask the agent holding a device to move to another one", after_help = r#"Examples:
+  phone ask -t pavlov "need a real camera for the scan flow"
+  phone up --why "banner screenshot for the ticket"
+
+A refusal names the holder and, when it gave one with --why, what it holds the
+device for. This leaves the holder a note on its lease; it is printed on the
+holder's next phone verb with the command that hands the device over. Nothing
+waits for the answer: retry the device later, or take one of the free devices
+the refusal lists in the meantime. A second ask from the same agent replaces
+its first."#)]
+    Ask {
+        #[arg(help = "What you need the device for, in a line the holder can act on")]
+        text: String,
     },
 
     #[command(about = "Keep every agent off a device until you unlock it", after_help = r#"Examples:
@@ -1321,6 +1339,10 @@ impl Command {
     /// Whether this verb acts on one device's screen, and the device it named
     /// positionally. Those verbs share a resolved device, which is what lets a
     /// sequence of them survey once instead of once each.
+    pub fn leases(&self) -> bool {
+        matches!(self, Command::Release { .. } | Command::Ask { .. } | Command::Lock { .. } | Command::Unlock { .. })
+    }
+
     pub fn on_screen(&self) -> Option<Option<&str>> {
         let positional = match self {
             Command::Shot { target, .. }

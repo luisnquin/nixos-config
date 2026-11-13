@@ -183,6 +183,7 @@ fn exit_on_drift(report: &up::Report, ours: Option<&str>) {
 async fn configured(cli: Cli) -> Result<()> {
     config::load()?;
     lease::set_take(cli.take);
+    lease::set_why(cli.why.as_deref().and_then(lease::line).or_else(|| lease::line(&std::env::var("PHONE_WHY").ok()?)));
     adb::set_screen(cli.screen);
 
     if let Some(hint) = cli.misplaced_path(std::env::var("PHONE_TARGET").ok().as_deref()) {
@@ -245,6 +246,7 @@ async fn dispatch(cli: Cli) -> Result<()> {
     }
 
     match command {
+        Some(command) if command.leases() => lease_cmd(&mut reg, command, want).await,
         None => {
             if let Some(mut cmd) = tui::run(reg).await? {
                 calls::exec(&cmd);
@@ -285,9 +287,6 @@ async fn dispatch(cli: Cli) -> Result<()> {
             status_cmd(&mut reg, profile, json, want(None)).await
         }
 
-        Some(Command::Release { target }) => release_cmd(&mut reg, want(target)).await,
-        Some(Command::Lock { target }) => lock_cmd(&mut reg, want(target), true).await,
-        Some(Command::Unlock { target }) => lock_cmd(&mut reg, want(target), false).await,
         Some(Command::Run { command }) => run_cmd(&mut reg, want(None), command).await,
         Some(Command::Display { size, density, font_scale, reset }) => {
             display_cmd(&mut reg, want(None), actions::Overrides { size, density, font_scale }, reset).await
@@ -572,6 +571,16 @@ async fn status_cmd(
     Ok(())
 }
 
+async fn lease_cmd(reg: &mut Registry, command: Command, want: impl Fn(Option<String>) -> Option<String>) -> Result<()> {
+    match command {
+        Command::Release { target } => release_cmd(reg, want(target)).await,
+        Command::Ask { text } => ask_cmd(reg, want(None), &text).await,
+        Command::Lock { target } => lock_cmd(reg, want(target), true).await,
+        Command::Unlock { target } => lock_cmd(reg, want(target), false).await,
+        _ => unreachable!("dispatch routes only the lease verbs here"),
+    }
+}
+
 async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
     let views = survey(reg).await;
     reg.save()?;
@@ -593,6 +602,32 @@ async fn release_cmd(reg: &mut Registry, want: Option<String>) -> Result<()> {
         Some(_) => eprintln!("phone: released {}", view.device.label),
         None => eprintln!("phone: {} was not held", view.device.label),
     }
+
+    Ok(())
+}
+
+async fn ask_cmd(reg: &mut Registry, want: Option<String>, text: &str) -> Result<()> {
+    let Some(want) = want else {
+        bail!("name the device to ask for: `phone ask -t NAME \"...\"`");
+    };
+    let Some(text) = lease::line(text) else {
+        bail!("say what you need the device for: `phone ask -t {want} \"...\"`");
+    };
+
+    let views = survey(reg).await;
+    reg.save()?;
+
+    let view = choose(&views, reg, Some(&want), false, Aim::Bootable).await?;
+    let holder = lease::ask(&view, &text).await?;
+    let instead = alloc::instead(&view, &views, reg, Project::here().ok().flatten().as_ref())
+        .await
+        .map(|free| format!("; meanwhile: {free}"))
+        .unwrap_or_default();
+
+    eprintln!(
+        "phone: asked {} for {}; it sees this on its next phone verb, retry once it lets go{instead}",
+        holder.label, view.device.label
+    );
 
     Ok(())
 }
@@ -2762,14 +2797,15 @@ async fn sticky(reg: &Registry) -> Option<View> {
 }
 
 async fn named_admit(reg: &mut Registry, view: View, hold: Hold) -> Result<View> {
-    let os = view.device.platform.os();
+    let refused = view.clone();
 
     match admit(view, hold).await {
         Err(e) if e.is::<Refused>() => {
             let views = survey(reg).await;
             let project = Project::here().ok().flatten();
-            let instead = alloc::instead(&views, reg, project.as_ref(), &[os])
+            let instead = alloc::instead(&refused, &views, reg, project.as_ref())
                 .await
+                .map(|free| format!("instead: {free}"))
                 .unwrap_or_else(|| "no other device is free to allocate".to_string());
 
             Err(Refused(format!("{e}\n{instead}")).into())

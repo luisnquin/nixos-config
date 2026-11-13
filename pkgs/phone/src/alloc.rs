@@ -167,18 +167,23 @@ fn refused(seats: &[Seat], cold: Option<&Seat>) -> String {
 fn offer(seat: &Seat) -> String {
     let label = &seat.view.device.label;
     let target = crate::quoted(label);
+    let on = seat.view.device.host.as_ref().map(|h| format!(" on {h}")).unwrap_or_default();
 
     match seat.running() {
-        true => format!("{label} is free: `-t {target}`"),
-        false => format!("{label} is free (off): `phone device boot -t {target}`"),
+        true => format!("{label}{on} is free: `-t {target}`"),
+        false => format!("{label}{on} is free (off): `phone device boot -t {target}`"),
     }
 }
 
-pub fn alternative(seats: &[Seat]) -> Option<String> {
-    best(seats, |s| s.pool() && s.running())
-        .or_else(|| best(seats, |s| s.pool() && s.bootable()))
-        .or_else(|| best(seats, Seat::last_resort))
-        .map(|i| offer(&seats[i]))
+const OFFERED: usize = 4;
+
+pub fn alternatives(seats: &[Seat]) -> Option<String> {
+    let mut free: Vec<&Seat> = seats.iter().filter(|s| s.free() && (s.running() || s.pooled && s.bootable())).collect();
+    free.sort_by_key(|s| (s.pick == Pick::Last, !s.running(), !s.pooled, s.order()));
+
+    let offered: Vec<String> = free.into_iter().take(OFFERED).map(offer).collect();
+
+    (!offered.is_empty()).then(|| offered.join("; "))
 }
 
 fn recalled(seats: &[Seat], last: &Last) -> bool {
@@ -209,7 +214,7 @@ pub fn stranded(seats: &[Seat], last: &Last, boot: bool) -> Option<String> {
 
     let note = displaced(seats, last)?;
 
-    Some(match alternative(seats) {
+    Some(match alternatives(seats) {
         Some(instead) => format!("{note}; {instead}"),
         None => format!("{note}; no other device is free to allocate"),
     })
@@ -268,8 +273,11 @@ async fn seated(views: &[View], reg: &Registry, project: Option<&Project>, oses:
     seats(views, &books, reg, &wants)
 }
 
-pub async fn instead(views: &[View], reg: &Registry, project: Option<&Project>, oses: &[&'static str]) -> Option<String> {
-    alternative(&seated(views, reg, project, oses).await)
+pub async fn instead(refused: &View, views: &[View], reg: &Registry, project: Option<&Project>) -> Option<String> {
+    let seats = seated(views, reg, project, &[refused.device.platform.os()]).await;
+    let others: Vec<Seat> = seats.into_iter().filter(|s| s.view.device.id != refused.device.id).collect();
+
+    alternatives(&others)
 }
 
 struct Wants<'a> {
@@ -440,7 +448,7 @@ mod tests {
         };
 
         assert!(why.contains("a by other"), "{why}");
-        assert!(why.contains("b is free (off): `phone device boot -t b`"), "{why}");
+        assert!(why.contains("b on rose is free (off): `phone device boot -t b`"), "{why}");
     }
 
     #[test]
@@ -487,32 +495,33 @@ mod tests {
     }
 
     #[test]
-    fn the_alternative_offers_running_then_off_pool_then_a_last_resort() {
+    fn the_alternatives_rank_running_before_off_and_a_last_resort_after_all() {
         let mut seats = [
             seat("faraday", attached()),
             seat("b", Reach::Off),
             seat("c", attached()),
+            seat("d", Reach::Off),
+            taken(seat("e", attached())),
+            seat("f", attached()),
         ];
         seats[0].pick = Pick::Last;
-
-        let mut offered = Vec::new();
-
-        for i in [2, 1, 0] {
-            offered.push(alternative(&seats));
-            seats[i] = taken(seats[i].clone());
-        }
-
-        offered.push(alternative(&seats));
+        seats[3].pooled = false;
+        seats[5].pooled = false;
+        seats[5].warm = true;
 
         assert_eq!(
-            offered,
-            [
-                Some("c is free: `-t c`".to_string()),
-                Some("b is free (off): `phone device boot -t b`".to_string()),
-                Some("faraday is free: `-t faraday`".to_string()),
-                None,
-            ]
+            alternatives(&seats).unwrap(),
+            "c on rose is free: `-t c`; \
+             f on rose is free: `-t f`; \
+             b on rose is free (off): `phone device boot -t b`; \
+             faraday on rose is free: `-t faraday`"
         );
+
+        for s in &mut seats {
+            *s = taken(s.clone());
+        }
+
+        assert_eq!(alternatives(&seats), None);
     }
 
     #[test]
@@ -592,7 +601,7 @@ mod tests {
         let why = stranded(&seats, &last, false).unwrap();
 
         assert!(why.starts_with("your a was taken by other"), "{why}");
-        assert!(why.contains("b is free: `-t b`"), "{why}");
+        assert!(why.contains("b on rose is free: `-t b`"), "{why}");
         assert_eq!(stranded(&seats, &last, true), None, "up reallocates and converges");
 
         seats[1].standing = Standing::Mine(holder());

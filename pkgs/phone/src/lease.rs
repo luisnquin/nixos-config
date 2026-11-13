@@ -93,6 +93,18 @@ pub struct Lease {
     pub ttl: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub took: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub asks: Vec<Ask>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Ask {
+    pub agent: String,
+    pub by: String,
+    pub text: String,
+    pub at: Unix,
 }
 
 impl Lease {
@@ -109,6 +121,8 @@ impl Lease {
             last_seen: now,
             ttl: ttl.as_secs() as i64,
             took: None,
+            why: why(),
+            asks: Vec::new(),
         }
     }
 
@@ -142,13 +156,32 @@ impl Lease {
         let harness = self.harness.map(|h| format!("{h:?}").to_lowercase());
 
         format!(
-            "{} ({}{}, idle {})",
+            "{} ({}{}, idle {}){}",
             self.label,
             harness.map(|h| format!("{h} on ")).unwrap_or_default(),
             self.host,
-            span(self.idle(now))
+            span(self.idle(now)),
+            self.why.as_ref().map(|w| format!(" for \"{w}\"")).unwrap_or_default()
         )
     }
+}
+
+static WHY: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+
+pub fn set_why(why: Option<String>) {
+    let _ = WHY.set(why);
+}
+
+const SAID: usize = 200;
+
+pub fn line(text: &str) -> Option<String> {
+    let one = text.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    (!one.is_empty()).then(|| one.chars().take(SAID).collect())
+}
+
+pub fn why() -> Option<String> {
+    WHY.get().cloned().flatten()
 }
 
 pub fn span(secs: i64) -> String {
@@ -182,6 +215,8 @@ impl Lock {
             last_seen: self.since,
             ttl: i64::MAX,
             took: None,
+            why: None,
+            asks: Vec::new(),
         }
     }
 }
@@ -242,6 +277,8 @@ impl Ledger {
                     last_seen: old.since,
                     ttl: config::TTL.as_secs() as i64,
                     took: None,
+                    why: None,
+                    asks: Vec::new(),
                 };
 
                 (key, lease)
@@ -615,8 +652,10 @@ pub async fn acquire(view: &View, take: Take) -> Result<Got> {
         match attempt(view, take, &book) {
             Step::Done(got) => return Ok(acted(view, got)),
             Step::Refresh => book = Book::fetch(&at).await?,
-            Step::Write(ledger, lease, revert) => match book.commit(&ledger, &stamp(view, &book).await).await? {
+            Step::Write(ledger, lease, revert, heard) => match book.commit(&ledger, &stamp(view, &book).await).await? {
                 Ok(_) => {
+                    asked(view, &heard);
+
                     if revert {
                         revert_display(view).await;
                     }
@@ -642,7 +681,7 @@ fn acted(view: &View, got: Got) -> Got {
 enum Step {
     Done(Got),
     Refresh,
-    Write(Ledger, Lease, bool),
+    Write(Ledger, Lease, bool, Vec<Ask>),
 }
 
 fn attempt(view: &View, take: Take, book: &Book) -> Step {
@@ -653,12 +692,23 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     let running = actions::running(&view.reach);
     let standing = standing(&book.ledger, &key, &judge, me, running);
     let revert = reverts(&standing, take, Moment::Acquire, book.ledger.displays.contains(&key.id));
+    let heard = match &standing {
+        Standing::Mine(lease) => lease.asks.clone(),
+        _ => Vec::new(),
+    };
 
     let lease = match standing {
-        Standing::Mine(lease) if !lease.due(now, running) && book.trusted(now) => return Step::Done(Got::Held(lease)),
+        Standing::Mine(lease) if !lease.due(now, running) && book.trusted(now) && unchanged(&lease) => {
+            return Step::Done(Got::Held(lease))
+        }
         Standing::Mine(_) | Standing::Held(_) if !book.fresh => return Step::Refresh,
         Standing::Held(lease) if stops(&lease, take) => return Step::Done(Got::Busy(lease)),
-        Standing::Mine(lease) => Lease { last_seen: now, ..lease },
+        Standing::Mine(lease) => Lease {
+            last_seen: now,
+            why: why().or(lease.why),
+            asks: Vec::new(),
+            ..lease
+        },
         Standing::Held(lease) => Lease {
             took: Some(format!("{} by {:?}", lease.label, me.harness).to_lowercase()),
             ..Lease::of(me, config::get().ttl(&view.device), now)
@@ -671,7 +721,24 @@ fn attempt(view: &View, take: Take, book: &Book) -> Step {
     ledger.prune(&judge);
     ledger.put(&key, lease.clone());
 
-    Step::Write(ledger, lease, revert)
+    Step::Write(ledger, lease, revert, heard)
+}
+
+fn unchanged(lease: &Lease) -> bool {
+    lease.asks.is_empty() && why().is_none_or(|w| lease.why.as_deref() == Some(w.as_str()))
+}
+
+fn asked(view: &View, heard: &[Ask]) {
+    for ask in heard {
+        eprintln!(
+            "phone: {} asks for {} {} ago: \"{}\"; `phone release -t {}` hands it over, then carry on with any other device",
+            ask.by,
+            view.device.label,
+            span(model::now() - ask.at),
+            ask.text,
+            crate::quoted(&view.device.label)
+        );
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -755,6 +822,40 @@ async fn stamp(view: &View, book: &Book) -> Vec<String> {
     vec![key(&view.device).id, tree, model::now().to_string(), if mine { "0" } else { "1" }.into()]
 }
 
+pub async fn ask(view: &View, text: &str) -> Result<Lease> {
+    let at = ledger_of(&view.device);
+    let mut book = Book::fetch(&at).await?;
+    let me = agent::me();
+    let label = &view.device.label;
+
+    for _ in 0..RETRIES {
+        let mut lease = match book.standing(&view.device, actions::running(&view.reach)) {
+            Standing::Held(lease) if lease.is_lock() => return Err(refusal(view, &lease).into()),
+            Standing::Held(lease) => lease,
+            Standing::Mine(_) => bail!("{label} is already held by this agent"),
+            Standing::Free(_) => bail!("{label} is free; any verb on it takes it"),
+        };
+
+        lease.asks.retain(|a| a.agent != me.id);
+        lease.asks.push(Ask {
+            agent: me.id.clone(),
+            by: format!("{} ({} on {})", me.label, format!("{:?}", me.harness).to_lowercase(), me.host),
+            text: text.to_string(),
+            at: model::now(),
+        });
+
+        let mut ledger = book.ledger.clone();
+        ledger.put(&key(&view.device), lease.clone());
+
+        match book.commit(&ledger, &[]).await? {
+            Ok(_) => return Ok(lease),
+            Err(newer) => book = newer,
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
 pub async fn release(view: &View) -> Result<Option<Lease>> {
     let at = ledger_of(&view.device);
     let mut book = Book::fetch(&at).await?;
@@ -827,10 +928,10 @@ pub fn refusal(view: &View, lease: &Lease) -> crate::Refused {
     }
 
     crate::Refused(format!(
-        "{} is held by {}; its holder's `phone release -t {}` frees it, `--take` takes it",
+        "{} is held by {}; `phone ask -t {target} \"<what you need it for>\"` asks its holder to move to another device, `--take` takes it",
         view.device.label,
         lease.describe(model::now()),
-        view.device.label
+        target = crate::quoted(&view.device.label)
     ))
 }
 
@@ -1507,6 +1608,35 @@ mod tests {
 
         assert!(!lease.due(1_000 + 299, true));
         assert!(lease.due(1_000 + 300, true));
+    }
+
+    #[test]
+    fn a_pending_ask_forces_the_next_renewal_and_survives_the_ledger() {
+        let mut lease = held(&me("a"), 1_000);
+        lease.why = Some("banner shot".into());
+
+        assert!(unchanged(&lease));
+        assert!(lease.describe(1_000).ends_with(" for \"banner shot\""));
+
+        lease.asks.push(Ask {
+            agent: "b".into(),
+            by: "b (codex on rose)".into(),
+            text: "need the camera".into(),
+            at: 1_000,
+        });
+
+        let mut ledger = Ledger::default();
+        ledger.leases.insert("avd:pixel".into(), lease.clone());
+
+        assert!(!unchanged(&lease));
+        assert_eq!(Ledger::parse(&ledger.body()).unwrap().leases["avd:pixel"], lease);
+    }
+
+    #[test]
+    fn a_reason_is_kept_to_one_short_line() {
+        assert_eq!(line("  need\n the   camera "), Some("need the camera".into()));
+        assert_eq!(line(" \n "), None);
+        assert_eq!(line(&"x".repeat(1_000)).unwrap().len(), SAID);
     }
 
     #[test]
