@@ -218,7 +218,9 @@ in {
         };
 
         cursor = {
-          no_warps = true;
+          # Warps keep the cursor on the focused monitor; without them a
+          # cross-monitor focus change (SUPER+N, hyprdrop) splits keyboard and cursor.
+          no_warps = false;
         };
 
         misc = {
