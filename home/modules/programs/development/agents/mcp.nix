@@ -16,7 +16,13 @@
 in {
   home.packages = [pkgs.codebase-memory-mcp];
 
-  programs.techdebt.enable = true;
+  programs.techdebt = {
+    enable = true;
+    package = inputs.techdebt-cli.packages.${system}.techdebt-cli.overrideAttrs (old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [pkgs.pkg-config];
+      buildInputs = (old.buildInputs or []) ++ [pkgs.sqlite];
+    });
+  };
 
   services.mcp-gateway = {
     enable = true;
