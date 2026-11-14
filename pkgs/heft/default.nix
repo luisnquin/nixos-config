@@ -3,6 +3,8 @@
   rustPlatform,
   makeWrapper,
   nix,
+  pkg-config,
+  sqlite,
 }:
 rustPlatform.buildRustPackage {
   pname = "heft";
@@ -19,7 +21,8 @@ rustPlatform.buildRustPackage {
 
   cargoLock.lockFile = ./Cargo.lock;
 
-  nativeBuildInputs = [makeWrapper];
+  nativeBuildInputs = [makeWrapper pkg-config];
+  buildInputs = [sqlite];
 
   # the nix collector shells out for the GC root list
   postInstall = ''
