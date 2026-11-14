@@ -1,7 +1,7 @@
 {host, ...}: [
   (
     _self: super: {
-      waybar = super.waybar.overrideAttrs (_oldAttrs: let
+      waybar = (super.waybar.override {wwanSupport = false;}).overrideAttrs (_oldAttrs: let
         libcavaVersion = "0.10.7";
         libcavaSrc = super.fetchFromGitHub {
           owner = "LukashonakV";
@@ -25,13 +25,14 @@
         '';
 
         doCheck = false;
+        doInstallCheck = false;
         mesonFlags =
           map
           (flag:
             if flag == "-Dtests=enabled"
             then "-Dtests=disabled"
             else flag)
-          (_oldAttrs.mesonFlags or []);
+          (builtins.filter (flag: !(super.lib.hasPrefix "-Dwwan=" flag || super.lib.hasPrefix "-Dmango=" flag || super.lib.hasPrefix "-Dumbriel=" flag)) (_oldAttrs.mesonFlags or []));
       });
     }
   )
@@ -65,6 +66,8 @@
     codex = prev.llm-agents.codex.overrideAttrs (old: let
       devServerInstruction = "When building a site or app that needs a dev server to run properly, you start the local dev server after implementation and give the user the URL so they can try it. If there's already a server on that port, you use another one. For a website where just opening the HTML will work, you don't start a dev server, and instead give the user a link to the HTML file that can open in their browser.\\n\\n";
     in {
+      buildInputs = old.buildInputs ++ [prev.openssl];
+
       patches =
         (old.patches or [])
         ++ [
