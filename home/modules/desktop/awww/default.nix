@@ -69,8 +69,18 @@
 
   wallpaperArgs = lib.concatStringsSep " " (map lib.escapeShellArg wallpaperFiles);
   awwwImg = "${lib.getExe' cfg.package "awww"} img ${lib.escapeShellArg defaultWallpaper}";
+
+  awwwRestore = pkgs.writeShellScript "awww-restore" ''
+    for _ in $(${pkgs.coreutils}/bin/seq 50); do
+      ${lib.getExe' cfg.package "awww"} query >/dev/null 2>&1 && exec ${awwwImg}
+      ${pkgs.coreutils}/bin/sleep 0.1
+    done
+    exit 1
+  '';
 in {
   services.awww.enable = true;
+
+  systemd.user.services.awww.Service.ExecStartPost = "-${awwwRestore}";
 
   wayland.windowManager.hyprland.extraConfig = lib.mkIf config.wayland.windowManager.hyprland.enable ''
     hl.on("hyprland.start", function()
