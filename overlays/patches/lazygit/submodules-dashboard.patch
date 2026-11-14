@@ -44,12 +44,12 @@ diff --git a/pkg/commands/git.go b/pkg/commands/git.go
 diff --git a/pkg/commands/git_commands/submodule.go b/pkg/commands/git_commands/submodule.go
 --- a/pkg/commands/git_commands/submodule.go
 +++ b/pkg/commands/git_commands/submodule.go
-@@ -81,6 +81,8 @@
- 				}
- 			} else if url, ok := firstMatch(line, `\s*url\s*=\s*(.*)\s*`); ok {
- 				configs[lastConfigIdx].Url = url
-+			} else if description, ok := firstMatch(line, `\s*description\s*=\s*(.*)\s*`); ok {
-+				configs[lastConfigIdx].Summary = strings.Trim(description, `"`)
+@@ -106,6 +106,8 @@
+ 				config.Path = path
+ 			} else if url, ok := firstMatch(line, `^\s*url\s*=\s*(.*)\s*`); ok {
+ 				config.Url = url
++			} else if description, ok := firstMatch(line, `^\s*description\s*=\s*(.*)\s*`); ok {
++				config.Summary = strings.Trim(description, `"`)
  			}
  		}
  	}
