@@ -1,6 +1,6 @@
 {
   imports = [
-    ./terraform.nix
+    # ./terraform.nix
     ./tools.nix
     ./k8s.nix
     # ./gdk.nix
