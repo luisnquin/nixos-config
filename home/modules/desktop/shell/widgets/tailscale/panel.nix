@@ -54,8 +54,8 @@
           | ($all | sort_by(.sort_key) | reverse) as $devices
           | {
               connected: true,
-              online_count: ($devices | map(select(.online)) | length),
-              total_count: ($devices | length),
+              online_count: ($devices | map(select(.online and (.is_self | not))) | length),
+              total_count: ($devices | map(select(.is_self | not)) | length),
               self_name: ($self.HostName // "—"),
               self_ip: ($self.TailscaleIPs[0] // "—"),
               tailnet: ($self.DNSName // "" | rtrimstr(".")
