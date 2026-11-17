@@ -86,15 +86,16 @@
       swap_percent="$(printf '%s' "$mem" | cut -f5)"
 
       top_procs() {
-        ps -eo pid=,"$1"=,comm= \
+        ps -eo pid=,"$1"=,rss=,comm= \
           | awk -v exes="$(find /proc/[0-9]*/exe -maxdepth 0 -printf '%h %l\n' 2>/dev/null)" '
             BEGIN { n = split(exes, lines, "\n"); for (i = 1; i <= n; i++) { split(lines[i], f, " "); sub(/^\/proc\//, "", f[1]); m = split(f[2], p, "/"); if (p[m] != "") exe[f[1]] = p[m] } }
-            { pid = $1; v = $2; $1 = $2 = ""; sub(/^[[:space:]]+/, ""); name = (pid in exe) ? exe[pid] : $0
+            { pid = $1; v = $2; r = $3; $1 = $2 = $3 = ""; sub(/^[[:space:]]+/, ""); name = (pid in exe) ? exe[pid] : $0
               sub(/^\./, "", name); sub(/-wrap(p(ed?)?)?$/, "", name)
-              sum[name] += v; cnt[name]++ }
-            END { for (k in sum) printf "%.1f\t%s\t%d\n", sum[k], k, cnt[k] }' \
+              sum[name] += v; rss[name] += r; cnt[name]++ }
+            END { for (k in sum) printf "%.1f\t%s\t%d\t%d\n", sum[k], k, cnt[k], rss[k] }' \
           | sort -t$'\t' -k1,1nr \
-          | awk -F'\t' 'NR <= 8 {printf "%s%s\t%.1f%%\n", $2, ($3 > 1 ? " ×" $3 : ""), $1}' \
+          | awk -F'\t' -v key="$1" 'NR <= 8 {amt = key != "%mem" ? "" : $4 >= 1048576 ? sprintf("%.1f GiB · ", $4 / 1048576) : sprintf("%d MiB · ", $4 / 1024)
+              printf "%s%s\t%s%.1f%%\n", $2, ($3 > 1 ? " ×" $3 : ""), amt, $1}' \
           | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {name: .[0], value: .[1]})'
       }
       top_cpu_all="$(top_procs %cpu)"
