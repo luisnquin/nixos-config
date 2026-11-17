@@ -7,7 +7,7 @@
 }: let
   systemInfo = pkgs.writeShellApplication {
     name = "eww-system-info";
-    runtimeInputs = with pkgs; [coreutils gawk jq procps];
+    runtimeInputs = with pkgs; [coreutils findutils gawk jq procps];
     text = ''
       state="/tmp/eww-system-info.state"
 
@@ -86,8 +86,15 @@
       swap_percent="$(printf '%s' "$mem" | cut -f5)"
 
       top_procs() {
-        ps -eo "$1"=,comm= --sort=-"$1" \
-          | awk 'NR <= 8 {v = $1; $1 = ""; sub(/^[[:space:]]+/, ""); if ($0 == "") next; printf "%s\t%.1f%%\n", $0, v}' \
+        ps -eo pid=,"$1"=,comm= \
+          | awk -v exes="$(find /proc/[0-9]*/exe -maxdepth 0 -printf '%h %l\n' 2>/dev/null)" '
+            BEGIN { n = split(exes, lines, "\n"); for (i = 1; i <= n; i++) { split(lines[i], f, " "); sub(/^\/proc\//, "", f[1]); m = split(f[2], p, "/"); if (p[m] != "") exe[f[1]] = p[m] } }
+            { pid = $1; v = $2; $1 = $2 = ""; sub(/^[[:space:]]+/, ""); name = (pid in exe) ? exe[pid] : $0
+              sub(/^\./, "", name); sub(/-wrap(p(ed?)?)?$/, "", name)
+              sum[name] += v; cnt[name]++ }
+            END { for (k in sum) printf "%.1f\t%s\t%d\n", sum[k], k, cnt[k] }' \
+          | sort -t$'\t' -k1,1nr \
+          | awk -F'\t' 'NR <= 8 {printf "%s%s\t%.1f%%\n", $2, ($3 > 1 ? " ×" $3 : ""), $1}' \
           | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {name: .[0], value: .[1]})'
       }
       top_cpu_all="$(top_procs %cpu)"
