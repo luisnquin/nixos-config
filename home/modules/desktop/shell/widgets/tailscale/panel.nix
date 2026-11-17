@@ -36,7 +36,7 @@
             | (.Online // false) as $on
             | (.LastSeen // "" | sub("\\.[0-9]+";"") | try fromdateiso8601 catch 0) as $ls
             | {
-                name: (.HostName // "device"),
+                name: ((.DNSName // "" | split(".")[0] | select(. != "")) // .HostName // "device"),
                 os: $os.label,
                 os_icon: $os.icon,
                 online: $on,
