@@ -67,8 +67,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "cursor";
             repo = "plugins";
-            rev = "8ecfb19f844b67a4bc7af7f66c366d57bc7b6d2b";
-            hash = "sha256-/ubdPfVeNY1RxHIzH/+n3M15SFQZvyt0uR8md3bXNxA=";
+            rev = "bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7";
+            hash = "sha256-Se85RsB+Ym9y+3rfobLVNQe5yCvEbiBye5U6ge12dhA=";
             rootDir = "pstack/skills";
           };
         } {
