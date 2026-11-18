@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { backTap, choices, fit, lastLine, pixels, ready, toDevice, within } from '../hooks/register'
+import { backTap, choices, fit, lastLine, pixels, toDevice, within } from '../hooks/register'
 import { keyInput } from '../hooks/overlay'
 
 const panel = { width: 1080, height: 2400 }
@@ -52,17 +52,6 @@ test('choices offers running devices with what they are and where', () => {
     { label: 'iPhone 17 Pro · ios sim · rose', target: 'iPhone 17 Pro' },
     { label: 'faraday · android phys · held by upgrade', target: 'faraday' },
   ])
-})
-
-test('ready lists running devices with their host', async () => {
-  expect(
-    ready([
-      { id: 'avd:flexa', label: 'flexa', os: 'android', kind: 'emu', hold: null, host: null, reach: 'attached/emu' },
-      { id: 'sim:a', label: 'iPhone 17 Pro', os: 'ios', kind: 'sim', hold: null, host: 'rose', reach: 'online' },
-      { id: 'avd:b', label: 'pixel_7-api36-b', os: 'android', kind: 'emu', hold: null, host: 'rose', reach: 'off' },
-    ]),
-  ).toBe('flexa, iPhone 17 Pro (rose)')
-  expect(ready([])).toContain('phone boot')
 })
 
 test('backTap taps the navigation bar back button', () => {

@@ -30,14 +30,7 @@ let loop = 0
 let latest: ImageSource = BLANK
 let asked = 0
 let control: { dock: (columns: number) => void; resize: (cells: Cells) => void } | null = null
-let running = ''
 let grabbed = false
-
-export function ready(devices: Device[]): string {
-  const up = devices.filter(d => d.reach.startsWith('attached') || d.reach === 'online')
-  if (!up.length) return 'nothing running; `phone boot <name>` first'
-  return up.map(d => (d.host ? `${d.label} (${d.host})` : d.label)).join(', ')
-}
 
 const DESCRIPTION = 'Watch and drive a device beside the transcript; bare /phone picks a running device or closes the open one, /phone list shows them all'
 
@@ -98,18 +91,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     $.ui.status(undefined)
     await $.command.register({ name: 'phone', description: DESCRIPTION, argumentHint: '[device] | stop' })
-    void $.process.run(['phone', 'device', 'list', '--json']).then(list => {
-      if (list.exitCode !== 0) return
-      running = ready(JSON.parse(list.stdout) as Device[])
-      $.ui.invalidate('command.describe')
-    })
-
     return next(e)
   })
-
-  on('command.describe', { command: 'phone' }, async ($, e, next) =>
-    next(running ? { ...e, description: `${DESCRIPTION}. Running: ${running}` } : e),
-  )
 
   on('command.run', { command: 'phone' }, async ($, e) => {
     const arg = e.args.trim()
