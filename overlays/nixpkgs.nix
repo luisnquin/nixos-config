@@ -211,6 +211,8 @@
     #    cell. Asks `child_default_background_changed` like the OSC path does.
     # 6. Backports ghostty-org/ghostty#14832; drop once herdr vendors past
     #    ghostty bcfe5775.
+    # 7. Claude's background-task line no longer flaps the pane working/done.
+    #    Manifest version bumped so bundled outranks the cached remote copy.
     herdr = prev.llm-agents.herdr.overrideAttrs (old: {
       patches =
         (old.patches or [])
@@ -221,6 +223,7 @@
           ./patches/herdr/claude-resume-skip-permissions.patch
           ./patches/herdr/default-bg-follows-child-ownership.patch
           ./patches/herdr/drop-kitty-images-in-erased-history.patch
+          ./patches/herdr/ignore-claude-background-task-pulse.patch
         ];
     });
   })
