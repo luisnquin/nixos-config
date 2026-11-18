@@ -7,49 +7,77 @@ typeset -gA _agent_dir_flag=(
   grok --add-dir
 )
 
+_agent_tilde() {
+  local home=${HOME%/}
+  case $1 in
+    $home) REPLY='~' ;;
+    $home/*) REPLY="~/${1#$home/}" ;;
+    *) REPLY=$1 ;;
+  esac
+}
+
 _agent_ws_file() {
   print -r -- "${XDG_STATE_HOME:-${HOME%/}/.local/state}/agent-picker/workspaces"
 }
 
-_agent_ws_record() {
-  local file=$(_agent_ws_file) entry=${(pj:\t:)@}
-  local -a kept=()
-  [[ -r $file ]] && kept=(${(f)"$(<$file)"})
-  kept=("${(@)kept:#$entry}" "$entry")
-  (( $#kept > 100 )) && shift $(( $#kept - 100 )) kept
-  mkdir -p -- ${file:h} && print -rl -- "${kept[@]}" >| $file.$$ && mv -f -- $file.$$ $file
-}
-
-_agent_ws_recent() {
+_agent_ws_extras() {
   local file=$(_agent_ws_file) line dir
+  reply=()
   [[ -r $file ]] || return 0
-  local -a lines=(${(f)"$(<$file)"}) dirs
-  for line in "${(@Oa)lines}"; do
-    [[ $line == $PWD ]] && continue
-    dirs=(${(ps:\t:)line})
-    for dir in $dirs; do [[ -d $dir ]] || continue 2; done
-    print -r -- "${(j:  +  :)${(@Q)${(@D)dirs}}}"$'\t'"$line"
+  for line in ${(f)"$(<$file)"}; do
+    [[ ${line%%$'\t'*} == $1 ]] || continue
+    for dir in ${${(ps:\t:)line}[2,-1]}; do
+      [[ -d $dir ]] && reply+=($dir)
+    done
   done
 }
 
-_agent_ws_add() {
-  local out rc dir
-  out="$( { (( $+commands[zoxide] )) && zoxide query -l } | grep -vxF -- "$PWD" |
-    fzf --multi --print-query --expect=alt-enter --prompt="add dirs > " \
-      --header="tab: mark  enter: add marked  alt-enter: add typed path" \
-      --height=40% --layout=reverse)"
-  rc=$?
-  (( rc == 0 || rc == 1 )) || return 1
-  local -a lines=("${(@f)out}") picked=()
-  if [[ $lines[2] == alt-enter ]]; then
-    lines=("${lines[1]/#\~/${HOME%/}}")
-  else
-    lines=("${(@)lines[3,-1]}")
-  fi
-  for dir in $lines; do
-    [[ -d $dir && $dir != *$'\t'* ]] && picked+=(${dir:A})
+_agent_ws_record() {
+  local file=$(_agent_ws_file) line key
+  local -a kept=()
+  [[ -r $file ]] && for line in ${(f)"$(<$file)"}; do
+    key=${line%%$'\t'*}
+    [[ $key != $1 && -d $key ]] && kept+=($line)
   done
-  (( $#picked )) && print -rl -- $picked
+  (( $# > 1 )) && kept+=(${(pj:\t:)@})
+  (( $#kept > 100 )) && shift $(( $#kept - 100 )) kept
+  mkdir -p -- ${file:h} && print -rn -- ${(F)kept}${kept:+$'\n'} >| $file.$$ && mv -f -- $file.$$ $file
+}
+
+_agent_ws_edit() {
+  local here=$1 out dir pos=1
+  local -a lines fields extras
+  while true; do
+    _agent_ws_extras $here
+    extras=($reply)
+    out="$( {
+      for dir in $extras; do _agent_tilde $dir; print -r -- "$REPLY  (in workspace, del removes)"$'\t'"$dir"$'\tin'; done
+      (( $+commands[zoxide] )) && zoxide query -l | grep -vxFf <(print -rl -- $here $extras) |
+        while IFS= read -r dir; do _agent_tilde $dir; print -r -- "$REPLY"$'\t'"$dir"$'\tnew'; done
+    } | winnow --print-query --expect=del --delimiter=$'\t' --with-nth=1 --cursor=$pos \
+        --prompt="add to workspace > " \
+        --header="enter: add  ~/path + enter: add typed path  del: remove  esc: back")" || (( $? == 1 )) || return 0
+
+    lines=("${(@f)out}")
+    fields=(${(ps:\t:)lines[3]})
+    dir=$fields[2]
+    if [[ $lines[2] == del ]]; then
+      [[ $fields[3] == in ]] || continue
+      pos=${extras[(i)$dir]}
+      _agent_ws_record $here ${extras:#$dir}
+      continue
+    fi
+    if [[ $lines[1] == [/~]* ]]; then
+      dir=${lines[1]/#\~/${HOME%/}}
+      [[ -d $dir && $dir != *$'\t'* ]] || return 0
+      dir=${dir:A}
+    elif [[ $fields[3] != new ]]; then
+      return 0
+    fi
+    extras+=($dir)
+    [[ $dir == $here ]] || _agent_ws_record $here ${(u)extras}
+    return 0
+  done
 }
 
 agent-picker() {
@@ -72,7 +100,7 @@ agent-picker() {
   done
 
   local selected
-  selected="$(print -rl -- "${available[@]}" | fzf --prompt="agent > " --height=40% --layout=reverse)"
+  selected="$(print -rl -- "${available[@]}" | winnow --prompt="agent > ")"
 
   if [[ -z "$selected" ]]; then
     zle reset-prompt
@@ -86,33 +114,43 @@ agent-picker() {
     return 0
   fi
 
-  local choice
-  choice="$( {
-    print -r -- "${(Q)${(D)PWD}}"$'\t'"$PWD"
-    _agent_ws_recent
-    print -r -- $'+ add folders\t+'
-  } | fzf --delimiter=$'\t' --with-nth=1 --prompt="$selected workspace > " --height=40% --layout=reverse)"
+  local here=${PWD:A} dir choice pos=1 nl=$'\n'
+  local -a extras shown
+  while true; do
+    _agent_ws_extras $here
+    extras=($reply)
+    (( $#extras )) || pos=1
 
-  local -a dirs=(${(ps:\t:)choice})
-  shift dirs 2>/dev/null
-  if [[ $dirs[1] == + ]]; then
-    local added
-    added="$(_agent_ws_add)" && dirs=($PWD ${(f)added}) || dirs=()
-  fi
+    choice="$( {
+      _agent_tilde $here
+      print -r -- "$REPLY (current dir)"$'\tcur'
+      if (( $#extras )); then
+        shown=()
+        for dir in $here $extras; do _agent_tilde $dir; shown+=($REPLY); done
+        print -r -- "${(j:  +  :)shown}"$'\tws'
+      fi
+      print -r -- $'+ add to workspace\tadd'
+    } | winnow --delimiter=$'\t' --with-nth=1 --prompt="$selected > " --cursor=$pos \
+        --header="enter: select  esc: cancel${extras:+$nl+ add to workspace: enter adds a folder, del removes one}")"
+    pos=1
 
-  if (( ! $#dirs )); then
-    zle reset-prompt
-    return 0
-  fi
-
-  dirs=(${(u)dirs})
-  _agent_ws_record $dirs
-
-  local cmd=$selected dir
-  for dir in ${dirs[2,-1]}; do
-    cmd+=" $flag ${(q-)dir}"
+    case ${choice##*$'\t'} in
+      cur) extras=(); break ;;
+      ws) _agent_ws_record $here $extras; break ;;
+      add) _agent_ws_edit $here; pos=2 ;;
+      *) zle reset-prompt; return 0 ;;
+    esac
   done
-  [[ $dirs[1] != $PWD ]] && cmd="cd ${(q-)dirs[1]} && $cmd"
+
+  local cmd=$selected
+  for dir in $extras; do
+    _agent_tilde $dir
+    case $REPLY in
+      '~') cmd+=" $flag ~" ;;
+      '~/'*) cmd+=" $flag ~/${(q-)REPLY#\~/}" ;;
+      *) cmd+=" $flag ${(q-)REPLY}" ;;
+    esac
+  done
 
   BUFFER="$cmd"
   zle accept-line

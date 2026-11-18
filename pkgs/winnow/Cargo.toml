@@ -1,0 +1,15 @@
+[package]
+name = "winnow"
+version = "0.1.0"
+edition = "2021"
+description = "inline fuzzy picker over stdin lines"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+libc = "0.2"
+ratatui = "0.30"
+
+[profile.release]
+lto = true
+strip = true
