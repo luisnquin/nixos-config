@@ -12,6 +12,8 @@ in {
     ./hooks.nix
   ];
 
+  home.packages = [pkgs.llm-agents.claude-agent-acp];
+
   # not `programs.claude-code.plugins`: its per-entry links put mod files
   # outside the plugin directory, which claude refuses. Copied, not linked:
   # claude reloads a mod whenever a watched file's ctime moves, and with

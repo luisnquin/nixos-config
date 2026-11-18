@@ -12,6 +12,8 @@ in {
     ./hooks.nix
   ];
 
+  home.packages = [pkgs.llm-agents.codex-acp];
+
   home.sessionVariables.CODEX_OUTPUT_REDACTOR = lib.getExe pkgs.redact-secrets;
 
   programs.codex = {
