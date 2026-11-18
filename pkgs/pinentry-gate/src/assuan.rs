@@ -73,6 +73,7 @@ pub struct Request {
     pub notok: String,
     pub keyinfo: String,
     pub ttyname: String,
+    pub requester: String,
 }
 
 impl Request {
@@ -80,7 +81,10 @@ impl Request {
         Payload {
             mode: self.mode.clone(),
             title: self.title.clone(),
-            desc: self.desc.clone(),
+            desc: match self.requester.as_str() {
+                "" => self.desc.clone(),
+                who => format!("{}\n\nRequested by: {who}", self.desc),
+            },
             prompt: self.prompt.clone(),
             error: self.error.clone(),
             ok: self.ok.clone(),
@@ -163,15 +167,7 @@ impl<'a, R: BufRead, W: Write> Server<'a, R, W> {
                 self.send("OK closing connection")?;
                 return Ok(false);
             }
-            "OPTION" => {
-                let (key, value) = text.split_once('=').unwrap_or((&text, ""));
-                let (key, value) = (key.trim().to_string(), value.trim().to_string());
-                if key == "ttyname" {
-                    self.request.ttyname = value.clone();
-                }
-                self.options.insert(key, value);
-                self.send("OK")?;
-            }
+            "OPTION" => self.option(&text)?,
             "GETINFO" => self.getinfo(&text)?,
             "SETTITLE" => self.set(|r| &mut r.title, text)?,
             "SETDESC" => self.set(|r| &mut r.desc, text)?,
@@ -183,7 +179,8 @@ impl<'a, R: BufRead, W: Write> Server<'a, R, W> {
             "SETKEYINFO" => self.set(|r| &mut r.keyinfo, text)?,
             "RESET" => {
                 let ttyname = std::mem::take(&mut self.request.ttyname);
-                self.request = Request { ttyname, ..Request::default() };
+                let requester = std::mem::take(&mut self.request.requester);
+                self.request = Request { ttyname, requester, ..Request::default() };
                 self.send("OK")?;
             }
             "GETPIN" => self.getpin()?,
@@ -193,6 +190,18 @@ impl<'a, R: BufRead, W: Write> Server<'a, R, W> {
             _ => self.send(UNKNOWN_COMMAND)?,
         }
         Ok(true)
+    }
+
+    fn option(&mut self, text: &str) -> io::Result<()> {
+        let (key, value) = text.split_once('=').unwrap_or((text, ""));
+        let (key, value) = (key.trim().to_string(), value.trim().to_string());
+        if key == "ttyname" {
+            self.request.ttyname = value.clone();
+        } else if key == "owner" {
+            self.request.requester = requester(&value);
+        }
+        self.options.insert(key, value);
+        self.send("OK")
     }
 
     fn set(&mut self, field: impl FnOnce(&mut Request) -> &mut String, value: String) -> io::Result<()> {
@@ -239,6 +248,33 @@ impl<'a, R: BufRead, W: Write> Server<'a, R, W> {
         }
         self.send("OK")
     }
+}
+
+/// /proc text is chosen by the requester, so control characters never reach the VT.
+fn requester(owner: &str) -> String {
+    let Some(mut pid) = owner.split('/').next().and_then(|p| p.parse::<u32>().ok()) else {
+        return String::new();
+    };
+    let proc_text = |pid: u32, file: &str| std::fs::read_to_string(format!("/proc/{pid}/{file}")).unwrap_or_default();
+    let clean = |text: &str| text.chars().map(|c| if c.is_control() { ' ' } else { c }).collect::<String>();
+    let cmdline = clean(proc_text(pid, "cmdline").trim_end_matches('\0'));
+    if cmdline.is_empty() {
+        return "a process that already exited".into();
+    }
+    let unit = proc_text(pid, "cgroup").rsplit('/').next().unwrap_or("").trim().to_string();
+    let mut chain = vec![cmdline.chars().take(120).collect::<String>()];
+    while chain.len() < 6 {
+        pid = proc_text(pid, "status")
+            .lines()
+            .find_map(|l| l.strip_prefix("PPid:"))
+            .and_then(|p| p.trim().parse().ok())
+            .unwrap_or(0);
+        if pid <= 1 {
+            break;
+        }
+        chain.push(clean(proc_text(pid, "comm").trim()));
+    }
+    format!("{}\n  unit: {unit}", chain.join("\n  < "))
 }
 
 #[cfg(test)]
@@ -312,6 +348,20 @@ mod tests {
         let lines = transcript("GETINFO flavor\nGETINFO pid\nFROBNICATE\nNOP\n", |_| Some("x".into()));
         assert!(lines.contains(&"D pinentry-gate".to_string()));
         assert!(lines.iter().any(|line| line.starts_with("ERR 83886355")));
+    }
+
+    #[test]
+    fn owner_names_the_requester_across_reset() {
+        let mut seen = Vec::new();
+        let script = format!("OPTION owner={}/1000 host\nRESET\nGETPIN\n", std::process::id());
+        transcript(&script, |request| {
+            seen.push(request.payload().desc);
+            None
+        });
+        let me = std::env::args().next().unwrap();
+        assert!(seen[0].contains(&format!("Requested by: {me}")), "{}", seen[0]);
+        assert!(seen[0].contains("unit: "));
+        assert_eq!(requester("garbage"), "");
     }
 
     #[test]
