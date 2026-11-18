@@ -20,6 +20,11 @@
     runtimeInputs = [pkgs.jq pkgs.gnugrep];
     text = builtins.readFile ../../hooks/email-guard.sh;
   };
+  rmGuard = pkgs.writeShellApplication {
+    name = "agent-rm-guard";
+    runtimeInputs = [pkgs.jq pkgs.gnugrep];
+    text = builtins.readFile ../../hooks/rm-guard.sh;
+  };
   upgraded = timeout: {
     hooks = [
       {
@@ -136,6 +141,10 @@ in {
       PreToolUse = [
         (kit.mkCmdEntry {
           commands = [(lib.getExe emailGuard)];
+        })
+        (kit.mkCmdEntry {
+          matcher = "Bash";
+          commands = [(lib.getExe rmGuard)];
         })
         (kit.mkCmdEntry {
           matcher = "Bash";
