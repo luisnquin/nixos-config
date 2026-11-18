@@ -1,0 +1,12 @@
+[package]
+name = "tripwire"
+version = "0.1.0"
+edition = "2021"
+description = "denies every open of a decoy file and freezes the process that tried"
+license = "MIT"
+
+[dependencies]
+nix = { version = "0.32", features = ["fanotify", "inotify", "process", "signal"] }
+
+[profile.release]
+strip = true

@@ -17,6 +17,7 @@ pkgs:
   setup = pkgs.callPackage ./setup {};
   barfeed = pkgs.callPackage ./barfeed {};
   ttygate = pkgs.callPackage ./ttygate {};
+  tripwire = pkgs.callPackage ./tripwire {};
   winnow = pkgs.callPackage ./winnow {};
 }
 // import ./third-party pkgs

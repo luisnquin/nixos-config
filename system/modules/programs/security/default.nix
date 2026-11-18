@@ -8,6 +8,7 @@
     ./user.nix
     ./sudo.nix
     ./ssh.nix
+    ./tripwire.nix
   ];
 
   security.polkit.enable = true;
