@@ -50,32 +50,6 @@ in {
       (mkSkill {src = ./skills;} {
         plugins = ["nix-patch" "nix-triage" "squad" "dev-flow"];
       })
-      (anthropics.skills {
-        prefix = "anthropics-";
-        plugins = [
-          "pdf"
-          "pptx"
-          "frontend-design"
-        ];
-      })
-      (daffy0208.ai-dev-standards {
-        plugins = [
-          "mobile-developer"
-        ];
-      })
-      (mkSkill {
-          src = pkgs.fetchFromGitHub {
-            owner = "cursor";
-            repo = "plugins";
-            rev = "8ecfb19f844b67a4bc7af7f66c366d57bc7b6d2b";
-            hash = "sha256-/ubdPfVeNY1RxHIzH/+n3M15SFQZvyt0uR8md3bXNxA=";
-            rootDir = "pstack/skills";
-          };
-        } {
-          plugins = [
-            "unslop"
-          ];
-        })
       (vercel-labs.skills {
         plugins = [
           "find-skills"
@@ -93,39 +67,11 @@ in {
           plugins = [
             "improve-codebase-architecture"
             "codebase-design"
-            "domain-modeling"
           ];
         })
-      (mkSkill {
-          src = pkgs.fetchFromGitHub {
-            owner = "mattpocock";
-            repo = "skills";
-            rev = "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d";
-            hash = "sha256-8xDSNA3dk6AyfiKg8XAwmb9uQMqaCI4m8ERi4TBVQ28=";
-            rootDir = "skills/productivity";
-          };
-        } {
-          plugins = ["grilling"];
-        })
-      (wshobson.agents {
-        plugins = [
-          "typescript-advanced-types"
-          "e2e-testing-patterns"
-        ];
-      })
       (mkSkill {src = pkgs.llm-agents.herdr.src;} {
         plugins = ["herdr"];
       })
-      (mkSkill {
-          src = pkgs.fetchFromGitHub {
-            owner = "aia-11-hn-mib";
-            repo = "mib-mockinterviewaibot";
-            rev = "50ccfb29063bb6d64d049fc982ca53424d0ca3b1";
-            sha256 = "sha256-FdlbFVFSEtiFMiuisSLmgibFCro17jo3TjS9Oibx8F0=";
-          };
-        } {
-          plugins = ["imagemagick"];
-        })
       (mkSkill {
           src = pkgs.fetchFromGitHub {
             owner = "ciembor";
@@ -175,65 +121,6 @@ in {
           };
         } {
           plugins = ["taste-skill"];
-        })
-
-      (mkSkill {
-          src = pkgs.fetchFromGitHub {
-            owner = "lkshrk";
-            repo = "linear-ai";
-            rev = "7601a808798f0ed0d82dd5c51c3100c69daba088";
-            sha256 = "sha256-iyhgBMB1vBA4PVDLSKO9mAzu3JpVThfRtS9nOWHTXio=";
-            rootDir = "skills";
-          };
-        } {
-          plugins = [
-            "linear-status"
-            "linear-intake"
-            "linear-refine"
-            "linear-implement"
-            "linear-review"
-            "linear-reconcile"
-          ];
-        })
-      (mkSkill {
-          src = pkgs.fetchFromGitHub {
-            owner = "hyperb1iss";
-            repo = "hyperskills";
-            rev = "e7bcf524095c0a7d78df92e720eb1bb9944fa4de";
-            hash = "sha256-AQkAT4LxS/qufe5BzEGuZ1X2RVI/yS1E8SC3cV3M+SQ=";
-            rootDir = "skills";
-          };
-        } {
-          plugins = ["tui-design"];
-        })
-      (mkSkill {
-          # Its install and self-update sections reach for npm -g and curl, which would shadow the nix-built pen.
-          src = pkgs.runCommand "pen-design-skill" {} ''
-            mkdir -p $out/pen-design
-            sed -e '/^### Check installation/,/^### Authentication/{/^### Authentication/!d}' \
-                -e '/^### Staying up to date/,/^## Creating a Design/{/^## Creating a Design/!d}' \
-                ${pkgs.pen-dev}/lib/node_modules/@pen.dev/cli/SKILL.md > $out/pen-design/SKILL.md
-          '';
-        } {
-          plugins = ["pen-design"];
-        })
-      (mkSkill {
-          src = pkgs.applyPatches {
-            name = "ui-ux-pro-max-skill";
-            src = pkgs.fetchFromGitHub {
-              owner = "nextlevelbuilder";
-              repo = "ui-ux-pro-max-skill";
-              rev = "b7d5353e0130feb8c5574ef1251f8a1db1873ccb";
-              hash = "sha256-QEbbybdjfM8QyVkiTIf0X2Pr7OhgfhZhXD5ZMUOSsak=";
-              rootDir = ".claude/skills";
-            };
-            postPatch = ''
-              substituteInPlace ui-ux-pro-max/SKILL.md \
-                --replace-fail '"''${CLAUDE_PLUGIN_ROOT}/.claude/skills/ui-ux-pro-max/' "\"$out/ui-ux-pro-max/"
-            '';
-          };
-        } {
-          plugins = ["ui-ux-pro-max"];
         })
     ];
   };
