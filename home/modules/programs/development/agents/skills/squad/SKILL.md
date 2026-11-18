@@ -38,8 +38,8 @@ spot-check. You do not write the fix yourself.
      only, following the repo's convention. Pushes only where the user allows it.
 5. **Evidence.** Shared devices get ONE evidence agent for all items that need
    them, so nobody fights over a device. Items from a ticket close with the
-   evidence on the ticket, in the format the project's skill defines (e.g.
-   `linear-flow`). Never change ticket states.
+   evidence on the ticket, in the format the project's skill defines. Never
+   change ticket states.
 6. **Spot-check.** Read every landed commit yourself. Re-run the tests on any
    commit a reviewer rebased before pushing.
 7. **Report.** Give a table: item, verdict, commit hash or reason. List the

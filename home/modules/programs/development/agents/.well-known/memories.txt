@@ -41,7 +41,7 @@ No abstraction, wrapper, type conversion, option, config, boilerplate or "for la
 
 The shortest working diff wins, once you know everything it must touch. A one-liner that needs decoding is not short.
 
-Bug fix: before editing, grep every caller of the function you touch, then fix the root cause once in the shared code.
+Bug fix: before editing, find every caller of the function you touch, then fix the root cause once in the shared code.
 
 Code you move or merge keeps its error handling and validation.
 
@@ -91,11 +91,4 @@ Use Context7 for external or dynamic data. Skip it for trivial questions.
 
 ## codebase-memory-mcp
 
-Code intelligence over a tree-sitter knowledge graph. One graph query replaces dozens of grep/read cycles.
-
-Prefer it over grep and whole-file reads for structural questions. Before your first code search of a session:
-
-1. Resolve the project: list_projects, match the working directory to its slug.
-2. search_graph({ project, query }).
-
-Then plain reads and searches only to fill gaps the graph cannot answer (top-level wiring, exact full-file context) — or when search_graph returns nothing, or the project is not indexed. Trust results; do not re-verify with grep.
+A tree-sitter graph of indexed projects. For structural questions in an indexed project (callers, call paths, where a symbol is defined), resolve the project with list_projects and query search_graph. Use grep for literals, unindexed projects, and anything the graph misses.
