@@ -20,12 +20,13 @@ diff --git a/tui/src/config_update.rs b/tui/src/config_update.rs
 diff --git a/tui/src/onboarding/onboarding_screen.rs b/tui/src/onboarding/onboarding_screen.rs
 --- a/tui/src/onboarding/onboarding_screen.rs
 +++ b/tui/src/onboarding/onboarding_screen.rs
-@@ -12,9 +12,6 @@
+@@ -12,10 +12,7 @@
  
  use codex_app_server_client::AppServerEvent;
  use codex_app_server_client::AppServerRequestHandle;
 -use codex_app_server_protocol::ClientRequest;
 -use codex_app_server_protocol::ConfigBatchWriteParams;
+ use codex_app_server_protocol::GatewayOAuthPrompt;
 -use codex_app_server_protocol::RequestId;
  use codex_app_server_protocol::ServerNotification;
  use codex_exec_server::LOCAL_FS;
