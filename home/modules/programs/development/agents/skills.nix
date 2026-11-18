@@ -59,7 +59,7 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "mattpocock";
             repo = "skills";
-            rev = "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d";
+            rev = "5863806dd4e15c63174bee4e7515a4256792ecfa";
             hash = "sha256-nxTjN6ePfumLCJ77zw4kdMwPeOHU2TztFZPOiMr3zGw=";
             rootDir = "skills/engineering";
           };
@@ -86,8 +86,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "caldoai";
             repo = "skills";
-            rev = "f3cf47774975a7d9fca45730babf4ff7ad765ada";
-            hash = "sha256-Q8r94n44dEE4BYGbnJBAl6Qtw/Pq8wSWjCfTGtzdICI=";
+            rev = "d5b68dace378219890d821adb3685538e2c69b04";
+            hash = "sha256-rLNHCZ3Dhwo2lNQcXNsRU6GTsuUgq7bbWhiaNUFzmRc=";
             rootDir = "skills";
           };
         } {
@@ -97,8 +97,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "0xc000022070";
             repo = "skills";
-            rev = "f4feaf5020c5e5c159c36e13134dec63481ee1d1";
-            sha256 = "sha256-OsqGJyF2AD2KotpzXvqnlBsmyfZd40UrqyIPfkAbrK4=";
+            rev = "95c377d33d72cce933ebbf61d82ddcda1446956b";
+            sha256 = "sha256-Jzwkcfv2lwQAYwiR3Mkwo2VsIknRRIjOsvfUIt+ZptI=";
           };
         } {
           plugins = [
@@ -116,8 +116,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "leonxlnx";
             repo = "taste-skill";
-            rev = "9b4bf937a1f69348126959c15d2f99a73e65699b";
-            hash = "sha256-BASbXznKYEcCUOEd0rm+ajcaGNhZ3wjONJP6tkpGEww=";
+            rev = "f6b76575f949707b4e3c37cd86cb44b0b98643e8";
+            hash = "sha256-7w2pcrS5g3ACXiAoJL3oe+hiVy+aDmUnx3PxeRZ9rVg=";
           };
         } {
           plugins = ["taste-skill"];
