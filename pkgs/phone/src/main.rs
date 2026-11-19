@@ -112,7 +112,12 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let code = match runtime(&cli).and_then(|runtime| runtime.block_on(configured(cli))) {
+    let code = match runtime(&cli).and_then(|runtime| {
+        runtime.block_on(async {
+            logged_on_kill()?;
+            configured(cli).await
+        })
+    }) {
         Ok(()) => 0,
         Err(e) if e.is::<Exited>() => e.downcast::<Exited>().map_or(1, |Exited(code)| code as u8),
         Err(e) => {
@@ -130,6 +135,29 @@ fn main() -> ExitCode {
     calls::finish(Some(i32::from(code)), None);
 
     ExitCode::from(code)
+}
+
+/// A harness interrupt or `timeout` ends the run by signal, which would
+/// otherwise skip the calls.jsonl entry.
+fn logged_on_kill() -> Result<()> {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut int = signal(SignalKind::interrupt())?;
+    let mut term = signal(SignalKind::terminate())?;
+    let mut hup = signal(SignalKind::hangup())?;
+
+    tokio::spawn(async move {
+        let code = tokio::select! {
+            _ = int.recv() => 128 + libc::SIGINT,
+            _ = term.recv() => 128 + libc::SIGTERM,
+            _ = hup.recv() => 128 + libc::SIGHUP,
+        };
+
+        calls::finish(Some(code), None);
+        std::process::exit(code);
+    });
+
+    Ok(())
 }
 
 fn runtime(cli: &Cli) -> Result<tokio::runtime::Runtime> {
@@ -1026,7 +1054,11 @@ fn declared() -> Result<Project> {
 fn reporter() -> (Reporter, impl std::future::Future<Output = ()>) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    (Reporter::new(tx), drain(rx))
+    let printing = tokio::spawn(drain(rx));
+
+    (Reporter::new(tx), async move {
+        let _ = printing.await;
+    })
 }
 
 async fn drain(mut rx: UnboundedReceiver<Step>) {

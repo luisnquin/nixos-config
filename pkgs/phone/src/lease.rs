@@ -802,7 +802,9 @@ fn settled(view: &View, lease: Lease) -> Got {
         eprintln!("phone: took {} from {took}", view.device.label);
     }
 
-    if me.shared {
+    static TOLD: AtomicBool = AtomicBool::new(false);
+
+    if me.shared && !TOLD.swap(true, Ordering::Relaxed) {
         eprintln!(
             "phone: {} acquired as Claude session {}; PHONE_AGENT is unset, so every subagent of this session shares it",
             view.device.label, me.label
