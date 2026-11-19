@@ -63,6 +63,12 @@ in
       export PATH="$PATH:/bin"
     '';
 
+    # The nix build user can't exec setuid /bin/ps.
+    checkFlags = lib.optionals stdenv.hostPlatform.isDarwin [
+      "--skip=agent::tests::this_process_is_alive_and_a_wrong_start_is_not"
+      "--skip=lease::tests::the_host_script_reports_holders_on_its_own_machine_that_died"
+    ];
+
     postInstall = ''
       installShellCompletion --cmd phone \
         --bash <($out/bin/phone completions bash) \
