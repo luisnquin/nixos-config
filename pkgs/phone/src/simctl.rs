@@ -453,8 +453,7 @@ pub async fn key(at: &Where, udid: &str, name: &str) -> Result<()> {
 }
 
 /// Boots `udid` and returns once the system is up, not once the process is.
-/// `bootstatus` is what waits; `open` is only there so the window appears, and
-/// a headless boot is still a usable device without it.
+/// `bootstatus` waits; `open` only shows a window, preferring OpenDeviceHub.
 ///
 /// `limit` is a backstop rather than the deadline. The caller holds one of its
 /// own and knows which device it is waiting on, so it is the one that should
@@ -463,7 +462,7 @@ pub async fn boot(at: &Where, udid: &str, limit: Duration) -> Result<()> {
     // booting a device that is already up is an error worth ignoring, since
     // bootstatus answers for both cases and it is the one being asked
     const SCRIPT: &str = r#"xcrun simctl boot "$1" 2>/dev/null
-open -a Simulator 2>/dev/null
+open "odhub://open?udid=$1" 2>/dev/null || open -a Simulator 2>/dev/null || open -b com.apple.dt.Devices 2>/dev/null
 xcrun simctl bootstatus "$1" -b >&2"#;
 
     check(udid)?;
