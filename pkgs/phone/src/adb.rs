@@ -226,6 +226,7 @@ pub async fn run(server: &Server, args: &[&str]) -> Result<Output> {
         .args(server.args())
         .args(args)
         .stdin(Stdio::null())
+        .kill_on_drop(true)
         .output()
         .await
         .map_err(|e| anyhow!("running adb: {e}"))?;
@@ -252,6 +253,7 @@ pub async fn run_bytes(server: &Server, args: &[&str]) -> Result<(bool, Vec<u8>)
         .args(server.args())
         .args(args)
         .stdin(Stdio::null())
+        .kill_on_drop(true)
         .stderr(Stdio::null())
         .output()
         .await?;

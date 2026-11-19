@@ -67,7 +67,7 @@ pub async fn record(
     let clip = match device.platform {
         Platform::Ios => bail!("cannot record an iPhone from here"),
         Platform::Simulator => from_simulator(device, take.seconds).await?,
-        _ => from_android(server, device, take.seconds).await?,
+        _ => from_android(server, device, take.seconds, rep).await?,
     };
 
     if clip.is_empty() {
@@ -104,7 +104,7 @@ fn scratch(name: &str) -> PathBuf {
 /// `screenrecord` writes to the device and nowhere else, so the clip is pulled
 /// back afterwards rather than streamed. `exec-out` keeps the bytes binary —
 /// the same reason `shot` uses it.
-async fn from_android(server: &Server, device: &Device, seconds: u32) -> Result<Vec<u8>> {
+async fn from_android(server: &Server, device: &Device, seconds: u32, rep: &Reporter) -> Result<Vec<u8>> {
     let serial = serial_of(server, device).await?;
 
     // a path under the app-visible part of storage, so the pull needs no root
@@ -134,11 +134,27 @@ async fn from_android(server: &Server, device: &Device, seconds: u32) -> Result<
         });
     }
 
-    let (ok, bytes) = adb::run_bytes(
-        server,
-        &["-s", &serial, "exec-out", &format!("cat {on_device}")],
-    )
-    .await?;
+    // a network-adb transport can stall mid-stream and never close; a fresh
+    // connection usually gets through
+    let pull = ["-s", &serial, "exec-out", &format!("cat {on_device}")];
+    let limit = Duration::from_secs(u64::from(seconds) + 30);
+    let mut pulled = None;
+
+    for _ in 0..2 {
+        rep.try_("pulling the clip off the device");
+
+        match tokio::time::timeout(limit, adb::run_bytes(server, &pull)).await {
+            Ok(got) => {
+                pulled = Some(got?);
+                break;
+            }
+            Err(_) => rep.fail(format!("pull stalled for {}s", limit.as_secs())),
+        }
+    }
+
+    let Some((ok, bytes)) = pulled else {
+        bail!("could not pull the clip off {serial}; it stays at {on_device}");
+    };
 
     // best effort: a clip left behind costs storage, not correctness
     let _ = adb::run_timeout(
