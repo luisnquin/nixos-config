@@ -102,6 +102,11 @@ in {
       tui = "fullscreen";
       showThinkingSummaries = true;
       autoCompactWindow = 200000;
+      voiceEnabled = true;
+      voice = {
+        enabled = true;
+        mode = "hold";
+      };
 
       env = {
         "CLAUDE_CODE_SHELL_PREFIX" = lib.getExe pkgs.redact-secrets;
