@@ -271,7 +271,6 @@
         (old.patches or [])
         ++ [
           ./patches/vicinae/launch-prefers-non-default-gpu-on-discrete-gpu.patch
-          ./patches/vicinae/write-clipboard-through-data-control-when-focused.patch
           ./patches/vicinae/open-clipboard-image-preview-on-click.patch
         ];
     });
