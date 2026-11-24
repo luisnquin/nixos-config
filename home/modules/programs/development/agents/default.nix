@@ -14,6 +14,7 @@
     ./hooks
     ./mcp.nix
     ./options
+    ./say
     ./shell.nix
     ./skills.nix
   ];
