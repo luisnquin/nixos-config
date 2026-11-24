@@ -30,6 +30,22 @@
     runtimeInputs = [pkgs.jq pkgs.coreutils];
     text = builtins.readFile ../../hooks/search-scope-guard.sh;
   };
+  commandRules = pkgs.writeShellApplication {
+    name = "agent-command-rules";
+    runtimeInputs = [pkgs.jq];
+    runtimeEnv.AGENT_COMMAND_RULES = pkgs.writeText "agent-command-rules.json" (builtins.toJSON [
+      {
+        pattern = "(^|[;&|({[:space:]])(until|while)[[:space:]].*sleep[[:space:]]|for[[:space:]].*\\$\\(seq[[:space:]].*sleep[[:space:]]";
+        foreground = true;
+        reason = "Foreground polling loop refused: it shows no progress until it ends, so the user kills it. Run it with run_in_background: true (you are notified when it exits) or use the Monitor tool. For devices, use `phone wait --timeout`.";
+      }
+      {
+        pattern = "(^|[;&|({[:space:]])npx[[:space:]]+convex([[:space:]]|$)";
+        reason = "Do not call npx convex. Use the package.json scripts (npm run convex:dev, convex:deploy, convex:codegen); read package.json for the rest.";
+      }
+    ]);
+    text = builtins.readFile ../../hooks/command-rules.sh;
+  };
   upgraded = timeout: {
     hooks = [
       {
@@ -150,6 +166,10 @@ in {
         (kit.mkCmdEntry {
           matcher = "Bash";
           commands = [(lib.getExe rmGuard)];
+        })
+        (kit.mkCmdEntry {
+          matcher = "Bash";
+          commands = [(lib.getExe commandRules)];
         })
         (kit.mkCmdEntry {
           matcher = "Bash|Grep";
