@@ -16,11 +16,16 @@ use ratatui::{Frame, Terminal, TerminalOptions, Viewport};
 
 const USAGE: &str = "usage: winnow [--prompt STR] [--header STR] [--height N|N%] [--delimiter STR]
               [--with-nth N] [--print-query] [--expect KEY[,KEY..]] [--cursor N]
+              [--multi] [--checked N,N..] [--ansi]
               [--border[=STYLE]] [--pointer STR] [--separator STR] [--scrollbar STR] [--color SPEC]
 
 Reads lines from stdin, prints the chosen one. Enter accepts, Esc aborts (exit 130).
+--multi: space toggles, Enter prints every checked line, or the current one when none is checked;
+         --expect keys print only the checked lines.
+--checked pre-checks input lines by 1-based number.
+--ansi renders SGR colors in the shown field.
 --expect keys accept too and print the key name first (empty line for Enter).
-Keys: del, tab, btab, alt-enter, alt-X, ctrl-X.
+Keys: del, tab, btab, left, right, alt-enter, alt-X, ctrl-X.
 Style flags in FZF_DEFAULT_OPTS apply first; flags winnow does not know are ignored there.";
 
 struct Theme {
@@ -119,6 +124,9 @@ struct Opts {
     delimiter: Option<String>,
     nth: Option<usize>,
     print_query: bool,
+    multi: bool,
+    checked: Vec<usize>,
+    ansi: bool,
     expect: Vec<(String, KeyCode, KeyModifiers)>,
     cursor: usize,
     border: Option<BorderType>,
@@ -140,6 +148,8 @@ fn parse_key(name: &str) -> Result<(KeyCode, KeyModifiers)> {
         "del" | "delete" => Some((KeyCode::Delete, KeyModifiers::NONE)),
         "tab" => Some((KeyCode::Tab, KeyModifiers::NONE)),
         "btab" => Some((KeyCode::BackTab, KeyModifiers::NONE)),
+        "left" => Some((KeyCode::Left, KeyModifiers::NONE)),
+        "right" => Some((KeyCode::Right, KeyModifiers::NONE)),
         "alt-enter" => Some((KeyCode::Enter, KeyModifiers::ALT)),
         _ => None,
     };
@@ -185,8 +195,8 @@ fn shell_words(s: &str) -> Vec<String> {
     words
 }
 
-const VALUE_FLAGS: [&str; 11] = [
-    "--prompt", "--header", "--height", "--delimiter", "--with-nth", "--expect", "--cursor", "--pointer", "--separator", "--scrollbar",
+const VALUE_FLAGS: [&str; 12] = [
+    "--prompt", "--checked", "--header", "--height", "--delimiter", "--with-nth", "--expect", "--cursor", "--pointer", "--separator", "--scrollbar",
     "--color",
 ];
 
@@ -215,6 +225,8 @@ fn apply_switch(o: &mut Opts, flag: &str, inline: Option<&str>) -> bool {
         "--border" => o.border = (inline != Some("none")).then(|| parse_border(inline)),
         "--no-border" => o.border = None,
         "--print-query" => o.print_query = true,
+        "--ansi" => o.ansi = true,
+        "--multi" => o.multi = true,
         "--no-separator" => o.separator.clear(),
         "--no-scrollbar" => o.scrollbar.clear(),
         _ => return false,
@@ -241,6 +253,9 @@ fn apply_value(o: &mut Opts, flag: &str, v: String) -> Result<()> {
         "--with-nth" => o.nth = Some(v.parse().context("--with-nth")?),
         "--expect" => o.expect.extend(parse_expect(&v)?),
         "--cursor" => o.cursor = v.parse().context("--cursor")?,
+        "--checked" => {
+            o.checked = v.split(',').filter(|s| !s.is_empty()).map(str::parse).collect::<Result<_, _>>().context("--checked")?
+        }
         _ => apply_style_value(o, flag, v),
     }
     Ok(())
@@ -277,6 +292,9 @@ fn parse_args() -> Result<Opts> {
         delimiter: None,
         nth: None,
         print_query: false,
+        multi: false,
+        ansi: false,
+        checked: vec![],
         expect: vec![],
         cursor: 1,
         border: None,
@@ -330,8 +348,10 @@ fn fuzzy(text: &str, query: &str) -> Option<(i64, Vec<usize>)> {
 
 struct State {
     items: Vec<(String, String)>,
+    styles: Vec<Vec<Style>>,
     query: String,
     matches: Vec<(usize, Vec<usize>)>,
+    checked: Vec<bool>,
     selected: usize,
     offset: usize,
     page: usize,
@@ -355,6 +375,16 @@ impl State {
 
     fn current(&self) -> Option<&str> {
         self.matches.get(self.selected).map(|(i, _)| self.items[*i].0.as_str())
+    }
+
+    fn toggle(&mut self) {
+        let Some(&(idx, _)) = self.matches.get(self.selected) else { return };
+        self.checked[idx] ^= true;
+        if !self.query.is_empty() {
+            self.query.clear();
+            self.refilter();
+            self.selected = idx;
+        }
     }
 
     fn move_by(&mut self, delta: isize) {
@@ -391,8 +421,14 @@ fn item_line<'a>(st: &'a State, o: &Opts, row: usize, idx: usize, pos: &[usize])
         Span::raw(" ".repeat(o.pointer.chars().count() + 1))
     };
     let mut spans = vec![marker];
+    if o.multi {
+        spans.push(if st.checked[idx] { Span::styled("● ", t.pointer) } else { Span::styled("○ ", text) });
+    }
     spans.extend(
-        st.items[idx].1.chars().enumerate().map(|(ci, ch)| Span::styled(ch.to_string(), if pos.contains(&ci) { hl } else { text })),
+        st.items[idx].1.chars().enumerate().map(|(ci, ch)| {
+            let base = st.styles.get(idx).and_then(|s| s.get(ci)).map_or(text, |s| text.patch(*s));
+            Span::styled(ch.to_string(), if pos.contains(&ci) { hl } else { base })
+        }),
     );
     let line = Line::from(spans);
     if sel { line.style(t.bg_sel) } else { line }
@@ -423,7 +459,11 @@ fn draw(f: &mut Frame, st: &mut State, o: &Opts) {
         st.offset = st.selected + 1 - rows;
     }
 
-    let info = format!("  {}/{} ", st.matches.len(), st.items.len());
+    let picked = st.checked.iter().filter(|&&c| c).count();
+    let info = match (o.multi, picked) {
+        (true, 1..) => format!("  {}/{} · {picked} selected ", st.matches.len(), st.items.len()),
+        _ => format!("  {}/{} ", st.matches.len(), st.items.len()),
+    };
     let sep = o.separator.repeat((content.width as usize).saturating_sub(info.chars().count()));
     let mut lines = vec![
         Line::from(vec![Span::styled(o.prompt.as_str(), t.prompt), Span::styled(st.query.as_str(), t.query)]),
@@ -485,6 +525,7 @@ fn run(term: &mut Terminal<CrosstermBackend<File>>, st: &mut State, o: &Opts) ->
             KeyCode::Esc => return Ok(Outcome::Abort),
             KeyCode::Char('c' | 'g' | 'q') if ctrl => return Ok(Outcome::Abort),
             KeyCode::Enter => return Ok(Outcome::Accept(o.expect.first().map(|_| String::new()))),
+            KeyCode::Char(' ') if o.multi && key.modifiers.is_empty() => st.toggle(),
             _ => handle_key(st, &key),
         }
     }
@@ -536,14 +577,52 @@ fn main() -> ExitCode {
     }
 }
 
-fn read_items(o: &Opts) -> Result<Vec<(String, String)>> {
-    Ok(io::stdin()
-        .lock()
-        .lines()
-        .collect::<io::Result<Vec<_>>>()?
+fn sgr(mut st: Style, params: &str) -> Style {
+    let mut it = params.split(';').map(|p| p.parse::<u8>().unwrap_or(0));
+    while let Some(n) = it.next() {
+        st = match n {
+            0 => Style::default(),
+            1 => st.add_modifier(Modifier::BOLD),
+            30..=37 => st.fg(Color::Indexed(n - 30)),
+            39 => st.fg(Color::Reset),
+            90..=97 => st.fg(Color::Indexed(n - 82)),
+            38 => match (it.next(), it.next()) {
+                (Some(5), Some(i)) => st.fg(Color::Indexed(i)),
+                (Some(2), Some(r)) => st.fg(Color::Rgb(r, it.next().unwrap_or(0), it.next().unwrap_or(0))),
+                _ => st,
+            },
+            _ => st,
+        };
+    }
+    st
+}
+
+fn strip_ansi(s: &str) -> (String, Vec<Style>) {
+    let (mut text, mut styles, mut cur) = (String::new(), vec![], Style::default());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' && chars.next_if_eq(&'[').is_some() {
+            let params: String = chars.by_ref().take_while(|c| !c.is_ascii_alphabetic()).collect();
+            cur = sgr(cur, &params);
+            continue;
+        }
+        text.push(c);
+        styles.push(cur);
+    }
+    (text, styles)
+}
+
+type Items = (Vec<(String, String)>, Vec<Vec<Style>>);
+
+fn read_items(o: &Opts) -> Result<Items> {
+    let lines = io::stdin().lock().lines().collect::<io::Result<Vec<_>>>()?;
+    Ok(lines
         .into_iter()
-        .map(|line| (line.clone(), field(&line, o).to_string()))
-        .collect())
+        .map(|line| {
+            let (text, styles) = if o.ansi { strip_ansi(field(&line, o)) } else { (field(&line, o).to_string(), vec![]) };
+            ((line, text), styles)
+        })
+        .unzip())
 }
 
 fn viewport_height(o: &Opts, rows: u16) -> u16 {
@@ -575,8 +654,14 @@ fn print_result(st: &State, o: &Opts, key: Option<String>) -> Result<u8> {
     if o.print_query {
         writeln!(out, "{}", st.query)?;
     }
-    if let Some(key) = key {
+    if let Some(key) = &key {
         writeln!(out, "{key}")?;
+    }
+    if o.multi && (st.checked.contains(&true) || key.as_deref().is_some_and(|k| !k.is_empty())) {
+        for (line, _) in st.items.iter().zip(&st.checked).filter(|(_, &c)| c) {
+            writeln!(out, "{}", line.0)?;
+        }
+        return Ok(0);
     }
     let current = st.current();
     if let Some(line) = current {
@@ -587,7 +672,14 @@ fn print_result(st: &State, o: &Opts, key: Option<String>) -> Result<u8> {
 
 fn real_main() -> Result<u8> {
     let o = parse_args()?;
-    let mut st = State { items: read_items(&o)?, query: String::new(), matches: vec![], selected: 0, offset: 0, page: 1 };
+    let (items, styles) = read_items(&o)?;
+    let mut checked = vec![false; items.len()];
+    for n in &o.checked {
+        if let Some(c) = n.checked_sub(1).and_then(|i| checked.get_mut(i)) {
+            *c = true;
+        }
+    }
+    let mut st = State { items, styles, query: String::new(), matches: vec![], checked, selected: 0, offset: 0, page: 1 };
     st.refilter();
     st.move_by(o.cursor as isize - 1);
 
@@ -611,6 +703,28 @@ mod tests {
         let (mid, _) = fuzzy("xxdxoxtxs", "dots").unwrap();
         assert!(word > mid);
         assert_eq!(fuzzy("a-b", "ab").unwrap().1, vec![0, 2]);
+    }
+
+    #[test]
+    fn toggle_clears_query_and_keeps_item_under_cursor() {
+        let items = ["alpha", "beta", "gamma"].map(|s| (s.to_string(), s.to_string())).to_vec();
+        let mut st = State { items, styles: vec![], query: "gam".into(), matches: vec![], checked: vec![false; 3], selected: 0, offset: 0, page: 1 };
+        st.refilter();
+        st.toggle();
+        assert_eq!(st.checked, [false, false, true]);
+        assert!(st.query.is_empty());
+        assert_eq!(st.current(), Some("gamma"));
+        st.toggle();
+        assert_eq!(st.checked, [false; 3]);
+    }
+
+    #[test]
+    fn ansi_strips_and_colors() {
+        let (text, styles) = strip_ansi("\x1b[31mab\x1b[0mc\x1b[38;5;200md");
+        assert_eq!(text, "abcd");
+        assert_eq!(styles[1].fg, Some(Color::Indexed(1)));
+        assert_eq!(styles[2].fg, None);
+        assert_eq!(styles[3].fg, Some(Color::Indexed(200)));
     }
 
     #[test]
