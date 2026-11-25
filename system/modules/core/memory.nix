@@ -6,5 +6,8 @@
     "vm.page-cluster" = 0;
   };
 
-  systemd.oomd.enableUserSlices = true;
+  systemd.oomd = {
+    enableUserSlices = true;
+    enableSystemSlice = true;
+  };
 }
