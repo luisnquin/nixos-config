@@ -26,6 +26,11 @@ in {
     Host ori0n ori0n.local
       Port 963
       User luisnquin
+
+    Match localuser ${user.alias}
+      ControlMaster auto
+      ControlPath /run/user/%i/ssh-%C
+      ControlPersist 10m
   '';
 
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = config.services.openssh.ports;
