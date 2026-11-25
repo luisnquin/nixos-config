@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tinyjson::JsonValue;
 
@@ -32,6 +32,7 @@ fn main() {
         ),
         Some("show") => show(args.iter().any(|arg| arg == "--json")),
         Some("mine") => mine(),
+        Some("park") => park(),
         _ => sync(),
     }
 }
@@ -275,12 +276,87 @@ fn prune(live: &[String]) {
     }
 }
 
+fn park() {
+    let spaces = agent_spaces(true);
+    if !spaces.is_empty() {
+        match welcome::run(&spaces, &welcome::PARK) {
+            Ok(Some(_)) => {}
+            Ok(None) => return,
+            Err(err) => {
+                eprintln!("herdr-recall: {err}");
+                return;
+            }
+        }
+    }
+    let panes = herdr(&["pane", "list"])
+        .as_ref()
+        .and_then(|json| array(json, &["result", "panes"]).cloned())
+        .unwrap_or_default();
+    std::thread::scope(|scope| {
+        for pane in panes.iter().filter(|pane| string(pane, "agent").is_some()) {
+            if let Some(parked) = Parked::from_pane(pane) {
+                scope.spawn(move || parked.park());
+            }
+        }
+    });
+    mine();
+}
+
+struct Parked {
+    pane_id: String,
+    source: String,
+    agent: String,
+    kind: String,
+    value: String,
+    line: String,
+}
+
+impl Parked {
+    fn from_pane(pane: &JsonValue) -> Option<Self> {
+        let session = at(pane, &["agent_session"])?;
+        let (source, kind, value) = (string(session, "source")?, string(session, "kind")?, string(session, "value")?);
+        let entry = Entry {
+            session: Some((source.clone(), kind.clone(), value.clone())),
+            ..Entry::default()
+        };
+        Some(Self {
+            pane_id: string(pane, "pane_id")?,
+            agent: string(session, "agent")?,
+            line: entry.resume()?,
+            source,
+            kind,
+            value,
+        })
+    }
+
+    fn park(&self) {
+        let pane = self.pane_id.as_str();
+        let running = || {
+            herdr(&["pane", "get", pane]).is_some_and(|json| at(&json, &["result", "pane"]).and_then(|p| string(p, "agent")).is_some())
+        };
+        for _ in 0..10 {
+            herdr_ok(&["pane", "send-keys", pane, "ctrl+c"]);
+            std::thread::sleep(Duration::from_millis(300));
+            if !running() {
+                break;
+            }
+        }
+        if running() {
+            return;
+        }
+        let flag = if self.kind == "path" { "--agent-session-path" } else { "--agent-session-id" };
+        herdr_ok(&["pane", "report-agent-session", "--source", &self.source, "--agent", &self.agent, flag, &self.value, pane]);
+        herdr_ok(&["pane", "send-text", pane, &self.line]);
+        std::thread::sleep(Duration::from_millis(300));
+    }
+}
+
 fn mine() {
-    let spaces = paused();
+    let spaces = agent_spaces(false);
     if spaces.is_empty() {
         return;
     }
-    let picked = match welcome::run(&spaces) {
+    let picked = match welcome::run(&spaces, &welcome::START) {
         Ok(Some(picked)) => picked,
         Ok(None) => return,
         Err(err) => {
@@ -300,7 +376,7 @@ fn mine() {
     }
 }
 
-fn paused() -> Vec<welcome::Space> {
+fn agent_spaces(live: bool) -> Vec<welcome::Space> {
     let list = |args: &[&str], key: &str| {
         herdr(args)
             .as_ref()
@@ -329,8 +405,8 @@ fn paused() -> Vec<welcome::Space> {
         };
         let used = panes
             .iter()
-            .filter(|pane| string(pane, "workspace_id").as_ref() == Some(&id) && string(pane, "agent").is_none())
-            .filter_map(|pane| add_paused(&mut space, pane, session(pane)?, &running))
+            .filter(|pane| string(pane, "workspace_id").as_ref() == Some(&id) && string(pane, "agent").is_some() == live)
+            .filter_map(|pane| add_pane(&mut space, pane, session(pane)?, (!live).then_some(&running)))
             .max()
             .unwrap_or(0);
         if !space.panes.is_empty() {
@@ -341,9 +417,9 @@ fn paused() -> Vec<welcome::Space> {
     spaces.into_iter().map(|(_, space)| space).collect()
 }
 
-fn add_paused(space: &mut welcome::Space, pane: &JsonValue, value: String, running: &HashSet<String>) -> Option<u64> {
+fn add_pane(space: &mut welcome::Space, pane: &JsonValue, value: String, paused_beside: Option<&HashSet<String>>) -> Option<u64> {
     let pane_id = string(pane, "pane_id")?;
-    if running.contains(&value) || !typed(&pane_id, &value) {
+    if paused_beside.is_some_and(|running| running.contains(&value) || !typed(&pane_id, &value)) {
         return None;
     }
     let agent = at(pane, &["agent_session"])

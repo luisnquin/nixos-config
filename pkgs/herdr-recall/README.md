@@ -56,6 +56,7 @@ numbers, so the sheet still lines up with the panes you are looking at. A leadin
 | `herdr-recall show --json` | the same entries, unformatted |
 | `herdr-recall sync` | refresh from the socket API; also the event hook |
 | `herdr-recall mine` | start the agents herdr restored but left typed, newest first |
+| `herdr-recall park` | stop every running agent, leave its resume line typed, then open `mine` |
 
 `mine` is the welcome screen the hub terminal opens once per boot. With
 `session.resume_agents_on_restore`, herdr types each agent's resume line into
@@ -65,6 +66,12 @@ groups; Enter starts the marked ones, or the one under the cursor when none is
 marked, with no prompt sent, and focuses the first in herdr. The rest keep
 their line typed. Esc starts nothing. A pane whose prompt no longer shows its
 resume line is left alone.
+
+`park` (prefix+p in herdr) is the way back for a context switch. It first
+lists the running agents. Esc cancels and touches nothing; Enter Ctrl+Cs
+each agent herdr can resume, reports its session again since herdr forgets it
+on exit, and types the resume line, so the panes look as they do after a boot,
+then opens `mine`. An agent that will not exit is left running.
 
 `preexec` and `precmd` are for the shell hook.
 

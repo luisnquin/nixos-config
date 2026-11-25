@@ -166,6 +166,14 @@ in {
             command = "${lib.getExe pkgs.herdr-recall} show | ${lib.getExe' pkgs.less "less"} -R";
             description = "what each pane was running";
           }
+          {
+            key = "prefix+p";
+            type = "popup";
+            width = "80%";
+            height = "80%";
+            command = "${lib.getExe pkgs.herdr-recall} park";
+            description = "pause every agent, then pick what to start";
+          }
         ];
       };
     };

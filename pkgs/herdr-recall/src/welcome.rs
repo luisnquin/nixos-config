@@ -48,14 +48,38 @@ pub struct Space {
     pub panes: Vec<(String, String)>,
 }
 
-pub fn run(spaces: &[Space]) -> io::Result<Option<Vec<usize>>> {
+pub struct Screen {
+    title: &'static str,
+    subtitle: &'static str,
+    enter: &'static str,
+    esc: &'static str,
+    marks: bool,
+}
+
+pub const START: Screen = Screen {
+    title: "Welcome back.",
+    subtitle: "Enter starts the groups with a thick bar; the rest stay typed.",
+    enter: "start the thick-bar groups",
+    esc: "leave them all typed",
+    marks: true,
+};
+
+pub const PARK: Screen = Screen {
+    title: "Pause every agent?",
+    subtitle: "Enter stops them and leaves their resume line typed.",
+    enter: "pause them all",
+    esc: "cancel, touch nothing",
+    marks: false,
+};
+
+pub fn run(spaces: &[Space], screen: &Screen) -> io::Result<Option<Vec<usize>>> {
     let groups = spaces.len().div_ceil(GROUP);
     let mut cursor = 0;
     let mut marked = vec![false; groups];
     let mut terminal = ratatui::init();
     let result = (|| -> io::Result<Option<Vec<usize>>> {
         loop {
-            terminal.draw(|frame| draw(frame, spaces, cursor, &starting(&marked, cursor)))?;
+            terminal.draw(|frame| draw(frame, spaces, cursor, &starting(&marked, cursor, screen), screen))?;
 
             let Event::Key(key) = event::read()? else {
                 continue;
@@ -70,7 +94,7 @@ pub fn run(spaces: &[Space]) -> io::Result<Option<Vec<usize>>> {
                 KeyCode::Up | KeyCode::Char('k') => cursor = cursor.saturating_sub(1),
                 KeyCode::Char(' ') => marked[cursor] = !marked[cursor],
                 KeyCode::Enter => {
-                    let picked = starting(&marked, cursor).into_iter();
+                    let picked = starting(&marked, cursor, screen).into_iter();
                     return Ok(Some(picked.flat_map(|group| group * GROUP..((group + 1) * GROUP).min(spaces.len())).collect()));
                 }
                 _ => continue,
@@ -81,12 +105,15 @@ pub fn run(spaces: &[Space]) -> io::Result<Option<Vec<usize>>> {
     result
 }
 
-fn starting(marked: &[bool], cursor: usize) -> Vec<usize> {
+fn starting(marked: &[bool], cursor: usize, screen: &Screen) -> Vec<usize> {
+    if !screen.marks {
+        return (0..marked.len()).collect();
+    }
     let picked: Vec<usize> = (0..marked.len()).filter(|&group| marked[group]).collect();
     if picked.is_empty() { vec![cursor] } else { picked }
 }
 
-fn draw(frame: &mut Frame, spaces: &[Space], cursor: usize, starting: &[usize]) {
+fn draw(frame: &mut Frame, spaces: &[Space], cursor: usize, starting: &[usize], screen: &Screen) {
     let full = frame.area();
     let width = full.width.saturating_sub(4).min(MAX_WIDTH);
     let area = Rect {
@@ -127,8 +154,8 @@ fn draw(frame: &mut Frame, spaces: &[Space], cursor: usize, starting: &[usize]) 
     );
     frame.render_widget(
         Paragraph::new(vec![
-            Line::from("Welcome back.").fg(TEXT).bold(),
-            Line::from("Enter starts the groups with a thick bar; the rest stay typed.").fg(SUBTLE),
+            Line::from(screen.title).fg(TEXT).bold(),
+            Line::from(screen.subtitle).fg(SUBTLE),
         ]),
         question,
     );
@@ -140,8 +167,12 @@ fn draw(frame: &mut Frame, spaces: &[Space], cursor: usize, starting: &[usize]) 
     };
     let footer_lines = vec![
         Line::default(),
-        Line::from([key("enter", "start the thick-bar groups"), key("↑↓", "move")].concat()),
-        Line::from([key("space", "mark or unmark a group"), key("esc", "leave them all typed")].concat()),
+        Line::from([key("enter", screen.enter), key("↑↓", "move")].concat()),
+        if screen.marks {
+            Line::from([key("space", "mark or unmark a group"), key("esc", screen.esc)].concat())
+        } else {
+            Line::from(key("esc", screen.esc))
+        },
     ];
     frame.render_widget(Paragraph::new(footer_lines), footer);
 }
@@ -179,8 +210,9 @@ mod tests {
 
     #[test]
     fn enter_starts_marked_groups_else_the_cursor() {
-        assert_eq!(starting(&[false, false, false], 1), vec![1]);
-        assert_eq!(starting(&[true, false, true], 1), vec![0, 2]);
+        assert_eq!(starting(&[false, false, false], 1, &START), vec![1]);
+        assert_eq!(starting(&[true, false, true], 1, &START), vec![0, 2]);
+        assert_eq!(starting(&[false, false], 1, &PARK), vec![0, 1]);
     }
 
     #[test]
