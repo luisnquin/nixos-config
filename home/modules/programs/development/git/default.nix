@@ -24,6 +24,13 @@
     lazygit.enable = true;
   };
 
+  programs.mergiraf = {
+    enable = true;
+    enableGitIntegration = true;
+  };
+
+  programs.git.settings.merge.conflictStyle = lib.mkForce "zdiff3";
+
   programs.git.settings.hook.knots = {
     event = "pre-commit";
     command = "${lib.getExe pkgs.knots} --staged -l rust --cognitive-threshold 15 --mccabe-threshold 15 --find-duplicates";
