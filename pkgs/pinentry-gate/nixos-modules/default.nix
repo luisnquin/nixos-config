@@ -19,7 +19,7 @@ in {
     user = lib.mkOption {
       type = lib.types.str;
       description = ''
-        Whose prompts these are. Owns the reserved console, and only this
+        Whose prompts these are. Holds an ACL on the reserved console, and only this
         user's graphical session counts as one to put a window on.
       '';
     };
@@ -83,7 +83,7 @@ in {
     };
 
     services.udev.extraRules = lib.mkIf (cfg.vt != null) ''
-      KERNEL=="tty${toString cfg.vt}", OWNER="${cfg.user}", MODE="0600"
+      KERNEL=="tty${toString cfg.vt}", MODE="0600", RUN+="${lib.getExe' pkgs.acl "setfacl"} -m u:${cfg.user}:rw /dev/%k"
     '';
 
     programs.gnupg.agent.pinentryPackage = lib.mkDefault cfg.package;
