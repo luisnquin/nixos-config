@@ -127,6 +127,8 @@ in {
     NIXOS_OZONE_WL = "1";
   };
 
+  services.hyprpolkitagent.enable = true;
+
   xdg.portal = {
     enable = lib.mkForce true;
     # xdgOpenUsePortal = true;
