@@ -10,7 +10,6 @@
       alsa.enable = true;
       alsa.support32Bit = true;
       pulse.enable = true;
-      jack.enable = true;
     };
 
     # ALSA provides a udev rule for restoring volume settings.
