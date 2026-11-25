@@ -71,7 +71,7 @@ in {
   # bin/agent collides with cursor-agent, which owns that name in the profile.
   home.packages = [(lib.lowPrio pkgs.llm-agents.grok)];
 
-  # Memories, permissions and skills come from ~/.claude via [compat.claude],
+  # Memories, permissions and skills come from $CLAUDE_CONFIG_DIR via [compat.claude],
   # enabled by default, so nothing is duplicated under ~/.grok.
   #
   # The TUI rewrites config.toml in place (settings pane, marketplace bootstrap)

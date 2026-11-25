@@ -461,7 +461,7 @@ fn git_status(cwd: &str) -> (String, usize, usize) {
 
 fn claude_transcript(session: &str) -> Option<PathBuf> {
     let name = format!("{session}.jsonl");
-    std::fs::read_dir(home().join(".claude").join("projects"))
+    std::fs::read_dir(xdg("CLAUDE_CONFIG_DIR", ".claude").join("projects"))
         .ok()?
         .filter_map(Result::ok)
         .map(|dir| dir.path().join(&name))

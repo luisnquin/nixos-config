@@ -9,8 +9,8 @@
   rtk = lib.getExe pkgs.rtk;
   herdrSession = kit.mkHerdrSessionCmd "codex";
 in {
-  home.file = {
-    ".codex/hooks.json" = {
+  xdg.configFile = {
+    "codex/hooks.json" = {
       source = (pkgs.formats.json {}).generate "codex-hooks" {
         hooks = {
           SessionStart = [
