@@ -21,6 +21,8 @@ python3Packages.buildPythonApplication rec {
     substituteInPlace src/davinci_resolve_mcp/resolve_api.py \
       --replace-fail 'resolve_script_dir = "/opt/resolve/Developer/Scripting"' \
         'resolve_script_dir = os.environ.get("RESOLVE_SCRIPT_API", "/opt/resolve/Developer/Scripting")'
+    substituteInPlace src/davinci_resolve_mcp/server.py \
+      --replace-fail 'from mcp.server.fastmcp import FastMCP' 'from mcp.server.mcpserver import MCPServer as FastMCP'
   '';
 
   build-system = [python3Packages.uv-build];
