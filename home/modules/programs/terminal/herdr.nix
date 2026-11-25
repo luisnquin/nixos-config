@@ -57,6 +57,7 @@ in {
         "HERDR_SESSION=hub"
         "ZDOTDIR=${config.programs.zsh.dotDir}"
         "WAYLAND_DISPLAY=wayland-1"
+        "DISPLAY=:0"
       ];
       Restart = "on-failure";
       RestartSec = 2;
