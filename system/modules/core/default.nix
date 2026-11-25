@@ -10,7 +10,6 @@
   ];
 
   environment = {
-    localBinInPath = true;
     profiles = lib.mkForce [
       "$HOME/.local/state/nix/profiles/profile"
       "/etc/profiles/per-user/$USER"
