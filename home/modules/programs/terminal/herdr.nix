@@ -185,6 +185,24 @@ in {
     run install -Dm644 ${pluginRegistry} "$HOME/.config/herdr/plugins.json"
   '';
 
+  # An override replaces the whole manifest; extend the bundled one so it
+  # follows herdr bumps.
+  xdg.configFile."herdr/agent-detection/claude.toml".text =
+    builtins.readFile "${pkgs.herdr.src}/src/detect/manifests/claude.toml"
+    + ''
+
+      [[rules]]
+      id = "blindfold_secret_prompt"
+      state = "blocked"
+      priority = 960
+      region = "whole_recent"
+      visible_blocker = true
+      line_regex = [
+        '(?i)the agent asks for [a-z_][a-z0-9_]*[\s│┃]*$',
+        '(?i)\bfrom clipboard[\s│┃]*$',
+      ]
+    '';
+
   home.packages = [pkgs.herdr-recall];
 
   programs.zsh.initContent = lib.mkAfter ''
