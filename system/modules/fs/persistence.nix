@@ -101,6 +101,14 @@
           mode = "0644";
         }
         {
+          file = "/etc/ssh/ssh_host_mldsa44_ed25519_key";
+          mode = "0600";
+        }
+        {
+          file = "/etc/ssh/ssh_host_mldsa44_ed25519_key.pub";
+          mode = "0644";
+        }
+        {
           file = "/etc/machine-id";
           how = "symlink";
           inInitrd = true;
