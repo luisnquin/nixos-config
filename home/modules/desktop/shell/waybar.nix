@@ -38,12 +38,10 @@
             "custom/battery"
           ];
 
-          # The monogram sits beside the sessions, not inside each row: repeating
-          # it per row is what broke the alignment against group/sysmon. Exactly
-          # one of ssh-solo and ssh-sessions carries text at any time.
+          # Exactly one of ssh-solo and ssh-sessions carries text at any time.
           "group/ssh" = {
             orientation = "horizontal";
-            modules = ["custom/ssh-icon" "custom/ssh-solo" "group/ssh-sessions"];
+            modules = ["custom/ssh-solo" "group/ssh-sessions"];
           };
 
           "group/ssh-sessions" = {
@@ -65,11 +63,6 @@
               "9" = "九";
               "10" = "十";
             };
-          };
-
-          "custom/ssh-icon" = {
-            format = "󰣀";
-            tooltip = false;
           };
 
           "custom/ssh-solo" = {
