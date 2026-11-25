@@ -45,7 +45,7 @@ numbers, so the sheet still lines up with the panes you are looking at. A leadin
 - The finished command is reported back as a `$last` metadata token, so a sidebar
   row can show it. Nothing is reported while the command is still running — the
   tab name already tracks that, and for agent panes nothing is reported at all.
-- Entries for panes herdr no longer knows about are kept for 30 days, then swept
+- Entries for panes herdr no longer knows about are kept for 7 days, then swept
   on the next event. That is what makes the sheet useful after a crash.
 
 ## Commands
@@ -55,6 +55,16 @@ numbers, so the sheet still lines up with the panes you are looking at. A leadin
 | `herdr-recall show` | print the sheet |
 | `herdr-recall show --json` | the same entries, unformatted |
 | `herdr-recall sync` | refresh from the socket API; also the event hook |
+| `herdr-recall mine` | start the agents herdr restored but left typed, newest first |
+
+`mine` is the welcome screen the hub terminal opens once per boot. With
+`session.resume_agents_on_restore`, herdr types each agent's resume line into
+its pane but does not run it. The screen lists those spaces the way the sidebar
+does, three to a colored group, with each conversation's title. Space marks
+groups; Enter starts the marked ones, or the one under the cursor when none is
+marked, with no prompt sent, and focuses the first in herdr. The rest keep
+their line typed. Esc starts nothing. A pane whose prompt no longer shows its
+resume line is left alone.
 
 `preexec` and `precmd` are for the shell hook.
 

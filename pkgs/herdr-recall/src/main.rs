@@ -4,7 +4,11 @@
 //! itself resumes from. Shell panes have no such event, so `shell/hook.zsh`
 //! reports each command as it starts and finishes.
 
-use std::collections::HashMap;
+mod welcome;
+
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -27,6 +31,7 @@ fn main() {
             args.get(2).map(String::as_str),
         ),
         Some("show") => show(args.iter().any(|arg| arg == "--json")),
+        Some("mine") => mine(),
         _ => sync(),
     }
 }
@@ -268,6 +273,142 @@ fn prune(live: &[String]) {
         }
         let _ = std::fs::remove_file(store_dir().join(format!("{}.json", key(&entry.pane_id))));
     }
+}
+
+fn mine() {
+    let spaces = paused();
+    if spaces.is_empty() {
+        return;
+    }
+    let picked = match welcome::run(&spaces) {
+        Ok(Some(picked)) => picked,
+        Ok(None) => return,
+        Err(err) => {
+            eprintln!("herdr-recall: {err}");
+            return;
+        }
+    };
+    for &index in &picked {
+        for (pane, session) in &spaces[index].panes {
+            if typed(pane, session) {
+                herdr_ok(&["pane", "send-keys", pane, "enter"]);
+            }
+        }
+    }
+    if let Some((pane, _)) = picked.first().and_then(|&index| spaces[index].panes.first()) {
+        herdr_ok(&["workspace", "focus", pane.split(':').next().unwrap_or(pane)]);
+    }
+}
+
+fn paused() -> Vec<welcome::Space> {
+    let list = |args: &[&str], key: &str| {
+        herdr(args)
+            .as_ref()
+            .and_then(|json| array(json, &["result", key]).cloned())
+            .unwrap_or_default()
+    };
+    let panes = list(&["pane", "list"], "panes");
+    let session = |pane: &JsonValue| string(at(pane, &["agent_session"])?, "value");
+    let running: HashSet<String> = panes
+        .iter()
+        .filter(|pane| string(pane, "agent").is_some())
+        .filter_map(session)
+        .collect();
+
+    let mut spaces: Vec<(u64, welcome::Space)> = Vec::new();
+    for workspace in list(&["workspace", "list"], "workspaces") {
+        let Some(id) = string(&workspace, "workspace_id") else {
+            continue;
+        };
+        let mut space = welcome::Space {
+            label: string(&workspace, "label").unwrap_or_else(|| id.clone()),
+            icon: at(&workspace, &["tokens"])
+                .and_then(|tokens| string(tokens, "icon"))
+                .unwrap_or_default(),
+            ..welcome::Space::default()
+        };
+        let used = panes
+            .iter()
+            .filter(|pane| string(pane, "workspace_id").as_ref() == Some(&id) && string(pane, "agent").is_none())
+            .filter_map(|pane| add_paused(&mut space, pane, session(pane)?, &running))
+            .max()
+            .unwrap_or(0);
+        if !space.panes.is_empty() {
+            spaces.push((used, space));
+        }
+    }
+    spaces.sort_by(|a, b| b.0.cmp(&a.0));
+    spaces.into_iter().map(|(_, space)| space).collect()
+}
+
+fn add_paused(space: &mut welcome::Space, pane: &JsonValue, value: String, running: &HashSet<String>) -> Option<u64> {
+    let pane_id = string(pane, "pane_id")?;
+    if running.contains(&value) || !typed(&pane_id, &value) {
+        return None;
+    }
+    let agent = at(pane, &["agent_session"])
+        .and_then(|session| string(session, "agent"))
+        .unwrap_or_default();
+    let transcript = (agent == "claude").then(|| claude_transcript(&value)).flatten();
+    let modified = transcript
+        .as_ref()
+        .and_then(|path| path.metadata().ok()?.modified().ok()?.duration_since(UNIX_EPOCH).ok());
+    space.titles.push(transcript.and_then(|path| claude_title(&path)).unwrap_or(agent));
+    if space.branch.is_empty() {
+        if let Some(cwd) = string(pane, "cwd") {
+            (space.branch, space.ahead, space.behind) = git_status(&cwd);
+        }
+    }
+    space.panes.push((pane_id, value));
+    Some(modified.map_or(0, |since| since.as_secs()))
+}
+
+/// Whether the pane's prompt still holds the resume line, so Enter runs it and
+/// not whatever was typed there since.
+fn typed(pane_id: &str, session: &str) -> bool {
+    herdr_stdout(&["pane", "read", pane_id, "--source", "recent-unwrapped", "--lines", "5"])
+        .and_then(|text| Some(text.lines().rev().find(|line| !line.trim().is_empty())?.contains(session)))
+        .unwrap_or(false)
+}
+
+fn git_status(cwd: &str) -> (String, usize, usize) {
+    let git = |args: &[&str]| {
+        let out = Command::new("git").arg("-C").arg(cwd).args(args).output().ok()?;
+        out.status.success().then_some(())?;
+        Some(String::from_utf8(out.stdout).ok()?.trim().to_string())
+    };
+    let branch = git(&["branch", "--show-current"]).unwrap_or_default();
+    let counts = git(&["rev-list", "--left-right", "--count", "HEAD...@{u}"]).unwrap_or_default();
+    let mut counts = counts.split_whitespace().map(|count| count.parse().unwrap_or_default());
+    (branch, counts.next().unwrap_or_default(), counts.next().unwrap_or_default())
+}
+
+fn claude_transcript(session: &str) -> Option<PathBuf> {
+    let name = format!("{session}.jsonl");
+    std::fs::read_dir(home().join(".claude").join("projects"))
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|dir| dir.path().join(&name))
+        .find(|path| path.is_file())
+}
+
+/// A `/rename` beats the title Claude generated, which beats the last prompt;
+/// the last of each wins.
+fn claude_title(transcript: &Path) -> Option<String> {
+    let mut found: [Option<String>; 3] = Default::default();
+    let fields = [
+        ("\"type\":\"custom-title\"", "customTitle"),
+        ("\"type\":\"ai-title\"", "aiTitle"),
+        ("\"type\":\"last-prompt\"", "lastPrompt"),
+    ];
+    for line in BufReader::new(File::open(transcript).ok()?).lines().map_while(Result::ok) {
+        for (slot, (needle, field)) in found.iter_mut().zip(fields) {
+            if line.contains(needle) {
+                *slot = line.parse::<JsonValue>().ok().and_then(|json| string(&json, field)).or(slot.take());
+            }
+        }
+    }
+    found.into_iter().flatten().next().map(|title| clean(&title).unwrap_or(title))
 }
 
 fn show(as_json: bool) {
@@ -569,5 +710,23 @@ mod tests {
     fn pane_ids_are_safe_file_names() {
         assert_eq!(key("w1:p2"), "w1%3Ap2");
         assert_eq!(key("../etc"), "..%2Fetc");
+    }
+
+    #[test]
+    fn claude_title_prefers_the_latest_custom_title() {
+        let path = std::env::temp_dir().join(format!("herdr-recall-title-{}.jsonl", std::process::id()));
+        let lines = [
+            r#"{"type":"last-prompt","lastPrompt":"fix the  build"}"#,
+            r#"{"type":"ai-title","aiTitle":"Build fix"}"#,
+            r#"{"type":"custom-title","customTitle":"old"}"#,
+            r#"{"type":"custom-title","customTitle":"welcome screen"}"#,
+        ];
+        std::fs::write(&path, lines.join("\n")).unwrap();
+        assert_eq!(claude_title(&path), Some("welcome screen".into()));
+        std::fs::write(&path, lines[..2].join("\n")).unwrap();
+        assert_eq!(claude_title(&path), Some("Build fix".into()));
+        std::fs::write(&path, lines[0]).unwrap();
+        assert_eq!(claude_title(&path), Some("fix the build".into()));
+        std::fs::remove_file(&path).unwrap();
     }
 }

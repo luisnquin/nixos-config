@@ -6,4 +6,9 @@ description = "remembers what each herdr pane was running across a restart"
 license = "MIT"
 
 [dependencies]
+ratatui = "0.30"
 tinyjson = "2"
+
+[profile.release]
+lto = true
+strip = true

@@ -7,6 +7,12 @@
   herdrSession = pkgs.writeShellScript "herdr-scratchpad-session" ''
     export ZDOTDIR=${lib.escapeShellArg config.programs.zsh.dotDir}
     systemctl --user start herdr-hub.service || true
+    # The runtime dir is a tmpfs, so the welcome menu shows once per boot.
+    welcomed="$XDG_RUNTIME_DIR/herdr-recall-welcomed"
+    if [ ! -e "$welcomed" ]; then
+      touch "$welcomed"
+      HERDR_SESSION=hub ${lib.getExe pkgs.herdr-recall} mine || true
+    fi
     exec ${lib.getExe pkgs.herdr} --session hub
   '';
 
