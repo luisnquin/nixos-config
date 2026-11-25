@@ -21,7 +21,10 @@
 
   time.timeZone = host.timeZone;
 
-  services.chrony.enable = true;
+  services.chrony = {
+    enable = true;
+    autotrimThreshold = 5;
+  };
 
   i18n.defaultLocale = host.i18nLocale;
   # location.provider = "geoclue2";
