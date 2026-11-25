@@ -21,7 +21,13 @@
     sessions = [
       {
         name = "hyprland";
-        command = ["${pkgs.hyprland}/bin/start-hyprland"];
+        command = [
+          "${pkgs.writeShellScript "hyprland-session" ''
+            vars="$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+            [ -r "$vars" ] && . "$vars"
+            exec ${pkgs.hyprland}/bin/start-hyprland
+          ''}"
+        ];
       }
       {
         name = "tty";
