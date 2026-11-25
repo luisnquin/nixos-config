@@ -29,7 +29,7 @@
       vlc = ["vlc.desktop"];
       zathura = ["zathura.desktop"];
       zed = ["dev.zed.Zed.desktop"];
-      claude = ["claude-desktop.desktop"];
+      claude = ["com.anthropic.Claude.desktop"];
 
       associations = {
         "inode/directory" = nautilus;
