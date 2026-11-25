@@ -10,7 +10,7 @@
       enable = false;
       targets = ["graphical-session.target"];
     };
-    style = builtins.readFile ./waybar.css + import ./widgets/battery/icon.nix {inherit lib pkgs;};
+    style = builtins.readFile ./waybar.css + import ./widgets/battery/icon.nix {inherit lib pkgs;} + import ./widgets/heft/icon.nix {inherit lib pkgs;};
     settings = [
       ({
           "position" = "top";

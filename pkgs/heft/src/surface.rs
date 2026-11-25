@@ -7,7 +7,7 @@ use crate::util::{human, human_delta};
 pub struct WaybarOutput {
     pub text: String,
     pub tooltip: String,
-    pub class: String,
+    pub class: Vec<String>,
     pub percentage: u64,
 }
 
@@ -39,7 +39,7 @@ pub fn waybar(rollup: &Rollup, thresholds: &Thresholds) -> WaybarOutput {
     };
 
     let mut lines = vec![format!(
-        "{} free of {} · {:.0}% used",
+        "Disk: {} free of {} · {:.0}% used",
         human(free),
         human(rollup.filesystem.total),
         rollup.pct_used
@@ -72,15 +72,17 @@ pub fn waybar(rollup: &Rollup, thresholds: &Thresholds) -> WaybarOutput {
     lines.push(format!("updated {}", rollup.updated_label));
 
     WaybarOutput {
-        text: compact(&human(free)),
+        text: " ".into(),
         tooltip: escape_pango(&lines.join("\n")),
-        class: class.into(),
+        class: vec![
+            class.into(),
+            format!(
+                "level-{}",
+                (rollup.pct_used * 16.0 / 100.0).round().clamp(0.0, 16.0) as u8
+            ),
+        ],
         percentage: rollup.pct_used.round().clamp(0.0, 100.0) as u64,
     }
-}
-
-pub fn compact(free: &str) -> String {
-    format!("<span size=\"9pt\">󰋊</span> <span size=\"7.5pt\">{free}</span>")
 }
 
 /// Waybar renders tooltips as Pango markup, so a stray `&` or `<` in a game
@@ -120,9 +122,33 @@ mod tests {
     #[test]
     fn class_escalates_as_free_space_falls() {
         let t = Thresholds::default();
-        assert_eq!(waybar(&rollup(400 * 1024 * 1024 * 1024), &t).class, "ample");
-        assert_eq!(waybar(&rollup(80 * 1024 * 1024 * 1024), &t).class, "tight");
-        assert_eq!(waybar(&rollup(20 * 1024 * 1024 * 1024), &t).class, "cramped");
+        assert_eq!(
+            waybar(&rollup(400 * 1024 * 1024 * 1024), &t).class[0],
+            "ample"
+        );
+        assert_eq!(
+            waybar(&rollup(80 * 1024 * 1024 * 1024), &t).class[0],
+            "tight"
+        );
+        assert_eq!(
+            waybar(&rollup(20 * 1024 * 1024 * 1024), &t).class[0],
+            "cramped"
+        );
+    }
+
+    #[test]
+    fn level_is_used_share_in_sixteenths() {
+        let t = Thresholds::default();
+        let mut r = rollup(400 * 1024 * 1024 * 1024);
+        for (pct, level) in [
+            (0.0, "level-0"),
+            (9.0, "level-1"),
+            (80.0, "level-13"),
+            (100.0, "level-16"),
+        ] {
+            r.pct_used = pct;
+            assert_eq!(waybar(&r, &t).class[1], level);
+        }
     }
 
     #[test]
