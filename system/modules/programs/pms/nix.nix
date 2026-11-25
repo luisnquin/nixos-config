@@ -13,6 +13,7 @@
 
     daemonCPUSchedPolicy = "idle";
     daemonIOSchedClass = "idle";
+    buildLogRetention = "30d";
 
     # Native aarch64 instead of binfmt emulation; port and host key come from ssh config and identity.
     distributedBuilds = true;

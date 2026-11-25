@@ -16,7 +16,7 @@
         behavior = "drop";
         backend = "gpg";
       };
-      git.sign-on-push = true;
+      revsets.git-sign-on-push = "~signed() & mine()";
     };
   };
 }

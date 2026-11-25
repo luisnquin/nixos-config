@@ -5,6 +5,7 @@
 in {
   programs.zed-editor = {
     enable = true;
+    enableMcpIntegration = true;
 
     mutableUserSettings = false;
     mutableUserKeymaps = false;
