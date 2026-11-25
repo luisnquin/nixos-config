@@ -9,6 +9,11 @@
   # command with full privileges, exempt from the sandbox and bounding set.
   systemd.services.avahi-daemon.serviceConfig.ExecStartPre = "+${pkgs.coreutils}/bin/rm -f /run/avahi-daemon/pid";
 
+  services.resolved.settings.Resolve = {
+    MulticastDNS = false;
+    LLMNR = false;
+  };
+
   services.avahi = {
     enable = true;
     nssmdns4 = true;
