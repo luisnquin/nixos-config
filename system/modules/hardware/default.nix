@@ -6,4 +6,6 @@
     ./outage.nix
     ./usb.nix
   ];
+
+  services.fwupd.enable = true;
 }

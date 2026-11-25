@@ -17,8 +17,8 @@
         "/var/lib/alsa"
         "/var/lib/fail2ban"
         "/var/lib/flatpak"
+        "/var/lib/fwupd"
         "/var/lib/libvirt"
-        "/var/lib/power-profiles-daemon"
         "/var/lib/sshguard"
         {
           directory = "/root";
