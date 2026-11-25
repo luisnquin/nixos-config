@@ -52,6 +52,8 @@ pub struct Entry {
     #[serde(default)]
     pub pick: Option<Pick>,
     #[serde(default)]
+    pub consent: Option<bool>,
+    #[serde(default)]
     pub lease: Lease,
 }
 
@@ -146,6 +148,10 @@ impl Config {
             Some(kind) => kind == Kind::Physical,
             None => matches!(device.platform, Platform::Android | Platform::Ios),
         }
+    }
+
+    pub fn consent(&self, device: &Device) -> bool {
+        self.entry(device).and_then(|e| e.consent).unwrap_or_else(|| self.physical(device))
     }
 
     pub fn clones(&self, host: Option<&str>) -> bool {
@@ -273,6 +279,18 @@ ttl = "2m"
 
         assert_eq!(virtualized.pick(&handset), Pick::Normal);
         assert_eq!(normal.pick(&handset), Pick::Normal);
+    }
+
+    #[test]
+    fn a_handset_asks_for_consent_and_an_emulator_does_not_unless_configured() {
+        let handset = Device::new("R58N", "faraday", Platform::Android);
+        let pixel = avd("pixel_7-api36");
+
+        assert!(Config::default().consent(&handset));
+        assert!(!Config::default().consent(&pixel));
+        assert!(!Config::parse("[devices.faraday]\nkind = \"virtual\"").unwrap().consent(&handset));
+        assert!(!Config::parse("[devices.faraday]\nconsent = false").unwrap().consent(&handset));
+        assert!(Config::parse("[devices.pixel_7-api36]\nconsent = true").unwrap().consent(&pixel));
     }
 
     #[test]

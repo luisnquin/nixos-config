@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::agent::{self, Agent, Harness};
+use crate::consent::{self, Grant, Pending};
 use crate::model::{self, Device, Platform, Unix, View, AVD_PREFIX};
 use crate::project::Project;
 use crate::ssh::{Ran, Status, Where};
@@ -232,6 +233,10 @@ pub struct Ledger {
     pub displays: BTreeSet<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub locks: BTreeMap<String, Lock>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub grants: BTreeMap<String, BTreeMap<String, Grant>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub asking: BTreeMap<String, Pending>,
 }
 
 #[derive(Deserialize)]
@@ -288,9 +293,7 @@ impl Ledger {
         Ledger {
             v: 2,
             leases,
-            installed: BTreeMap::new(),
-            displays: BTreeSet::new(),
-            locks: BTreeMap::new(),
+            ..Ledger::default()
         }
     }
 
@@ -609,10 +612,11 @@ pub fn take() -> Take {
 }
 
 pub async fn hold(view: &View) -> Result<Lease> {
+    let granted = consent::gate(view).await?;
     let take = take();
     let ttl = config::get().ttl(&view.device);
 
-    if take == Take::Respect && config::get().physical(&view.device) {
+    if take == Take::Respect && !granted && config::get().physical(&view.device) {
         if let Some(age) = actions::last_human(&view.server, &view.device).await.filter(|a| *a < ttl) {
             let book = Book::open(&ledger_of(&view.device)).await?;
             let since = match book.standing(&view.device, actions::running(&view.reach)) {
@@ -632,7 +636,7 @@ pub async fn hold(view: &View) -> Result<Lease> {
         }
     }
 
-    match acquire(view, take).await? {
+    match claim(view, take).await? {
         Got::Held(lease) => Ok(lease),
         Got::Busy(lease) => Err(refusal(view, &lease).into()),
     }
@@ -645,6 +649,12 @@ pub enum Got {
 }
 
 pub async fn acquire(view: &View, take: Take) -> Result<Got> {
+    consent::gate(view).await?;
+
+    claim(view, take).await
+}
+
+async fn claim(view: &View, take: Take) -> Result<Got> {
     let at = ledger_of(&view.device);
     let mut book = Book::open(&at).await?;
 
@@ -788,6 +798,25 @@ pub async fn displayed(view: &View, on: bool) -> Result<()> {
 
         match book.commit(&ledger, &[]).await? {
             Ok(_) => return Ok(()),
+            Err(newer) => book = newer,
+        }
+    }
+
+    bail!("the leases on {} kept changing under this run; try again", at.label())
+}
+
+pub async fn amend(at: &Where, mut change: impl FnMut(&mut Ledger) -> bool) -> Result<Ledger> {
+    let mut book = Book::fetch(at).await?;
+
+    for _ in 0..RETRIES {
+        let mut ledger = book.ledger.clone();
+
+        if !change(&mut ledger) {
+            return Ok(ledger);
+        }
+
+        match book.commit(&ledger, &[]).await? {
+            Ok(_) => return Ok(ledger),
             Err(newer) => book = newer,
         }
     }
@@ -1135,7 +1164,7 @@ pub fn heartbeat(view: &View) -> Beat {
         loop {
             tokio::time::sleep(every).await;
 
-            let _ = acquire(&view, Take::Respect).await;
+            let _ = claim(&view, Take::Respect).await;
         }
     }))
 }

@@ -1,0 +1,58 @@
+.phone-box button {
+  background-image: none;
+  box-shadow: none;
+  text-shadow: none;
+  outline: none;
+  min-height: 0;
+  min-width: 0;
+}
+
+.phone-box {
+  background-color: rgba(29, 16, 58, 0.98);
+  border: 1px solid rgba(181, 232, 224, 0.14);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.phone-device {
+  border-left: 2px solid rgba(181, 232, 224, 0.2);
+  padding: 3px 0 3px 8px;
+}
+
+.phone-device.held { border-left-color: #b5e8e0; }
+.phone-device.granted { border-left-color: rgba(181, 232, 224, 0.6); }
+.phone-device.asking { border-left-color: #f8bd96; }
+.phone-device.locked { border-left-color: #f28fad; }
+
+.phone-name {
+  color: #cdd6f4;
+}
+
+.phone-detail,
+.phone-empty {
+  color: rgba(205, 214, 244, 0.45);
+  font-size: 8pt;
+}
+
+.phone-act {
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: rgba(205, 214, 244, 0.6);
+  font-size: 8pt;
+}
+
+.phone-act:hover {
+  background-color: rgba(181, 232, 224, 0.10);
+  border-color: rgba(181, 232, 224, 0.20);
+  color: #b5e8e0;
+}
+
+.phone-act.refuse:hover,
+.phone-act.stop:hover {
+  background-color: rgba(242, 143, 173, 0.12);
+  border-color: rgba(242, 143, 173, 0.28);
+  color: #f28fad;
+}

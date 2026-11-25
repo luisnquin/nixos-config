@@ -66,7 +66,7 @@ const OVERVIEW: &str = r#"How this is meant to be used
 
 The commands
 
-  project  up down release ask lock unlock run status
+  project  up down release ask lock unlock grant run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
   app      install launch stop open logs notifications push
@@ -243,6 +243,40 @@ raises a desktop notification on the machine the agent runs on."#)]
     Unlock {
         #[arg(id = "device")]
         target: Option<String>,
+    },
+
+    #[command(about = "Say whether an agent may use a device that needs your consent", after_help = r#"Examples:
+  phone grant faraday allow
+  phone grant faraday allow --for 15m
+  phone grant faraday refuse --agent codex:thread-b
+  phone grant faraday stop
+  phone grant --waybar
+
+Human shells only. A device needs consent when its config says `consent = true`,
+which it does by default when it is physical. An agent reaching such a device
+with no grant raises a desktop prompt and waits up to a minute for it. Without
+--agent a verdict goes to the agent holding the device, else the one waiting on
+its prompt. `stop` drops the grant and that agent's lease, so its next verb asks
+again; `ask` only drops the grant. Changes are logged to grants.jsonl in the
+state directory."#)]
+    Grant {
+        #[arg(id = "device")]
+        target: Option<String>,
+
+        #[arg(value_enum)]
+        verdict: Option<Verdict>,
+
+        #[arg(long, help = "The agent id to rule on, instead of the device's holder")]
+        agent: Option<String>,
+
+        #[arg(long = "for", value_parser = parse_duration, help = "With allow: only for this long")]
+        window: Option<Duration>,
+
+        #[arg(long, conflicts_with = "waybar", help = "Every consent device and its state, as JSON")]
+        json: bool,
+
+        #[arg(long, help = "The same, as one line for a waybar custom module")]
+        waybar: bool,
     },
 
     #[command(about = "Run a command against the device this agent holds, with plain adb pointed at it", after_help = r#"Examples:
@@ -1340,7 +1374,7 @@ impl Command {
     /// positionally. Those verbs share a resolved device, which is what lets a
     /// sequence of them survey once instead of once each.
     pub fn leases(&self) -> bool {
-        matches!(self, Command::Release { .. } | Command::Ask { .. } | Command::Lock { .. } | Command::Unlock { .. })
+        matches!(self, Command::Release { .. } | Command::Ask { .. } | Command::Lock { .. } | Command::Unlock { .. } | Command::Grant { .. })
     }
 
     pub fn on_screen(&self) -> Option<Option<&str>> {
@@ -1403,6 +1437,14 @@ impl Cli {
 pub enum Screen {
     Main,
     External,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum Verdict {
+    Allow,
+    Refuse,
+    Stop,
+    Ask,
 }
 
 #[derive(Copy, Clone, ValueEnum)]

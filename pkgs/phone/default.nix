@@ -15,6 +15,8 @@
   tailscale,
   wl-clipboard,
 }: let
+  waybarSignal = 10;
+
   # Split by hand rather than filtered on `lib.meta.availableOn`, which only
   # reads the top package's own platform list: wl-clipboard claims unix and then
   # fails on a wayland it can only have here.
@@ -76,12 +78,15 @@ in
         --zsh <($out/bin/phone completions zsh)
 
       wrapProgram $out/bin/phone \
-        --prefix PATH : ${lib.makeBinPath runtimeInputs}
+        --prefix PATH : ${lib.makeBinPath runtimeInputs} \
+        --set-default PHONE_WAYBAR_SIGNAL ${toString waybarSignal}
     '';
 
     # The far side of the ssh link: the accessibility bridge, which only builds
     # on darwin. Kept in passthru rather than as an input so this derivation does
     # not carry a mac-only dependency on linux.
+    passthru.waybarSignal = waybarSignal;
+
     passthru.receiver = callPackage ./receiver {};
 
     passthru.claudePlugin = lib.fileset.toSource {

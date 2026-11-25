@@ -43,4 +43,5 @@ in
     "network"
     "tailscale"
     "heft"
+    "phone"
   ]

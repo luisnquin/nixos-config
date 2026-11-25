@@ -30,6 +30,12 @@
         description = "Where the allocator ranks the device; never means only an explicit target reaches it.";
       };
 
+      consent = mkOption {
+        type = types.nullOr types.bool;
+        default = null;
+        description = "Whether an agent needs the user's grant to use the device; defaults to whether it is physical.";
+      };
+
       lease.ttl = ttl;
     };
   };
@@ -57,6 +63,7 @@
           _: d:
             {inherit (d) pick;}
             // optionalAttrs (d.kind != null) {inherit (d) kind;}
+            // optionalAttrs (d.consent != null) {inherit (d) consent;}
             // leaseOf d.lease
         )
         cfg.devices;

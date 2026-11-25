@@ -40,6 +40,7 @@ mod calls;
 mod cli;
 mod config;
 mod connect;
+mod consent;
 mod daemon;
 mod discover;
 mod doctor;
@@ -87,6 +88,17 @@ use model::{Platform, View};
 use project::Project;
 use registry::Registry;
 
+fn is_housekeeping(command: &Command) -> bool {
+    matches!(
+        command,
+        Command::Hook { .. }
+            | Command::Completions { .. }
+            | Command::Daemon { .. }
+            | Command::Grant { json: true, .. }
+            | Command::Grant { waybar: true, .. }
+    )
+}
+
 fn main() -> ExitCode {
     // Rust ignores SIGPIPE, so a write to a closed pipe comes back as an error
     // that `println!` panics on. `phone snapshot | head` is how a long dump is
@@ -99,7 +111,7 @@ fn main() -> ExitCode {
     let cli = help::parse();
 
     match &cli.command {
-        Some(Command::Hook { .. } | Command::Completions { .. } | Command::Daemon { .. }) => calls::skip(),
+        Some(command) if is_housekeeping(command) => calls::skip(),
         None | Some(Command::Stream { .. } | Command::Mirror { .. } | Command::Record { .. }) => {
             calls::quiet()
         }
@@ -605,6 +617,11 @@ async fn lease_cmd(reg: &mut Registry, command: Command, want: impl Fn(Option<St
         Command::Ask { text } => ask_cmd(reg, want(None), &text).await,
         Command::Lock { target } => lock_cmd(reg, want(target), true).await,
         Command::Unlock { target } => lock_cmd(reg, want(target), false).await,
+        Command::Grant { target, verdict, agent, window, json, waybar } => match verdict {
+            Some(verdict) => grant_cmd(reg, want(target), verdict, agent.as_deref(), window).await,
+            None if json || waybar => consent::report(reg, waybar).await,
+            None => bail!("say allow, refuse, stop or ask, or pass --json"),
+        },
         _ => unreachable!("dispatch routes only the lease verbs here"),
     }
 }
@@ -673,6 +690,18 @@ async fn lock_cmd(reg: &mut Registry, want: Option<String>, on: bool) -> Result<
         (false, true) => eprintln!("phone: unlocked {}", view.device.label),
         (false, false) => eprintln!("phone: {} was not locked", view.device.label),
     }
+
+    Ok(())
+}
+
+async fn grant_cmd(reg: &mut Registry, want: Option<String>, verdict: cli::Verdict, agent: Option<&str>, window: Option<std::time::Duration>) -> Result<()> {
+    let Some(want) = want else {
+        bail!("name the device: `phone grant NAME allow`");
+    };
+
+    let device = consent::named(reg, &want)?;
+
+    eprintln!("phone: {}", consent::rule(&device, verdict, agent, window).await?);
 
     Ok(())
 }

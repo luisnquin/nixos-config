@@ -41,6 +41,12 @@
         default-timeout = 2000;
         group-by = "category";
       };
+      "app-name=phone-consent" = {
+        border-color = "#f8bd96";
+        on-button-left = "invoke-action allow";
+        on-button-middle = "invoke-action window";
+        on-button-right = "invoke-action refuse";
+      };
     };
   };
 }
