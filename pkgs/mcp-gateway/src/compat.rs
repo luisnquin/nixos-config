@@ -102,7 +102,7 @@ pub const OLDEST_TRANSLATABLE: Version = V2025_03_26;
 pub const NEWEST_TRANSLATABLE: Version = V2025_11_25;
 
 /// Revision the gateway speaks upstream unless configured otherwise.
-pub const DEFAULT_CANONICAL_VERSION: &str = "2025-06-18";
+pub const DEFAULT_CANONICAL_VERSION: &str = "2025-11-25";
 
 const BATCHING_REJECTION: &str =
     "JSON-RPC batching was removed in MCP 2025-06-18 and the gateway never batches upstream";

@@ -146,8 +146,8 @@ in {
 
     protocolVersion = mkOption {
       type = types.strMatching "[0-9]{4}-[0-9]{2}-[0-9]{2}";
-      default = "2025-06-18";
-      example = "2025-11-25";
+      default = "2025-11-25";
+      example = "2025-06-18";
       description = ''
         MCP revision proposed to every upstream server, whatever the clients
         negotiate. Clients sharing one process are each answered in their own
