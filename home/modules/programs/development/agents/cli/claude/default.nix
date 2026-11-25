@@ -51,6 +51,7 @@ in {
 
   programs.claude-code = {
     enable = true;
+    mutableSettings = false;
     package = pkgs.llm-agents.claude-code;
     enableMcpIntegration = true;
     mcpServers = kit.mkMcpServers {};
