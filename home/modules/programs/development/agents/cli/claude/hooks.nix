@@ -46,6 +46,11 @@
     ]);
     text = builtins.readFile ../../hooks/command-rules.sh;
   };
+  interruptLog = pkgs.writeShellApplication {
+    name = "agent-interrupt-log";
+    runtimeInputs = [pkgs.jq pkgs.coreutils pkgs.gnugrep];
+    text = builtins.readFile ../../hooks/interrupt-log.sh;
+  };
   upgraded = timeout: {
     hooks = [
       {
@@ -129,6 +134,7 @@ in {
             (kit.mkTerminalStatusCmd "working" "claude · working")
             (kit.mkCancelNotificationCmd {sequenceId = "claude-awaiting-input";})
             (kit.mkAudioCmd [kit.sounds.ifrsig])
+            "${lib.getExe interruptLog} || true"
           ];
         })
       ];
