@@ -55,5 +55,5 @@ Do not skip a step. Do not take one the user did not allow.
 - Report:
   - what changed;
   - the proof;
-  - anything left behind, recorded with techdebt-mcp if it is debt;
+  - anything left behind;
   - anything noticed out of scope.

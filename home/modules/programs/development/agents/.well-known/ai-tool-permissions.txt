@@ -24,7 +24,6 @@
 + mcp__plugin_claude-code-home-manager_context7__*
 + mcp__plugin_claude-code-home-manager_encore__*
 + mcp__plugin_claude-code-home-manager_sequential-thinking__sequential_thinking
-+ mcp__plugin_claude-code-home-manager_techdebt-mcp__*
 + Skill(commit)
 + Bash(tailscale status:*)
 + Bash(psql:*)

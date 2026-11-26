@@ -123,10 +123,6 @@
         utils.follows = "flake-utils";
       };
     };
-    techdebt-cli = {
-      url = "github:0xc000022070/techdebt-cli";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     upgrade = {
       url = "github:0xc000022070/upgrade";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -218,7 +214,6 @@
       inputs.nao.homeManagerModules.default
       inputs."3mf2stl".homeModules.default
       inputs.encore.homeModules.default
-      inputs.techdebt-cli.homeModules.default
       inputs.upgrade.homeModules.default
       ./pkgs/hm-modules
       ./home/options

@@ -1136,7 +1136,6 @@
         "rust-overlay": "rust-overlay",
         "sops-nix": "sops-nix",
         "systems": "systems_2",
-        "techdebt-cli": "techdebt-cli",
         "upgrade": "upgrade",
         "zen-browser": "zen-browser"
       }
@@ -1229,26 +1228,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "techdebt-cli": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1782917956,
-        "narHash": "sha256-VClVthTYdH9lHzDz73NVmgjldzIGJo2KLvC8SttALkA=",
-        "owner": "0xc000022070",
-        "repo": "techdebt-cli",
-        "rev": "b0630170d06535cd269f9554ad8e1127d00e0728",
-        "type": "github"
-      },
-      "original": {
-        "owner": "0xc000022070",
-        "repo": "techdebt-cli",
         "type": "github"
       }
     },
