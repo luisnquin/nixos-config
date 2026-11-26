@@ -18,6 +18,7 @@ use crate::config;
 
 const WINDOW: Unix = 15 * 60;
 const PROMPT: Duration = Duration::from_secs(70);
+const WAIT: Duration = Duration::from_secs(10 * 60);
 const POLL: Duration = Duration::from_secs(2);
 const STALE: Unix = 90;
 const RECENT: Unix = 7 * 24 * 3600;
@@ -39,6 +40,8 @@ pub struct Grant {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub until: Option<Unix>,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why: Option<String>,
 }
 
 impl Grant {
@@ -60,6 +63,49 @@ pub struct Pending {
     pub agent: String,
     pub label: String,
     pub at: Unix,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why: Option<String>,
+}
+
+fn asking(me: &Agent, now: Unix) -> Pending {
+    Pending {
+        agent: me.id.clone(),
+        label: tag(Some(me.harness), &me.label),
+        at: now,
+        why: lease::why(),
+    }
+}
+
+fn session(agent: &str) -> &str {
+    agent.split_once('/').map_or(agent, |(session, _)| session)
+}
+
+fn hand_over(ledger: &mut Ledger, key: &lease::Key, to: &str) -> Vec<(String, Grant)> {
+    if to == ANY {
+        return Vec::new();
+    }
+
+    let mut gone = Vec::new();
+
+    if let Some(grants) = ledger.grants.get_mut(&key.id) {
+        let others: Vec<String> = grants
+            .iter()
+            .filter(|(agent, g)| session(agent) != session(to) && agent.as_str() != ANY && g.state != State::Refuse)
+            .map(|(agent, _)| agent.clone())
+            .collect();
+
+        for agent in others {
+            if let Some(grant) = grants.remove(&agent) {
+                gone.push((agent, grant));
+            }
+        }
+    }
+
+    if ledger.get(key).is_some_and(|(_, l)| l.harness != Some(Harness::User) && session(&l.agent) != session(to)) {
+        ledger.drop_key(key);
+    }
+
+    gone
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -115,7 +161,8 @@ pub async fn gate(view: &View) -> Result<bool> {
     }
 
     let at = lease::ledger_of(&view.device);
-    let id = lease::key(&view.device).id;
+    let key = lease::key(&view.device);
+    let id = key.id.clone();
     let name = &view.device.label;
     let now = model::now();
     let mut lapsed = None;
@@ -131,13 +178,7 @@ pub async fn gate(view: &View) -> Result<bool> {
             lapsed = revoke(ledger, &id, &key.clone());
         }
 
-        let pending = Pending {
-            agent: me.id.clone(),
-            label: tag(Some(me.harness), &me.label),
-            at: now,
-        };
-
-        ledger.asking.insert(id.clone(), pending);
+        ledger.asking.insert(id.clone(), asking(me, now));
         true
     })
     .await?;
@@ -152,39 +193,57 @@ pub async fn gate(view: &View) -> Result<bool> {
         record(name, &me.id, &old.label, Some(old), None, "expiry");
     }
 
-    let decided = tokio::select! {
-        grant = consult(prompt, name, me, now) => Some(grant),
-        () = elsewhere(&at, &id, &me.id) => None,
+    let answered = tokio::select! {
+        grant = consult(prompt, name, me, now) => grant,
+        () = elsewhere(&at, &id, me) => None,
     };
 
-    let ledger = settle(&at, &id, name, me, decided).await?;
+    let decided = match answered {
+        Some(grant) => Some(Some(grant)),
+        None if tokio::time::timeout(WAIT, elsewhere(&at, &id, me)).await.is_ok() => None,
+        None => Some(None),
+    };
+
+    let ledger = settle(&at, &key, name, me, decided).await?;
 
     match ruling(&ledger, &id, &me.id, model::now()) {
         Ruling::Granted => Ok(true),
         Ruling::Refused => Err(refused(name).into()),
         Ruling::Ask => Err(crate::Refused(format!(
-            "{name} needs the user's consent and nobody answered the desktop prompt; ask the user in chat to allow it (`phone grant {name} allow`), then retry"
+            "{name} needs the user's consent and nobody answered in {}m; ask the user in chat to allow it from the phone panel or `phone grant {name} allow`, then retry",
+            WAIT.as_secs() / 60
         ))
         .into()),
     }
 }
 
-async fn settle(at: &Where, id: &str, name: &str, me: &Agent, decided: Option<Option<Grant>>) -> Result<Ledger> {
+async fn settle(at: &Where, key: &lease::Key, name: &str, me: &Agent, decided: Option<Option<Grant>>) -> Result<Ledger> {
+    let id = &key.id;
     let mut was = None;
+    let mut gone = Vec::new();
     let ledger = lease::amend(at, |ledger| {
         if ledger.asking.get(id).is_some_and(|p| p.agent == me.id) {
             ledger.asking.remove(id);
         }
 
         was = grant_of(ledger, id, &me.id).map(|(_, g)| g.clone());
+        gone.clear();
 
         if let Some(Some(grant)) = &decided {
+            if grant.state != State::Refuse {
+                gone = hand_over(ledger, key, &me.id);
+            }
+
             ledger.grants.entry(id.to_string()).or_default().insert(me.id.clone(), grant.clone());
         }
 
         true
     })
     .await?;
+
+    for (agent, grant) in &gone {
+        record(name, agent, &grant.label, Some(grant), None, "handover");
+    }
 
     match &decided {
         Some(Some(grant)) => record(name, &me.id, &grant.label, was.as_ref(), Some(grant), "prompt"),
@@ -201,14 +260,31 @@ fn refused(name: &str) -> crate::Refused {
     ))
 }
 
-async fn elsewhere(at: &Where, device: &str, agent: &str) {
+async fn elsewhere(at: &Where, device: &str, me: &Agent) {
     loop {
         tokio::time::sleep(POLL).await;
 
-        if let Ok(book) = Book::fetch(at).await {
-            if ruling(&book.ledger, device, agent, model::now()) != Ruling::Ask {
-                return;
+        let now = model::now();
+        let ledger = lease::amend(at, |ledger| {
+            if ruling(ledger, device, &me.id, now) != Ruling::Ask {
+                return false;
             }
+
+            let stale = ledger.asking.get(device).is_none_or(|p| match p.agent == me.id {
+                true => now - p.at >= STALE / 3,
+                false => now - p.at >= STALE,
+            });
+
+            if stale {
+                ledger.asking.insert(device.to_string(), asking(me, now));
+            }
+
+            stale
+        })
+        .await;
+
+        if ledger.is_ok_and(|l| ruling(&l, device, &me.id, now) != Ruling::Ask) {
+            return;
         }
     }
 }
@@ -224,7 +300,7 @@ async fn consult<F: Future<Output = Option<String>>>(ask: impl FnOnce(String, St
     ];
     let body = body.into_iter().flatten().collect::<Vec<_>>().join("\n");
 
-    answer(ask(summary, body).await.as_deref(), tag(Some(me.harness), &me.label), now)
+    answer(ask(summary, body).await.as_deref(), tag(Some(me.harness), &me.label), now).map(|grant| Grant { why: lease::why(), ..grant })
 }
 
 fn answer(said: Option<&str>, label: String, now: Unix) -> Option<Grant> {
@@ -235,7 +311,7 @@ fn answer(said: Option<&str>, label: String, now: Unix) -> Option<Grant> {
         _ => return None,
     };
 
-    Some(Grant { state, until, label })
+    Some(Grant { state, until, label, why: None })
 }
 
 async fn prompt(summary: String, body: String) -> Option<String> {
@@ -368,22 +444,26 @@ pub fn named(reg: &Registry, want: &str) -> Result<Device> {
     }
 }
 
-fn target(ledger: &Ledger, device: &str, agent: Option<&str>, holder: Option<&Lease>, pending: Option<&Pending>) -> (String, String) {
-    match (agent, holder, pending) {
-        (Some(id), ..) => {
-            let label = holder
-                .filter(|l| l.agent == id)
-                .map(held_by)
-                .or_else(|| pending.filter(|p| p.agent == id).map(|p| p.label.clone()))
-                .or_else(|| grant_of(ledger, device, id).map(|(_, g)| g.label.clone()))
-                .unwrap_or_else(|| agent::short(id));
+fn target(ledger: &Ledger, device: &str, agent: Option<&str>, holder: Option<&Lease>, pending: Option<&Pending>, asker_first: bool) -> (String, String) {
+    if let Some(id) = agent {
+        let label = holder
+            .filter(|l| l.agent == id)
+            .map(held_by)
+            .or_else(|| pending.filter(|p| p.agent == id).map(|p| p.label.clone()))
+            .or_else(|| grant_of(ledger, device, id).map(|(_, g)| g.label.clone()))
+            .unwrap_or_else(|| agent::short(id));
 
-            (id.to_string(), label)
-        }
-        (None, Some(lease), _) => (lease.agent.clone(), held_by(lease)),
-        (None, None, Some(p)) => (p.agent.clone(), p.label.clone()),
-        (None, None, None) => (ANY.to_string(), "any agent".to_string()),
+        return (id.to_string(), label);
     }
+
+    let held = holder.map(|l| (l.agent.clone(), held_by(l)));
+    let asked = pending.map(|p| (p.agent.clone(), p.label.clone()));
+    let picked = match asker_first {
+        true => asked.or(held),
+        false => held.or(asked),
+    };
+
+    picked.unwrap_or_else(|| (ANY.to_string(), "any agent".to_string()))
 }
 
 fn verdict_grant(verdict: Verdict, window: Option<Duration>, label: &str, now: Unix) -> Option<Grant> {
@@ -394,11 +474,13 @@ fn verdict_grant(verdict: Verdict, window: Option<Duration>, label: &str, now: U
             state: window.map_or(State::Allow, |_| State::Until),
             until: window.map(|w| now + w.as_secs() as Unix),
             label,
+            why: None,
         }),
         Verdict::Refuse => Some(Grant {
             state: State::Refuse,
             until: None,
             label,
+            why: None,
         }),
         Verdict::Stop | Verdict::Ask => None,
     }
@@ -425,12 +507,23 @@ pub async fn rule(device: &Device, verdict: Verdict, agent: Option<&str>, window
         .filter(|l| l.harness != Some(Harness::User) && judge.valid(l, true));
     let pending = book.ledger.asking.get(&key.id).filter(|p| now - p.at < STALE);
 
-    let (who, label) = target(&book.ledger, &key.id, agent, holder, pending);
-    let to = verdict_grant(verdict, window, &label, now);
+    let asker_first = matches!(verdict, Verdict::Allow | Verdict::Refuse);
+    let (who, label) = target(&book.ledger, &key.id, agent, holder, pending, asker_first);
+    let why = pending
+        .filter(|p| p.agent == who)
+        .and_then(|p| p.why.clone())
+        .or_else(|| grant_of(&book.ledger, &key.id, &who).and_then(|(_, g)| g.why.clone()));
+    let to = verdict_grant(verdict, window, &label, now).map(|grant| Grant { why, ..grant });
 
     let mut was = None;
+    let mut gone = Vec::new();
 
     lease::amend(&at, |ledger| {
+        gone = match verdict {
+            Verdict::Allow => hand_over(ledger, &key, &who),
+            _ => Vec::new(),
+        };
+
         was = match &to {
             Some(grant) => ledger.grants.entry(key.id.clone()).or_default().insert(who.clone(), grant.clone()),
             None => revoke(ledger, &key.id, &who),
@@ -443,6 +536,10 @@ pub async fn rule(device: &Device, verdict: Verdict, agent: Option<&str>, window
         true
     })
     .await?;
+
+    for (agent, grant) in &gone {
+        record(name, agent, &grant.label, Some(grant), None, "handover");
+    }
 
     record(name, &who, &label, was.as_ref(), to.as_ref(), "user");
 
@@ -473,7 +570,7 @@ fn details(asking: Option<&Pending>, holder: Option<&Lease>, grants: &[(&String,
     let mut said = Vec::new();
 
     if let Some(p) = asking {
-        said.push(format!("{} is asking ({}s)", p.label, now - p.at));
+        said.push(format!("{} is asking ({}s){}", p.label, now - p.at, reason(p.why.as_ref())));
     }
 
     if let Some(lease) = holder {
@@ -482,8 +579,8 @@ fn details(asking: Option<&Pending>, holder: Option<&Lease>, grants: &[(&String,
 
     for (agent, grant) in grants.iter().filter(|(_, g)| g.active(now) || g.state == State::Refuse) {
         match holder.is_some_and(|l| &l.agent == *agent) {
-            true => said.push(phrase(Some(grant))),
-            false => said.push(format!("{} {}", grant.label, phrase(Some(grant)))),
+            true => said.push(format!("{}{}", phrase(Some(grant)), reason(grant.why.as_ref()))),
+            false => said.push(format!("{} {}{}", grant.label, phrase(Some(grant)), reason(grant.why.as_ref()))),
         }
     }
 
@@ -496,6 +593,10 @@ fn details(asking: Option<&Pending>, holder: Option<&Lease>, grants: &[(&String,
     }
 
     said
+}
+
+fn reason(why: Option<&String>) -> String {
+    why.map(|why| format!(" for \"{why}\"")).unwrap_or_default()
 }
 
 fn row(name: &str, ledger: &Ledger, device: &str, holder: Option<&Lease>, now: Unix) -> Row {
@@ -602,6 +703,7 @@ mod tests {
             state,
             until,
             label: "claude:a".into(),
+            why: None,
         }
     }
 
@@ -616,6 +718,7 @@ mod tests {
                 agent: "b".into(),
                 label: "codex:b".into(),
                 at: 1_000,
+                why: None,
             },
         );
 
@@ -686,6 +789,7 @@ mod tests {
                 agent: "b".into(),
                 label: "codex:b".into(),
                 at: 1_000,
+                why: None,
             },
         );
         assert_eq!(row("f", &ledger, "R58N", Some(&holder), 1_000).state, Mood::Asking);
@@ -702,6 +806,39 @@ mod tests {
         assert_eq!(bar["tooltip"].as_str().unwrap().lines().count(), 2);
         assert_eq!(waybar(&rows[..1])["class"], json!(["idle", "marks-idle"]));
         assert_eq!(waybar(&[])["class"], json!(["idle", "marks-"]));
+    }
+
+    #[test]
+    fn allowing_one_agent_hands_the_device_over() {
+        let mut ledger = Ledger::default();
+        let key = lease::Key::from("R58N");
+        let grants = ledger.grants.entry("R58N".into()).or_default();
+
+        grants.insert("old".into(), grant(State::Allow, None));
+        grants.insert("no".into(), grant(State::Refuse, None));
+        grants.insert(ANY.into(), grant(State::Allow, None));
+        ledger.put(&key, Lease::of(&me("old/sub", Harness::Claude), Duration::from_secs(60), 1_000));
+
+        assert!(hand_over(&mut ledger.clone(), &key, "old/sub").is_empty(), "its own subagent keeps the lease");
+
+        let gone = hand_over(&mut ledger, &key, "new");
+
+        assert_eq!(gone.iter().map(|(a, _)| a.as_str()).collect::<Vec<_>>(), ["old"]);
+        assert_eq!(ruling(&ledger, "R58N", "no", 1_000), Ruling::Refused, "a refusal survives");
+        assert!(ledger.grants["R58N"].contains_key(ANY));
+        assert!(ledger.get(&key).is_none(), "the old holder lost its lease");
+
+        let pending = Pending {
+            agent: "new".into(),
+            label: "claude:new".into(),
+            at: 1_000,
+            why: Some("login bug".into()),
+        };
+        let holder = Lease::of(&me("old", Harness::Claude), Duration::from_secs(60), 1_000);
+
+        assert_eq!(target(&ledger, "R58N", None, Some(&holder), Some(&pending), true).0, "new", "allow goes to the asker");
+        assert_eq!(target(&ledger, "R58N", None, Some(&holder), Some(&pending), false).0, "old", "stop goes to the holder");
+        assert_eq!(reason(pending.why.as_ref()), " for \"login bug\"");
     }
 
     #[test]

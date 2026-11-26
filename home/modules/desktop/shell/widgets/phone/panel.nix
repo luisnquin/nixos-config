@@ -43,7 +43,7 @@ in {
           (box :class {"phone-device " + d.state} :orientation "h" :space-evenly false :spacing 4
             (box :orientation "v" :space-evenly false :hexpand true
               (label :class "phone-name" :halign "start" :text {d.name})
-              (label :class "phone-detail" :halign "start" :limit-width 34 :text {d.detail}))
+              (label :class "phone-detail" :halign "start" :limit-width 34 :text {d.detail} :tooltip {d.detail}))
             ${act "allow" "allow" "allow" ''d.state != "held" && d.state != "granted"''}
             ${act "window" "allow --for 15m" "15m" ''d.state != "held" && d.state != "granted"''}
             ${act "refuse" "refuse" "refuse" ''d.state == "asking"''}
