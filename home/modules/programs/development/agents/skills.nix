@@ -59,7 +59,7 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "mattpocock";
             repo = "skills";
-            rev = "5863806dd4e15c63174bee4e7515a4256792ecfa";
+            rev = "abeeaf95660ba9e8b7c753eb38f441ca707a8823";
             hash = "sha256-nxTjN6ePfumLCJ77zw4kdMwPeOHU2TztFZPOiMr3zGw=";
             rootDir = "skills/engineering";
           };
