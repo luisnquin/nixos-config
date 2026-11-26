@@ -47,6 +47,7 @@ window > box {
 #tray,
 #clock,
 #custom-heft,
+#custom-phone,
 #custom-pile,
 #custom-tailscale,
 #custom-ssh-solo,
@@ -124,7 +125,6 @@ window > box {
 
 /* Right side */
 
-#custom-heft,
 #custom-tailscale,
 #cpu,
 #memory,
@@ -138,9 +138,13 @@ window > box {
 /* Disk headroom */
 
 #custom-heft {
-    color: rgba(181, 232, 224, 0.55);
-    padding-left: 5px;
-    padding-right: 5px;
+    padding: 0;
+    margin: 0 2px 0 6px;
+}
+
+#custom-phone {
+    padding: 0;
+    margin: 0 6px 0 2px;
 }
 
 #custom-heft.tight {
@@ -172,7 +176,7 @@ window > box {
 
 /* A lone direction is a plain module, so it centres like #custom-heft does */
 #ssh #custom-ssh-solo {
-    padding: 0;
+    padding: 0 0 0 11px;
     margin: 0;
     min-height: 24px;
 }
@@ -187,7 +191,7 @@ window > box {
 #ssh-sessions #custom-ssh-out {
     font-size: 7.5pt;
     min-height: 10px;
-    padding: 0;
+    padding: 0 0 0 11px;
     margin: 0;
 }
 

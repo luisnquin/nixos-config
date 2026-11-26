@@ -10,7 +10,7 @@
       enable = false;
       targets = ["graphical-session.target"];
     };
-    style = builtins.readFile ./waybar.css + import ./widgets/battery/icon.nix {inherit lib pkgs;} + import ./widgets/heft/icon.nix {inherit lib pkgs;} + import ./widgets/phone/icon.nix {inherit lib pkgs;};
+    style = builtins.readFile ./waybar.css + import ./widgets/battery/icon.nix {inherit lib pkgs;} + import ./widgets/heft/icon.nix {inherit lib pkgs;} + import ./widgets/phone/icon.nix {inherit lib pkgs;} + import ./ssh-icon.nix {inherit lib pkgs;};
     settings = [
       ({
           "position" = "top";
@@ -31,8 +31,8 @@
           modules-right = [
             "custom/pile"
             "custom/heft"
-            "custom/tailscale"
             "custom/phone"
+            "custom/tailscale"
             "group/ssh"
             "group/sysmon"
             "network"

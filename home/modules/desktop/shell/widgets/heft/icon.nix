@@ -11,24 +11,29 @@
   cols = 2;
   rows = 8;
   cells = cols * rows;
-  left = 10;
-  width = left + cols * 4 - 1;
-  height = rows * 4 - 1;
+  label = import ../../pixel-label.nix {inherit lib;} "DISK";
+  left = 7;
+  width = left + 7;
+  height = 32;
+  top = 9;
+
+  px = x: y: w: h: ''<rect x="${toString x}" y="${toString y}" width="${toString w}" height="${toString h}"/>'';
+
+  drum = px (left + 1) 0 5 1 + px left 1 7 1 + px left 2 1 3 + px (left + 6) 2 1 3 + px (left + 1) 5 5 1 + px (left + 4) 3 1 1;
 
   # Fills bottom-up, a row at a time, left to right.
-  cell = color: level: k: let
+  cell = level: k: let
     x = left + lib.mod k cols * 4;
-    y = (rows - 1 - k / cols) * 4;
+    y = top + (rows - 1 - k / cols) * 3;
   in
-    if k < level
-    then ''<rect x="${toString x}" y="${toString y}" width="3" height="3" fill="${color}"/>''
-    else ''<rect x="${toString x}.5" y="${toString y}.5" width="2" height="2" fill="none" stroke="${color}" stroke-opacity="0.4"/>'';
+    ''<rect x="${toString x}" y="${toString y}" width="3" height="2"${lib.optionalString (k >= level) " fill-opacity=\"0.25\""}/>'';
 
   icon = class: color: level:
     pkgs.writeText "heft-${class}-${toString level}.svg" ''
-      <svg xmlns="http://www.w3.org/2000/svg" width="${toString width}" height="${toString height}" viewBox="0 0 ${toString width} ${toString height}">
-        <text transform="translate(7 ${toString (height / 2)}.5) rotate(-90)" text-anchor="middle" font-family="IoskeleyMono Nerd Font Mono, monospace" font-size="8" font-weight="bold" letter-spacing="0.5" fill="${color}">DISK</text>
-        ${lib.concatMapStrings (cell color level) (lib.range 0 (cells - 1))}
+      <svg xmlns="http://www.w3.org/2000/svg" width="${toString width}" height="${toString height}" viewBox="0 0 ${toString width} ${toString height}" shape-rendering="crispEdges" fill="${color}">
+        <g transform="translate(0 ${toString ((height - label.height) / 2)})">${label.rects}</g>
+        ${drum}
+        ${lib.concatMapStrings (cell level) (lib.range 0 (cells - 1))}
       </svg>
     '';
 

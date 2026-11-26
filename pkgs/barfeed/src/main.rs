@@ -161,7 +161,8 @@ fn ssh_solo() {
 
     if !outbound.is_empty() {
         print_json(json!({
-            "text": outbound_text(outbound.len()),
+            "text": outbound.len().to_string(),
+            "class": "out",
             "tooltip": tooltip("outbound", &outbound),
         }));
         return;
@@ -169,7 +170,8 @@ fn ssh_solo() {
 
     let count = inbound.len();
     print_json(json!({
-        "text": inbound_text(count),
+        "text": count.to_string(),
+        "class": if count > 0 { "in" } else { "idle" },
         "tooltip": tooltip("inbound", &inbound.sessions()),
     }));
 }
@@ -184,7 +186,8 @@ fn ssh_in() {
 
     let count = inbound.len();
     print_json(json!({
-        "text": inbound_text(count),
+        "text": count.to_string(),
+        "class": "in",
         "tooltip": tooltip("inbound", &inbound.sessions()),
     }));
 }
@@ -198,18 +201,10 @@ fn ssh_out() {
     }
 
     print_json(json!({
-        "text": outbound_text(outbound.len()),
+        "text": outbound.len().to_string(),
+        "class": "out",
         "tooltip": tooltip("outbound", &outbound),
     }));
-}
-
-fn inbound_text(inbound: usize) -> String {
-    let color = if inbound > 0 { "#b5e8e0" } else { "#6c7086" };
-    format!("<span color=\"{color}\">\u{e9fd} {inbound}</span>")
-}
-
-fn outbound_text(outbound: usize) -> String {
-    format!("<span color=\"#d8b4fe\">\u{e9fc} {outbound}</span>")
 }
 
 struct Session {
