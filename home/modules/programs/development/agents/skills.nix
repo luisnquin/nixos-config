@@ -116,8 +116,8 @@ in {
           src = pkgs.fetchFromGitHub {
             owner = "leonxlnx";
             repo = "taste-skill";
-            rev = "f6b76575f949707b4e3c37cd86cb44b0b98643e8";
-            hash = "sha256-7w2pcrS5g3ACXiAoJL3oe+hiVy+aDmUnx3PxeRZ9rVg=";
+            rev = "6c0b5c78f5d31776e2210305abaa210cdc0030bf";
+            hash = "sha256-NS6nRA3Leuc8WC6umaLvhyqIRbjTH6w3b88NcDGht4M=";
           };
         } {
           plugins = ["taste-skill"];
