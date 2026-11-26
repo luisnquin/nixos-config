@@ -69,7 +69,7 @@ The commands
   project  up down release ask lock unlock grant run status
   screen   snapshot shot size tap press swipe pinch rotate type fill key wait do
   device   list connect disconnect pair pin use forget boot clone delete shutdown reverse net
-  app      install launch stop open logs notifications push
+  app      install launch stop open logs notifications info push
   host     list enable disable budget
   panel    display
   this     mirror stream record doctor daemon hook
@@ -1306,6 +1306,13 @@ running prints nothing and says so. An iPhone only streams."#)]
 One line per notification in the shade: the package, its title and its text.
 Android only; a simulator has no command that reads its notification center."#)]
     Notifications { app: Option<String> },
+    /// Print an app's package record: versionCode, install and update times
+    #[command(after_help = r#"Examples:
+  phone app info com.example.app
+
+The raw `dumpsys package` record. A read, so it works on a handset its owner
+touched by hand, the way `app install` does. Android only."#)]
+    Info { app: String },
 
     /// Write a file into an app's private data, through run-as
     #[command(after_help = r#"Examples:

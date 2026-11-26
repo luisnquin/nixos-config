@@ -820,10 +820,14 @@ async fn net(
     Ok(())
 }
 
+fn skips_hand_hold(action: &AppAction) -> bool {
+    matches!(action, AppAction::Install { .. } | AppAction::Info { .. })
+}
+
 async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -> Result<()> {
-    let view = match action {
-        AppAction::Install { .. } => reaching_unlocked(reg, want.as_deref()).await?,
-        _ => driving(reg, want.as_deref(), true).await?,
+    let view = match skips_hand_hold(&action) {
+        true => reaching_unlocked(reg, want.as_deref()).await?,
+        false => driving(reg, want.as_deref(), true).await?,
     };
     let (server, device) = (&view.server, &view.device);
 
@@ -846,6 +850,11 @@ async fn apps_cmd(reg: &mut Registry, want: Option<String>, action: AppAction) -
         }
         AppAction::Open { url } => {
             eprintln!("phone: {}", apps::open(server, device, &url).await?);
+
+            return Ok(());
+        }
+        AppAction::Info { app } => {
+            print!("{}", apps::info(server, device, &app).await?);
 
             return Ok(());
         }

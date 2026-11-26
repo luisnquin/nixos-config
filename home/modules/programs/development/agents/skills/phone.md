@@ -99,6 +99,7 @@ phone device list|boot|shutdown|connect|reverse 8081
 phone device net off|on [--only wifi|data]   # off then on resets stale sockets
 phone app install app.apk | stop <id> | open <url> | notifications [<id>]  # install prints the package id
 phone app logs <id> [--since 5m] [-f] # prints the running process's lines and exits; -f streams
+phone app info <id>                   # dumpsys package record; reads through a hand hold
 phone display [--size 720x1600] [--density 320] [--font-scale 1.3] [--reset]  # android; reverted on release
 phone app launch <id> [--extra KEY=VALUE]    # restarts the app with string extras; a missing id names close installed ones
 phone app push seed.json <id> [files/seed.json]  # into a debug build's data dir, via run-as

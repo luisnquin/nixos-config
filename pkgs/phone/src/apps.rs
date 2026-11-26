@@ -551,6 +551,28 @@ pub async fn notifications(server: &Server, device: &Device, app: Option<&str>) 
     })
 }
 
+pub async fn info(server: &Server, device: &Device, app: &str) -> Result<String> {
+    let app = app_id(app)?;
+
+    if device.platform.is_hosted() {
+        bail!("cannot read the package record on {}; Android only", device.label);
+    }
+
+    let serial = attached(server, device).await?;
+    let out = adb::run_timeout(
+        server,
+        &["-s", &serial, "shell", &format!("dumpsys package {app}")],
+        STOP_TIMEOUT,
+    )
+    .await?;
+
+    if !out.ok() {
+        bail!("{}", out.stderr.trim());
+    }
+
+    Ok(out.stdout)
+}
+
 #[derive(Debug, Default, PartialEq)]
 struct Posted {
     pkg: String,
