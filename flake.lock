@@ -55,11 +55,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794985440,
-        "narHash": "sha256-e08v4YH/y1gn52VPKbSZKWSnL4+DvV3GhTLzHNw7dSI=",
+        "lastModified": 1795378585,
+        "narHash": "sha256-eFbsrzo57oTdUQzFpFfo7xFPDED9/PKgTQRDnISWfg4=",
         "owner": "0xc000022070",
         "repo": "agentic-flake",
-        "rev": "9b3a2ebc3e0cc4470df438c23837d87b83092559",
+        "rev": "3990ce182bd0ad95bf53ae06fac916c9eabf470b",
         "type": "github"
       },
       "original": {
