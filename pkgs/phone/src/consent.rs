@@ -81,16 +81,20 @@ fn session(agent: &str) -> &str {
 }
 
 fn hand_over(ledger: &mut Ledger, key: &lease::Key, to: &str) -> Vec<(String, Grant)> {
-    if to == ANY {
-        return Vec::new();
+    match to {
+        ANY => Vec::new(),
+        _ => clear(ledger, key, Some(to)),
     }
+}
 
+fn clear(ledger: &mut Ledger, key: &lease::Key, keep: Option<&str>) -> Vec<(String, Grant)> {
+    let kept = |agent: &str| keep.is_some_and(|to| session(agent) == session(to));
     let mut gone = Vec::new();
 
     if let Some(grants) = ledger.grants.get_mut(&key.id) {
         let others: Vec<String> = grants
             .iter()
-            .filter(|(agent, g)| session(agent) != session(to) && agent.as_str() != ANY && g.state != State::Refuse)
+            .filter(|(agent, g)| !kept(agent) && agent.as_str() != ANY && g.state != State::Refuse)
             .map(|(agent, _)| agent.clone())
             .collect();
 
@@ -101,7 +105,7 @@ fn hand_over(ledger: &mut Ledger, key: &lease::Key, to: &str) -> Vec<(String, Gr
         }
     }
 
-    if ledger.get(key).is_some_and(|(_, l)| l.harness != Some(Harness::User) && session(&l.agent) != session(to)) {
+    if ledger.get(key).is_some_and(|(_, l)| l.harness != Some(Harness::User) && !kept(&l.agent)) {
         ledger.drop_key(key);
     }
 
@@ -526,6 +530,10 @@ pub async fn rule(device: &Device, verdict: Verdict, agent: Option<&str>, window
 
         was = match &to {
             Some(grant) => ledger.grants.entry(key.id.clone()).or_default().insert(who.clone(), grant.clone()),
+            None if who == ANY => {
+                gone.extend(clear(ledger, &key, None));
+                revoke(ledger, &key.id, ANY)
+            }
             None => revoke(ledger, &key.id, &who),
         };
 
@@ -839,6 +847,14 @@ mod tests {
         assert_eq!(target(&ledger, "R58N", None, Some(&holder), Some(&pending), true).0, "new", "allow goes to the asker");
         assert_eq!(target(&ledger, "R58N", None, Some(&holder), Some(&pending), false).0, "old", "stop goes to the holder");
         assert_eq!(reason(pending.why.as_ref()), " for \"login bug\"");
+
+        let mut ledger = Ledger::default();
+        ledger.grants.entry("R58N".into()).or_default().insert("b118".into(), grant(State::Allow, None));
+        ledger.put(&key, Lease::of(&me("b118", Harness::Claude), Duration::from_secs(60), 1_000));
+
+        assert_eq!(clear(&mut ledger, &key, None).len(), 1, "a bare stop clears every grant");
+        assert!(ledger.get(&key).is_none());
+        assert_eq!(ruling(&ledger, "R58N", "b118", 1_000), Ruling::Ask);
     }
 
     #[test]
