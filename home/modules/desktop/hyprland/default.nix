@@ -123,7 +123,7 @@ in {
     enable = true;
     settings.listener = [
       {
-        timeout = 300;
+        timeout = 3600;
         on-timeout = "${lib.getExe pkgs.brightnessctl} -d intel_backlight -s set 10%";
         on-resume = "${lib.getExe pkgs.brightnessctl} -d intel_backlight -r";
       }
