@@ -19,18 +19,8 @@ args @ {
     command = "${lib.getExe config.programs.ghostty.package} --class=ghostty.tmux -e ${tmuxDropSession}";
   };
 
-  waybarRestart = pkgs.writeShellScript "hypr-waybar-restart" ''
-    pkill waybar 2>/dev/null || true
-    sleep 0.1
-    exec ${lib.getExe config.programs.waybar.package}
-  '';
-
-  startupBody = ''
-    hl.exec_cmd("${waybarRestart}")
-    ${tmuxDrop.startupBody}
-  '';
-
-  waybarReload = ''hl.exec_cmd("${waybarRestart}")'';
+  # config.reloaded also fires on the first parse, before the display exists; try-restart is a no-op then.
+  waybarReload = ''hl.exec_cmd("systemctl --user try-restart waybar.service")'';
 
   allowExe = exe: type: {_args = [(lib.escapeRegex exe) type "allow"];};
   allowPathRegex = regex: type: {_args = [regex type "allow"];};
@@ -424,7 +414,7 @@ in {
             "hyprland.start"
             (mkLuaInline ''
               function()
-                ${startupBody}
+                ${tmuxDrop.startupBody}
               end
             '')
           ];

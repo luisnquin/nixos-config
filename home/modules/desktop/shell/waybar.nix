@@ -7,7 +7,7 @@
   programs.waybar = {
     enable = true;
     systemd = {
-      enable = false;
+      enable = true;
       targets = ["graphical-session.target"];
     };
     style = builtins.readFile ./waybar.css + import ./widgets/battery/icon.nix {inherit lib pkgs;} + import ./widgets/heft/icon.nix {inherit lib pkgs;} + import ./widgets/phone/icon.nix {inherit lib pkgs;} + import ./ssh-icon.nix {inherit lib pkgs;};
